@@ -9,7 +9,6 @@ import {
   IconZoomIn,
 } from '@tabler/icons-react'
 import { useSelector } from '@tanstack/react-form'
-import Image from 'next/image'
 import { useState } from 'react'
 
 import { Alert, AlertContent, AlertDescription, AlertIcon, AlertTitle } from '@/components/ui/alert'
@@ -175,7 +174,7 @@ export default function GalleryUploadField({
             {files.map((fileItem) => (
               <div key={fileItem.id} className="group relative aspect-square">
                 {isImage(fileItem.file) && fileItem.preview ? (
-                  <Image
+                  <img
                     src={fileItem.preview}
                     alt={fileItem.file.name}
                     width={800}
@@ -257,13 +256,12 @@ export default function GalleryUploadField({
             onClick={() => setSelectedImage(null)}
           >
             <div className="relative max-h-full max-w-full">
-              <Image
+              <img
                 src={selectedImage}
                 alt="Preview"
                 width={800}
                 height={800}
                 className="max-h-full max-w-full rounded-lg object-contain"
-                onClick={(e) => e.stopPropagation()}
               />
               <Button
                 onClick={() => setSelectedImage(null)}

@@ -6,11 +6,11 @@ import type { Option } from '@/types/select'
 
 import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from '@/components/ui/select'
 import { useFieldContext } from '@/hooks/form-context'
 import { cn } from '@/lib/utils'
