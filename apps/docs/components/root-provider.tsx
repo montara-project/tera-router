@@ -14,10 +14,7 @@ export function RootProviderWrapper({ theme, ...props }: RootProviderProps) {
         // client components. On the server it renders as executable JS; on the
         // client we mark it as a data block so React skips the warning since the
         // script already ran during SSR.
-        scriptProps:
-          typeof window === "undefined"
-            ? undefined
-            : { type: "application/json" },
+        scriptProps: typeof window === "undefined" ? undefined : { type: "application/json" },
       }}
     />
   );

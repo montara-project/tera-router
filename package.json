@@ -22,6 +22,6 @@
   "devDependencies": {
     "oxfmt": "0.67.0",
     "oxlint": "1.82.0",
-    "typescript": "~5.8.3"
+    "typescript": "~7.0.2"
   }
 }
