@@ -1,9 +1,10 @@
 'use client'
 
+import type { VariantProps } from 'class-variance-authority'
+import type { ChangeEvent } from 'react'
+
 import { IconCheck } from '@tabler/icons-react'
 import { useSelector } from '@tanstack/react-form'
-import { VariantProps } from 'class-variance-authority'
-import { ChangeEvent } from 'react'
 
 import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { Input, inputVariants, InputWrapper } from '@/components/ui/input'

@@ -2,7 +2,7 @@
 
 import { useSelector } from '@tanstack/react-form'
 
-import { NumberInput, NumberInputProps } from '@/components/block/common/number-input'
+import { NumberInput, type NumberInputProps } from '@/components/block/common/number-input'
 import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { useFieldContext } from '@/hooks/form-context'
 

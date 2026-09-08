@@ -1,4 +1,4 @@
-import type { ISO8601DateString } from "@/types/time"
+import type { ISO8601DateString } from '@/types/time'
 
 export interface Role {
   id: string

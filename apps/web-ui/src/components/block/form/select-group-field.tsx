@@ -2,19 +2,20 @@
 
 import { useSelector } from '@tanstack/react-form'
 
+import type { Option } from '@/types/select'
+
 import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectGroup,
+    SelectItem,
+    SelectLabel,
+    SelectTrigger,
+    SelectValue,
 } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { useFieldContext } from '@/hooks/form-context'
-import { Option } from '@/types/select'
 
 interface SelectGroupFieldProps<T extends Record<string, unknown>> {
   label?: string

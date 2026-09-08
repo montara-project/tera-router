@@ -567,6 +567,5 @@ export {
   DataGridTableLoader,
   DataGridTableRowSelect,
   DataGridTableRowSelectAll,
-  DataGridTableRowSpacer
+  DataGridTableRowSpacer,
 }
-

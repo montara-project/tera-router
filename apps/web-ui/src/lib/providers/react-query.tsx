@@ -2,7 +2,7 @@ import {
   defaultShouldDehydrateQuery,
   environmentManager,
   QueryClient,
-  QueryClientProvider
+  QueryClientProvider,
 } from '@tanstack/react-query'
 
 /**

@@ -2,10 +2,11 @@
 
 import { useSelector } from '@tanstack/react-form'
 
+import type { Option } from '@/types/select'
+
 import ComboboxInput from '@/components/block/common/combobox-input'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { useFieldContext } from '@/hooks/form-context'
-import { Option } from '@/types/select'
 
 interface ComboboxFieldProps<TData> {
   label: string

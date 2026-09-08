@@ -1,8 +1,9 @@
 'use client'
 
+import type { VariantProps } from 'class-variance-authority'
+
 import { IconEye, IconEyeOff } from '@tabler/icons-react'
 import { useSelector } from '@tanstack/react-form'
-import { VariantProps } from 'class-variance-authority'
 import React, { useState } from 'react'
 
 import { Button } from '@/components/ui/button'

@@ -1,6 +1,6 @@
-import type { ISO8601DateString } from "@/types/time"
+import type { ISO8601DateString } from '@/types/time'
 
-import type { Role } from "./role"
+import type { Role } from './role'
 
 export interface User {
   id: string

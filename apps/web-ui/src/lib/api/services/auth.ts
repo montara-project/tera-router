@@ -1,10 +1,10 @@
-import { env } from "@/config/env"
-import { AUTH_STORAGE_KEYS } from "@/lib/constants/auth"
+import { env } from '@/config/env'
+import { AUTH_STORAGE_KEYS } from '@/lib/constants/auth'
 
-import type { RefreshDto, SignInDto } from "../dtos/auth/schema"
-import type { AuthResources } from "./types/auth"
+import type { RefreshDto, SignInDto } from '../dtos/auth/schema'
+import type { AuthResources } from './types/auth'
 
-import { ClientFetchApi } from "../client-fetch"
+import { ClientFetchApi } from '../client-fetch'
 
 const path = `/v1/auth`
 

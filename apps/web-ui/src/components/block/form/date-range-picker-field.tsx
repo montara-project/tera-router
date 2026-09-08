@@ -1,5 +1,6 @@
+import type { DateRange } from 'react-day-picker'
+
 import { useSelector } from '@tanstack/react-form'
-import { DateRange } from 'react-day-picker'
 
 import { Field, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field'
 import { useFieldContext } from '@/hooks/form-context'
