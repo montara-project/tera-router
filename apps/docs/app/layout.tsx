@@ -1,14 +1,15 @@
-import "./global.css";
+import './global.css'
 
-import { RootProviderWrapper } from "@/components/root-provider";
-import type { ReactNode } from "react";
+import type { ReactNode } from 'react'
+
+import { RootProvider } from 'fumadocs-ui/provider/next'
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
-        <RootProviderWrapper>{children}</RootProviderWrapper>
+        <RootProvider>{children}</RootProvider>
       </body>
     </html>
-  );
+  )
 }

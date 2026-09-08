@@ -1,31 +1,35 @@
 package main
 
 import (
-	"log"
+	"log/slog"
 	"os"
 
-	"tera-router/server/internal/handlers"
-
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/cors"
-	"github.com/gofiber/fiber/v2/middleware/logger"
+	"tera-router/server/internal/app"
+	"tera-router/server/internal/config"
 )
 
 func main() {
-	app := fiber.New()
+	var cfg config.Config
+	parseFlag(&cfg)
 
-	app.Use(logger.New())
-	app.Use(cors.New())
+	loggerLevel := slog.LevelInfo
 
-	app.Get("/health", handlers.Health)
-
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
+	if cfg.App.Debug {
+		loggerLevel = slog.LevelDebug
 	}
 
-	log.Printf("server listening on :%s", port)
-	if err := app.Listen(":" + port); err != nil {
-		log.Fatal(err)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: loggerLevel,
+	}))
+
+	// Dependencies Injection
+	app := &app.Application{
+		Config: cfg,
+		Logger: logger,
+	}
+
+	if err := serve(app); err != nil {
+		logger.Error("failed to start server", "error", err.Error())
+		os.Exit(1)
 	}
 }

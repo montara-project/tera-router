@@ -1,16 +1,17 @@
-import type { ReactNode } from "react";
+import type { ReactNode } from 'react'
 
-import { source } from "@/lib/source";
-import { DocsLayout } from "fumadocs-ui/layouts/docs";
+import { DocsLayout } from 'fumadocs-ui/layouts/docs'
+
+import { source } from '@/lib/source'
 
 export default function Layout({ children }: { children: ReactNode }) {
   return (
     <DocsLayout
       tree={source.pageTree}
-      nav={{ title: "Tera Router" }}
+      nav={{ title: 'Tera Router' }}
       githubUrl="https://github.com/montara-project/tera-router"
     >
       {children}
     </DocsLayout>
-  );
+  )
 }

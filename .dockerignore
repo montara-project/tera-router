@@ -1,0 +1,17 @@
+node_modules
+**/node_modules
+.git
+.github
+.next
+.turbo
+**/dist
+**/.source
+**/.oxlintrc.json
+**/.oxfmtrc.json
+**/.env
+**/.env.*
+!**/.env.example
+**/public
+apps/docs
+packages
+deploy
