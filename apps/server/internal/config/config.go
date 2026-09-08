@@ -1,7 +1,8 @@
 package config
 
 type Config struct {
-	App ConfigApp
+	App      ConfigApp
+	Database ConfigDatabase
 }
 
 type ConfigApp struct {
@@ -12,4 +13,8 @@ type ConfigApp struct {
 	Name               string
 	Secret             string
 	CORSAllowedOrigins string
+}
+
+type ConfigDatabase struct {
+	URL string
 }

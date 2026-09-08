@@ -1,0 +1,29 @@
+services:
+  app:
+    image: tera-router:latest
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      platforms:
+        - linux/amd64
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      APP_PORT: ${APP_PORT:-8080}
+      APP_MACHINE_ID: ${APP_MACHINE_ID:?APP_MACHINE_ID is required}
+      APP_SECRET: ${APP_SECRET:?APP_SECRET is required}
+      APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS:-*}
+    command:
+      - "--env=${APP_ENV:-production}"
+      - "--port=${APP_PORT:-8080}"
+      - "--machine-id=${APP_MACHINE_ID}"
+      - "--app-secret=${APP_SECRET}"
+      - "--cors-allowed-origins=${APP_CORS_ALLOWED_ORIGINS:-*}"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health", "||", "exit", "1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

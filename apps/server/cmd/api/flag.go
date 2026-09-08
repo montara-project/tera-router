@@ -18,6 +18,9 @@ func parseFlag(cfg *config.Config) {
 	flag.StringVar(&cfg.App.Secret, "app-secret", "", "App Secret")
 	flag.StringVar(&cfg.App.CORSAllowedOrigins, "cors-allowed-origins", "*", "CORS Allowed Origins")
 
+	// Database
+	flag.StringVar(&cfg.Database.URL, "database-url", "", "Database URL")
+
 	flag.Parse()
 
 	uint16Max := uint(1<<16 - 1)
