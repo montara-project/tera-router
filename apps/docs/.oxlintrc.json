@@ -1,0 +1,9 @@
+{
+  "extends": ["../../.oxlintrc.json"],
+  "plugins": ["typescript", "unicorn", "oxc", "react", "jsx-a11y", "nextjs", "promise", "import"],
+  "env": {
+    "builtin": true,
+    "browser": true
+  },
+  "ignorePatterns": [".next/", ".source/", "next-env.d.ts"]
+}

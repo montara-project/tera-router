@@ -1,0 +1,22 @@
+---
+title: Introduction
+description: Getting started with Tera Router monorepo.
+---
+
+## Welcome
+
+Tera Router is a monorepo managed with pnpm workspaces.
+
+| App      | Stack                  | Port |
+| -------- | ---------------------- | ---- |
+| `web-ui` | Vite + TanStack Router | 5173 |
+| `server` | GoFiber                | 3000 |
+| `docs`   | Fumadocs (Next.js)     | 3001 |
+
+## Commands
+
+```bash
+pnpm install        # install all dependencies
+pnpm dev            # run all apps in parallel
+pnpm --filter @tera/web-ui dev   # single app
+```

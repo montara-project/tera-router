@@ -1,0 +1,12 @@
+{
+  "name": "@tera/server",
+  "version": "0.0.0",
+  "description": "Tera Router server",
+  "scripts": {
+    "dev": "make run"
+  },
+  "keywords": [],
+  "author": "masb0ymas",
+  "license": "MIT",
+  "type": "module"
+}

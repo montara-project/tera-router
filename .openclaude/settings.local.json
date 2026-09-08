@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm --version)",
+      "Bash(go version:*)",
+      "Bash(mkdir -p /Users/masb0ymas/Work/Projects/montara-projects/tera-router/apps/server/cmd/server /Users/masb0ymas/Work/Projects/montara-projects/tera-router/apps/server/internal/handlers)",
+      "Bash(go mod:*)",
+      "Bash(pnpm install:*)",
+      "Bash(pnpm --filter @tera/docs build)",
+      "Bash(echo \"EXIT:$pipestatus[1]\")",
+      "Bash(until [:*)",
+      "Bash(npm view:*)",
+      "Bash(pnpm lint:*)",
+      "Bash(pnpm format:check)",
+      "Bash(pnpm update:*)",
+      "Bash(pnpm build:*)"
+    ]
+  }
+}

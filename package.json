@@ -1,0 +1,27 @@
+{
+  "name": "tera-router",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Tera Router monorepo",
+  "scripts": {
+    "dev": "pnpm -r --parallel dev",
+    "dev:server": "pnpm --filter @tera/server dev",
+    "dev:web": "pnpm --filter @tera/web-ui dev",
+    "dev:docs": "pnpm --filter @tera/docs dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "lint:fix": "pnpm -r lint:fix",
+    "format": "pnpm -r format",
+    "format:check": "pnpm -r format:check",
+    "clean": "pnpm -r clean"
+  },
+  "packageManager": "pnpm@11.10.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "oxfmt": "0.67.0",
+    "oxlint": "1.82.0",
+    "typescript": "~5.8.3"
+  }
+}
