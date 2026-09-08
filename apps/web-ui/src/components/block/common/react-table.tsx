@@ -24,6 +24,7 @@ import {
   type ColumnVisibilityState,
   type FilterFnOption,
   type PaginationState,
+  type ReactTable,
   type RowData,
   type RowSelectionState,
   type SortingState,
@@ -120,7 +121,7 @@ export default function ReactTable<T extends RowData>({
 
   return (
     <DataGrid
-      table={table}
+      table={table as unknown as ReactTable<any, any>}
       recordCount={total}
       tableLayout={{
         columnsVisibility: true,
