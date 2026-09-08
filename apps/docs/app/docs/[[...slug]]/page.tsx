@@ -1,15 +1,16 @@
-import { getMDXComponents } from "@/components/mdx-components";
-import { source } from "@/lib/source";
-import { DocsBody, DocsDescription, DocsPage, DocsTitle } from "fumadocs-ui/layouts/docs/page";
+import { DocsBody, DocsDescription, DocsPage, DocsTitle } from 'fumadocs-ui/layouts/docs/page'
+
+import { getMDXComponents } from '@/components/mdx-components'
+import { source } from '@/lib/source'
 
 export default async function Page(props: { params: Promise<{ slug?: string[] }> }) {
-  const params = await props.params;
-  const page = source.getPage(params.slug);
+  const params = await props.params
+  const page = source.getPage(params.slug)
   if (!page) {
-    return <h1>Page not found</h1>;
+    return <h1>Page not found</h1>
   }
 
-  const MDXContent = page.data.body;
+  const MDXContent = page.data.body
 
   return (
     <DocsPage toc={page.data.toc}>
@@ -19,5 +20,5 @@ export default async function Page(props: { params: Promise<{ slug?: string[] }>
         <MDXContent components={getMDXComponents()} />
       </DocsBody>
     </DocsPage>
-  );
+  )
 }

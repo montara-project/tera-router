@@ -8,7 +8,16 @@
   "categories": {
     "correctness": "error"
   },
-  "rules": {},
+  "jsPlugins": ["eslint-plugin-perfectionist"],
+  "rules": {
+    "perfectionist/sort-imports": [
+      "error",
+      {
+        "type": "natural",
+        "order": "asc"
+      }
+    ]
+  },
   "env": {
     "builtin": true
   },

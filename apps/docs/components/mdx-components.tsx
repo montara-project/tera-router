@@ -1,5 +1,5 @@
-import defaultMdxComponents from "fumadocs-ui/mdx";
+import defaultMdxComponents from 'fumadocs-ui/mdx'
 
 export function getMDXComponents() {
-  return defaultMdxComponents;
+  return defaultMdxComponents
 }

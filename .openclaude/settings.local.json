@@ -13,7 +13,10 @@
       "Bash(pnpm lint:*)",
       "Bash(pnpm format:check)",
       "Bash(pnpm update:*)",
-      "Bash(pnpm build:*)"
+      "Bash(pnpm build:*)",
+      "Bash(pnpm --filter @tera/web-ui add tailwindcss @tailwindcss/vite class-variance-authority clsx tailwind-merge lucide-react tw-animate-css)",
+      "Bash(pnpm --filter @tera/web-ui add -D @types/node)",
+      "Bash(node -e \"const p=require\\(''''./apps/web-ui/package.json''''\\); console.log\\(JSON.stringify\\({deps:p.dependencies, dev:p.devDependencies},null,1\\)\\)\")"
     ]
   }
 }

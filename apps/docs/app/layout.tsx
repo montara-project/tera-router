@@ -1,7 +1,8 @@
-import "./global.css";
+import './global.css'
 
-import { RootProviderWrapper } from "@/components/root-provider";
-import type { ReactNode } from "react";
+import type { ReactNode } from 'react'
+
+import { RootProviderWrapper } from '@/components/root-provider'
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
@@ -10,5 +11,5 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <RootProviderWrapper>{children}</RootProviderWrapper>
       </body>
     </html>
-  );
+  )
 }
