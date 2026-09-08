@@ -1,4 +1,5 @@
 import { source } from "@/lib/source";
+import { DocsPage, DocsBody, DocsTitle, DocsDescription } from "fumadocs-ui/page";
 import { getMDXComponents } from "@/components/mdx-components";
 
 export default async function Page(props: { params: Promise<{ slug?: string[] }> }) {
@@ -11,9 +12,12 @@ export default async function Page(props: { params: Promise<{ slug?: string[] }>
   const MDXContent = page.data.body;
 
   return (
-    <article className="prose">
-      <h1>{page.data.title}</h1>
-      <MDXContent components={getMDXComponents()} />
-    </article>
+    <DocsPage toc={page.data.toc}>
+      <DocsTitle>{page.data.title}</DocsTitle>
+      {page.data.description && <DocsDescription>{page.data.description}</DocsDescription>}
+      <DocsBody>
+        <MDXContent components={getMDXComponents()} />
+      </DocsBody>
+    </DocsPage>
   );
 }
