@@ -1,3 +1,5 @@
+-include .env
+
 # ==================================================================================== #
 # HELPERS
 # ==================================================================================== #
@@ -15,4 +17,10 @@ help:
 ## run: run the application
 .PHONY: run
 run:
-	go run ./cmd/api
+	go run ./cmd/api \
+		--machine-id=$(MACHINE_ID) \
+		--debug=$(DEBUG) \
+		--env=$(ENV) \
+		--port=$(PORT) \
+		--app-name=$(APP_NAME) \
+		--app-secret=$(APP_SECRET) \
