@@ -44,6 +44,9 @@ export default function NavUser({ user }: NavUserProps) {
               <ChevronsUpDown className="ml-auto size-4" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
+          <div className="px-2 pt-1.5 text-center">
+            <span className="text-xs text-muted-foreground">Version v0.0.0</span>
+          </div>
           <DropdownMenuContent
             className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
             side="top"

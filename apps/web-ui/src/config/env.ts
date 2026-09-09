@@ -20,6 +20,7 @@ export const env = createEnv({
     // No client-side env vars needed for this app
     // VITE prefix is to use in browser
     VITE_API_URL: z.url(),
+    VITE_APP_NAME: z.string(),
   },
   /*
    * Due to how Next.js bundles environment variables on Edge and Client,
@@ -29,6 +30,7 @@ export const env = createEnv({
    */
   runtimeEnv: {
     VITE_API_URL: import.meta.env.VITE_API_URL,
+    VITE_APP_NAME: import.meta.env.VITE_APP_NAME,
 
     BETTER_AUTH_URL: import.meta.env.BETTER_AUTH_URL,
     BETTER_AUTH_SECRET: import.meta.env.BETTER_AUTH_SECRET,

@@ -19,6 +19,7 @@ const inputVariants = cva(
   {
     variants: {
       variant: {
+        xl: 'h-12 px-4 text-base rounded-lg file:pe-4 file:me-4',
         lg: 'h-10 px-4 text-sm rounded-md file:pe-4 file:me-4',
         md: 'h-9 px-3 text-sm rounded-md file:pe-3 file:me-3',
         sm: 'h-8 px-2.5 text-xs rounded-md file:pe-2.5 file:me-2.5',
@@ -35,6 +36,7 @@ const inputAddonVariants = cva(
   {
     variants: {
       variant: {
+        xl: 'rounded-lg h-12 min-w-12 px-4 text-base [&_svg:not([class*=size-])]:size-4.5',
         lg: 'rounded-md h-10 min-w-10 px-4 text-sm [&_svg:not([class*=size-])]:size-4.5',
         md: 'rounded-md h-9 min-w-9 px-3 text-sm [&_svg:not([class*=size-])]:size-4.5',
         sm: 'rounded-md h-8 min-w-7 text-xs px-2.5 [&_svg:not([class*=size-])]:size-3.5',
@@ -119,6 +121,7 @@ const inputWrapperVariants = cva(
         sm: 'gap-1.25 [&_svg:not([class*=size-])]:size-3.5',
         md: 'gap-1.5 [&_svg:not([class*=size-])]:size-4',
         lg: 'gap-1.5 [&_svg:not([class*=size-])]:size-4',
+        xl: 'gap-2 [&_svg:not([class*=size-])]:size-5',
       },
     },
     defaultVariants: {
