@@ -15,7 +15,7 @@ import {
   IconSparkles,
   IconStack2,
   IconTerminal2,
-  IconWallet
+  IconWallet,
 } from '@tabler/icons-react'
 
 import type { NavMainItem, SidebarMenuData, TeamItem } from '@/types/menu'
