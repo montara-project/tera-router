@@ -1,6 +1,6 @@
 import {
   IconActivityHeartbeat,
-  IconBinaryTree,
+  IconBinaryTree2,
   IconChartHistogram,
   IconClockHour4,
   IconCloud,
@@ -15,7 +15,7 @@ import {
   IconSparkles,
   IconStack2,
   IconTerminal2,
-  IconWallet,
+  IconWallet
 } from '@tabler/icons-react'
 
 import type { NavMainItem, SidebarMenuData, TeamItem } from '@/types/menu'
@@ -42,7 +42,7 @@ const NAV_TRAFFIC_LOGIC: NavMainItem[] = [
   {
     title: 'Endpoints',
     url: '/endpoints',
-    icon: IconBinaryTree,
+    icon: IconBinaryTree2,
     isActive: false,
     items: [],
   },
