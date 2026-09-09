@@ -28,7 +28,7 @@ const cardVariants = cva('flex flex-col items-stretch text-card-foreground round
   variants: {
     variant: {
       default: 'bg-card border border-border shadow-xs black/5',
-      accent: 'bg-ivory shadow-xs p-2',
+      accent: 'bg-accent shadow-xs p-2',
     },
   },
   defaultVariants: {
@@ -193,5 +193,6 @@ export {
   CardHeading,
   CardTable,
   CardTitle,
-  CardToolbar,
+  CardToolbar
 }
+
