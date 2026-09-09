@@ -1,9 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router'
 
+import SidebarLayout from '@/components/layout/sidebar/layout'
+
 export const Route = createFileRoute('/(protected)')({
   component: RouteComponent,
 })
 
 function RouteComponent() {
-  return <div>Hello "/(protected)"!</div>
+  return <SidebarLayout>Hello "/(protected)"!</SidebarLayout>
 }

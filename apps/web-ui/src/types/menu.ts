@@ -37,7 +37,13 @@ export type UserInfo = {
 export type SidebarMenuData = {
   user: UserInfo
   teams: TeamItem[]
-  navMain: NavMainItem[]
-  navMarketing: NavMainItem[]
+  navMenu:{
+    overview: NavMainItem[],
+    traffic: NavMainItem[],
+    connections: NavMainItem[],
+    safety: NavMainItem[],
+    analytics: NavMainItem[],
+    developer: NavMainItem[],
+  },
   navSetting: NavMainItem[]
 }
