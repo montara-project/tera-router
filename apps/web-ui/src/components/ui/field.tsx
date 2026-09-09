@@ -143,6 +143,7 @@ function FieldSeparator({
 }) {
   return (
     <div
+      role="group"
       data-slot="field-separator"
       data-content={!!children}
       className={cn(
@@ -220,5 +221,6 @@ export {
   FieldLegend,
   FieldSeparator,
   FieldSet,
-  FieldTitle,
+  FieldTitle
 }
+
