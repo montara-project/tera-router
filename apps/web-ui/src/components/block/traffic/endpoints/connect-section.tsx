@@ -1,9 +1,16 @@
-import { IconServer } from '@tabler/icons-react'
+import { IconArrowUpRight, IconKey, IconServer } from '@tabler/icons-react'
 import { CheckIcon, CopyIcon } from 'lucide-react'
 import { useRef } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { Input, InputWrapper } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { env } from '@/config/env'
@@ -70,6 +77,25 @@ export default function ConnectSection() {
           endpoint.
         </p>
       </CardContent>
+      <CardFooter className="py-5 bg-muted/50 rounded-b-xl">
+        <div className="w-full flex justify-between items-center">
+          <div className="flex items-center gap-4">
+            <Button mode="icon" variant="mono" className="h-10 w-10">
+              <IconKey size={24} />
+            </Button>
+            <div className="flex flex-col gap-1 justify-center">
+              <span className="text-sm text-neutral-100">Add an API key</span>
+              <span className="text-xs text-muted-foreground">
+                Create or copy a key to authenticate your application.
+              </span>
+            </div>
+          </div>
+          <Button>
+            <span>Manage Keys</span>
+            <IconArrowUpRight size={16} />
+          </Button>
+        </div>
+      </CardFooter>
     </Card>
   )
 }
