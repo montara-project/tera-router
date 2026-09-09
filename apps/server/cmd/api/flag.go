@@ -21,6 +21,9 @@ func parseFlag(cfg *config.Config) {
 	// Database
 	flag.StringVar(&cfg.Database.URL, "database-url", "", "Database URL")
 
+	// Sentry
+	flag.StringVar(&cfg.Sentry.Dsn, "sentry-dsn", "", "Sentry DSN")
+
 	flag.Parse()
 
 	uint16Max := uint(1<<16 - 1)

@@ -3,6 +3,7 @@ package config
 type Config struct {
 	App      ConfigApp
 	Database ConfigDatabase
+	Sentry   ConfigSentry
 }
 
 type ConfigApp struct {
@@ -17,4 +18,8 @@ type ConfigApp struct {
 
 type ConfigDatabase struct {
 	URL string
+}
+
+type ConfigSentry struct {
+	Dsn string
 }

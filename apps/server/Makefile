@@ -24,3 +24,6 @@ run:
 		--port=$(PORT) \
 		--app-name=$(APP_NAME) \
 		--app-secret=$(APP_SECRET) \
+		--cors-allowed-origins=$(CORS_ALLOWED_ORIGINS) \
+		--database-url=$(DATABASE_URL) \
+		--sentry-dsn=$(SENTRY_DSN)
