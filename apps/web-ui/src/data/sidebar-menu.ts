@@ -15,8 +15,7 @@ import {
   IconSparkles,
   IconStack2,
   IconTerminal2,
-  IconUsers,
-  IconWallet,
+  IconWallet
 } from '@tabler/icons-react'
 
 import type { NavMainItem, SidebarMenuData, TeamItem } from '@/types/menu'
@@ -166,21 +165,21 @@ const NAV_DEVELOPER: NavMainItem[] = [
   },
 ]
 
-const NAV_USERS: NavMainItem = {
-  title: 'Users',
-  url: '#',
-  icon: IconUsers,
-  items: [
-    {
-      title: 'All Users',
-      url: '/users/all',
-    },
-    {
-      title: 'Roles',
-      url: '/users/roles',
-    },
-  ],
-}
+// const NAV_USERS: NavMainItem = {
+//   title: 'Users',
+//   url: '#',
+//   icon: IconUsers,
+//   items: [
+//     {
+//       title: 'All Users',
+//       url: '/users/all',
+//     },
+//     {
+//       title: 'Roles',
+//       url: '/users/roles',
+//     },
+//   ],
+// }
 
 const SIDEBAR_MENU_ADMIN: SidebarMenuData = {
   user: {
@@ -197,7 +196,7 @@ const SIDEBAR_MENU_ADMIN: SidebarMenuData = {
     analytics: NAV_COST_ANALYTICS,
     developer: NAV_DEVELOPER,
   },
-  navSetting: [NAV_USERS],
+  navSetting: [],
 }
 
 // ── Lookup ─────────────────────────────────────────────────────────────

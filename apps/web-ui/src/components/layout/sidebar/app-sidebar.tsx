@@ -67,7 +67,7 @@ export default function AppSidebar({ auth, ...props }: AppSidebarProps) {
         <NavMain title="Safety" items={menu.navMenu.safety} />
         <NavMain title="Cost & Analytics" items={menu.navMenu.analytics} />
         <NavMain title="Developer" items={menu.navMenu.developer} />
-        <NavMain title="Settings" items={menu.navSetting} />
+        {menu.navSetting && <NavMain title="Settings" items={menu.navSetting} />}
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={user} />

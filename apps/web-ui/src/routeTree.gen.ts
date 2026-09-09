@@ -17,7 +17,7 @@ import { Route as protectedanalyticsPlansIndexRouteImport } from './routes/(prot
 import { Route as protectedanalyticsQuotaIndexRouteImport } from './routes/(protected)/(analytics)/quota/index'
 import { Route as protectedanalyticsSettingsIndexRouteImport } from './routes/(protected)/(analytics)/settings/index'
 import { Route as protectedanalyticsSystemIndexRouteImport } from './routes/(protected)/(analytics)/system/index'
-import { Route as protectedanalyticsUsagesIndexRouteImport } from './routes/(protected)/(analytics)/usages/index'
+import { Route as protectedanalyticsUsageIndexRouteImport } from './routes/(protected)/(analytics)/usage/index'
 import { Route as protectedconnectionKeysIndexRouteImport } from './routes/(protected)/(connection)/keys/index'
 import { Route as protectedconnectionMediaIndexRouteImport } from './routes/(protected)/(connection)/media/index'
 import { Route as protectedconnectionProvidersIndexRouteImport } from './routes/(protected)/(connection)/providers/index'
@@ -73,10 +73,10 @@ const protectedanalyticsSystemIndexRoute =
     path: '/system/',
     getParentRoute: () => protectedRouteRoute,
   } as any)
-const protectedanalyticsUsagesIndexRoute =
-  protectedanalyticsUsagesIndexRouteImport.update({
-    id: '/(analytics)/usages/',
-    path: '/usages/',
+const protectedanalyticsUsageIndexRoute =
+  protectedanalyticsUsageIndexRouteImport.update({
+    id: '/(analytics)/usage/',
+    path: '/usage/',
     getParentRoute: () => protectedRouteRoute,
   } as any)
 const protectedconnectionKeysIndexRoute =
@@ -154,7 +154,7 @@ export interface FileRoutesByFullPath {
   '/quota/': typeof protectedanalyticsQuotaIndexRoute
   '/settings/': typeof protectedanalyticsSettingsIndexRoute
   '/system/': typeof protectedanalyticsSystemIndexRoute
-  '/usages/': typeof protectedanalyticsUsagesIndexRoute
+  '/usage/': typeof protectedanalyticsUsageIndexRoute
   '/keys/': typeof protectedconnectionKeysIndexRoute
   '/media/': typeof protectedconnectionMediaIndexRoute
   '/providers/': typeof protectedconnectionProvidersIndexRoute
@@ -175,7 +175,7 @@ export interface FileRoutesByTo {
   '/quota': typeof protectedanalyticsQuotaIndexRoute
   '/settings': typeof protectedanalyticsSettingsIndexRoute
   '/system': typeof protectedanalyticsSystemIndexRoute
-  '/usages': typeof protectedanalyticsUsagesIndexRoute
+  '/usage': typeof protectedanalyticsUsageIndexRoute
   '/keys': typeof protectedconnectionKeysIndexRoute
   '/media': typeof protectedconnectionMediaIndexRoute
   '/providers': typeof protectedconnectionProvidersIndexRoute
@@ -198,7 +198,7 @@ export interface FileRoutesById {
   '/(protected)/(analytics)/quota/': typeof protectedanalyticsQuotaIndexRoute
   '/(protected)/(analytics)/settings/': typeof protectedanalyticsSettingsIndexRoute
   '/(protected)/(analytics)/system/': typeof protectedanalyticsSystemIndexRoute
-  '/(protected)/(analytics)/usages/': typeof protectedanalyticsUsagesIndexRoute
+  '/(protected)/(analytics)/usage/': typeof protectedanalyticsUsageIndexRoute
   '/(protected)/(connection)/keys/': typeof protectedconnectionKeysIndexRoute
   '/(protected)/(connection)/media/': typeof protectedconnectionMediaIndexRoute
   '/(protected)/(connection)/providers/': typeof protectedconnectionProvidersIndexRoute
@@ -221,7 +221,7 @@ export interface FileRouteTypes {
     | '/quota/'
     | '/settings/'
     | '/system/'
-    | '/usages/'
+    | '/usage/'
     | '/keys/'
     | '/media/'
     | '/providers/'
@@ -242,7 +242,7 @@ export interface FileRouteTypes {
     | '/quota'
     | '/settings'
     | '/system'
-    | '/usages'
+    | '/usage'
     | '/keys'
     | '/media'
     | '/providers'
@@ -264,7 +264,7 @@ export interface FileRouteTypes {
     | '/(protected)/(analytics)/quota/'
     | '/(protected)/(analytics)/settings/'
     | '/(protected)/(analytics)/system/'
-    | '/(protected)/(analytics)/usages/'
+    | '/(protected)/(analytics)/usage/'
     | '/(protected)/(connection)/keys/'
     | '/(protected)/(connection)/media/'
     | '/(protected)/(connection)/providers/'
@@ -342,11 +342,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof protectedanalyticsSystemIndexRouteImport
       parentRoute: typeof protectedRouteRoute
     }
-    '/(protected)/(analytics)/usages/': {
-      id: '/(protected)/(analytics)/usages/'
-      path: '/usages'
-      fullPath: '/usages/'
-      preLoaderRoute: typeof protectedanalyticsUsagesIndexRouteImport
+    '/(protected)/(analytics)/usage/': {
+      id: '/(protected)/(analytics)/usage/'
+      path: '/usage'
+      fullPath: '/usage/'
+      preLoaderRoute: typeof protectedanalyticsUsageIndexRouteImport
       parentRoute: typeof protectedRouteRoute
     }
     '/(protected)/(connection)/keys/': {
@@ -435,7 +435,7 @@ interface protectedRouteRouteChildren {
   protectedanalyticsQuotaIndexRoute: typeof protectedanalyticsQuotaIndexRoute
   protectedanalyticsSettingsIndexRoute: typeof protectedanalyticsSettingsIndexRoute
   protectedanalyticsSystemIndexRoute: typeof protectedanalyticsSystemIndexRoute
-  protectedanalyticsUsagesIndexRoute: typeof protectedanalyticsUsagesIndexRoute
+  protectedanalyticsUsageIndexRoute: typeof protectedanalyticsUsageIndexRoute
   protectedconnectionKeysIndexRoute: typeof protectedconnectionKeysIndexRoute
   protectedconnectionMediaIndexRoute: typeof protectedconnectionMediaIndexRoute
   protectedconnectionProvidersIndexRoute: typeof protectedconnectionProvidersIndexRoute
@@ -455,7 +455,7 @@ const protectedRouteRouteChildren: protectedRouteRouteChildren = {
   protectedanalyticsQuotaIndexRoute: protectedanalyticsQuotaIndexRoute,
   protectedanalyticsSettingsIndexRoute: protectedanalyticsSettingsIndexRoute,
   protectedanalyticsSystemIndexRoute: protectedanalyticsSystemIndexRoute,
-  protectedanalyticsUsagesIndexRoute: protectedanalyticsUsagesIndexRoute,
+  protectedanalyticsUsageIndexRoute: protectedanalyticsUsageIndexRoute,
   protectedconnectionKeysIndexRoute: protectedconnectionKeysIndexRoute,
   protectedconnectionMediaIndexRoute: protectedconnectionMediaIndexRoute,
   protectedconnectionProvidersIndexRoute:
