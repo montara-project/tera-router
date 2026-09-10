@@ -13,6 +13,7 @@ import {
   createPaginatedRowModel,
   createSortedRowModel,
   globalFilteringFeature,
+  rowExpandingFeature,
   rowPaginationFeature,
   rowSelectionFeature,
   rowSortingFeature,
@@ -36,7 +37,7 @@ import { DataGridPagination } from '@/components/ui/data-grid-pagination'
 import { DataGridTable } from '@/components/ui/data-grid-table'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 
-const features = tableFeatures({
+export const features = tableFeatures({
   columnFilteringFeature,
   columnOrderingFeature,
   columnPinningFeature,
@@ -44,6 +45,7 @@ const features = tableFeatures({
   columnSizingFeature,
   columnVisibilityFeature,
   globalFilteringFeature,
+  rowExpandingFeature,
   rowPaginationFeature,
   rowSelectionFeature,
   rowSortingFeature,
