@@ -21,6 +21,7 @@ interface SelectInputProps {
   options: Option[]
   onSelect: (value: string) => void
   defaultValue?: string
+  className?: string
 }
 
 export default function SelectInput({
@@ -28,10 +29,11 @@ export default function SelectInput({
   options,
   onSelect,
   defaultValue,
+  className,
 }: SelectInputProps) {
   return (
     <Select onValueChange={onSelect} defaultValue={defaultValue} indicatorPosition="right">
-      <SelectTrigger className="w-[200px]">
+      <SelectTrigger className={className ?? 'w-50'}>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>
