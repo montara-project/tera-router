@@ -28,6 +28,7 @@ export default function TunnelSection() {
           buttonText="Coming Soon"
           icon={Icons.tailscale}
           tone="info"
+          disabled
         />
       </CardContent>
     </Card>
@@ -42,9 +43,10 @@ interface TunnelAppItemProps {
   title: string
   description: string
   buttonText: string
+  tone: ConnectToneVariant
   icon: typeof IconKey | React.ComponentType<React.SVGProps<SVGSVGElement>>
   iconBtn?: typeof IconKey
-  tone: ConnectToneVariant
+  disabled?: boolean
 }
 
 function TunnelAppItem({
@@ -54,11 +56,12 @@ function TunnelAppItem({
   icon: Icon,
   iconBtn: IconBtn,
   tone,
+  disabled,
 }: TunnelAppItemProps) {
   return (
     <div className="w-full flex justify-between items-center">
       <ConnectApp icon={Icon} title={title} description={description} tone={tone} />
-      <Button>
+      <Button disabled={disabled}>
         <span>{buttonText}</span>
         {IconBtn && <IconBtn size={16} />}
       </Button>

@@ -60,10 +60,10 @@ export default function ConnectSection() {
                     className="-me-3.5"
                   >
                     {copied ? (
-                      <CheckIcon className="text-green-600" size={16} />
+                      <CheckIcon className="text-green-600 size-4" />
                     ) : (
                       <>
-                        <CopyIcon strokeWidth={1.5} className="text-white" size={16} />
+                        <CopyIcon strokeWidth={1.5} className="text-white size-4" />
                         Copy
                       </>
                     )}
