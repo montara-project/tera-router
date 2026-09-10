@@ -1,5 +1,5 @@
 {
-  "name": "@tera/web-ui",
+  "name": "@tera/web",
   "version": "0.0.0",
   "private": true,
   "type": "module",

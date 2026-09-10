@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "pnpm -r --parallel dev",
     "dev:server": "pnpm --filter @tera/server dev",
-    "dev:web": "pnpm --filter @tera/web-ui dev",
+    "dev:web": "pnpm --filter @tera/web dev",
     "dev:docs": "pnpm --filter @tera/docs dev",
     "prebuild": "npm-run-all format lint",
     "build": "pnpm -r build",
