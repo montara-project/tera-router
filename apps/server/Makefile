@@ -14,6 +14,11 @@ help:
 # APPLICATION
 # ==================================================================================== #
 
+## install: install dependencies
+.PHONY: install
+install:
+	go mod tidy
+
 ## run: run the application
 .PHONY: run
 run:
@@ -27,3 +32,14 @@ run:
 		--cors-allowed-origins=$(CORS_ALLOWED_ORIGINS) \
 		--database-url=$(DATABASE_URL) \
 		--sentry-dsn=$(SENTRY_DSN)
+
+# ==================================================================================== #
+# BUILD
+# ==================================================================================== #
+
+## build/api: build the cmd/api application
+.PHONY: build/api
+build/api:
+	@echo 'Building cmd/api...'
+	go build -ldflags="-s" -o=./bin/api ./cmd/api
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s" -o=./bin/linux_amd64/api ./cmd/api
