@@ -16,7 +16,14 @@
       "Bash(pnpm build:*)",
       "Bash(pnpm --filter @tera/web-ui add tailwindcss @tailwindcss/vite class-variance-authority clsx tailwind-merge lucide-react tw-animate-css)",
       "Bash(pnpm --filter @tera/web-ui add -D @types/node)",
-      "Bash(node -e \"const p=require\\(''''./apps/web-ui/package.json''''\\); console.log\\(JSON.stringify\\({deps:p.dependencies, dev:p.devDependencies},null,1\\)\\)\")"
+      "Bash(node -e \"const p=require\\(''''./apps/web-ui/package.json''''\\); console.log\\(JSON.stringify\\({deps:p.dependencies, dev:p.devDependencies},null,1\\)\\)\")",
+      "Bash(git -C /Users/masb0ymas/Work/Projects/montara-projects/tera-router status --short)",
+      "Bash(git -C /Users/masb0ymas/Work/Projects/montara-projects/tera-router log --oneline -5)",
+      "Bash(git -C /Users/masb0ymas/Work/Projects/montara-projects/tera-router diff .openclaude/settings.local.json)",
+      "Bash(git -C /Users/masb0ymas/Work/Projects/montara-projects/tera-router check-ignore .openclaude/settings.local.json)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(git -C /Users/masb0ymas/Work/Projects/montara-projects/tera-router add .gitignore .ignore .mcp.json .claude/)",
+      "Bash(git -C:*)"
     ]
   }
 }
