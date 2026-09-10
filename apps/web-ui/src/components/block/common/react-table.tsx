@@ -102,6 +102,7 @@ export default function ReactTable<T extends RowData>({
     data,
     pageCount: Math.ceil(total / pagination.pageSize),
     getRowId: getRowId ? getRowId : (row: T) => String((row as Record<string, unknown>).id),
+    getRowCanExpand: (row) => Boolean(row.original as Record<string, unknown>),
     state: {
       sorting,
       columnFilters,

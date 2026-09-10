@@ -1,4 +1,4 @@
-type ChainStep = {
+export type ChainStep = {
   provider: string
   model: string
   position: number

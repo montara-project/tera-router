@@ -15,7 +15,7 @@
 		{
 			"id": "b2168a50-7bbc-489c-860f-817c50996b2f",
 			"name": "gpt-luna",
-			"strategy": "priority",
+			"strategy": "round_robin",
 			"steps": [
 				{
 					"provider": "custom-openai-orcarouter",
