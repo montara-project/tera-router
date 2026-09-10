@@ -5,5 +5,11 @@
   "semi": false,
   "singleQuote": true,
   "trailingComma": "es5",
-  "ignorePatterns": ["next-env.d.ts", "tsconfig.tsbuildinfo", "**/node_modules/", "**/dist/"]
+  "ignorePatterns": [
+    "next-env.d.ts",
+    "tsconfig.tsbuildinfo",
+    "**/node_modules/",
+    "**/dist/",
+    "src/routeTree.gen.ts"
+  ]
 }

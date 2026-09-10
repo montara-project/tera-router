@@ -9,6 +9,7 @@ import (
 
 	"tera-router/server/internal/app"
 
+	sentryfiber "github.com/getsentry/sentry-go/fiber"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/compress"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -20,6 +21,14 @@ import (
 )
 
 func serve(app *app.Application) error {
+	// Sentry
+	sentryHandler := sentryfiber.New(sentryfiber.Options{
+		// you can modify these options
+		Repanic:         true,
+		WaitForDelivery: true,
+		Timeout:         5 * time.Second,
+	})
+
 	// Fiber Configuration
 	server := fiber.New(fiber.Config{
 		BodyLimit:               2 * 1024 * 1024, // 2MB
@@ -40,6 +49,7 @@ func serve(app *app.Application) error {
 	server.Use(helmet.New())
 	server.Use(requestid.New())
 	server.Use(compress.New())
+	server.Use(sentryHandler)
 
 	// CORS
 	server.Use(cors.New(cors.Config{

@@ -1,0 +1,94 @@
+{
+  "data": [
+    {
+      "id": "7d9dd4ac-5721-46bc-90bd-38b1f47ad78f",
+      "name": "sonnet",
+      "strategy": "priority",
+      "steps": [
+        {
+          "provider": "custom-openai-vyce-ai",
+          "model": "claude-sonnet-4-6",
+          "position": 0
+        }
+      ]
+    },
+    {
+      "id": "b2168a50-7bbc-489c-860f-817c50996b2f",
+      "name": "gpt-luna",
+      "strategy": "round_robin",
+      "steps": [
+        {
+          "provider": "custom-openai-orcarouter",
+          "model": "openai/gpt-5.6-luna",
+          "position": 0
+        },
+        {
+          "provider": "custom-openai-vyce-ai",
+          "model": "gpt-5.6-luna",
+          "position": 1
+        }
+      ]
+    },
+    {
+      "id": "ef6b2ae5-980e-49b6-87b6-8714ae47bba6",
+      "name": "deepseek-v4-flash",
+      "strategy": "priority",
+      "steps": [
+        {
+          "position": 0,
+          "provider": "custom-openai-gonka",
+          "model": "deepseek-ai/DeepSeek-V4-Flash-0731"
+        }
+      ]
+    },
+    {
+      "id": "c26bb4e3-fa4d-417d-ab54-9ae981091892",
+      "name": "glm-free",
+      "strategy": "priority",
+      "steps": [
+        {
+          "position": 0,
+          "provider": "custom-openai-id-qzz",
+          "model": "glm-5.3-flash"
+        },
+        {
+          "provider": "custom-openai-orcarouter",
+          "model": "z-ai/glm-5.3-flash-free",
+          "position": 1
+        }
+      ]
+    },
+    {
+      "steps": [
+        {
+          "model": "deepseek/deepseek-v4-flash-free",
+          "position": 0,
+          "provider": "custom-openai-orcarouter"
+        },
+        {
+          "provider": "custom-openai-orcarouter",
+          "model": "orcarouter/free",
+          "position": 1
+        },
+        {
+          "model": "deepseek-v4-flash",
+          "position": 2,
+          "provider": "custom-openai-vyce-ai"
+        },
+        {
+          "provider": "custom-openai-vyce-ai",
+          "model": "deepseek-v4-pro",
+          "position": 3
+        }
+      ],
+      "id": "39df0c36-5399-45d1-9b45-1f42c78ce89b",
+      "name": "deepseek-v4-flash-free",
+      "strategy": "priority"
+    }
+  ],
+  "metadata": {
+    "total": 5,
+    "offset": 0,
+    "limit": 10
+  }
+}
