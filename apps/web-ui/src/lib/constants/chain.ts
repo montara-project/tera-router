@@ -1,4 +1,4 @@
-import { capitalizeFirstLetter } from "../string"
+import { capitalizeFirstLetter } from '../string'
 
 export const CHAIN_STRATEGY = {
   PRIORITY: 'priority',

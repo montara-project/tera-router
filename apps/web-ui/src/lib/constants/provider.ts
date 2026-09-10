@@ -1,4 +1,4 @@
-import { capitalizeFirstLetter } from "../string"
+import { capitalizeFirstLetter } from '../string'
 
 export const PROVIDER_HEALTH = {
   HEALTHY: 'healthy',
