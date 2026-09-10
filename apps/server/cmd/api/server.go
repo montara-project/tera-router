@@ -25,7 +25,7 @@ func serve(app *app.Application) error {
 	sentryHandler := sentryfiber.New(sentryfiber.Options{
 		// you can modify these options
 		Repanic:         true,
-		WaitForDelivery: false,
+		WaitForDelivery: true,
 		Timeout:         5 * time.Second,
 	})
 

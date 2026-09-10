@@ -34,10 +34,11 @@ func main() {
 
 	if app.Config.Sentry.Dsn != "" {
 		err := sentry.Init(sentry.ClientOptions{
-			Dsn:           app.Config.Sentry.Dsn,
-			Debug:         cfg.App.Debug,
-			Environment:   cfg.App.Env,
-			EnableTracing: true,
+			Dsn:              app.Config.Sentry.Dsn,
+			Debug:            cfg.App.Debug,
+			Environment:      cfg.App.Env,
+			EnableTracing:    true,
+			TracesSampleRate: 1.0,
 		})
 		if err != nil {
 			log.Fatalf("sentry.Init: %s", err)
