@@ -1,4 +1,4 @@
-import { IconArrowUpRight, IconKey, IconServer } from '@tabler/icons-react'
+import { IconArrowUpRight, IconServer } from '@tabler/icons-react'
 import { CheckIcon, CopyIcon } from 'lucide-react'
 import { useRef } from 'react'
 
@@ -15,6 +15,9 @@ import { Input, InputWrapper } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { env } from '@/config/env'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
+
+import { Icons } from '../../common/icons'
+import ConnectApp from './connect-app'
 
 export default function ConnectSection() {
   const { copy, copied } = useCopyToClipboard()
@@ -79,17 +82,12 @@ export default function ConnectSection() {
       </CardContent>
       <CardFooter className="py-5 bg-muted/50 rounded-b-xl">
         <div className="w-full flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <Button mode="icon" variant="mono" className="h-10 w-10">
-              <IconKey size={24} />
-            </Button>
-            <div className="flex flex-col gap-1 justify-center">
-              <span className="text-sm text-neutral-100">Add an API key</span>
-              <span className="text-xs text-muted-foreground">
-                Create or copy a key to authenticate your application.
-              </span>
-            </div>
-          </div>
+          <ConnectApp
+            icon={Icons.keys}
+            title="Add an API key"
+            description="Create or copy a key to authenticate your application."
+            tone="accent"
+          />
           <Button>
             <span>Manage Keys</span>
             <IconArrowUpRight size={16} />
