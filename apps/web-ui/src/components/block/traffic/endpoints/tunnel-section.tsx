@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 
-import ConnectApp from './connect-app'
+import { Icons } from '../../common/icons'
+import ConnectApp, { type ConnectToneVariant } from './connect-app'
 
 export default function TunnelSection() {
   return (
@@ -34,10 +35,6 @@ export default function TunnelSection() {
     </Card>
   )
 }
-
-import type { ConnectToneVariant } from './connect-app'
-
-import { Icons } from '../../common/icons'
 
 interface TunnelAppItemProps {
   title: string
