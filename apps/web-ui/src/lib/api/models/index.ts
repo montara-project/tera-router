@@ -3,4 +3,5 @@ export namespace Models {
   export type User = import('./user').User
   export type Chain = import('./chain').Chain
   export type ChainStep = import('./chain').ChainStep
+  export type SystemStats = import('./system').SystemStats
 }
