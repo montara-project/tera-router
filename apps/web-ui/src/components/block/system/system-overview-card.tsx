@@ -35,14 +35,19 @@ export default function SystemOverviewCard({ stats }: SystemOverviewCardProps) {
 
   return (
     <Card>
-      <CardHeader className="border-b-0 pb-1">
-        <CardHeading className="flex flex-row items-center gap-3 space-y-0">
-          <SystemIconBadge icon={Server} tone="emerald" />
-          <div className="space-y-0.5">
-            <CardTitle className="text-base">System Overview</CardTitle>
-            <CardDescription className="text-sm">Host and process resource usage</CardDescription>
-          </div>
-        </CardHeading>
+      <CardHeader>
+        <div className="flex items-center gap-3.5">
+          <SystemIconBadge
+            icon={Server}
+            tone="emerald"
+            className="h-10 w-10"
+            iconClassName="h-5 w-5"
+          />
+          <CardHeading>
+            <CardTitle>System Overview</CardTitle>
+            <CardDescription>Host and process resource usage</CardDescription>
+          </CardHeading>
+        </div>
       </CardHeader>
 
       <CardContent className="grid gap-6 sm:grid-cols-2 sm:gap-0">

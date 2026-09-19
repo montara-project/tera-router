@@ -41,14 +41,14 @@ export default function SystemMetricChartCard({
 }: SystemMetricChartCardProps) {
   return (
     <Card>
-      <CardHeader className="border-b-0 pb-1">
-        <CardHeading className="flex flex-row items-center gap-3 space-y-0">
-          <SystemIconBadge icon={icon} tone={tone} />
-          <div className="space-y-0.5">
-            <CardTitle className="text-base">{title}</CardTitle>
-            <CardDescription className="text-sm">{description}</CardDescription>
-          </div>
-        </CardHeading>
+      <CardHeader>
+        <div className="flex items-center gap-3.5">
+          <SystemIconBadge icon={icon} tone={tone} className="h-10 w-10" iconClassName="h-5 w-5" />
+          <CardHeading>
+            <CardTitle>{title}</CardTitle>
+            <CardDescription>{description}</CardDescription>
+          </CardHeading>
+        </div>
       </CardHeader>
       <CardContent className="px-4 pb-4">
         <SystemLineChart

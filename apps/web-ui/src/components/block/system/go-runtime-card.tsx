@@ -42,14 +42,19 @@ export default function GoRuntimeCard({ runtime, process }: GoRuntimeCardProps) 
 
   return (
     <Card>
-      <CardHeader className="border-b-0 pb-1">
-        <CardHeading className="flex flex-row items-center gap-3 space-y-0">
-          <SystemIconBadge icon={Layers} tone="emerald" />
-          <div className="space-y-0.5">
-            <CardTitle className="text-base">Go Runtime</CardTitle>
-            <CardDescription className="text-sm">Memory and GC statistics</CardDescription>
-          </div>
-        </CardHeading>
+      <CardHeader>
+        <div className="flex items-center gap-3.5">
+          <SystemIconBadge
+            icon={Layers}
+            tone="emerald"
+            className="h-10 w-10"
+            iconClassName="h-5 w-5"
+          />
+          <CardHeading>
+            <CardTitle>Go Runtime</CardTitle>
+            <CardDescription>Memory and GC statistics</CardDescription>
+          </CardHeading>
+        </div>
       </CardHeader>
 
       <CardContent>

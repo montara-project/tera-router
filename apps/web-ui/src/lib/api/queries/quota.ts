@@ -6,6 +6,16 @@ import { services } from '../services'
 
 export const QUOTA_QUERY_KEY = 'quota'
 
+const list = (params?: { offset?: number; limit?: number }) =>
+  queryOptions({
+    queryKey: [QUOTA_QUERY_KEY, 'list', params],
+    queryFn: async () => {
+      const res = await services.quota.list(params)
+      return res.data
+    },
+    refetchInterval: 5000,
+  })
+
 const overview = (range: QuotaRange = '30d') =>
   queryOptions({
     queryKey: [QUOTA_QUERY_KEY, 'overview', range],
@@ -17,5 +27,6 @@ const overview = (range: QuotaRange = '30d') =>
   })
 
 export const quotaQueries = {
+  list,
   overview,
 } as const

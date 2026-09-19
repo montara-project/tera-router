@@ -1,4 +1,4 @@
-import { type AxiosItemResponse } from '@/types/api'
+import { type ApiListResponse, type AxiosItemResponse, type AxiosListResponse } from '@/types/api'
 
 import type { QuotaAccount, QuotaOverview, QuotaRange, QuotaSummary } from '../models/quota'
 
@@ -258,6 +258,25 @@ function buildSummary(range: QuotaRange): QuotaSummary {
   }
 }
 
+function list(params?: {
+  offset?: number
+  limit?: number
+}): Promise<AxiosListResponse<QuotaAccount>> {
+  simulateTraffic()
+
+  const offset = params?.offset ?? 0
+  const limit = params?.limit ?? 10
+
+  const body: ApiListResponse<QuotaAccount> = {
+    data: accounts.slice(offset, offset + limit),
+    metadata: { total: accounts.length, offset, limit },
+  }
+
+  const response = { data: body } as AxiosListResponse<QuotaAccount>
+
+  return Promise.resolve(response)
+}
+
 function overview(range: QuotaRange = '30d'): Promise<AxiosItemResponse<QuotaOverview>> {
   simulateTraffic()
 
@@ -300,6 +319,7 @@ function remove(id: string): Promise<AxiosItemResponse<{ id: string }>> {
 
 export const quotaServices = {
   path,
+  list,
   overview,
   toggleStatus,
   remove,

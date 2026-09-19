@@ -35,16 +35,19 @@ function coreColor(percent: number) {
 export default function CpuPerCoreCard({ cores }: CpuPerCoreCardProps) {
   return (
     <Card>
-      <CardHeader className="border-b-0 pb-1">
-        <CardHeading className="flex flex-row items-center gap-3 space-y-0">
-          <SystemIconBadge icon={Cpu} tone="emerald" />
-          <div className="space-y-0.5">
-            <CardTitle className="text-base">CPU Per Core</CardTitle>
-            <CardDescription className="text-sm">
-              Utilization across {cores.length} cores
-            </CardDescription>
-          </div>
-        </CardHeading>
+      <CardHeader>
+        <div className="flex items-center gap-3.5">
+          <SystemIconBadge
+            icon={Cpu}
+            tone="emerald"
+            className="h-10 w-10"
+            iconClassName="h-5 w-5"
+          />
+          <CardHeading>
+            <CardTitle>CPU Per Core</CardTitle>
+            <CardDescription>Utilization across {cores.length} cores</CardDescription>
+          </CardHeading>
+        </div>
       </CardHeader>
 
       <CardContent className="space-y-4">

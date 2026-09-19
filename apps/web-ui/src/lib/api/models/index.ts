@@ -7,5 +7,6 @@ export namespace Models {
   export type QuotaOverview = import('./quota').QuotaOverview
   export type QuotaRange = import('./quota').QuotaRange
   export type QuotaSummary = import('./quota').QuotaSummary
+  export type Skill = import('./skill').Skill
   export type SystemStats = import('./system').SystemStats
 }

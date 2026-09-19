@@ -1,8 +1,15 @@
-import { IconKey } from '@tabler/icons-react'
+import { IconCloud, IconKey } from '@tabler/icons-react'
 
+import IconBadge from '@/components/block/common/icon-badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Separator } from '@/components/ui/separator'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardHeading,
+  CardTitle,
+} from '@/components/ui/card'
 
 import { Icons } from '../../common/icons'
 import ConnectApp, { type ConnectToneVariant } from './connect-app'
@@ -11,26 +18,39 @@ export default function TunnelSection() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Tunnels</CardTitle>
-        <CardDescription>Optional network access for apps outside this machine.</CardDescription>
+        <div className="flex items-center gap-3.5">
+          <IconBadge
+            icon={IconCloud}
+            variant="soft"
+            className="h-10 w-10"
+            iconClassName="h-5 w-5"
+          />
+          <CardHeading>
+            <CardTitle>Tunnels</CardTitle>
+            <CardDescription>
+              Optional network access for apps outside this machine.
+            </CardDescription>
+          </CardHeading>
+        </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <TunnelAppItem
-          title="Cloudflare Tunnel"
-          description="Quick tunnel — no account needed"
-          buttonText="Enable"
-          icon={Icons.cloudflare}
-          tone="warning"
-        />
-        <Separator />
-        <TunnelAppItem
-          title="Tailscale"
-          description="Private network with HTTPS"
-          buttonText="Coming Soon"
-          icon={Icons.tailscale}
-          tone="info"
-          disabled
-        />
+      <CardContent className="p-0">
+        <div className="divide-y divide-border">
+          <TunnelAppItem
+            title="Cloudflare Tunnel"
+            description="Quick tunnel — no account needed"
+            buttonText="Enable"
+            icon={Icons.cloudflare}
+            tone="warning"
+          />
+          <TunnelAppItem
+            title="Tailscale"
+            description="Private network with HTTPS"
+            buttonText="Coming Soon"
+            icon={Icons.tailscale}
+            tone="info"
+            disabled
+          />
+        </div>
       </CardContent>
     </Card>
   )
@@ -42,7 +62,6 @@ interface TunnelAppItemProps {
   buttonText: string
   tone: ConnectToneVariant
   icon: typeof IconKey | React.ComponentType<React.SVGProps<SVGSVGElement>>
-  iconBtn?: typeof IconKey
   disabled?: boolean
 }
 
@@ -51,16 +70,14 @@ function TunnelAppItem({
   description,
   buttonText,
   icon: Icon,
-  iconBtn: IconBtn,
   tone,
   disabled,
 }: TunnelAppItemProps) {
   return (
-    <div className="w-full flex justify-between items-center">
+    <div className="flex items-center justify-between gap-4 px-5 py-4">
       <ConnectApp icon={Icon} title={title} description={description} tone={tone} />
       <Button disabled={disabled}>
         <span>{buttonText}</span>
-        {IconBtn && <IconBtn size={16} />}
       </Button>
     </div>
   )
