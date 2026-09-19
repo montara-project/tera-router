@@ -6,6 +6,7 @@ import { planServices } from './plan'
 import { providerServices } from './provider'
 import { proxyPoolServices } from './proxy-pool'
 import { quotaServices } from './quota'
+import { settingsServices } from './settings'
 import { skillServices } from './skill'
 import { systemServices } from './system'
 
@@ -18,6 +19,7 @@ export const services = {
   providers: providerServices,
   proxyPools: proxyPoolServices,
   quota: quotaServices,
+  settings: settingsServices,
   skills: skillServices,
   system: systemServices,
 } as const

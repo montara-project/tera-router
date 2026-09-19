@@ -5,6 +5,7 @@ import { planQueries } from './plan'
 import { providerQueries } from './provider'
 import { proxyPoolQueries } from './proxy-pool'
 import { quotaQueries } from './quota'
+import { settingsQueries } from './settings'
 import { skillQueries } from './skill'
 import { systemQueries } from './system'
 
@@ -16,6 +17,7 @@ export const queries = {
   providers: providerQueries,
   proxyPools: proxyPoolQueries,
   quota: quotaQueries,
+  settings: settingsQueries,
   skills: skillQueries,
   system: systemQueries,
 } as const

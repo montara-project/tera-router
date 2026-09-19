@@ -6,6 +6,8 @@ export namespace Models {
   export type MediaProvider = import('./media').MediaProvider
   export type Plan = import('./plan').Plan
   export type Role = import('./role').Role
+  export type AppSettings = import('./settings').AppSettings
+  export type SourceCodeFilterMode = import('./settings').SourceCodeFilterMode
   export type User = import('./user').User
   export type Chain = import('./chain').Chain
   export type ChainStep = import('./chain').ChainStep
