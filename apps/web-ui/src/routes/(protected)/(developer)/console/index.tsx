@@ -45,12 +45,7 @@ function RouteComponent() {
             <IconClipboard className="h-4 w-4" />
             Copy
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => clearMutation.mutate()}
-          >
+          <Button type="button" variant="outline" size="sm" onClick={() => clearMutation.mutate()}>
             <IconTrash className="h-4 w-4" />
             Clear
           </Button>

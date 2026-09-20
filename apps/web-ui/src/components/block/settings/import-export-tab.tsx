@@ -47,9 +47,9 @@ export default function ImportExportTab() {
                 </div>
               </div>
               <p className="text-muted-foreground mt-3 text-xs leading-relaxed">
-                Imports provider connections (API keys &amp; OAuth tokens re-sealed), custom provider
-                nodes, API keys (re-hashed — same key string keeps working), combos (→ chains),
-                proxy pools, and model aliases.
+                Imports provider connections (API keys &amp; OAuth tokens re-sealed), custom
+                provider nodes, API keys (re-hashed — same key string keeps working), combos (→
+                chains), proxy pools, and model aliases.
               </p>
               <Button type="button" variant="outline" className="mt-4 w-full">
                 <IconUpload className="h-4 w-4" />

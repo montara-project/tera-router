@@ -173,7 +173,9 @@ export default function NetworkTab({ settings, onUpdate }: NetworkTabProps) {
             />
             <CardHeading>
               <CardTitle>Observability</CardTitle>
-              <CardDescription>Record request details for inspection in the logs view.</CardDescription>
+              <CardDescription>
+                Record request details for inspection in the logs view.
+              </CardDescription>
             </CardHeading>
           </div>
         </CardHeader>

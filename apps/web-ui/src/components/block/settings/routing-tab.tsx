@@ -37,7 +37,12 @@ export default function RoutingTab({ settings, onUpdate }: RoutingTabProps) {
     <Card>
       <CardHeader>
         <div className="flex items-center gap-3.5">
-          <IconBadge icon={IconRoute} variant="soft" className="h-10 w-10" iconClassName="h-5 w-5" />
+          <IconBadge
+            icon={IconRoute}
+            variant="soft"
+            className="h-10 w-10"
+            iconClassName="h-5 w-5"
+          />
           <CardHeading>
             <CardTitle>Routing Strategy</CardTitle>
             <CardDescription>

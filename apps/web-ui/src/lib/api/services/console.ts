@@ -53,9 +53,15 @@ function generateEntries(count: number): ConsoleLogEntry[] {
     advance(300 + ((id * 131) % 4000))
     push('debug', `Stream complete · ${chunks} chunks · ${tokens.toLocaleString()} tokens · 1.0s`)
     if (id % 7 === 0) {
-      push('warn', `Request completed · ${model} · ${tokens.toLocaleString()} tokens · $0.0000 · 11.6s`)
+      push(
+        'warn',
+        `Request completed · ${model} · ${tokens.toLocaleString()} tokens · $0.0000 · 11.6s`
+      )
     } else {
-      push('info', `Request completed · ${model} · ${tokens.toLocaleString()} tokens · $0.0000 · 1.0s`)
+      push(
+        'info',
+        `Request completed · ${model} · ${tokens.toLocaleString()} tokens · $0.0000 · 1.0s`
+      )
     }
     if (id % 23 === 0) {
       advance(1000)

@@ -95,7 +95,12 @@ export default function CliToolsGrid() {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {TOOLS.map((tool) => (
-        <button key={tool.id} type="button" aria-label={`${tool.name}`} className="group cursor-pointer text-left">
+        <button
+          key={tool.id}
+          type="button"
+          aria-label={`${tool.name}`}
+          className="group cursor-pointer text-left"
+        >
           <Card className="hover:border-muted-foreground/40 h-full transition-colors">
             <div className="flex items-center gap-3.5 p-4">
               <span
@@ -116,9 +121,7 @@ export default function CliToolsGrid() {
                     Not Installed
                   </span>
                 </p>
-                <p className="text-muted-foreground mt-0.5 truncate text-xs">
-                  {tool.description}
-                </p>
+                <p className="text-muted-foreground mt-0.5 truncate text-xs">{tool.description}</p>
               </div>
               <IconChevronRight className="text-muted-foreground h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
             </div>

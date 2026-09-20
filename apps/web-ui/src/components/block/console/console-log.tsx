@@ -1,7 +1,4 @@
-import {
-  IconPointFilled,
-  IconSearch,
-} from '@tabler/icons-react'
+import { IconPointFilled, IconSearch } from '@tabler/icons-react'
 import { useMemo, useState } from 'react'
 
 import type { ConsoleLogEntry, LogLevel } from '@/lib/api/models/console'
@@ -109,9 +106,7 @@ export default function ConsoleLog({ entries }: ConsoleLogProps) {
                   entry.level === 'error' ? 'bg-red-950/20' : undefined
                 }`}
               >
-                <span className="text-muted-foreground w-8 shrink-0 text-right">
-                  {entry.id}
-                </span>
+                <span className="text-muted-foreground w-8 shrink-0 text-right">{entry.id}</span>
                 <span className="text-muted-foreground w-24 shrink-0">{entry.time}</span>
                 <span
                   className={`w-14 shrink-0 rounded px-1.5 py-0.5 text-center text-[10px] font-bold ${meta.badgeClass}`}

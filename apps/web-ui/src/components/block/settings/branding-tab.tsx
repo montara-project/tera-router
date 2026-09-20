@@ -124,7 +124,9 @@ function UploadZone({ label, hint, id }: { label: string; hint: string; id: stri
             <IconUpload className="h-4 w-4" />
             Upload image
           </span>
-          <span className="text-muted-foreground text-xs">PNG, SVG, ICO — drag &amp; drop or click</span>
+          <span className="text-muted-foreground text-xs">
+            PNG, SVG, ICO — drag &amp; drop or click
+          </span>
         </button>
       </div>
       <p className="text-muted-foreground mt-2 text-xs">{hint}</p>
