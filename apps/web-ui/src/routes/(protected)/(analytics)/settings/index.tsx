@@ -13,9 +13,12 @@ import { toast } from 'sonner'
 import type { AppSettings } from '@/lib/api/models/settings'
 
 import SectionCard from '@/components/block/common/section-card'
+import BrandingTab from '@/components/block/settings/branding-tab'
+import ImportExportTab from '@/components/block/settings/import-export-tab'
+import NetworkTab from '@/components/block/settings/network-tab'
+import RoutingTab from '@/components/block/settings/routing-tab'
+import SystemTab from '@/components/block/settings/system-tab'
 import TokenSavingTab from '@/components/block/settings/token-saving-tab'
-import { Card, CardContent } from '@/components/ui/card'
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { SETTINGS_QUERY_KEY, settingsQueries } from '@/lib/api/queries/settings'
@@ -24,6 +27,8 @@ import { services } from '@/lib/api/services'
 export const Route = createFileRoute('/(protected)/(analytics)/settings/')({
   component: RouteComponent,
 })
+
+const VERSION = '0.1.29'
 
 const TABS = [
   { value: 'token-saving', label: 'Token Saving', icon: IconBolt },
@@ -45,26 +50,6 @@ function RouteSkeleton() {
         <Skeleton className="h-56 w-full rounded-lg" />
       </div>
     </div>
-  )
-}
-
-function PlaceholderTab({ label, icon: Icon }: { label: string; icon: typeof IconGauge }) {
-  return (
-    <Card>
-      <CardContent className="p-0">
-        <Empty className="py-14">
-          <EmptyHeader>
-            <EmptyMedia variant="icon" className="size-12 rounded-full">
-              <Icon />
-            </EmptyMedia>
-            <EmptyTitle>{label} settings</EmptyTitle>
-            <EmptyDescription>
-              These settings are not available in this version yet.
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      </CardContent>
-    </Card>
   )
 }
 
@@ -101,11 +86,25 @@ function RouteComponent() {
           <TokenSavingTab settings={settings} onUpdate={handleUpdate} />
         </TabsContent>
 
-        {TABS.filter((tab) => tab.value !== 'token-saving').map((tab) => (
-          <TabsContent key={tab.value} value={tab.value}>
-            <PlaceholderTab icon={tab.icon} label={tab.label} />
-          </TabsContent>
-        ))}
+        <TabsContent value="routing">
+          <RoutingTab settings={settings} onUpdate={handleUpdate} />
+        </TabsContent>
+
+        <TabsContent value="network">
+          <NetworkTab settings={settings} onUpdate={handleUpdate} />
+        </TabsContent>
+
+        <TabsContent value="branding">
+          <BrandingTab settings={settings} onUpdate={handleUpdate} />
+        </TabsContent>
+
+        <TabsContent value="import-export">
+          <ImportExportTab />
+        </TabsContent>
+
+        <TabsContent value="system">
+          <SystemTab version={VERSION} />
+        </TabsContent>
       </Tabs>
     </SectionCard>
   )

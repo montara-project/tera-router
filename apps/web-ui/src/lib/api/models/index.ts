@@ -1,6 +1,8 @@
 export namespace Models {
   export type ApiKey = import('./key').ApiKey
   export type ApiKeyStatus = import('./key').ApiKeyStatus
+  export type ConsoleLogEntry = import('./console').ConsoleLogEntry
+  export type LogLevel = import('./console').LogLevel
   export type MediaCapability = import('./media').MediaCapability
   export type MediaCategory = import('./media').MediaCategory
   export type MediaProvider = import('./media').MediaProvider

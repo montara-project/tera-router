@@ -1,5 +1,6 @@
 import { authServices } from './auth'
 import { chainServices } from './chain'
+import { consoleServices } from './console'
 import { keyServices } from './key'
 import { mediaServices } from './media'
 import { planServices } from './plan'
@@ -13,6 +14,7 @@ import { systemServices } from './system'
 export const services = {
   auth: authServices,
   chains: chainServices,
+  console: consoleServices,
   keys: keyServices,
   media: mediaServices,
   plans: planServices,

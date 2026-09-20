@@ -1,4 +1,5 @@
 import { chainQueries } from './chain'
+import { consoleQueries } from './console'
 import { keyQueries } from './key'
 import { mediaQueries } from './media'
 import { planQueries } from './plan'
@@ -11,6 +12,7 @@ import { systemQueries } from './system'
 
 export const queries = {
   chains: chainQueries,
+  console: consoleQueries,
   keys: keyQueries,
   media: mediaQueries,
   plans: planQueries,

@@ -15,6 +15,18 @@ let settings: AppSettings = {
   terseEnabled: false,
   headroomEnabled: false,
   ponytailEnabled: false,
+  providerRoundRobin: true,
+  providerStickyLimit: 3,
+  chainRoundRobin: false,
+  connectTimeout: 60,
+  streamStallTimeout: 300,
+  requestTimeout: 300,
+  enforceRateLimits: true,
+  outboundProxyEnabled: false,
+  requestDetailRecording: true,
+  brandingDisplayName: 'KeiRouter',
+  brandingTagline: '',
+  brandingTheme: 'forest-amber',
 }
 
 function get(): Promise<AxiosItemResponse<AppSettings>> {

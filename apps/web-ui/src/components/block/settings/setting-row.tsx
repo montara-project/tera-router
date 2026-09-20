@@ -3,14 +3,18 @@ import { cn } from '@/lib/utils'
 interface SettingRowProps {
   title: string
   description?: string
+  badge?: React.ReactNode
   children: React.ReactNode
 }
 
-export default function SettingRow({ title, description, children }: SettingRowProps) {
+export default function SettingRow({ title, description, badge, children }: SettingRowProps) {
   return (
     <div className="flex items-center justify-between gap-4 px-5 py-4">
       <div className="min-w-0">
-        <p className="text-sm font-medium text-foreground">{title}</p>
+        <p className="flex items-center gap-2 text-sm font-medium text-foreground">
+          {title}
+          {badge}
+        </p>
         {description && <p className="text-muted-foreground mt-0.5 text-xs">{description}</p>}
       </div>
       <div className="shrink-0">{children}</div>
