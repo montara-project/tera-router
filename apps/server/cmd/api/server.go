@@ -4,26 +4,27 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"tera-router/server/internal/app"
 
-	sentryfiber "github.com/getsentry/sentry-go/fiber"
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/compress"
-	"github.com/gofiber/fiber/v2/middleware/cors"
-	"github.com/gofiber/fiber/v2/middleware/helmet"
-	"github.com/gofiber/fiber/v2/middleware/limiter"
-	"github.com/gofiber/fiber/v2/middleware/logger"
-	"github.com/gofiber/fiber/v2/middleware/recover"
-	"github.com/gofiber/fiber/v2/middleware/requestid"
+	sentryfiber "github.com/gofiber/contrib/v3/sentry"
+	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/compress"
+	"github.com/gofiber/fiber/v3/middleware/cors"
+	"github.com/gofiber/fiber/v3/middleware/helmet"
+	"github.com/gofiber/fiber/v3/middleware/limiter"
+	"github.com/gofiber/fiber/v3/middleware/logger"
+	"github.com/gofiber/fiber/v3/middleware/recover"
+	"github.com/gofiber/fiber/v3/middleware/requestid"
+	"github.com/gofiber/fiber/v3/middleware/static"
 )
 
 func serve(app *app.Application) error {
 	// Sentry
-	sentryHandler := sentryfiber.New(sentryfiber.Options{
-		// you can modify these options
+	sentryHandler := sentryfiber.New(sentryfiber.Config{
 		Repanic:         true,
 		WaitForDelivery: true,
 		Timeout:         5 * time.Second,
@@ -31,12 +32,12 @@ func serve(app *app.Application) error {
 
 	// Fiber Configuration
 	server := fiber.New(fiber.Config{
-		BodyLimit:               2 * 1024 * 1024, // 2MB
-		IdleTimeout:             time.Minute,
-		ReadTimeout:             20 * time.Second,
-		WriteTimeout:            3 * time.Minute,
-		EnableTrustedProxyCheck: true,
-		ErrorHandler: func(c *fiber.Ctx, err error) error {
+		BodyLimit:    2 * 1024 * 1024, // 2MB
+		IdleTimeout:  time.Minute,
+		ReadTimeout:  20 * time.Second,
+		WriteTimeout: 3 * time.Minute,
+		TrustProxy:   true,
+		ErrorHandler: func(c fiber.Ctx, err error) error {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"error": err.Error(),
 			})
@@ -53,27 +54,27 @@ func serve(app *app.Application) error {
 
 	// CORS
 	server.Use(cors.New(cors.Config{
-		AllowOrigins: app.Config.App.CORSAllowedOrigins,
-		AllowMethods: "GET,POST,PUT,PATCH,DELETE,OPTIONS",
-		AllowHeaders: "Origin,Content-Type,Accept,Authorization",
+		AllowOrigins: strings.Split(app.Config.App.CORSAllowedOrigins, ","),
+		AllowMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowHeaders: []string{"Origin", "Content-Type", "Accept", "Authorization"},
 		MaxAge:       3600,
 	}))
 
 	// Rate Limit
 	server.Use(limiter.New(limiter.Config{
-		Next: func(c *fiber.Ctx) bool {
+		Next: func(c fiber.Ctx) bool {
 			return c.IP() == "127.0.0.1"
 		},
 		Max:        100,
 		Expiration: 1 * time.Minute,
-		LimitReached: func(c *fiber.Ctx) error {
+		LimitReached: func(c fiber.Ctx) error {
 			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
 				"error": "Too many requests",
 			})
 		},
 	}))
 
-	server.Static("/", "./public")
+	server.Use(static.New("./public"))
 
 	// Initial Routes
 	routes(server, app)
