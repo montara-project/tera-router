@@ -145,8 +145,8 @@ export default function BrandingTab({ settings, onUpdate }: BrandingTabProps) {
   }
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="bg-background">
+      <CardHeader className="h-20">
         <div className="flex items-center gap-3.5">
           <IconBadge
             icon={IconPalette}
@@ -264,7 +264,7 @@ export default function BrandingTab({ settings, onUpdate }: BrandingTabProps) {
               <IconPalette className="text-muted-foreground h-4 w-4" />
             </div>
             <span className="text-sm font-semibold text-foreground">
-              {displayName || 'KeiRouter'}
+              {displayName || 'Tera Router'}
             </span>
           </div>
         </div>

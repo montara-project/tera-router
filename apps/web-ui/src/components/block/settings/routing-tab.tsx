@@ -34,8 +34,8 @@ export default function RoutingTab({ settings, onUpdate }: RoutingTabProps) {
     : 'Chains always start with their first model.'
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="bg-background">
+      <CardHeader className="h-20">
         <div className="flex items-center gap-3.5">
           <IconBadge
             icon={IconRoute}

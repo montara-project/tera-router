@@ -11,13 +11,13 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 
-const SQLITE_PATH = '/data/keirouter.db'
+const SQLITE_PATH = '/data/tera-router.db'
 
 export default function ImportExportTab() {
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader>
+      <Card className="bg-background">
+        <CardHeader className="h-20">
           <div className="flex items-center gap-3.5">
             <IconBadge
               icon={IconUpload}
@@ -83,8 +83,8 @@ export default function ImportExportTab() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
+      <Card className="bg-background">
+        <CardHeader className="h-20">
           <div className="flex items-center gap-3.5">
             <IconBadge
               icon={IconDatabase}
@@ -95,8 +95,8 @@ export default function ImportExportTab() {
             <CardHeading>
               <CardTitle>Configuration backup</CardTitle>
               <CardDescription>
-                Export or import KeiRouter configuration as JSON. Portable mode re-keys credentials
-                with a passphrase.
+                Export or import Tera Router configuration as JSON. Portable mode re-keys
+                credentials with a passphrase.
               </CardDescription>
             </CardHeading>
           </div>
@@ -115,8 +115,8 @@ export default function ImportExportTab() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
+      <Card className="bg-background">
+        <CardHeader className="h-20">
           <div className="flex items-center gap-3.5">
             <IconBadge
               icon={IconShield}

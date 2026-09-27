@@ -92,7 +92,7 @@ function RouteComponent() {
           />
           <SystemMetricChartCard
             color={CHART_COLORS.processCpu}
-            description="keirouter's own CPU usage over time"
+            description="Tera Router's own CPU usage over time"
             icon={Cpu}
             max={100}
             min={0}
@@ -103,7 +103,7 @@ function RouteComponent() {
           />
           <SystemMetricChartCard
             color={CHART_COLORS.processRss}
-            description="keirouter's resident memory over time"
+            description="Tera Router's resident memory over time"
             icon={MemoryStick}
             points={stats.history.processRss}
             title="Process RSS"

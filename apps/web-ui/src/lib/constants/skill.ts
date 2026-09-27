@@ -8,8 +8,8 @@ export type ReferenceSkill = {
 
 export const REFERENCE_SKILLS: ReferenceSkill[] = [
   {
-    slug: 'keirouter',
-    name: 'KeiRouter (Entry)',
+    slug: 'Tera Router',
+    name: 'Tera Router (Entry)',
     description: 'Setup guide and index of all capabilities.',
   },
   {

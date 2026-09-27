@@ -11,7 +11,7 @@ function RouteComponent() {
   return (
     <SectionCard
       title="CLI Tools"
-      description="One-click configuration for coding tools, wired to this KeiRouter instance."
+      description="One-click configuration for coding tools, wired to this Tera Router instance."
     >
       <CliToolsGrid />
     </SectionCard>

@@ -55,8 +55,8 @@ export default function TokenSavingTab({ settings, onUpdate }: TokenSavingTabPro
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader>
+      <Card className="bg-background">
+        <CardHeader className="h-20">
           <div className="flex items-center gap-3.5">
             <IconBadge
               icon={IconBolt}
@@ -94,8 +94,8 @@ export default function TokenSavingTab({ settings, onUpdate }: TokenSavingTabPro
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
+      <Card className="bg-background">
+        <CardHeader className="h-20">
           <div className="flex items-center gap-3.5">
             <IconBadge
               icon={IconMessage}
@@ -126,8 +126,8 @@ export default function TokenSavingTab({ settings, onUpdate }: TokenSavingTabPro
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
+      <Card className="bg-background">
+        <CardHeader className="h-20">
           <div className="flex items-center gap-3.5">
             <IconBadge
               icon={IconStack2}
@@ -138,7 +138,7 @@ export default function TokenSavingTab({ settings, onUpdate }: TokenSavingTabPro
             <CardHeading>
               <CardTitle>Terse mode (alternative)</CardTitle>
               <CardDescription>
-                KeiRouter's own concise-output directive. An alternative to caveman; both inject a
+                Tera Router's own concise-output directive. An alternative to caveman; both inject a
                 system instruction, so pick one.
               </CardDescription>
             </CardHeading>
@@ -158,8 +158,8 @@ export default function TokenSavingTab({ settings, onUpdate }: TokenSavingTabPro
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
+      <Card className="bg-background">
+        <CardHeader className="h-20">
           <div className="flex items-center gap-3.5">
             <IconBadge
               icon={IconBolt}
@@ -250,8 +250,8 @@ export default function TokenSavingTab({ settings, onUpdate }: TokenSavingTabPro
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
+      <Card className="bg-background">
+        <CardHeader className="h-20">
           <div className="flex items-center gap-3.5">
             <IconBadge
               icon={IconMessage}

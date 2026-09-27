@@ -47,7 +47,7 @@ export default function ReferenceSkillsCard() {
           <CardHeading>
             <CardTitle>Reference skills</CardTitle>
             <CardDescription>
-              Copy a skill URL and paste it to your AI agent to teach it how to use KeiRouter
+              Copy a skill URL and paste it to your AI agent to teach it how to use Tera Router
               endpoints.
             </CardDescription>
           </CardHeading>

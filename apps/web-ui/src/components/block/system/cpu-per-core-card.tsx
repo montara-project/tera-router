@@ -39,8 +39,8 @@ export default function CpuPerCoreCard({ cores }: CpuPerCoreCardProps) {
     : 0
 
   return (
-    <Card className='bg-background'>
-      <CardHeader className='h-20'>
+    <Card className="bg-background">
+      <CardHeader className="h-20">
         <div className="flex items-center gap-3.5">
           <SystemIconBadge
             icon={Cpu}
@@ -59,12 +59,12 @@ export default function CpuPerCoreCard({ cores }: CpuPerCoreCardProps) {
 
       <CardContent className="space-y-4">
         <div
-                  className="grid w-full gap-2.5"
-                  style={{
-                    gridTemplateColumns:
-                      'repeat(auto-fit, minmax(max(5.5rem, min(100%, calc((100% - 1.875rem) / 4))), 1fr))',
-                  }}
-                >
+          className="grid w-full gap-2.5"
+          style={{
+            gridTemplateColumns:
+              'repeat(auto-fit, minmax(max(5.5rem, min(100%, calc((100% - 1.875rem) / 4))), 1fr))',
+          }}
+        >
           {cores.map((core) => {
             const percent = Math.min(100, Math.max(0, core.percent))
 

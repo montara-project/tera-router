@@ -41,8 +41,8 @@ export default function NetworkTab({ settings, onUpdate }: NetworkTabProps) {
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader>
+      <Card className="bg-background">
+        <CardHeader className="h-20">
           <div className="flex items-center gap-3.5">
             <IconBadge
               icon={IconClock}
@@ -89,8 +89,8 @@ export default function NetworkTab({ settings, onUpdate }: NetworkTabProps) {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
+      <Card className="bg-background">
+        <CardHeader className="h-20">
           <div className="flex items-center gap-3.5">
             <IconBadge
               icon={IconShield}
@@ -123,8 +123,8 @@ export default function NetworkTab({ settings, onUpdate }: NetworkTabProps) {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
+      <Card className="bg-background">
+        <CardHeader className="h-20">
           <div className="flex items-center gap-3.5">
             <IconBadge
               icon={IconWifi}
@@ -162,8 +162,8 @@ export default function NetworkTab({ settings, onUpdate }: NetworkTabProps) {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
+      <Card className="bg-background">
+        <CardHeader className="h-20">
           <div className="flex items-center gap-3.5">
             <IconBadge
               icon={IconDeviceDesktop}

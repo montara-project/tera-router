@@ -17,8 +17,8 @@ interface SystemTabProps {
 
 export default function SystemTab({ version }: SystemTabProps) {
   return (
-    <Card>
-      <CardHeader>
+    <Card className="bg-background">
+      <CardHeader className="h-20">
         <div className="flex items-center justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3.5">
             <IconBadge
@@ -30,7 +30,7 @@ export default function SystemTab({ version }: SystemTabProps) {
             <CardHeading>
               <CardTitle>Updates</CardTitle>
               <CardDescription>
-                Check for new KeiRouter releases and read the latest changelog.
+                Check for new Tera Router releases and read the latest changelog.
               </CardDescription>
             </CardHeading>
           </div>
