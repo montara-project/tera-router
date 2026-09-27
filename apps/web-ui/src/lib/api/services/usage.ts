@@ -1,4 +1,4 @@
-import type { AxiosItemResponse, AxiosListResponse } from '@/types/api'
+import type { ApiItemResponse, AxiosItemResponse, AxiosListResponse } from '@/types/api'
 
 import { env } from '@/config/env'
 import { AUTH_STORAGE_KEYS } from '@/lib/constants/auth'
@@ -6,6 +6,7 @@ import { AUTH_STORAGE_KEYS } from '@/lib/constants/auth'
 import type { Models } from '../models'
 
 import { ClientFetchApi } from '../client-fetch'
+import { USAGE_TELEMETRY_SEED } from './usage-telemetry-seed'
 
 const path = '/v1/usage'
 
@@ -34,9 +35,22 @@ function insights(range?: Models.UsageRange): Promise<
   return api.get(`${path}/insights`, { params: range ? { range } : undefined })
 }
 
+/**
+ * Rich usage telemetry for the Usage page. TODO: the seed mirrors the
+ * KeiRouter reference until the backend exposes cache/reasoning/TTFT/
+ * pricing-snapshot fields; when it does, merge them from
+ * `/v1/usage/summary` + `/v1/usage/insights` and drop the seed.
+ */
+function telemetry(
+  _range?: Models.UsageRange
+): Promise<ApiItemResponse<Models.UsageTelemetryOverview>> {
+  return Promise.resolve({ data: USAGE_TELEMETRY_SEED, metadata: {} })
+}
+
 export const usageServices = {
   path,
   summary,
   models,
   insights,
+  telemetry,
 }
