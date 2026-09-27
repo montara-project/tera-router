@@ -42,3 +42,11 @@ func (d *ValidateKey) Validate(v *validator.MapValidator) {
 	v.Field("provider").Required().String()
 	v.Field("api_key").Required().String()
 }
+
+// TestResult reports one credential validation attempt against the upstream.
+type TestResult struct {
+	OK        bool   `json:"ok"`
+	Status    int    `json:"status"`
+	LatencyMS int64  `json:"latency_ms"`
+	Detail    string `json:"detail"`
+}
