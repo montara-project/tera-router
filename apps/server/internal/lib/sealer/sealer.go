@@ -25,7 +25,7 @@ import (
 const KeySize = 32
 
 // hkdfInfo namespaces the KEK derivation for this application.
-const hkdfInfo = "tera-router:sealer:v1"
+const hkdfInfo = "tera:sealer:v1"
 
 // ErrInvalidKeySize is returned when a key is not KeySize bytes.
 var ErrInvalidKeySize = fmt.Errorf("sealer: key must be %d bytes", KeySize)
