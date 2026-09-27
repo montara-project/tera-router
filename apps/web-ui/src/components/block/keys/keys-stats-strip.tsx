@@ -40,7 +40,7 @@ export default function KeysStatsStrip({ keys }: KeysStatsStripProps) {
   ]
 
   return (
-    <Card className="p-0">
+    <Card className="p-0 bg-background">
       <div className="grid grid-cols-2 lg:grid-cols-4 lg:divide-x lg:divide-border">
         {stats.map((stat) => (
           <div key={stat.label} className="flex flex-col gap-3 p-5">

@@ -70,8 +70,8 @@ export default function CustomSkillsCard({
   const isEmpty = skills.length === 0
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="bg-background">
+      <CardHeader className="h-20">
         <div className="flex items-center gap-3.5">
           <IconBadge
             icon={IconPuzzle}

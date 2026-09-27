@@ -29,7 +29,7 @@ export default function QuotaSummaryCard({
   stats,
 }: QuotaSummaryCardProps) {
   return (
-    <Card className="p-5">
+    <Card className="p-5 bg-background">
       <div className="flex items-center gap-3">
         <QuotaIconBadge icon={icon} shape={iconShape} tone={iconTone} />
         <span className="text-muted-foreground text-xs font-semibold tracking-[0.14em] uppercase">

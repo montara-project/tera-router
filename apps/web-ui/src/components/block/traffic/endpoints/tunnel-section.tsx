@@ -16,8 +16,8 @@ import ConnectApp, { type ConnectToneVariant } from './connect-app'
 
 export default function TunnelSection() {
   return (
-    <Card>
-      <CardHeader>
+    <Card className="bg-background">
+      <CardHeader className="h-20">
         <div className="flex items-center gap-3.5">
           <IconBadge
             icon={IconCloud}

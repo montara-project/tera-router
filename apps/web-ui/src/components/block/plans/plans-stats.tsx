@@ -48,7 +48,7 @@ export default function PlansStats({ plans }: PlansStatsProps) {
   return (
     <div className="grid gap-4 lg:grid-cols-3">
       {stats.map((stat) => (
-        <Card key={stat.label} className="p-5">
+        <Card key={stat.label} className="p-5 bg-background">
           <div className="flex items-center gap-4">
             <span
               className={cn(

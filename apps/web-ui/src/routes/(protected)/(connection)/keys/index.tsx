@@ -92,8 +92,8 @@ function RouteComponent() {
       <div className="space-y-4">
         <KeysStatsStrip keys={keysData} />
 
-        <Card>
-          <CardHeader>
+        <Card className="bg-background">
+          <CardHeader className="h-20">
             <div className="flex items-center gap-3.5">
               <IconBadge
                 icon={IconKey}

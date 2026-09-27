@@ -35,8 +35,8 @@ function ReferenceSkillRow({ skill }: { skill: ReferenceSkill }) {
 
 export default function ReferenceSkillsCard() {
   return (
-    <Card>
-      <CardHeader>
+    <Card className="bg-background">
+      <CardHeader className="h-20">
         <div className="flex items-center gap-3.5">
           <IconBadge
             icon={IconBook2}

@@ -76,8 +76,8 @@ export default function PlanCard({ plan }: PlanCardProps) {
 
   return (
     <React.Fragment>
-      <Card>
-        <CardHeader>
+      <Card className="bg-background">
+        <CardHeader className="h-20">
           <div className="flex min-w-0 flex-1 items-center gap-3.5">
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600 ring-1 ring-amber-200/70 dark:bg-amber-950/30 dark:text-amber-300 dark:ring-amber-900/60">
               <IconWallet className="h-5 w-5" />
