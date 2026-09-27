@@ -18,6 +18,7 @@ import type { Models } from '@/lib/api/models'
 
 import SectionCard from '@/components/block/common/section-card'
 import SimpleAlertDialog from '@/components/block/common/simple-alert-dialog'
+import SimpleDialog from '@/components/block/common/simple-dialog'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardToolbar } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -28,6 +29,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { throwAxiosError } from '@/lib/api/axios-error'
 import { PROXY_POOL_QUERY_KEY, proxyPoolQueries } from '@/lib/api/queries/proxy-pool'
@@ -62,6 +65,7 @@ function formatTestedAgo(iso: string) {
 function RouteComponent() {
   const queryClient = useQueryClient()
   const [selected, setSelected] = useState<Record<string, boolean>>({})
+  const [addOpen, setAddOpen] = useState(false)
 
   const { data } = useQuery(proxyPoolQueries.list())
   const pools = data?.data ?? []
@@ -94,8 +98,13 @@ function RouteComponent() {
     toast.info('Batch import is not wired to the backend yet')
   }
 
-  const handleAddPool = async () => {
-    await services.proxyPools.store()
+  const handleAddPool = async (payload: {
+    name: string
+    url: string
+    mode?: string
+    label?: string
+  }) => {
+    await services.proxyPools.store(payload)
     toast.success('Proxy pool created')
     await refresh()
   }
@@ -137,7 +146,7 @@ function RouteComponent() {
 
           <Button
             className="bg-cyan-600 text-white hover:bg-cyan-500 dark:bg-cyan-600 dark:hover:bg-cyan-500"
-            onClick={handleAddPool}
+            onClick={() => setAddOpen(true)}
           >
             <IconPlus />
             <span>Add Proxy Pool</span>
@@ -201,7 +210,86 @@ function RouteComponent() {
           )}
         </CardContent>
       </Card>
+
+      <AddPoolDialog open={addOpen} onOpenChange={setAddOpen} onSubmit={handleAddPool} />
     </SectionCard>
+  )
+}
+
+interface AddPoolDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onSubmit: (payload: { name: string; url: string; mode?: string; label?: string }) => Promise<void>
+}
+
+function AddPoolDialog({ open, onOpenChange, onSubmit }: AddPoolDialogProps) {
+  const [name, setName] = useState('')
+  const [url, setUrl] = useState('')
+  const [label, setLabel] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  const valid = name.trim() !== '' && url.trim() !== ''
+
+  const handleSubmit = async () => {
+    if (!valid || submitting) return
+
+    setSubmitting(true)
+    try {
+      await onSubmit({ name: name.trim(), url: url.trim(), label: label.trim() || undefined })
+      onOpenChange(false)
+      setName('')
+      setUrl('')
+      setLabel('')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <SimpleDialog
+      title="Add Proxy Pool"
+      description="Register an outbound proxy exit. The pool is tested before it is marked active."
+      open={open}
+      onOpenChange={onOpenChange}
+    >
+      <div className="space-y-4">
+        <div className="space-y-1.5">
+          <Label htmlFor="pool-name">Name</Label>
+          <Input
+            id="pool-name"
+            value={name}
+            placeholder="cloudflare-relay"
+            onChange={(event) => setName(event.target.value)}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="pool-url">URL</Label>
+          <Input
+            id="pool-url"
+            value={url}
+            placeholder="https://relay.example.workers.dev"
+            onChange={(event) => setUrl(event.target.value)}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="pool-label">Label (optional)</Label>
+          <Input
+            id="pool-label"
+            value={label}
+            placeholder="cloudflare relay"
+            onChange={(event) => setLabel(event.target.value)}
+          />
+        </div>
+        <div className="flex justify-end gap-2 pt-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button disabled={!valid || submitting} onClick={handleSubmit}>
+            {submitting ? 'Adding…' : 'Add pool'}
+          </Button>
+        </div>
+      </div>
+    </SimpleDialog>
   )
 }
 

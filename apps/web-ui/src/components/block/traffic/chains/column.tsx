@@ -105,7 +105,7 @@ function ActionCell({ record }: ActionCellProps) {
   const mutation = useMutation({
     mutationFn: async () => {
       try {
-        await services.chains.delete(record.id)
+        await services.chains.remove(record.id)
       } catch (error) {
         throwAxiosError(error as Error)
       }

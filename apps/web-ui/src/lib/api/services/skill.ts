@@ -1,50 +1,30 @@
 import type { AxiosDeleteResponse, AxiosItemResponse, AxiosListResponse } from '@/types/api'
 
+import { env } from '@/config/env'
+import { AUTH_STORAGE_KEYS } from '@/lib/constants/auth'
+
 import type { CreateSkillDto } from '../dtos/skill/schema'
 import type { Skill } from '../models/skill'
 
+import { ClientFetchApi } from '../client-fetch'
+
 const path = '/v1/skills'
 
-/**
- * The skills endpoint is not available on the server yet, so this service keeps
- * an in-memory skill list matching what GET /v1/skills would return.
- */
-let skills: Skill[] = []
+const api = new ClientFetchApi({
+  baseURL: String(env.VITE_API_URL),
+  storageKey: AUTH_STORAGE_KEYS.AUTH_STORAGE,
+}).default
 
 function list(): Promise<AxiosListResponse<Skill>> {
-  const response = {
-    data: {
-      data: [...skills],
-      metadata: { total: skills.length },
-    },
-  } as AxiosListResponse<Skill>
-
-  return Promise.resolve(response)
+  return api.get(path)
 }
 
 function store(payload: CreateSkillDto): Promise<AxiosItemResponse<Skill>> {
-  const skill: Skill = {
-    id: crypto.randomUUID(),
-    name: payload.name,
-    description: payload.description ?? '',
-    prompt: payload.prompt,
-  }
-
-  skills = [skill, ...skills]
-
-  const response = {
-    data: { data: skill, metadata: {}, message: 'Skill created' },
-  } as AxiosItemResponse<Skill>
-
-  return Promise.resolve(response)
+  return api.post(path, payload)
 }
 
 function remove(id: string): Promise<AxiosDeleteResponse> {
-  skills = skills.filter((skill) => skill.id !== id)
-
-  const response = { data: { message: 'Skill deleted' } } as AxiosDeleteResponse
-
-  return Promise.resolve(response)
+  return api.delete(`${path}/${id}`)
 }
 
 export const skillServices = {

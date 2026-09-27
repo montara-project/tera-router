@@ -1,87 +1,44 @@
-import {
-  type ApiListResponse,
-  type AxiosDeleteResponse,
-  type AxiosItemResponse,
-  type AxiosListResponse,
-} from '@/types/api'
+import type { AxiosDeleteResponse, AxiosItemResponse, AxiosListResponse } from '@/types/api'
+
+import { env } from '@/config/env'
+import { AUTH_STORAGE_KEYS } from '@/lib/constants/auth'
 
 import type { ApiKey } from '../models/key'
 
+import { ClientFetchApi } from '../client-fetch'
+
 const path = '/v1/keys'
 
-/**
- * The keys endpoint is not available on the server yet, so this service keeps
- * an in-memory key list matching what GET /v1/keys would return.
- */
-let keys: ApiKey[] = [
-  {
-    id: 'key-dev',
-    name: 'Dev',
-    status: 'active',
-    keyPreview: 'kr_qK5o...EmP8',
-    fullKey: 'kr_qK5o9xTmBvLpW2nRcF8jEmP8',
-    planLabel: 'Default',
-    planNote: 'Plan defaults',
-    createdAt: '2026-09-07',
-  },
-]
+const api = new ClientFetchApi({
+  baseURL: String(env.VITE_API_URL),
+  storageKey: AUTH_STORAGE_KEYS.AUTH_STORAGE,
+}).default
 
 function list(params?: { offset?: number; limit?: number }): Promise<AxiosListResponse<ApiKey>> {
-  const offset = params?.offset ?? 0
-  const limit = params?.limit ?? 10
-
-  const body: ApiListResponse<ApiKey> = {
-    data: keys.slice(offset, offset + limit),
-    metadata: { total: keys.length, offset, limit },
-  }
-
-  const response = { data: body } as AxiosListResponse<ApiKey>
-
-  return Promise.resolve(response)
+  return api.get(path, { params })
 }
 
-function store(payload?: { name?: string }): Promise<AxiosItemResponse<ApiKey>> {
-  const raw = crypto.randomUUID().replace(/-/g, '')
-  const fullKey = `kr_${raw.slice(0, 20)}`
-
-  const key: ApiKey = {
-    id: crypto.randomUUID(),
-    name: payload?.name?.trim() || `Key ${keys.length + 1}`,
-    status: 'active',
-    keyPreview: `${fullKey.slice(0, 7)}...${fullKey.slice(-4)}`,
-    fullKey,
-    planLabel: 'Default',
-    planNote: 'Plan defaults',
-    createdAt: new Date().toISOString(),
-  }
-
-  keys = [key, ...keys]
-
-  const response = {
-    data: { data: key, metadata: {}, message: 'Key created' },
-  } as AxiosItemResponse<ApiKey>
-
-  return Promise.resolve(response)
+function store(payload?: {
+  name?: string
+  plan_id?: string
+  scopes?: string
+}): Promise<AxiosItemResponse<ApiKey>> {
+  // The server requires a name; default one when the caller omits it.
+  return api.post(path, { name: 'New Key', ...payload })
 }
 
-function toggleStatus(id: string): Promise<AxiosItemResponse<{ id: string }>> {
-  keys = keys.map((key) =>
-    key.id === id ? { ...key, status: key.status === 'active' ? 'disabled' : 'active' } : key
-  )
-
-  const response = {
-    data: { data: { id }, metadata: {} },
-  } as AxiosItemResponse<{ id: string }>
-
-  return Promise.resolve(response)
+/** enable/disable a key (PATCH /v1/keys/:id) */
+function toggleStatus(id: string, disabled: boolean): Promise<AxiosItemResponse<{ id: string }>> {
+  return api.patch(`${path}/${id}`, { disabled })
 }
 
 function remove(id: string): Promise<AxiosDeleteResponse> {
-  keys = keys.filter((key) => key.id !== id)
+  return api.delete(`${path}/${id}`)
+}
 
-  const response = { data: { message: 'Key deleted' } } as AxiosDeleteResponse
-
-  return Promise.resolve(response)
+/** decrypts the stored key plaintext (audit-logged on the server) */
+function reveal(id: string): Promise<AxiosItemResponse<{ id: string; fullKey: string }>> {
+  return api.post(`${path}/${id}/reveal`)
 }
 
 export const keyServices = {
@@ -90,4 +47,5 @@ export const keyServices = {
   store,
   toggleStatus,
   remove,
+  reveal,
 }

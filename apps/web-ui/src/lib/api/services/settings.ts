@@ -1,57 +1,25 @@
-import { type ApiItemResponse, type AxiosItemResponse } from '@/types/api'
+import type { AxiosItemResponse } from '@/types/api'
+
+import { env } from '@/config/env'
+import { AUTH_STORAGE_KEYS } from '@/lib/constants/auth'
 
 import type { AppSettings } from '../models/settings'
 
+import { ClientFetchApi } from '../client-fetch'
+
 const path = '/v1/settings'
 
-/**
- * The settings endpoint is not available on the server yet, so this service
- * keeps an in-memory settings object matching what GET /v1/settings would return.
- */
-let settings: AppSettings = {
-  rtkEnabled: true,
-  sourceCodeFilter: 'off',
-  cavemanEnabled: false,
-  terseEnabled: false,
-  headroomEnabled: false,
-  ponytailEnabled: false,
-  providerRoundRobin: true,
-  providerStickyLimit: 3,
-  chainRoundRobin: false,
-  connectTimeout: 60,
-  streamStallTimeout: 300,
-  requestTimeout: 300,
-  enforceRateLimits: true,
-  outboundProxyEnabled: false,
-  requestDetailRecording: true,
-  brandingDisplayName: 'KeiRouter',
-  brandingTagline: '',
-  brandingTheme: 'forest-amber',
-}
+const api = new ClientFetchApi({
+  baseURL: String(env.VITE_API_URL),
+  storageKey: AUTH_STORAGE_KEYS.AUTH_STORAGE,
+}).default
 
 function get(): Promise<AxiosItemResponse<AppSettings>> {
-  const body: ApiItemResponse<AppSettings> = {
-    data: { ...settings },
-    metadata: {},
-  }
-
-  const response = { data: body } as AxiosItemResponse<AppSettings>
-
-  return Promise.resolve(response)
+  return api.get(path)
 }
 
 function update(patch: Partial<AppSettings>): Promise<AxiosItemResponse<AppSettings>> {
-  settings = { ...settings, ...patch }
-
-  const body: ApiItemResponse<AppSettings> = {
-    data: { ...settings },
-    metadata: {},
-    message: 'Settings updated',
-  }
-
-  const response = { data: body } as AxiosItemResponse<AppSettings>
-
-  return Promise.resolve(response)
+  return api.patch(path, patch)
 }
 
 export const settingsServices = {

@@ -1,175 +1,77 @@
-import { type ApiItemResponse, type AxiosItemResponse } from '@/types/api'
+import type { AxiosDeleteResponse, AxiosItemResponse, AxiosListResponse } from '@/types/api'
 
-import type { Provider, ProvidersOverview } from '../models/provider'
+import { env } from '@/config/env'
+import { AUTH_STORAGE_KEYS } from '@/lib/constants/auth'
+
+import type { Models } from '../models'
+
+import { ClientFetchApi } from '../client-fetch'
 
 const path = '/v1/providers'
 
-/**
- * The providers endpoint is not available on the server yet, so this service
- * keeps an in-memory catalog matching what GET /v1/providers would return.
- */
-const connected: Provider[] = [
-  {
-    id: 'prov-mimo-free',
-    name: 'MiMo Free',
-    slug: 'mimo-free',
-    connected: true,
-    accounts: 1,
-    capabilities: ['chat', 'stt'],
-  },
-  {
-    id: 'prov-gonka',
-    name: 'Gonka',
-    slug: 'custom-openai-gonka',
-    connected: true,
-    accounts: 1,
-    capabilities: ['chat'],
-  },
-  {
-    id: 'prov-id-qzz',
-    name: 'ID QZZ',
-    slug: 'custom-openai-id-qzz',
-    connected: true,
-    accounts: 1,
-    capabilities: ['chat'],
-  },
-  {
-    id: 'prov-code-craft',
-    name: 'Code Craft API',
-    slug: 'custom-openai-code-craft-api',
-    connected: true,
-    accounts: 1,
-    capabilities: ['chat', 'embeddings'],
-  },
-  {
-    id: 'prov-orcarouter',
-    name: 'OrcaRouter',
-    slug: 'custom-openai-orcarouter',
-    connected: true,
-    accounts: 1,
-    capabilities: ['chat'],
-  },
-  {
-    id: 'prov-vyce-ai',
-    name: 'Vyce AI',
-    slug: 'custom-openai-vyce-ai',
-    connected: true,
-    accounts: 1,
-    capabilities: ['chat'],
-  },
-  {
-    id: 'prov-kira-ai',
-    name: 'Kira AI',
-    slug: 'custom-openai-kira-ai',
-    connected: true,
-    accounts: 1,
-    capabilities: ['chat'],
-  },
-]
+const api = new ClientFetchApi({
+  baseURL: String(env.VITE_API_URL),
+  storageKey: AUTH_STORAGE_KEYS.AUTH_STORAGE,
+}).default
 
-const available: Provider[] = [
-  {
-    id: 'prov-custom-openai',
-    name: 'Custom (OpenAI-compatible)',
-    slug: 'custom-openai',
-    connected: false,
-    capabilities: ['chat', 'embeddings', 'image', 'tts', 'stt'],
-  },
-  {
-    id: 'prov-custom-anthropic',
-    name: 'Custom (Anthropic-compatible)',
-    slug: 'custom-anthropic',
-    connected: false,
-    capabilities: ['chat'],
-  },
-  {
-    id: 'prov-openai',
-    name: 'OpenAI',
-    slug: 'openai',
-    connected: false,
-    capabilities: ['chat', 'embeddings', 'image', 'tts', 'stt'],
-  },
-  {
-    id: 'prov-anthropic',
-    name: 'Anthropic',
-    slug: 'anthropic',
-    connected: false,
-    capabilities: ['chat'],
-  },
-  {
-    id: 'prov-claude-code',
-    name: 'Claude Code',
-    slug: 'claude',
-    connected: false,
-    official: false,
-    capabilities: ['chat'],
-  },
-  {
-    id: 'prov-gemini',
-    name: 'Gemini',
-    slug: 'gemini',
-    connected: false,
-    capabilities: ['chat', 'embeddings', 'image', 'stt', 'tts'],
-  },
-  {
-    id: 'prov-deepseek',
-    name: 'DeepSeek',
-    slug: 'deepseek',
-    connected: false,
-    capabilities: ['chat'],
-  },
-  {
-    id: 'prov-xai',
-    name: 'xAI (Grok)',
-    slug: 'xai',
-    connected: false,
-    capabilities: ['chat'],
-  },
-  {
-    id: 'prov-mistral',
-    name: 'Mistral',
-    slug: 'mistral',
-    connected: false,
-    capabilities: ['chat', 'embeddings'],
-  },
-  {
-    id: 'prov-groq',
-    name: 'Groq',
-    slug: 'groq',
-    connected: false,
-    capabilities: ['chat'],
-  },
-  {
-    id: 'prov-cohere',
-    name: 'Cohere',
-    slug: 'cohere',
-    connected: false,
-    capabilities: ['chat', 'embeddings', 'search'],
-  },
-  {
-    id: 'prov-perplexity',
-    name: 'Perplexity',
-    slug: 'perplexity',
-    connected: false,
-    capabilities: ['chat', 'search'],
-  },
-]
+function list(): Promise<AxiosItemResponse<Models.ProvidersOverview>> {
+  return api.get(path)
+}
 
-function list(): Promise<AxiosItemResponse<ProvidersOverview>> {
-  const body: ApiItemResponse<ProvidersOverview> = {
-    data: {
-      connected: [...connected],
-      available: [...available],
-    },
-    metadata: {},
-  }
+/** pricing snapshot (overrides + catalog fallbacks) */
+function rates(): Promise<AxiosItemResponse<{ overrides: Models.PricingOverride[] }>> {
+  return api.get(`${path}/rates`)
+}
 
-  const response = { data: body } as AxiosItemResponse<ProvidersOverview>
+// Custom ([OI]-compatible) providers
+function customList(): Promise<AxiosListResponse<Models.CustomProvider>> {
+  return api.get(`${path}/custom-providers`)
+}
 
-  return Promise.resolve(response)
+function customStore(
+  payload: Record<string, unknown>
+): Promise<AxiosItemResponse<Models.CustomProvider>> {
+  return api.post(`${path}/custom-providers`, payload)
+}
+
+function customUpdate(
+  id: string,
+  payload: Record<string, unknown>
+): Promise<AxiosItemResponse<Models.CustomProvider>> {
+  return api.patch(`${path}/custom-providers/${id}`, payload)
+}
+
+function customDelete(id: string): Promise<AxiosDeleteResponse> {
+  return api.delete(`${path}/custom-providers/${id}`)
+}
+
+// Provider-scoped bulk account operations (provider slug as :id)
+function accountsBulkDisable(slug: string): Promise<AxiosItemResponse<{ updated: number }>> {
+  return api.post(`${path}/${slug}/accounts/disable-all`)
+}
+
+function accountsBulkEnable(slug: string): Promise<AxiosItemResponse<{ updated: number }>> {
+  return api.post(`${path}/${slug}/accounts/enable-all`)
+}
+
+function accountsBulkDeleteDisabled(slug: string): Promise<AxiosItemResponse<{ deleted: number }>> {
+  return api.delete(`${path}/${slug}/accounts/disabled`)
+}
+
+function accountsBulkDeleteAll(slug: string): Promise<AxiosItemResponse<{ deleted: number }>> {
+  return api.delete(`${path}/${slug}/accounts/all`)
 }
 
 export const providerServices = {
   path,
   list,
+  rates,
+  customList,
+  customStore,
+  customUpdate,
+  customDelete,
+  accountsBulkDisable,
+  accountsBulkEnable,
+  accountsBulkDeleteDisabled,
+  accountsBulkDeleteAll,
 }

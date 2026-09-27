@@ -14,4 +14,6 @@ export type Plan = {
   allowedModels: string[] | null
   keysAssigned: number
   alertAtPercent: number
+  period: string
+  createdAt?: string
 }

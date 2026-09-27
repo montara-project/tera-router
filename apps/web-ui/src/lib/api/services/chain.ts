@@ -1,35 +1,53 @@
-import chainJson from '@/data/mock/chain.json'
-import { HTTP_METHOD, type AxiosListResponse, type ResourceMethods } from '@/types/api'
+import type { AxiosDeleteResponse, AxiosItemResponse, AxiosListResponse } from '@/types/api'
+
+import { env } from '@/config/env'
+import { AUTH_STORAGE_KEYS } from '@/lib/constants/auth'
 
 import type { Models } from '../models'
 
-import { clientResource } from '../resource'
+import { ClientFetchApi } from '../client-fetch'
 
 const path = '/v1/chains'
 
-const methods = [HTTP_METHOD.GET, HTTP_METHOD.POST, HTTP_METHOD.PUT, HTTP_METHOD.DELETE]
+const api = new ClientFetchApi({
+  baseURL: String(env.VITE_API_URL),
+  storageKey: AUTH_STORAGE_KEYS.AUTH_STORAGE,
+}).default
 
-const resources = (): ResourceMethods<Models.Chain> => {
-  return {
-    ...clientResource(path, methods),
-    list: (params?: Record<string, unknown>): Promise<AxiosListResponse<Models.Chain>> => {
-      const offset = Number(params?.offset ?? 0)
-      const limit = Number(params?.limit ?? 10)
-
-      const response = {
-        data: {
-          data: chainJson.data as Models.Chain[],
-          metadata: {
-            total: chainJson.metadata.total,
-            page: offset,
-            per_page: limit,
-          },
-        },
-      } as AxiosListResponse<Models.Chain>
-
-      return Promise.resolve(response)
-    },
-  }
+function list(params?: Record<string, unknown>): Promise<AxiosListResponse<Models.Chain>> {
+  return api.get(path, { params })
 }
 
-export const chainServices = resources()
+function get(id: string): Promise<AxiosItemResponse<Models.Chain>> {
+  return api.get(`${path}/${id}`)
+}
+
+function store(payload: Record<string, unknown>): Promise<AxiosItemResponse<Models.Chain>> {
+  return api.post(path, payload)
+}
+
+function update(
+  id: string,
+  payload: Record<string, unknown>
+): Promise<AxiosItemResponse<Models.Chain>> {
+  return api.put(`${path}/${id}`, payload)
+}
+
+function remove(id: string): Promise<AxiosDeleteResponse> {
+  return api.delete(`${path}/${id}`)
+}
+
+/** per-chain model usage aggregation (GET /v1/chains/:id/usage) */
+function usage(id: string): Promise<AxiosListResponse<Models.UsageByModel>> {
+  return api.get(`${path}/${id}/usage`)
+}
+
+export const chainServices = {
+  path,
+  list,
+  get,
+  store,
+  update,
+  remove,
+  usage,
+}

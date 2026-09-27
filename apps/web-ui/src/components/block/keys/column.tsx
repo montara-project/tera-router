@@ -53,7 +53,7 @@ function KeyCopyCell({ record }: { record: Models.ApiKey }) {
         aria-label={`Copy ${record.name} key`}
         className="text-muted-foreground hover:text-foreground"
         mode="icon"
-        onClick={() => copy(record.fullKey)}
+        onClick={() => record.fullKey && copy(record.fullKey)}
         size="sm"
         variant="ghost"
       >
@@ -199,7 +199,7 @@ function ActionCell({ record }: ActionCellProps) {
   const toggleMutation = useMutation({
     mutationFn: async () => {
       try {
-        await services.keys.toggleStatus(record.id)
+        await services.keys.toggleStatus(record.id, record.status === 'active')
       } catch (error) {
         throwAxiosError(error as Error)
       }
