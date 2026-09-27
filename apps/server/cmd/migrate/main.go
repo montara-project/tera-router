@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 
@@ -47,6 +48,9 @@ func main() {
 		s := []seeders.Seeder{
 			seeders.ProviderSeeder{DB: db},
 		}
+		if cfg.seed == seedDevelopment {
+			s = append(s, seeders.SampleKeySeeder{DB: db})
+		}
 
 		execSeeders(db, s...)
 	}
@@ -56,7 +60,7 @@ func main() {
 
 func migrateUp(m *migrate.Migrate) {
 	fmt.Println("Running up migrations...")
-	if err := m.Up(); err != nil {
+	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		log.Fatalf("failed to run up migrations: %v", err)
 	}
 }
