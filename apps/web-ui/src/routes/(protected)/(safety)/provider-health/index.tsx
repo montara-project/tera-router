@@ -50,7 +50,7 @@ function ProviderHealthContent() {
   const [range, setRange] = useState<HealthWindow>('7d')
   const [tab, setTab] = useState<HealthTab>('chains')
 
-  const { data } = useQuery(providerHealthQueries.overview(range))
+  const { data, isFetching } = useQuery(providerHealthQueries.overview(range))
 
   if (!data) {
     return <RouteSkeleton />
@@ -89,8 +89,8 @@ function ProviderHealthContent() {
               </button>
             ))}
           </div>
-          <Button variant="outline" onClick={handleRefresh}>
-            <IconRefresh />
+          <Button variant="outline" disabled={isFetching} onClick={handleRefresh}>
+            <IconRefresh className={cn(isFetching && 'animate-spin')} />
             <span>Refresh</span>
           </Button>
         </>
