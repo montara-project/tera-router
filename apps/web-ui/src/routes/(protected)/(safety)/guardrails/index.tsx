@@ -4,21 +4,16 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
-import type { GuardrailsOverview, GuardrailsScope } from '@/lib/api/models/guardrails'
+import type { GuardrailPolicy, GuardrailsOverview, GuardrailsScope } from '@/lib/api/models/guardrails'
 
 import SectionCard from '@/components/block/common/section-card'
 import AuditList from '@/components/block/guardrails/audit-list'
+import EditPolicyDialog from '@/components/block/guardrails/edit-policy-dialog'
 import GuardrailsTabs, { GUARDRAILS_TABS } from '@/components/block/guardrails/guardrails-tabs'
 import PolicyRow from '@/components/block/guardrails/policy-row'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from '@/components/ui/empty'
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { guardrailsQueries } from '@/lib/api/queries/guardrails'
@@ -33,9 +28,11 @@ const PRIMARY_BUTTON_CLASS =
 
 const SCOPE_HINTS: Record<GuardrailsScope, string> = {
   global: 'Master policy that applies to every request when no more specific policy fires.',
-  provider: 'Policies scoped to a provider apply to every request routed through it, overriding global.',
+  provider:
+    'Policies scoped to a provider apply to every request routed through it, overriding global.',
   model: 'Policies scoped to a model apply only to that model, overriding provider and global.',
-  chain: 'Policies scoped to a chain apply at every hop of the chain, overriding model-level rules.',
+  chain:
+    'Policies scoped to a chain apply at every hop of the chain, overriding model-level rules.',
   key: 'Policies scoped to an API key apply to that credential only, overriding everything upstream.',
 }
 
@@ -96,9 +93,11 @@ function ExternalDetectorsCard({
 function GuardrailsContent({ initial }: { initial: GuardrailsOverview }) {
   const [tab, setTab] = useState<GuardrailsScope | 'audit'>('global')
   const [overview, setOverview] = useState(initial)
+  const [editingId, setEditingId] = useState<string | null>(null)
 
   const activeTab = GUARDRAILS_TABS.find((item) => item.value === tab)
   const policies = overview.policies.filter((policy) => policy.scope === tab)
+  const editingPolicy = overview.policies.find((policy) => policy.id === editingId) ?? null
 
   const handleImport = () => {
     toast.info('Policy import is not wired to the backend yet')
@@ -108,12 +107,17 @@ function GuardrailsContent({ initial }: { initial: GuardrailsOverview }) {
     toast.info('Policy export is not wired to the backend yet')
   }
 
-  const handleEdit = (name: string) => {
-    toast.info(`Editing ${name} is not wired to the backend yet`)
-  }
-
   const handleDelete = (name: string) => {
     toast.info(`Deleting ${name} is not wired to the backend yet`)
+  }
+
+  const handleSavePolicy = (updated: GuardrailPolicy) => {
+    setOverview((current) => ({
+      ...current,
+      policies: current.policies.map((policy) => (policy.id === updated.id ? updated : policy)),
+    }))
+    setEditingId(null)
+    toast.success('Policy saved')
   }
 
   const handleToggleDetectors = (checked: boolean) => {
@@ -131,7 +135,8 @@ function GuardrailsContent({ initial }: { initial: GuardrailsOverview }) {
   }
 
   return (
-    <SectionCard
+    <>
+      <SectionCard
       title="Guardrails"
       description="Content-safety policies layered global → provider → model → chain → API key. Most specific wins."
       toolbar={
@@ -169,16 +174,14 @@ function GuardrailsContent({ initial }: { initial: GuardrailsOverview }) {
                   key={policy.id}
                   policy={policy}
                   onToggle={(enabled) => handleTogglePolicy(policy.id, enabled)}
-                  onEdit={() => handleEdit(policy.name)}
+                  onEdit={() => setEditingId(policy.id)}
                   onDelete={() => handleDelete(policy.name)}
                 />
               ))
             ) : (
               <Empty className="border">
                 <EmptyHeader>
-                  <EmptyMedia variant="icon">
-                    {activeTab ? <activeTab.icon /> : null}
-                  </EmptyMedia>
+                  <EmptyMedia variant="icon">{activeTab ? <activeTab.icon /> : null}</EmptyMedia>
                   <EmptyTitle>No {activeTab?.label.toLowerCase()} policies yet</EmptyTitle>
                   <EmptyDescription>Global policies still apply to this scope.</EmptyDescription>
                 </EmptyHeader>
@@ -187,7 +190,16 @@ function GuardrailsContent({ initial }: { initial: GuardrailsOverview }) {
           </div>
         )}
       </div>
-    </SectionCard>
+      </SectionCard>
+
+      <EditPolicyDialog
+        policy={editingPolicy}
+        onOpenChange={(open) => {
+          if (!open) setEditingId(null)
+        }}
+        onSave={handleSavePolicy}
+      />
+    </>
   )
 }
 
