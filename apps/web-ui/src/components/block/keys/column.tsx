@@ -83,7 +83,7 @@ export function KeysColumn({ loading }: BaseColumnProps) {
               size="sm"
             />
             <span className="text-muted-foreground text-xs whitespace-nowrap">
-              Select all ({table.getFilteredRowModel().rows.length})
+              keys ({table.getFilteredRowModel().rows.length})
             </span>
           </div>
         ),
@@ -96,7 +96,7 @@ export function KeysColumn({ loading }: BaseColumnProps) {
           />
         ),
         enableSorting: false,
-        size: 120,
+        size: 70,
       },
       {
         accessorKey: 'name',
