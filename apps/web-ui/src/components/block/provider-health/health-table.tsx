@@ -75,7 +75,9 @@ export default function HealthTable({ entityLabel, entries, onView }: HealthTabl
                     <p className={NUMERIC}>{entry.requests}</p>
                     <p className={NUMERIC}>{entry.fallbackRate.toFixed(1)}%</p>
                     <p className={NUMERIC}>{entry.finalFailures}</p>
-                    <p className="truncate text-sm text-muted-foreground">{entry.affected ?? '—'}</p>
+                    <p className="truncate text-sm text-muted-foreground">
+                      {entry.affected ?? '—'}
+                    </p>
                     <div className="text-right">
                       <button
                         type="button"
