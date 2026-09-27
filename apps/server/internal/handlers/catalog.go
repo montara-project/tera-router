@@ -1,4 +1,4 @@
-package services
+package handlers
 
 // CatalogProvider is a built-in provider spec, ported (condensed) from
 // IDRouter's connectors catalog: the subset of metadata the dashboard needs

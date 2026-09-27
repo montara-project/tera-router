@@ -8,6 +8,7 @@ import (
 	"tera-router/server/internal/models"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 )
 
 type skillsHandler struct {
@@ -15,7 +16,7 @@ type skillsHandler struct {
 }
 
 func (h *skillsHandler) Index(c fiber.Ctx) error {
-	skills, err := h.app.Services.Skills.List(c.Context())
+	skills, err := h.app.Repos.Skills.List(c.Context())
 	if err != nil {
 		return err
 	}
@@ -37,14 +38,11 @@ func (h *skillsHandler) Store(c fiber.Ctx) error {
 		description = *req.Description
 	}
 
-	skill, err := h.app.Services.Skills.Create(c.Context(), actorFrom(c), models.Skill{
-		Name:        req.Name,
-		Description: description,
-		Prompt:      req.Prompt,
-	})
-	if err != nil {
+	skill := models.Skill{ID: uuid.NewString(), Name: req.Name, Description: description, Prompt: req.Prompt}
+	if err := h.app.Repos.Skills.Create(c.Context(), skill); err != nil {
 		return err
 	}
+	auditRecord(c.Context(), h.app, actorFrom(c), "skill.create", skill.ID, map[string]string{"name": skill.Name})
 	return dtos.Created(c, skill, "Skill created")
 }
 
@@ -54,9 +52,10 @@ func (h *skillsHandler) Delete(c fiber.Ctx) error {
 		return apperr.ErrBadRequest
 	}
 
-	if err := h.app.Services.Skills.Delete(c.Context(), actorFrom(c), id.String()); err != nil {
+	if err := h.app.Repos.Skills.Delete(c.Context(), id.String()); err != nil {
 		return err
 	}
+	auditRecord(c.Context(), h.app, actorFrom(c), "skill.delete", id.String(), nil)
 	return dtos.Deleted(c, "Skill deleted")
 }
 
@@ -66,7 +65,7 @@ type pricingHandler struct {
 
 // PricingIndex lists pricing overrides (?provider= filters one provider).
 func (h *pricingHandler) PricingIndex(c fiber.Ctx) error {
-	rows, err := h.app.Services.Priming.ListPricing(c.Context(), c.Query("provider"))
+	rows, err := h.app.Repos.Pricing.List(c.Context(), c.Query("provider"))
 	if err != nil {
 		return err
 	}
@@ -79,17 +78,19 @@ func (h *pricingHandler) PricingUpsert(c fiber.Ctx) error {
 		return err
 	}
 
-	override, err := h.app.Services.Priming.UpsertPricing(c.Context(), actorFrom(c), models.PricingOverride{
+	override := models.PricingOverride{
+		ID:               uuid.NewString(),
 		Provider:         req.Provider,
 		Model:            req.Model,
 		InputMicros:      req.InputMicros,
 		OutputMicros:     req.OutputMicros,
 		CacheReadMicros:  req.CacheReadMicros,
 		CacheWriteMicros: req.CacheWriteMicros,
-	})
-	if err != nil {
+	}
+	if err := h.app.Repos.Pricing.Upsert(c.Context(), override); err != nil {
 		return err
 	}
+	auditRecord(c.Context(), h.app, actorFrom(c), "pricing.upsert", override.Provider+"/"+override.Model, nil)
 	return dtos.OK(c, override)
 }
 
@@ -99,14 +100,15 @@ func (h *pricingHandler) PricingDelete(c fiber.Ctx) error {
 		return apperr.New(apperr.KindBadRequest, "provider query parameter is required")
 	}
 
-	if err := h.app.Services.Priming.DeletePricing(c.Context(), actorFrom(c), provider, model); err != nil {
+	if err := h.app.Repos.Pricing.Delete(c.Context(), provider, model); err != nil {
 		return err
 	}
+	auditRecord(c.Context(), h.app, actorFrom(c), "pricing.delete", provider+"/"+model, nil)
 	return dtos.Deleted(c, "Pricing override deleted")
 }
 
 func (h *pricingHandler) CapabilityIndex(c fiber.Ctx) error {
-	rows, err := h.app.Services.Priming.ListCapabilities(c.Context())
+	rows, err := h.app.Repos.Capability.List(c.Context())
 	if err != nil {
 		return err
 	}
@@ -119,28 +121,32 @@ func (h *pricingHandler) CapabilityPut(c fiber.Ctx) error {
 		return err
 	}
 
-	override, err := h.app.Services.Priming.UpsertCapability(c.Context(), actorFrom(c), models.CapabilityOverride{
+	override := models.CapabilityOverride{
+		ID:           uuid.NewString(),
 		Provider:     req.Provider,
 		Model:        req.Model,
 		Capabilities: req.Capabilities,
-	})
-	if err != nil {
+	}
+	if err := h.app.Repos.Capability.Upsert(c.Context(), override); err != nil {
 		return err
 	}
+	auditRecord(c.Context(), h.app, actorFrom(c), "capability.upsert", override.Provider+"/"+override.Model, override.Capabilities)
 	return dtos.OK(c, override)
 }
 
 func (h *pricingHandler) CapabilityDelete(c fiber.Ctx) error {
 	provider, model := c.Params("provider"), c.Params("model")
-	if err := h.app.Services.Priming.DeleteCapability(c.Context(), actorFrom(c), provider, model); err != nil {
+	if err := h.app.Repos.Capability.Delete(c.Context(), provider, model); err != nil {
 		return err
 	}
+	auditRecord(c.Context(), h.app, actorFrom(c), "capability.delete", provider+"/"+model, nil)
 	return dtos.Deleted(c, "Capability override deleted")
 }
 
 func (h *pricingHandler) CapabilityReset(c fiber.Ctx) error {
-	if err := h.app.Services.Priming.ResetCapabilities(c.Context(), actorFrom(c)); err != nil {
+	if err := h.app.Repos.Capability.Reset(c.Context()); err != nil {
 		return err
 	}
+	auditRecord(c.Context(), h.app, actorFrom(c), "capability.reset", "*", nil)
 	return dtos.Message(c, fiber.StatusOK, "Capability overrides reset")
 }

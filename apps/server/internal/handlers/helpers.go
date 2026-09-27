@@ -1,14 +1,9 @@
-package services
+package handlers
 
 import (
-	"time"
-
 	"tera-router/server/internal/lib/sealer"
 	"tera-router/server/internal/models"
 )
-
-// timeZero is the all-time window start (includes every row).
-var timeZero = time.Time{}
 
 // toModelsSealed converts the lib sealer type into the persisted models type.
 func toModelsSealed(s sealer.Sealed) models.Sealed {

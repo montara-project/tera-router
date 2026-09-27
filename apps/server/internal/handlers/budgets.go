@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"time"
+
 	"tera-router/server/internal/app"
 	"tera-router/server/internal/dtos"
 	"tera-router/server/internal/lib"
@@ -8,10 +10,31 @@ import (
 	"tera-router/server/internal/models"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 )
 
 type budgetsHandler struct {
 	app *app.Application
+}
+
+// periodWindow resolves the current period bucket and window start for a
+// budget period (daily/weekly/monthly), ported from IDRouter's budget engine.
+func periodWindow(period string, now time.Time) (bucket string, from time.Time) {
+	switch period {
+	case "daily":
+		start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+		return start.Format("2006-01-02"), start
+	case "weekly":
+		weekday := int(now.Weekday())
+		if weekday == 0 {
+			weekday = 7
+		}
+		start := time.Date(now.Year(), now.Month(), now.Day()-weekday+1, 0, 0, 0, 0, now.Location())
+		return start.Format("2006-01-02"), start
+	default: // monthly
+		start := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+		return start.Format("2006-01"), start
+	}
 }
 
 // budgetFromRequest converts a Budget DTO into the stored model.
@@ -37,20 +60,75 @@ func budgetFromRequest(d dtos.Budget) models.Budget {
 	return b
 }
 
+// resetAllocations seeds the remaining counters for a new period bucket.
+func resetAllocations(b models.Budget, bucket string) models.Budget {
+	b.PeriodBucket = bucket
+	if b.LimitMicros > 0 {
+		b.RemainingMicros = b.LimitMicros
+	}
+	if b.LimitTokens > 0 {
+		b.RemainingTokens = b.LimitTokens
+	}
+	return b
+}
+
 func (h *budgetsHandler) Index(c fiber.Ctx) error {
-	budgets, err := h.app.Services.Budgets.List(c.Context())
+	budgets, err := h.app.Repos.Budgets.List(c.Context())
 	if err != nil {
 		return err
 	}
 	return dtos.List(c, budgets, dtos.TotalMeta(len(budgets)))
 }
 
+// budgetStatus is one row of the budgets/status endpoint: the budget plus
+// its spend over the current period.
+type budgetStatus struct {
+	models.Budget
+	SpentMicros int64   `json:"spent_micros"`
+	SpentTokens int64   `json:"spent_tokens"`
+	SpendPct    float64 `json:"spend_pct"`
+	TokenPct    float64 `json:"token_pct"`
+}
+
+// Status computes spend vs limit for every budget over its current period,
+// refreshing lazy allocations when the bucket rolled over.
 func (h *budgetsHandler) Status(c fiber.Ctx) error {
-	status, err := h.app.Services.Budgets.Status(c.Context())
+	budgets, err := h.app.Repos.Budgets.List(c.Context())
 	if err != nil {
 		return err
 	}
-	return dtos.List(c, status, dtos.TotalMeta(len(status)))
+
+	out := make([]budgetStatus, 0, len(budgets))
+	for _, b := range budgets {
+		if bucket, _ := periodWindow(b.Period, time.Now()); b.PeriodBucket != bucket {
+			b = resetAllocations(b, bucket)
+			if err := h.app.Repos.Budgets.Update(c.Context(), b); err != nil {
+				return err
+			}
+		}
+
+		_, from := periodWindow(b.Period, time.Now())
+		spent, err := h.app.Repos.Usage.Summary(c.Context(), from)
+		if err != nil {
+			return err
+		}
+
+		out = append(out, budgetStatus{
+			Budget:      b,
+			SpentMicros: spent.CostMicros,
+			SpentTokens: spent.PromptTokens + spent.CompletionTokens,
+			SpendPct:    percentOf(spent.CostMicros, b.LimitMicros),
+			TokenPct:    percentOf(spent.PromptTokens+spent.CompletionTokens, b.LimitTokens),
+		})
+	}
+	return dtos.List(c, out, dtos.TotalMeta(len(out)))
+}
+
+func percentOf(value, limit int64) float64 {
+	if limit <= 0 {
+		return 0
+	}
+	return float64(value) / float64(limit) * 100
 }
 
 func (h *budgetsHandler) Store(c fiber.Ctx) error {
@@ -59,13 +137,19 @@ func (h *budgetsHandler) Store(c fiber.Ctx) error {
 		return err
 	}
 
-	budget, err := h.app.Services.Budgets.Create(c.Context(), actorFrom(c), budgetFromRequest(req))
-	if err != nil {
+	budget := budgetFromRequest(req)
+	budget.ID = uuid.NewString()
+	bucket, _ := periodWindow(budget.Period, time.Now())
+	budget = resetAllocations(budget, bucket)
+
+	if err := h.app.Repos.Budgets.Create(c.Context(), budget); err != nil {
 		return err
 	}
+	auditRecord(c.Context(), h.app, actorFrom(c), "budget.create", budget.ID, map[string]string{"scope": string(budget.ScopeKind)})
 	return dtos.Created(c, budget, "Budget created")
 }
 
+// Update rewrites the budget and resets allocations to the new limits.
 func (h *budgetsHandler) Update(c fiber.Ctx) error {
 	id, err := lib.ContextParamUUID(c, "id")
 	if err != nil {
@@ -79,11 +163,14 @@ func (h *budgetsHandler) Update(c fiber.Ctx) error {
 
 	budget := budgetFromRequest(req)
 	budget.ID = id.String()
-	updated, err := h.app.Services.Budgets.Update(c.Context(), actorFrom(c), budget)
-	if err != nil {
+	bucket, _ := periodWindow(budget.Period, time.Now())
+	budget = resetAllocations(budget, bucket)
+
+	if err := h.app.Repos.Budgets.Update(c.Context(), budget); err != nil {
 		return err
 	}
-	return dtos.OK(c, updated)
+	auditRecord(c.Context(), h.app, actorFrom(c), "budget.update", budget.ID, nil)
+	return dtos.OK(c, budget)
 }
 
 func (h *budgetsHandler) Delete(c fiber.Ctx) error {
@@ -92,8 +179,9 @@ func (h *budgetsHandler) Delete(c fiber.Ctx) error {
 		return apperr.ErrBadRequest
 	}
 
-	if err := h.app.Services.Budgets.Delete(c.Context(), actorFrom(c), id.String()); err != nil {
+	if err := h.app.Repos.Budgets.Delete(c.Context(), id.String()); err != nil {
 		return err
 	}
+	auditRecord(c.Context(), h.app, actorFrom(c), "budget.delete", id.String(), nil)
 	return dtos.Deleted(c, "Budget deleted")
 }

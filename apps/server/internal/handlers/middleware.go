@@ -6,6 +6,7 @@ import (
 	"tera-router/server/internal/app"
 	"tera-router/server/internal/lib"
 	"tera-router/server/internal/lib/apperr"
+	"tera-router/server/internal/lib/token"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -16,14 +17,14 @@ import (
 func RequireAuth(a *app.Application) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		header := c.Get("Authorization")
-		token, ok := strings.CutPrefix(header, "Bearer ")
-		if !ok || token == "" {
+		bearer, ok := strings.CutPrefix(header, "Bearer ")
+		if !ok || bearer == "" {
 			return apperr.ErrUnauthorized
 		}
 
-		claims, err := a.Services.Auth.ParseAccessToken(token)
+		claims, err := token.ParseAccess(a.Config.App.Secret, bearer)
 		if err != nil {
-			return err
+			return apperr.ErrUnauthorized
 		}
 
 		uid, err := uuid.Parse(claims.Subject)
@@ -36,8 +37,8 @@ func RequireAuth(a *app.Application) fiber.Handler {
 	}
 }
 
-// actor returns the display name for audit entries derived from the JWT
-// locals; falls back to the raw subject when the token has no email.
+// actorFrom returns the user id for audit entries derived from the JWT
+// locals; falls back to "system".
 func actorFrom(c fiber.Ctx) string {
 	if uid, err := lib.ContextGetUID(c); err == nil {
 		return uid.String()

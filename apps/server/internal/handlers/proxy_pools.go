@@ -1,6 +1,10 @@
 package handlers
 
 import (
+	"context"
+	"fmt"
+	"time"
+
 	"tera-router/server/internal/app"
 	"tera-router/server/internal/dtos"
 	"tera-router/server/internal/lib"
@@ -8,6 +12,7 @@ import (
 	"tera-router/server/internal/models"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 )
 
 type proxyPoolsHandler struct {
@@ -28,7 +33,7 @@ func poolView(p models.ProxyPool) fiber.Map {
 }
 
 func (h *proxyPoolsHandler) Index(c fiber.Ctx) error {
-	pools, err := h.app.Services.ProxyPools.List(c.Context())
+	pools, err := h.app.Repos.ProxyPools.List(c.Context())
 	if err != nil {
 		return err
 	}
@@ -46,16 +51,25 @@ func (h *proxyPoolsHandler) Store(c fiber.Ctx) error {
 		return err
 	}
 
-	pool, err := h.app.Services.ProxyPools.Create(c.Context(), actorFrom(c), models.ProxyPool{
-		Name:  req.Name,
-		URL:   req.URL,
-		Mode:  req.Mode,
-		Label: req.Label,
-	})
+	pool := models.ProxyPool{ID: uuid.NewString(), Name: req.Name, URL: req.URL, Mode: req.Mode, Label: req.Label, Status: "active"}
+	if err := h.app.Repos.ProxyPools.Create(c.Context(), pool); err != nil {
+		return err
+	}
+	auditRecord(c.Context(), h.app, actorFrom(c), "proxy_pool.create", pool.ID, map[string]string{"url": pool.URL})
+	return dtos.Created(c, poolView(pool), "Proxy pool created")
+}
+
+func (h *proxyPoolsHandler) Get(c fiber.Ctx) error {
+	id, err := lib.ContextParamUUID(c, "id")
+	if err != nil {
+		return apperr.ErrBadRequest
+	}
+
+	pool, err := h.app.Repos.ProxyPools.FindByID(c.Context(), id.String())
 	if err != nil {
 		return err
 	}
-	return dtos.Created(c, poolView(pool), "Proxy pool created")
+	return dtos.OK(c, poolView(pool))
 }
 
 func (h *proxyPoolsHandler) Update(c fiber.Ctx) error {
@@ -69,17 +83,17 @@ func (h *proxyPoolsHandler) Update(c fiber.Ctx) error {
 		return err
 	}
 
-	pool, err := h.app.Services.ProxyPools.Update(c.Context(), actorFrom(c), models.ProxyPool{
-		ID:    id.String(),
-		Name:  req.Name,
-		URL:   req.URL,
-		Mode:  req.Mode,
-		Label: req.Label,
-	})
+	pool := models.ProxyPool{ID: id.String(), Name: req.Name, URL: req.URL, Mode: req.Mode, Label: req.Label}
+	if err := h.app.Repos.ProxyPools.Update(c.Context(), pool); err != nil {
+		return err
+	}
+	auditRecord(c.Context(), h.app, actorFrom(c), "proxy_pool.update", pool.ID, nil)
+
+	updated, err := h.app.Repos.ProxyPools.FindByID(c.Context(), pool.ID)
 	if err != nil {
 		return err
 	}
-	return dtos.OK(c, poolView(pool))
+	return dtos.OK(c, poolView(updated))
 }
 
 func (h *proxyPoolsHandler) Delete(c fiber.Ctx) error {
@@ -88,31 +102,56 @@ func (h *proxyPoolsHandler) Delete(c fiber.Ctx) error {
 		return apperr.ErrBadRequest
 	}
 
-	if err := h.app.Services.ProxyPools.Delete(c.Context(), actorFrom(c), id.String()); err != nil {
+	if err := h.app.Repos.ProxyPools.Delete(c.Context(), id.String()); err != nil {
 		return err
 	}
+	auditRecord(c.Context(), h.app, actorFrom(c), "proxy_pool.delete", id.String(), nil)
 	return dtos.Deleted(c, "Proxy pool deleted")
 }
 
-// Test probes the pool's proxy and refreshes its tested timestamp.
+// Test probes the pool's proxy and records the outcome, mirroring IDRouter's
+// proxy-pool test endpoint.
 func (h *proxyPoolsHandler) Test(c fiber.Ctx) error {
 	id, err := lib.ContextParamUUID(c, "id")
 	if err != nil {
 		return apperr.ErrBadRequest
 	}
 
-	pool, err := h.app.Services.ProxyPools.Test(c.Context(), id.String())
+	pool, err := h.app.Repos.ProxyPools.FindByID(c.Context(), id.String())
 	if err != nil {
 		return err
 	}
-	return dtos.OK(c, poolView(pool))
+
+	updated, err := h.testPool(c.Context(), pool)
+	if err != nil {
+		return err
+	}
+	return dtos.OK(c, poolView(updated))
 }
 
-// HealthCheck tests every pool at once.
+// HealthCheck tests every pool at once, returning how many were tested.
 func (h *proxyPoolsHandler) HealthCheck(c fiber.Ctx) error {
-	tested, err := h.app.Services.ProxyPools.HealthCheck(c.Context(), actorFrom(c))
+	pools, err := h.app.Repos.ProxyPools.List(c.Context())
 	if err != nil {
 		return err
 	}
-	return dtos.OK(c, fiber.Map{"tested": tested})
+	for _, pool := range pools {
+		if _, err := h.testPool(c.Context(), pool); err != nil {
+			return err
+		}
+	}
+	auditRecord(c.Context(), h.app, actorFrom(c), "proxy_pool.health_check", fmt.Sprintf("%d pools", len(pools)), nil)
+	return dtos.OK(c, fiber.Map{"tested": len(pools)})
+}
+
+// testPool probes one pool via the upstream service and persists the outcome.
+func (h *proxyPoolsHandler) testPool(ctx context.Context, pool models.ProxyPool) (models.ProxyPool, error) {
+	status := "inactive"
+	if ok, err := h.app.Services.Upstream.TestProxy(ctx, pool.URL); err == nil && ok {
+		status = "active"
+	}
+	if err := h.app.Repos.ProxyPools.UpdateTestedAt(ctx, pool.ID, time.Now(), status); err != nil {
+		return models.ProxyPool{}, err
+	}
+	return h.app.Repos.ProxyPools.FindByID(ctx, pool.ID)
 }

@@ -9,6 +9,7 @@ import (
 
 	"tera-router/server/internal/app"
 	"tera-router/server/internal/config"
+	"tera-router/server/internal/lib/sealer"
 	"tera-router/server/internal/repositories"
 	"tera-router/server/internal/services"
 
@@ -77,9 +78,9 @@ func assemble(cfg config.Config, logger *slog.Logger) *app.Application {
 	}
 
 	repos := repositories.New(db, &cfg.App)
-	services, err := services.New(repos, &cfg, logger)
+	secrets, err := sealer.FromSecret(cfg.App.Secret)
 	if err != nil {
-		log.Fatalf("wire services: %s", err)
+		log.Fatalf("derive sealing key: %s", err)
 	}
 
 	logger.Info("dependencies assembled", "database", "connected")
@@ -89,6 +90,7 @@ func assemble(cfg config.Config, logger *slog.Logger) *app.Application {
 		Logger:   logger,
 		DB:       db,
 		Repos:    repos,
-		Services: services,
+		Secrets:  secrets,
+		Services: services.New(),
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"tera-router/server/internal/models"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 )
 
 type plansHandler struct {
@@ -16,19 +17,15 @@ type plansHandler struct {
 
 // planView renders the web UI Plan model.
 func planView(p models.Plan, keysAssigned int) fiber.Map {
-	var budgetSpend, budgetTokens, alertPct any
-	budgetSpend = nil
-	budgetTokens = nil
+	var budgetSpend, budgetTokens any
 	if p.LimitMicros > 0 {
 		budgetSpend = float64(p.LimitMicros) / 1_000_000
 	}
 	if p.LimitTokens > 0 {
 		budgetTokens = p.LimitTokens
 	}
-	alertPct = p.AlertPct
 
 	var allowedModels any
-	allowedModels = nil
 	if len(p.AllowedModels) > 0 {
 		allowedModels = p.AllowedModels
 	}
@@ -45,105 +42,30 @@ func planView(p models.Plan, keysAssigned int) fiber.Map {
 		"concurrent":     p.Concurrent,
 		"allowedModels":  allowedModels,
 		"keysAssigned":   keysAssigned,
-		"alertAtPercent": alertPct,
+		"alertAtPercent": p.AlertPct,
 		"period":         p.Period,
 		"createdAt":      p.CreatedAt,
 	}
 }
 
 func (h *plansHandler) Index(c fiber.Ctx) error {
-	plans, err := h.app.Services.Plans.List(c.Context())
+	plans, err := h.app.Repos.Plans.List(c.Context())
+	if err != nil {
+		return err
+	}
+	counts, err := h.app.Repos.APIKeys.CountByPlan(c.Context())
 	if err != nil {
 		return err
 	}
 
 	out := make([]fiber.Map, 0, len(plans))
 	for _, p := range plans {
-		out = append(out, planView(p.Plan, p.KeysAssigned))
+		out = append(out, planView(p, counts[p.ID]))
 	}
 	return dtos.List(c, out, dtos.TotalMeta(len(plans)))
 }
 
-func (h *plansHandler) Store(c fiber.Ctx) error {
-	var req dtos.Plan
-	if err := lib.ValidateRequestBody(c, &req); err != nil {
-		return err
-	}
-
-	plan := planFromRequest(req)
-	plan.Name = orDefault(req.Name, "Plan")
-	created, err := h.app.Services.Plans.Create(c.Context(), actorFrom(c), plan)
-	if err != nil {
-		return err
-	}
-	return dtos.Created(c, planView(created, 0), "Plan created")
-}
-
-func (h *plansHandler) Get(c fiber.Ctx) error {
-	id, err := lib.ContextParamUUID(c, "id")
-	if err != nil {
-		return apperr.ErrBadRequest
-	}
-
-	plan, err := h.app.Services.Plans.Get(c.Context(), id.String())
-	if err != nil {
-		return err
-	}
-	return dtos.OK(c, planView(plan, 0))
-}
-
-func (h *plansHandler) Update(c fiber.Ctx) error {
-	id, err := lib.ContextParamUUID(c, "id")
-	if err != nil {
-		return apperr.ErrBadRequest
-	}
-
-	var req dtos.Plan
-	if err := lib.ValidateRequestBody(c, &req); err != nil {
-		return err
-	}
-
-	plan := planFromRequest(req)
-	plan.ID = id.String()
-	plan.Name = orDefault(req.Name, "Plan")
-	updated, err := h.app.Services.Plans.Update(c.Context(), actorFrom(c), plan)
-	if err != nil {
-		return err
-	}
-	return dtos.OK(c, planView(updated, 0))
-}
-
-func (h *plansHandler) Delete(c fiber.Ctx) error {
-	id, err := lib.ContextParamUUID(c, "id")
-	if err != nil {
-		return apperr.ErrBadRequest
-	}
-
-	if err := h.app.Services.Plans.Delete(c.Context(), actorFrom(c), id.String()); err != nil {
-		return err
-	}
-	return dtos.Deleted(c, "Plan deleted")
-}
-
-// Keys lists the keys assigned to one plan.
-func (h *plansHandler) Keys(c fiber.Ctx) error {
-	id, err := lib.ContextParamUUID(c, "id")
-	if err != nil {
-		return apperr.ErrBadRequest
-	}
-
-	keys, total, err := h.app.Services.Plans.Keys(c.Context(), id.String())
-	if err != nil {
-		return err
-	}
-
-	out := make([]fiber.Map, 0, len(keys))
-	for _, k := range keys {
-		out = append(out, keyView(k))
-	}
-	return dtos.List(c, out, dtos.TotalMeta(total))
-}
-
+// planFromRequest converts a Plan DTO into the stored model.
 func planFromRequest(req dtos.Plan) models.Plan {
 	plan := models.Plan{
 		Name:          req.Name,
@@ -167,6 +89,99 @@ func planFromRequest(req dtos.Plan) models.Plan {
 		plan.HardCutoff = *req.HardCutoff
 	}
 	return plan
+}
+
+func (h *plansHandler) Store(c fiber.Ctx) error {
+	var req dtos.Plan
+	if err := lib.ValidateRequestBody(c, &req); err != nil {
+		return err
+	}
+
+	plan := planFromRequest(req)
+	plan.ID = uuid.NewString()
+	plan.Name = orDefault(req.Name, "Plan")
+	if err := h.app.Repos.Plans.Create(c.Context(), plan); err != nil {
+		return err
+	}
+	auditRecord(c.Context(), h.app, actorFrom(c), "plan.create", plan.ID, map[string]string{"name": plan.Name})
+	return dtos.Created(c, planView(plan, 0), "Plan created")
+}
+
+func (h *plansHandler) Get(c fiber.Ctx) error {
+	id, err := lib.ContextParamUUID(c, "id")
+	if err != nil {
+		return apperr.ErrBadRequest
+	}
+
+	plan, err := h.app.Repos.Plans.FindByID(c.Context(), id.String())
+	if err != nil {
+		return err
+	}
+	return dtos.OK(c, planView(plan, 0))
+}
+
+func (h *plansHandler) Update(c fiber.Ctx) error {
+	id, err := lib.ContextParamUUID(c, "id")
+	if err != nil {
+		return apperr.ErrBadRequest
+	}
+
+	var req dtos.Plan
+	if err := lib.ValidateRequestBody(c, &req); err != nil {
+		return err
+	}
+
+	plan := planFromRequest(req)
+	plan.ID = id.String()
+	plan.Name = orDefault(req.Name, "Plan")
+	if err := h.app.Repos.Plans.Update(c.Context(), plan); err != nil {
+		return err
+	}
+	auditRecord(c.Context(), h.app, actorFrom(c), "plan.update", plan.ID, nil)
+
+	updated, err := h.app.Repos.Plans.FindByID(c.Context(), plan.ID)
+	if err != nil {
+		return err
+	}
+	return dtos.OK(c, planView(updated, 0))
+}
+
+func (h *plansHandler) Delete(c fiber.Ctx) error {
+	id, err := lib.ContextParamUUID(c, "id")
+	if err != nil {
+		return apperr.ErrBadRequest
+	}
+
+	if err := h.app.Repos.Plans.Delete(c.Context(), id.String()); err != nil {
+		return err
+	}
+	auditRecord(c.Context(), h.app, actorFrom(c), "plan.delete", id.String(), nil)
+	return dtos.Deleted(c, "Plan deleted")
+}
+
+// Keys lists the keys assigned to one plan.
+func (h *plansHandler) Keys(c fiber.Ctx) error {
+	id, err := lib.ContextParamUUID(c, "id")
+	if err != nil {
+		return apperr.ErrBadRequest
+	}
+
+	if _, err := h.app.Repos.Plans.FindByID(c.Context(), id.String()); err != nil {
+		return err
+	}
+
+	keys, _, err := h.app.Repos.APIKeys.List(c.Context(), 0, 100)
+	if err != nil {
+		return err
+	}
+
+	out := []fiber.Map{}
+	for _, k := range keys {
+		if k.PlanID != nil && *k.PlanID == id.String() {
+			out = append(out, keyView(k))
+		}
+	}
+	return dtos.List(c, out, dtos.TotalMeta(len(out)))
 }
 
 func orDefault(value, fallback string) string {

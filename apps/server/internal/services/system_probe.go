@@ -83,18 +83,5 @@ func procInfo() (procInfoResult, error) {
 		result.Connections = len(conns)
 	}
 
-	// gopsutil's NumFDs is unsupported on some platforms; fall back to the
-	// raw /proc-adjacent syscall count via process limits where available.
-	if result.OpenFDs == 0 {
-		result.OpenFDs = openFDsFallback(p)
-	}
 	return result, nil
-}
-
-func openFDsFallback(p *process.Process) int {
-	fds, err := p.NumFDs()
-	if err != nil {
-		return 0
-	}
-	return int(fds)
 }

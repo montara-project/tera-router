@@ -1,13 +1,18 @@
 package handlers
 
 import (
+	"fmt"
+
 	"tera-router/server/internal/app"
 	"tera-router/server/internal/dtos"
 	"tera-router/server/internal/lib"
+	"tera-router/server/internal/lib/apikey"
 	"tera-router/server/internal/lib/apperr"
+	"tera-router/server/internal/models"
 	"tera-router/server/internal/repositories"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 )
 
 type keysHandler struct {
@@ -48,7 +53,7 @@ func (h *keysHandler) Index(c fiber.Ctx) error {
 	}
 	q.Clamp()
 
-	keys, total, err := h.app.Services.Keys.List(c.Context(), q.Offset, q.Limit)
+	keys, total, err := h.app.Repos.APIKeys.List(c.Context(), q.Offset, q.Limit)
 	if err != nil {
 		return err
 	}
@@ -60,28 +65,55 @@ func (h *keysHandler) Index(c fiber.Ctx) error {
 	return dtos.List(c, out, dtos.ListMeta(total, q.Offset, q.Limit))
 }
 
+// Store mints a new API key. Only hashes and the envelope-encrypted copy are
+// persisted; the plaintext is shown once and recoverable later only via
+// Reveal.
 func (h *keysHandler) Store(c fiber.Ctx) error {
 	var req dtos.CreateKey
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
 	}
 
-	created, err := h.app.Services.Keys.Create(c.Context(), actorFrom(c), req.Name, req.PlanID, req.Scopes)
+	gen, err := apikey.Generate()
+	if err != nil {
+		return err
+	}
+	sealed, err := h.app.Secrets.SealString(gen.Plaintext)
 	if err != nil {
 		return err
 	}
 
-	body := fiber.Map{
-		"id":         created.Key.ID,
-		"name":       created.Key.Name,
+	key := models.APIKey{
+		ID:         uuid.NewString(),
+		Name:       req.Name,
+		KeyHash:    gen.Hash,
+		LookupHash: gen.Lookup,
+		Display:    gen.Display,
+		Scopes:     req.Scopes,
+		Secret:     toModelsSealed(sealed),
+	}
+	if req.PlanID != "" {
+		if _, err := h.app.Repos.Plans.FindByID(c.Context(), req.PlanID); err != nil {
+			return fmt.Errorf("plan %s: %w", req.PlanID, err)
+		}
+		key.PlanID = &req.PlanID
+	}
+
+	if err := h.app.Repos.APIKeys.Create(c.Context(), key); err != nil {
+		return err
+	}
+
+	auditRecord(c.Context(), h.app, actorFrom(c), "key.create", key.ID, map[string]string{"name": req.Name})
+	return dtos.Created(c, fiber.Map{
+		"id":         key.ID,
+		"name":       key.Name,
 		"status":     "active",
-		"keyPreview": created.Display,
-		"fullKey":    created.Plaintext,
+		"keyPreview": gen.Display,
+		"fullKey":    gen.Plaintext,
 		"planLabel":  "No plan",
 		"planNote":   "Custom limits",
-		"createdAt":  created.Key.CreatedAt,
-	}
-	return dtos.Created(c, body, "Key created")
+		"createdAt":  key.CreatedAt,
+	}, "Key created")
 }
 
 func (h *keysHandler) Get(c fiber.Ctx) error {
@@ -90,7 +122,7 @@ func (h *keysHandler) Get(c fiber.Ctx) error {
 		return apperr.ErrBadRequest
 	}
 
-	key, err := h.app.Services.Keys.Get(c.Context(), id.String())
+	key, err := h.app.Repos.APIKeys.FindByID(c.Context(), id.String())
 	if err != nil {
 		return err
 	}
@@ -103,6 +135,7 @@ func (h *keysHandler) Get(c fiber.Ctx) error {
 	})
 }
 
+// Update mutates name/plan/scopes/disabled on an existing key.
 func (h *keysHandler) Update(c fiber.Ctx) error {
 	id, err := lib.ContextParamUUID(c, "id")
 	if err != nil {
@@ -114,10 +147,34 @@ func (h *keysHandler) Update(c fiber.Ctx) error {
 		return err
 	}
 
-	key, err := h.app.Services.Keys.Update(c.Context(), actorFrom(c), id.String(), req.Name, req.PlanID, req.Scopes, req.Disabled)
+	key, err := h.app.Repos.APIKeys.FindByID(c.Context(), id.String())
 	if err != nil {
 		return err
 	}
+	if req.Name != "" {
+		key.Name = req.Name
+	}
+	if req.PlanID != nil {
+		if *req.PlanID == "" {
+			key.PlanID = nil
+		} else {
+			if _, err := h.app.Repos.Plans.FindByID(c.Context(), *req.PlanID); err != nil {
+				return fmt.Errorf("plan %s: %w", *req.PlanID, err)
+			}
+			key.PlanID = req.PlanID
+		}
+	}
+	if req.Scopes != nil {
+		key.Scopes = *req.Scopes
+	}
+	if req.Disabled != nil {
+		key.Disabled = *req.Disabled
+	}
+
+	if err := h.app.Repos.APIKeys.Update(c.Context(), key); err != nil {
+		return err
+	}
+	auditRecord(c.Context(), h.app, actorFrom(c), "key.update", id.String(), map[string]any{"disabled": key.Disabled})
 	return dtos.OK(c, fiber.Map{
 		"id":     key.ID,
 		"name":   key.Name,
@@ -131,23 +188,34 @@ func (h *keysHandler) Delete(c fiber.Ctx) error {
 		return apperr.ErrBadRequest
 	}
 
-	if err := h.app.Services.Keys.Delete(c.Context(), actorFrom(c), id.String()); err != nil {
+	if err := h.app.Repos.APIKeys.Delete(c.Context(), id.String()); err != nil {
 		return err
 	}
+	auditRecord(c.Context(), h.app, actorFrom(c), "key.delete", id.String(), nil)
 	return dtos.Deleted(c, "Key deleted")
 }
 
-// Reveal decrypts the stored key plaintext for explicit recovery.
+// Reveal decrypts the stored key plaintext for explicit, audit-logged
+// recovery. Auth never consults these columns.
 func (h *keysHandler) Reveal(c fiber.Ctx) error {
 	id, err := lib.ContextParamUUID(c, "id")
 	if err != nil {
 		return apperr.ErrBadRequest
 	}
 
-	plaintext, err := h.app.Services.Keys.Reveal(c.Context(), actorFrom(c), id.String())
+	key, err := h.app.Repos.APIKeys.FindByID(c.Context(), id.String())
 	if err != nil {
 		return err
 	}
+	if key.Secret.Empty() {
+		return apperr.New(apperr.KindUnprocessable, "key has no recoverable secret")
+	}
+
+	plaintext, err := h.app.Secrets.OpenString(fromModelsSealed(key.Secret))
+	if err != nil {
+		return err
+	}
+	auditRecord(c.Context(), h.app, actorFrom(c), "key.reveal", id.String(), nil)
 	return dtos.OK(c, fiber.Map{"id": id.String(), "fullKey": plaintext})
 }
 

@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	"tera-router/server/internal/config"
+	"tera-router/server/internal/lib/sealer"
 	"tera-router/server/internal/repositories"
 	"tera-router/server/internal/services"
 )
@@ -16,6 +17,7 @@ type Application struct {
 	Logger   *slog.Logger
 	DB       *sql.DB
 	Repos    *repositories.Repositories
+	Secrets  *sealer.Sealer
 	Services *services.Services
 }
 

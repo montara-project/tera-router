@@ -26,28 +26,26 @@ func (r *UsageRepository) Insert(ctx context.Context, u models.UsageRecord) erro
 	return err
 }
 
+// UsageSummary totals spend and tokens over a window.
+type UsageSummary struct {
+	Requests         int64 `json:"requests"`
+	PromptTokens     int64 `json:"prompt_tokens"`
+	CompletionTokens int64 `json:"completion_tokens"`
+	CostMicros       int64 `json:"cost_micros"`
+	AvgLatencyMS     int64 `json:"avg_latency_ms"`
+}
+
 // Summary totals spend and tokens over a window.
-func (r *UsageRepository) Summary(ctx context.Context, from time.Time) (models.UsageRecord, error) {
+func (r *UsageRepository) Summary(ctx context.Context, from time.Time) (UsageSummary, error) {
 	row := r.db.QueryRowContext(ctx, `
-		SELECT 0, NULL, NULL, '', '', '', '',
+		SELECT count(*),
 		       COALESCE(SUM(prompt_tokens), 0), COALESCE(SUM(completion_tokens), 0),
-		       COALESCE(SUM(cached_tokens), 0), COALESCE(SUM(cache_write_tokens), 0),
-		       COALESCE(SUM(reasoning_tokens), 0), COALESCE(SUM(cost_micros), 0), false,
-		       COALESCE(AVG(latency_ms), 0), 0,
-		       count(*) FILTER (WHERE failed) > 0, '', 0, '',
-		       count(*), now()
+		       COALESCE(SUM(cost_micros), 0), COALESCE(AVG(latency_ms), 0)
 		FROM usage_records WHERE created_at >= $1`, from)
 
-	var u models.UsageRecord
-	var count int64
-	err := row.Scan(
-		&u.ID, &u.APIKeyID, &u.AccountID, &u.Provider, &u.Model, &u.Client, &u.ClientIP,
-		&u.PromptTokens, &u.CompletionTokens, &u.CachedTokens, &u.CacheWriteTokens,
-		&u.ReasoningTokens, &u.CostMicros, &u.CacheHit, &u.LatencyMS, &u.TTFTMS,
-		&u.Failed, &u.ErrorKind, &u.ErrorStatus, &u.ErrorMessage, &count, &u.CreatedAt,
-	)
-	u.ID = count
-	return u, translateNotFound(err)
+	var s UsageSummary
+	err := row.Scan(&s.Requests, &s.PromptTokens, &s.CompletionTokens, &s.CostMicros, &s.AvgLatencyMS)
+	return s, err
 }
 
 // UsageByModel aggregates tokens and spend per provider/model over a window.
@@ -178,12 +176,4 @@ func (r *UsageRepository) ByAPIKey(ctx context.Context, from time.Time) ([]Usage
 		out = append(out, a)
 	}
 	return out, rows.Err()
-}
-
-func (r *UsageRepository) DeleteBefore(ctx context.Context, before time.Time) (int64, error) {
-	res, err := r.db.ExecContext(ctx, `DELETE FROM usage_records WHERE created_at < $1`, before)
-	if err != nil {
-		return 0, err
-	}
-	return res.RowsAffected()
 }
