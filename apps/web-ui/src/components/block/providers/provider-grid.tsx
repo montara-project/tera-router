@@ -1,22 +1,11 @@
-import {
-  IconAlertTriangle,
-  IconPlugConnected,
-  IconPlus,
-  IconSearch,
-} from '@tabler/icons-react'
+import { IconAlertTriangle, IconPlugConnected, IconPlus, IconSearch } from '@tabler/icons-react'
 
 import type { Models } from '@/lib/api/models'
 
 import { Icons } from '@/components/block/common/icons'
 import { Badge, BadgeDot } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from '@/components/ui/empty'
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { cn } from '@/lib/utils'
 
 type Brand = {
@@ -134,8 +123,7 @@ export default function ProviderGrid({ providers, variant, onConnect }: Provider
           <div className="mt-auto pt-3">
             {variant === 'connected' ? (
               <p className="text-xs text-muted-foreground">
-                {provider.accounts ?? 0}{' '}
-                {(provider.accounts ?? 0) === 1 ? 'account' : 'accounts'}
+                {provider.accounts ?? 0} {(provider.accounts ?? 0) === 1 ? 'account' : 'accounts'}
               </p>
             ) : (
               <Button variant="outline" size="sm" onClick={() => onConnect?.(provider)}>

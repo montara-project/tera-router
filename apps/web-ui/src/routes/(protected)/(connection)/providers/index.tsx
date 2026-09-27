@@ -77,8 +77,8 @@ function ProvidersCard({
   onConnect?: (provider: Models.Provider) => void
 }) {
   return (
-    <Card className='bg-background'>
-      <CardHeader className='h-20'>
+    <Card className="bg-background">
+      <CardHeader className="h-20">
         <div className="flex items-center gap-3.5">
           <IconBadge icon={icon} variant="soft" className="h-10 w-10" iconClassName="h-5 w-5" />
           <CardHeading>

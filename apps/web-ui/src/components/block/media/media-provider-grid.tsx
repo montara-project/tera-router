@@ -100,12 +100,7 @@ export default function MediaProviderGrid({ providers, emptyIcon }: MediaProvide
             <p className="truncate font-mono text-xs text-muted-foreground">{provider.slug}</p>
             <div className="flex flex-wrap gap-1.5">
               {provider.capabilities.map((capability) => (
-                <Badge
-                  key={capability}
-                  variant="success"
-                  appearance="light"
-                  size="sm"
-                >
+                <Badge key={capability} variant="success" appearance="light" size="sm">
                   {CAPABILITY_LABELS[capability]}
                 </Badge>
               ))}
