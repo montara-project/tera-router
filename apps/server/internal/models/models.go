@@ -12,6 +12,9 @@ type Role struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+// TableName returns the backing table for the model.
+func (Role) TableName() string { return "roles" }
+
 type User struct {
 	ID           string     `json:"id"`
 	Fullname     string     `json:"fullname"`
@@ -29,6 +32,9 @@ type User struct {
 	DeletedAt    *time.Time `json:"deleted_at"`
 }
 
+// TableName returns the backing table for the model.
+func (User) TableName() string { return "users" }
+
 // RefreshToken stores only the sha-256 hash of the opaque refresh token.
 type RefreshToken struct {
 	ID        string     `json:"id"`
@@ -38,6 +44,9 @@ type RefreshToken struct {
 	RevokedAt *time.Time `json:"revoked_at"`
 	CreatedAt time.Time  `json:"created_at"`
 }
+
+// TableName returns the backing table for the model.
+func (RefreshToken) TableName() string { return "refresh_tokens" }
 
 // AuthKind classifies how an account authenticates upstream.
 type AuthKind string
@@ -72,6 +81,9 @@ type CustomProvider struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+// TableName returns the backing table for the model.
+func (CustomProvider) TableName() string { return "custom_providers" }
+
 // Account holds an upstream provider credential. Secret material is stored
 // as envelope-encrypted blobs; plaintext is never persisted.
 type Account struct {
@@ -94,6 +106,9 @@ type Account struct {
 	UpdatedAt      time.Time  `json:"updated_at"`
 }
 
+// TableName returns the backing table for the model.
+func (Account) TableName() string { return "accounts" }
+
 // APIKey is a stored inbound credential. The plaintext is never persisted.
 type APIKey struct {
 	ID         string     `json:"id"`
@@ -110,6 +125,9 @@ type APIKey struct {
 	CreatedAt  time.Time  `json:"created_at"`
 	UpdatedAt  time.Time  `json:"updated_at"`
 }
+
+// TableName returns the backing table for the model.
+func (APIKey) TableName() string { return "api_keys" }
 
 // Plan is a reusable template for budget limits and model restrictions.
 type Plan struct {
@@ -129,7 +147,9 @@ type Plan struct {
 	UpdatedAt     time.Time `json:"updated_at"`
 }
 
-// Chain is an ordered fallback definition (routing chain).
+// TableName returns the backing table for the model.
+func (Plan) TableName() string { return "plans" }
+
 type Chain struct {
 	ID               string      `json:"id"`
 	Name             string      `json:"name"`
@@ -143,6 +163,9 @@ type Chain struct {
 	UpdatedAt        time.Time   `json:"updated_at"`
 }
 
+// TableName returns the backing table for the model.
+func (Chain) TableName() string { return "chains" }
+
 // ChainStep is one candidate target within a chain.
 type ChainStep struct {
 	ID        string    `json:"id"`
@@ -152,6 +175,9 @@ type ChainStep struct {
 	Model     string    `json:"model"`
 	CreatedAt time.Time `json:"created_at"`
 }
+
+// TableName returns the backing table for the model.
+func (ChainStep) TableName() string { return "chain_steps" }
 
 // ModelAlias is a model alias pool: one bare name mapping to an ordered list
 // of provider/model targets.
@@ -165,6 +191,9 @@ type ModelAlias struct {
 	UpdatedAt     time.Time     `json:"updated_at"`
 }
 
+// TableName returns the backing table for the model.
+func (ModelAlias) TableName() string { return "model_aliases" }
+
 // AliasTarget is one ordered candidate within a model alias pool.
 type AliasTarget struct {
 	ID       string `json:"id"`
@@ -174,6 +203,9 @@ type AliasTarget struct {
 	Model    string `json:"model"`
 	Active   bool   `json:"active"`
 }
+
+// TableName returns the backing table for the model.
+func (AliasTarget) TableName() string { return "alias_targets" }
 
 // BudgetScope identifies what a budget applies to.
 type BudgetScope string
@@ -201,6 +233,9 @@ type Budget struct {
 	UpdatedAt       time.Time   `json:"updated_at"`
 }
 
+// TableName returns the backing table for the model.
+func (Budget) TableName() string { return "budgets" }
+
 // UsageRecord meters one completed request.
 type UsageRecord struct {
 	ID               int64     `json:"id"`
@@ -226,6 +261,9 @@ type UsageRecord struct {
 	CreatedAt        time.Time `json:"created_at"`
 }
 
+// TableName returns the backing table for the model.
+func (UsageRecord) TableName() string { return "usage_records" }
+
 // ProxyPool is an outbound proxy definition.
 type ProxyPool struct {
 	ID           string     `json:"id"`
@@ -239,6 +277,9 @@ type ProxyPool struct {
 	UpdatedAt    time.Time  `json:"updated_at"`
 }
 
+// TableName returns the backing table for the model.
+func (ProxyPool) TableName() string { return "proxy_pools" }
+
 // Skill is a reusable prompt snippet managed from the dashboard.
 type Skill struct {
 	ID          string    `json:"id"`
@@ -249,12 +290,18 @@ type Skill struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
+// TableName returns the backing table for the model.
+func (Skill) TableName() string { return "skills" }
+
 // Setting is one settings kv row; Value is raw JSON.
 type Setting struct {
 	Key       string    `json:"key"`
 	Value     string    `json:"value"` // raw JSON
 	UpdatedAt time.Time `json:"updated_at"`
 }
+
+// TableName returns the backing table for the model.
+func (Setting) TableName() string { return "settings" }
 
 // AuditEntry is one append-only audit record.
 type AuditEntry struct {
@@ -265,6 +312,9 @@ type AuditEntry struct {
 	Detail    string    `json:"detail"` // raw JSON
 	CreatedAt time.Time `json:"created_at"`
 }
+
+// TableName returns the backing table for the model.
+func (AuditEntry) TableName() string { return "audit_entries" }
 
 // PricingOverride sets per-provider/model rates in micros (millionths of a
 // dollar per million tokens).
@@ -280,6 +330,9 @@ type PricingOverride struct {
 	UpdatedAt        time.Time `json:"updated_at"`
 }
 
+// TableName returns the backing table for the model.
+func (PricingOverride) TableName() string { return "model_pricing_overrides" }
+
 // CapabilityOverride forces the capability set for a provider/model pair.
 type CapabilityOverride struct {
 	ID           string    `json:"id"`
@@ -289,3 +342,6 @@ type CapabilityOverride struct {
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }
+
+// TableName returns the backing table for the model.
+func (CapabilityOverride) TableName() string { return "model_capability_overrides" }
