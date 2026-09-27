@@ -7,7 +7,6 @@ import (
 	"tera-router/server/internal/dtos"
 	"tera-router/server/internal/lib"
 	"tera-router/server/internal/lib/apperr"
-	"tera-router/server/internal/lib/validator"
 	"tera-router/server/internal/models"
 	"tera-router/server/internal/services"
 
@@ -18,25 +17,10 @@ type accountsHandler struct {
 	app *app.Application
 }
 
-type accountRequest struct {
-	Provider    string         `json:"provider"`
-	Label       string         `json:"label"`
-	AuthKind    string         `json:"auth_kind"`
-	APIKey      string         `json:"api_key"`
-	Token       string         `json:"token"`
-	Refresh     string         `json:"refresh"`
-	Metadata    map[string]any `json:"metadata"`
-	Priority    int            `json:"priority"`
-	ProxyPoolID string         `json:"proxy_pool_id"`
-	Disabled    *bool          `json:"disabled"`
-}
-
-func (d *accountRequest) Validate(v *validator.MapValidator) {
-	v.Field("provider").Required().String()
-	v.Field("auth_kind").WithinS("api_key", "oauth", "none")
-}
-
-func (d *accountRequest) toInput() services.AccountInput {
+// accountInputFrom converts an Account DTO into the service-layer input,
+// encoding the metadata map as JSON. Credential plaintext never leaves this
+// function's scope unsealed.
+func accountInputFrom(d dtos.Account) services.AccountInput {
 	return services.AccountInput{
 		Provider:    d.Provider,
 		Label:       d.Label,
@@ -109,28 +93,20 @@ func (h *accountsHandler) Index(c fiber.Ctx) error {
 }
 
 func (h *accountsHandler) Store(c fiber.Ctx) error {
-	var req accountRequest
+	var req dtos.Account
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
 	}
 
-	account, err := h.app.Services.Accounts.Create(c.Context(), actorFrom(c), req.toInput())
+	account, err := h.app.Services.Accounts.Create(c.Context(), actorFrom(c), accountInputFrom(req))
 	if err != nil {
 		return err
 	}
 	return dtos.Created(c, accountView(account), "Account created")
 }
 
-type bulkAccountsRequest struct {
-	Accounts []accountRequest `json:"accounts"`
-}
-
-func (d *bulkAccountsRequest) Validate(v *validator.MapValidator) {
-	// Items are validated individually in the service layer.
-}
-
 func (h *accountsHandler) Bulk(c fiber.Ctx) error {
-	var req bulkAccountsRequest
+	var req dtos.BulkAccounts
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
 	}
@@ -139,8 +115,8 @@ func (h *accountsHandler) Bulk(c fiber.Ctx) error {
 	}
 
 	inputs := make([]services.AccountInput, 0, len(req.Accounts))
-	for i := range req.Accounts {
-		inputs = append(inputs, req.Accounts[i].toInput())
+	for _, account := range req.Accounts {
+		inputs = append(inputs, accountInputFrom(account))
 	}
 
 	accounts, err := h.app.Services.Accounts.BulkCreate(c.Context(), actorFrom(c), inputs)
@@ -150,19 +126,8 @@ func (h *accountsHandler) Bulk(c fiber.Ctx) error {
 	return dtos.Created(c, len(accounts), "Accounts created")
 }
 
-type validateKeyRequest struct {
-	Provider string         `json:"provider"`
-	APIKey   string         `json:"api_key"`
-	Metadata map[string]any `json:"metadata"`
-}
-
-func (d *validateKeyRequest) Validate(v *validator.MapValidator) {
-	v.Field("provider").Required().String()
-	v.Field("api_key").Required().String()
-}
-
 func (h *accountsHandler) ValidateKey(c fiber.Ctx) error {
-	var req validateKeyRequest
+	var req dtos.ValidateKey
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
 	}
@@ -193,12 +158,12 @@ func (h *accountsHandler) Update(c fiber.Ctx) error {
 		return apperr.ErrBadRequest
 	}
 
-	var req accountRequest
+	var req dtos.Account
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
 	}
 
-	account, err := h.app.Services.Accounts.Update(c.Context(), actorFrom(c), id.String(), req.toInput(), req.Disabled)
+	account, err := h.app.Services.Accounts.Update(c.Context(), actorFrom(c), id.String(), accountInputFrom(req), req.Disabled)
 	if err != nil {
 		return err
 	}

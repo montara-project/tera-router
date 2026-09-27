@@ -5,7 +5,6 @@ import (
 	"tera-router/server/internal/dtos"
 	"tera-router/server/internal/lib"
 	"tera-router/server/internal/lib/apperr"
-	"tera-router/server/internal/lib/validator"
 	"tera-router/server/internal/models"
 
 	"github.com/gofiber/fiber/v3"
@@ -13,18 +12,6 @@ import (
 
 type proxyPoolsHandler struct {
 	app *app.Application
-}
-
-type proxyPoolRequest struct {
-	Name  string `json:"name"`
-	URL   string `json:"url"`
-	Mode  string `json:"mode"`
-	Label string `json:"label"`
-}
-
-func (d *proxyPoolRequest) Validate(v *validator.MapValidator) {
-	v.Field("name").Required().String()
-	v.Field("url").Required().String()
 }
 
 func poolView(p models.ProxyPool) fiber.Map {
@@ -54,7 +41,7 @@ func (h *proxyPoolsHandler) Index(c fiber.Ctx) error {
 }
 
 func (h *proxyPoolsHandler) Store(c fiber.Ctx) error {
-	var req proxyPoolRequest
+	var req dtos.ProxyPool
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
 	}
@@ -77,7 +64,7 @@ func (h *proxyPoolsHandler) Update(c fiber.Ctx) error {
 		return apperr.ErrBadRequest
 	}
 
-	var req proxyPoolRequest
+	var req dtos.ProxyPool
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
 	}

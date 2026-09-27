@@ -5,7 +5,6 @@ import (
 	"tera-router/server/internal/dtos"
 	"tera-router/server/internal/lib"
 	"tera-router/server/internal/lib/apperr"
-	"tera-router/server/internal/lib/validator"
 	"tera-router/server/internal/models"
 
 	"github.com/gofiber/fiber/v3"
@@ -13,25 +12,6 @@ import (
 
 type plansHandler struct {
 	app *app.Application
-}
-
-type planRequest struct {
-	Name          string   `json:"name"`
-	Description   string   `json:"description"`
-	BudgetSpend   *float64 `json:"budgetSpend"` // USD; stored as micros
-	BudgetTokens  *int64   `json:"budgetTokens"`
-	Period        string   `json:"period"`
-	AlertPct      *int     `json:"alertAtPercent"`
-	HardCutoff    *bool    `json:"hardCutoff"`
-	AllowedModels []string `json:"allowedModels"`
-	RPM           *int     `json:"rpm"`
-	TPM           *int     `json:"tpm"`
-	Concurrent    *int     `json:"concurrent"`
-}
-
-func (d *planRequest) Validate(v *validator.MapValidator) {
-	v.Field("name").String()
-	v.Field("period").WithinS("daily", "weekly", "monthly")
 }
 
 // planView renders the web UI Plan model.
@@ -85,7 +65,7 @@ func (h *plansHandler) Index(c fiber.Ctx) error {
 }
 
 func (h *plansHandler) Store(c fiber.Ctx) error {
-	var req planRequest
+	var req dtos.Plan
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
 	}
@@ -118,7 +98,7 @@ func (h *plansHandler) Update(c fiber.Ctx) error {
 		return apperr.ErrBadRequest
 	}
 
-	var req planRequest
+	var req dtos.Plan
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
 	}
@@ -164,7 +144,7 @@ func (h *plansHandler) Keys(c fiber.Ctx) error {
 	return dtos.List(c, out, dtos.TotalMeta(total))
 }
 
-func planFromRequest(req planRequest) models.Plan {
+func planFromRequest(req dtos.Plan) models.Plan {
 	plan := models.Plan{
 		Name:          req.Name,
 		Description:   req.Description,

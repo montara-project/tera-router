@@ -5,7 +5,6 @@ import (
 	"tera-router/server/internal/dtos"
 	"tera-router/server/internal/lib"
 	"tera-router/server/internal/lib/apperr"
-	"tera-router/server/internal/lib/validator"
 	"tera-router/server/internal/models"
 
 	"github.com/gofiber/fiber/v3"
@@ -15,22 +14,8 @@ type budgetsHandler struct {
 	app *app.Application
 }
 
-type budgetRequest struct {
-	ScopeKind   string   `json:"scope_kind"`
-	ScopeID     string   `json:"scope_id"`
-	BudgetSpend *float64 `json:"budget_spend"` // USD; stored as micros
-	LimitTokens *int64   `json:"limit_tokens"`
-	Period      string   `json:"period"`
-	AlertPct    *int     `json:"alert_pct"`
-	HardCutoff  *bool    `json:"hard_cutoff"`
-}
-
-func (d *budgetRequest) Validate(v *validator.MapValidator) {
-	v.Field("scope_kind").WithinS("tenant", "api_key", "account")
-	v.Field("period").WithinS("daily", "weekly", "monthly")
-}
-
-func (d *budgetRequest) toModel() models.Budget {
+// budgetFromRequest converts a Budget DTO into the stored model.
+func budgetFromRequest(d dtos.Budget) models.Budget {
 	b := models.Budget{
 		ScopeKind: models.BudgetScope(orDefault(d.ScopeKind, "tenant")),
 		ScopeID:   d.ScopeID,
@@ -69,12 +54,12 @@ func (h *budgetsHandler) Status(c fiber.Ctx) error {
 }
 
 func (h *budgetsHandler) Store(c fiber.Ctx) error {
-	var req budgetRequest
+	var req dtos.Budget
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
 	}
 
-	budget, err := h.app.Services.Budgets.Create(c.Context(), actorFrom(c), req.toModel())
+	budget, err := h.app.Services.Budgets.Create(c.Context(), actorFrom(c), budgetFromRequest(req))
 	if err != nil {
 		return err
 	}
@@ -87,12 +72,12 @@ func (h *budgetsHandler) Update(c fiber.Ctx) error {
 		return apperr.ErrBadRequest
 	}
 
-	var req budgetRequest
+	var req dtos.Budget
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
 	}
 
-	budget := req.toModel()
+	budget := budgetFromRequest(req)
 	budget.ID = id.String()
 	updated, err := h.app.Services.Budgets.Update(c.Context(), actorFrom(c), budget)
 	if err != nil {

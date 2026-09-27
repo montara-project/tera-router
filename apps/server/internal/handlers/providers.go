@@ -7,7 +7,6 @@ import (
 	"tera-router/server/internal/dtos"
 	"tera-router/server/internal/lib"
 	"tera-router/server/internal/lib/apperr"
-	"tera-router/server/internal/lib/validator"
 	"tera-router/server/internal/models"
 
 	"github.com/gofiber/fiber/v3"
@@ -35,22 +34,8 @@ func (h *providersHandler) Rates(c fiber.Ctx) error {
 	return dtos.OK(c, rates)
 }
 
-type customProviderRequest struct {
-	Name     string         `json:"name"`
-	Slug     string         `json:"slug"`
-	BaseURL  string         `json:"base_url"`
-	APIKind  string         `json:"api_kind"`
-	Pricing  map[string]any `json:"pricing"`
-	Enabled  *bool          `json:"enabled"`
-	Priority int            `json:"priority"`
-	Metadata map[string]any `json:"metadata"`
-}
-
-func (d *customProviderRequest) Validate(v *validator.MapValidator) {
-	v.Field("name").Required().String()
-}
-
-func (d *customProviderRequest) toModel() models.CustomProvider {
+// customProviderFrom converts a CustomProvider DTO into the stored model.
+func customProviderFrom(d dtos.CustomProvider) models.CustomProvider {
 	p := models.CustomProvider{
 		Name:     d.Name,
 		Slug:     d.Slug,
@@ -87,12 +72,12 @@ func (h *providersHandler) CustomIndex(c fiber.Ctx) error {
 }
 
 func (h *providersHandler) CustomStore(c fiber.Ctx) error {
-	var req customProviderRequest
+	var req dtos.CustomProvider
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
 	}
 
-	provider, err := h.app.Services.Providers.CreateCustomProvider(c.Context(), actorFrom(c), req.toModel())
+	provider, err := h.app.Services.Providers.CreateCustomProvider(c.Context(), actorFrom(c), customProviderFrom(req))
 	if err != nil {
 		return err
 	}
@@ -105,12 +90,12 @@ func (h *providersHandler) CustomUpdate(c fiber.Ctx) error {
 		return apperr.ErrBadRequest
 	}
 
-	var req customProviderRequest
+	var req dtos.CustomProvider
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
 	}
 
-	model := req.toModel()
+	model := customProviderFrom(req)
 	model.ID = id.String()
 	provider, err := h.app.Services.Providers.UpdateCustomProvider(c.Context(), actorFrom(c), model)
 	if err != nil {

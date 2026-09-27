@@ -3,8 +3,10 @@ module tera-router/server
 go 1.26.0
 
 require (
+	braces.dev/errtrace v0.4.0
 	github.com/getsentry/sentry-go v0.49.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
+	github.com/maxrichie5/go-sqlfmt v0.0.0-20241025195225-e353be92414a
 	github.com/shirou/gopsutil/v4 v4.26.8
 )
 

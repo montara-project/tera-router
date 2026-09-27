@@ -5,7 +5,6 @@ import (
 	"tera-router/server/internal/dtos"
 	"tera-router/server/internal/lib"
 	"tera-router/server/internal/lib/apperr"
-	"tera-router/server/internal/lib/validator"
 	"tera-router/server/internal/models"
 
 	"github.com/gofiber/fiber/v3"
@@ -13,17 +12,6 @@ import (
 
 type skillsHandler struct {
 	app *app.Application
-}
-
-type createSkillRequest struct {
-	Name        string  `json:"name"`
-	Description *string `json:"description"`
-	Prompt      string  `json:"prompt"`
-}
-
-func (d *createSkillRequest) Validate(v *validator.MapValidator) {
-	v.Field("name").Required().String()
-	v.Field("prompt").Required().String()
 }
 
 func (h *skillsHandler) Index(c fiber.Ctx) error {
@@ -39,7 +27,7 @@ func (h *skillsHandler) Index(c fiber.Ctx) error {
 }
 
 func (h *skillsHandler) Store(c fiber.Ctx) error {
-	var req createSkillRequest
+	var req dtos.CreateSkill
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
 	}
@@ -76,29 +64,6 @@ type pricingHandler struct {
 	app *app.Application
 }
 
-type pricingRequest struct {
-	Provider         string `json:"provider"`
-	Model            string `json:"model"`
-	InputMicros      int64  `json:"input_micros"`
-	OutputMicros     int64  `json:"output_micros"`
-	CacheReadMicros  int64  `json:"cache_read_micros"`
-	CacheWriteMicros int64  `json:"cache_write_micros"`
-}
-
-func (d *pricingRequest) Validate(v *validator.MapValidator) {
-	v.Field("provider").Required().String()
-}
-
-type capabilityRequest struct {
-	Provider     string   `json:"provider"`
-	Model        string   `json:"model"`
-	Capabilities []string `json:"capabilities"`
-}
-
-func (d *capabilityRequest) Validate(v *validator.MapValidator) {
-	v.Field("provider").Required().String()
-}
-
 // PricingIndex lists pricing overrides (?provider= filters one provider).
 func (h *pricingHandler) PricingIndex(c fiber.Ctx) error {
 	rows, err := h.app.Services.Priming.ListPricing(c.Context(), c.Query("provider"))
@@ -109,7 +74,7 @@ func (h *pricingHandler) PricingIndex(c fiber.Ctx) error {
 }
 
 func (h *pricingHandler) PricingUpsert(c fiber.Ctx) error {
-	var req pricingRequest
+	var req dtos.Pricing
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
 	}
@@ -149,7 +114,7 @@ func (h *pricingHandler) CapabilityIndex(c fiber.Ctx) error {
 }
 
 func (h *pricingHandler) CapabilityPut(c fiber.Ctx) error {
-	var req capabilityRequest
+	var req dtos.Capability
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
 	}

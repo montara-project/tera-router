@@ -5,7 +5,6 @@ import (
 	"tera-router/server/internal/dtos"
 	"tera-router/server/internal/lib"
 	"tera-router/server/internal/lib/apperr"
-	"tera-router/server/internal/lib/validator"
 	"tera-router/server/internal/repositories"
 
 	"github.com/gofiber/fiber/v3"
@@ -13,27 +12,6 @@ import (
 
 type keysHandler struct {
 	app *app.Application
-}
-
-type createKeyRequest struct {
-	Name   string `json:"name"`
-	PlanID string `json:"plan_id"`
-	Scopes string `json:"scopes"`
-}
-
-func (d *createKeyRequest) Validate(v *validator.MapValidator) {
-	v.Field("name").Required().String()
-}
-
-type updateKeyRequest struct {
-	Name     string  `json:"name"`
-	PlanID   *string `json:"plan_id"`
-	Scopes   *string `json:"scopes"`
-	Disabled *bool   `json:"disabled"`
-}
-
-func (d *updateKeyRequest) Validate(v *validator.MapValidator) {
-	v.Field("name").String()
 }
 
 // keyView renders the web UI ApiKey model.
@@ -83,7 +61,7 @@ func (h *keysHandler) Index(c fiber.Ctx) error {
 }
 
 func (h *keysHandler) Store(c fiber.Ctx) error {
-	var req createKeyRequest
+	var req dtos.CreateKey
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
 	}
@@ -131,7 +109,7 @@ func (h *keysHandler) Update(c fiber.Ctx) error {
 		return apperr.ErrBadRequest
 	}
 
-	var req updateKeyRequest
+	var req dtos.UpdateKey
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
 	}

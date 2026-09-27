@@ -6,7 +6,6 @@ import (
 	"tera-router/server/internal/app"
 	"tera-router/server/internal/dtos"
 	"tera-router/server/internal/lib"
-	"tera-router/server/internal/lib/validator"
 	"tera-router/server/internal/models"
 	"tera-router/server/internal/services"
 
@@ -17,28 +16,10 @@ type authHandler struct {
 	app *app.Application
 }
 
-type signInRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
-func (d *signInRequest) Validate(v *validator.MapValidator) {
-	v.Field("email").Required().Email()
-	v.Field("password").Required().String()
-}
-
-type refreshRequest struct {
-	RefreshToken string `json:"refresh_token"`
-}
-
-func (d *refreshRequest) Validate(v *validator.MapValidator) {
-	v.Field("refresh_token").Required().String()
-}
-
 // SignIn verifies credentials and returns the token pair the web client
 // stores in cookies. Shaped after the web UI SignInResponse.
 func (h *authHandler) SignIn(c fiber.Ctx) error {
-	var req signInRequest
+	var req dtos.SignIn
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
 	}
@@ -55,7 +36,7 @@ func (h *authHandler) SignIn(c fiber.Ctx) error {
 
 // Refresh rotates the presented refresh token for a new pair.
 func (h *authHandler) Refresh(c fiber.Ctx) error {
-	var req refreshRequest
+	var req dtos.Refresh
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
 	}

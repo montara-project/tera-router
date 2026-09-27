@@ -77,7 +77,7 @@ func assemble(cfg config.Config, logger *slog.Logger) *app.Application {
 	}
 
 	repos := repositories.New(db, &cfg.App)
-	svcs, err := services.New(repos, &cfg, logger)
+	services, err := services.New(repos, &cfg, logger)
 	if err != nil {
 		log.Fatalf("wire services: %s", err)
 	}
@@ -89,6 +89,6 @@ func assemble(cfg config.Config, logger *slog.Logger) *app.Application {
 		Logger:   logger,
 		DB:       db,
 		Repos:    repos,
-		Services: svcs,
+		Services: services,
 	}
 }

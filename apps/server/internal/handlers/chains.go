@@ -5,7 +5,6 @@ import (
 	"tera-router/server/internal/dtos"
 	"tera-router/server/internal/lib"
 	"tera-router/server/internal/lib/apperr"
-	"tera-router/server/internal/lib/validator"
 	"tera-router/server/internal/models"
 
 	"github.com/gofiber/fiber/v3"
@@ -15,26 +14,7 @@ type chainsHandler struct {
 	app *app.Application
 }
 
-type chainStepRequest struct {
-	Provider string `json:"provider"`
-	Model    string `json:"model"`
-}
-
-type chainRequest struct {
-	Name             string             `json:"name"`
-	Strategy         string             `json:"strategy"`
-	FallbackProvider string             `json:"fallback_provider"`
-	FallbackModel    string             `json:"fallback_model"`
-	ContextWindow    int                `json:"context_window"`
-	Enabled          *bool              `json:"enabled"`
-	Steps            []chainStepRequest `json:"steps"`
-}
-
-func (d *chainRequest) Validate(v *validator.MapValidator) {
-	v.Field("name").Required().String()
-}
-
-func chainFromRequest(req chainRequest) models.Chain {
+func chainFromRequest(req dtos.Chain) models.Chain {
 	chain := models.Chain{
 		Name:             req.Name,
 		Strategy:         orDefault(req.Strategy, "priority"),
@@ -62,7 +42,7 @@ func (h *chainsHandler) Index(c fiber.Ctx) error {
 }
 
 func (h *chainsHandler) Store(c fiber.Ctx) error {
-	var req chainRequest
+	var req dtos.Chain
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
 	}
@@ -93,7 +73,7 @@ func (h *chainsHandler) Update(c fiber.Ctx) error {
 		return apperr.ErrBadRequest
 	}
 
-	var req chainRequest
+	var req dtos.Chain
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
 	}
@@ -135,24 +115,7 @@ func (h *chainsHandler) Usage(c fiber.Ctx) error {
 
 // --- Model aliases ---
 
-type aliasTargetRequest struct {
-	Provider string `json:"provider"`
-	Model    string `json:"model"`
-	Active   *bool  `json:"active"`
-}
-
-type aliasRequest struct {
-	Name          string               `json:"name"`
-	ContextWindow int                  `json:"context_window"`
-	Active        *bool                `json:"active"`
-	Targets       []aliasTargetRequest `json:"targets"`
-}
-
-func (d *aliasRequest) Validate(v *validator.MapValidator) {
-	v.Field("name").Required().String()
-}
-
-func aliasFromRequest(req aliasRequest) models.ModelAlias {
+func aliasFromRequest(req dtos.Alias) models.ModelAlias {
 	alias := models.ModelAlias{
 		Name:          req.Name,
 		ContextWindow: req.ContextWindow,
@@ -181,7 +144,7 @@ func (h *chainsHandler) AliasIndex(c fiber.Ctx) error {
 }
 
 func (h *chainsHandler) AliasPut(c fiber.Ctx) error {
-	var req aliasRequest
+	var req dtos.Alias
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
 	}
