@@ -1,0 +1,4 @@
+DROP TABLE IF EXISTS alias_targets;
+DROP TABLE IF EXISTS model_aliases;
+DROP TABLE IF EXISTS chain_steps;
+DROP TABLE IF EXISTS chains;
