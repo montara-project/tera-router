@@ -33,9 +33,14 @@ function coreColor(percent: number) {
 }
 
 export default function CpuPerCoreCard({ cores }: CpuPerCoreCardProps) {
+  const activeCores = cores.filter((core) => core.percent >= 20).length
+  const averageUsage = cores.length
+    ? cores.reduce((total, core) => total + core.percent, 0) / cores.length
+    : 0
+
   return (
-    <Card>
-      <CardHeader>
+    <Card className='bg-background'>
+      <CardHeader className='h-20'>
         <div className="flex items-center gap-3.5">
           <SystemIconBadge
             icon={Cpu}
@@ -45,28 +50,54 @@ export default function CpuPerCoreCard({ cores }: CpuPerCoreCardProps) {
           />
           <CardHeading>
             <CardTitle>CPU Per Core</CardTitle>
-            <CardDescription>Utilization across {cores.length} cores</CardDescription>
+            <CardDescription>
+              {activeCores} of {cores.length} cores active · {averageUsage.toFixed(1)}% average
+            </CardDescription>
           </CardHeading>
         </div>
       </CardHeader>
 
       <CardContent className="space-y-4">
-        <div className="flex flex-wrap gap-3">
-          {cores.map((core) => (
-            <div
-              key={core.id}
-              className="bg-muted h-2.5 w-44 overflow-hidden rounded-full"
-              title={`Core ${core.id}: ${core.percent.toFixed(1)}%`}
-            >
+        <div
+                  className="grid w-full gap-2.5"
+                  style={{
+                    gridTemplateColumns:
+                      'repeat(auto-fit, minmax(max(5.5rem, min(100%, calc((100% - 1.875rem) / 4))), 1fr))',
+                  }}
+                >
+          {cores.map((core) => {
+            const percent = Math.min(100, Math.max(0, core.percent))
+
+            return (
               <div
-                className={cn(
-                  'h-full rounded-full transition-[width] duration-500',
-                  coreColor(core.percent)
-                )}
-                style={{ width: `${Math.min(100, Math.max(0, core.percent))}%` }}
-              />
-            </div>
-          ))}
+                key={core.id}
+                className="group rounded-lg border border-border/70 bg-muted/30 p-2.5 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:bg-muted/70 hover:shadow-sm focus-within:border-primary/50"
+                title={`Core ${core.id}: ${core.percent.toFixed(1)}% utilization`}
+                aria-label={`Core ${core.id}, ${core.percent.toFixed(1)}% utilization`}
+              >
+                <div className="mb-2 flex items-center justify-between gap-1">
+                  <span className="text-muted-foreground text-xs font-medium">Core {core.id}</span>
+                  <span className="text-sm font-semibold tabular-nums">{percent.toFixed(0)}%</span>
+                </div>
+                <div
+                  className="bg-muted h-2 overflow-hidden rounded-full"
+                  role="progressbar"
+                  aria-label={`Core ${core.id} utilization`}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={percent}
+                >
+                  <div
+                    className={cn(
+                      'h-full rounded-full transition-[width,filter] duration-500 group-hover:brightness-110',
+                      coreColor(core.percent)
+                    )}
+                    style={{ width: `${percent}%` }}
+                  />
+                </div>
+              </div>
+            )
+          })}
         </div>
 
         <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
