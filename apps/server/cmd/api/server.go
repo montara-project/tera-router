@@ -111,6 +111,13 @@ func errorHandler(c fiber.Ctx, err error) error {
 		return c.Status(fiber.StatusUnprocessableEntity).JSON(lib.WrapValidationError(validation.MessageRecord))
 	}
 
+	if errors.Is(err, fiber.ErrNotFound) {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "route not found"})
+	}
+	if errors.Is(err, fiber.ErrMethodNotAllowed) {
+		return c.Status(fiber.StatusMethodNotAllowed).JSON(fiber.Map{"message": "method not allowed"})
+	}
+
 	status, message := apperr.From(err)
 	return c.Status(status).JSON(fiber.Map{"message": message})
 }
