@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -10,15 +9,13 @@ import (
 	"time"
 
 	"tera-router/server/internal/app"
-	"tera-router/server/internal/lib"
-	"tera-router/server/internal/lib/apperr"
+	"tera-router/server/internal/middlewares"
 
 	sentryfiber "github.com/gofiber/contrib/v3/sentry"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/compress"
 	"github.com/gofiber/fiber/v3/middleware/cors"
 	"github.com/gofiber/fiber/v3/middleware/helmet"
-	"github.com/gofiber/fiber/v3/middleware/limiter"
 	"github.com/gofiber/fiber/v3/middleware/logger"
 	"github.com/gofiber/fiber/v3/middleware/recover"
 	"github.com/gofiber/fiber/v3/middleware/requestid"
@@ -40,7 +37,7 @@ func serve(app *app.Application) error {
 		ReadTimeout:  20 * time.Second,
 		WriteTimeout: 3 * time.Minute,
 		TrustProxy:   true,
-		ErrorHandler: errorHandler,
+		ErrorHandler: middlewares.ErrorHandler,
 	})
 
 	// Middleware
@@ -60,18 +57,7 @@ func serve(app *app.Application) error {
 	}))
 
 	// Rate Limit
-	server.Use(limiter.New(limiter.Config{
-		Next: func(c fiber.Ctx) bool {
-			return c.IP() == "127.0.0.1"
-		},
-		Max:        100,
-		Expiration: 1 * time.Minute,
-		LimitReached: func(c fiber.Ctx) error {
-			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
-				"error": "Too many requests",
-			})
-		},
-	}))
+	server.Use(middlewares.RateLimit())
 
 	server.Use(static.New("./public"))
 
@@ -100,24 +86,4 @@ func serve(app *app.Application) error {
 	}
 
 	return nil
-}
-
-// errorHandler renders every handler error into the response envelope the
-// web UI expects: {"message": "...", "errors": [...]} for validation and
-// {"message": "..."} otherwise.
-func errorHandler(c fiber.Ctx, err error) error {
-	var validation *lib.ErrValidationFailed
-	if errors.As(err, &validation) {
-		return c.Status(fiber.StatusUnprocessableEntity).JSON(lib.WrapValidationError(validation.MessageRecord))
-	}
-
-	if errors.Is(err, fiber.ErrNotFound) {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "route not found"})
-	}
-	if errors.Is(err, fiber.ErrMethodNotAllowed) {
-		return c.Status(fiber.StatusMethodNotAllowed).JSON(fiber.Map{"message": "method not allowed"})
-	}
-
-	status, message := apperr.From(err)
-	return c.Status(status).JSON(fiber.Map{"message": message})
 }

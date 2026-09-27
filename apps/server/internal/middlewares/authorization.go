@@ -1,4 +1,6 @@
-package handlers
+// Package middlewares holds cross-cutting request middleware shared by the
+// HTTP server: authentication, rate limiting, and the global error handler.
+package middlewares
 
 import (
 	"strings"
@@ -35,13 +37,4 @@ func RequireAuth(a *app.Application) fiber.Handler {
 		lib.ContextSetUID(c, uid)
 		return c.Next()
 	}
-}
-
-// actorFrom returns the user id for audit entries derived from the JWT
-// locals; falls back to "system".
-func actorFrom(c fiber.Ctx) string {
-	if uid, err := lib.ContextGetUID(c); err == nil {
-		return uid.String()
-	}
-	return "system"
 }

@@ -5,10 +5,21 @@ import (
 	"encoding/json"
 
 	"tera-router/server/internal/app"
+	"tera-router/server/internal/lib"
 	"tera-router/server/internal/models"
 
+	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 )
+
+// actorFrom returns the user id for audit entries derived from the JWT
+// locals; falls back to "system".
+func actorFrom(c fiber.Ctx) string {
+	if uid, err := lib.ContextGetUID(c); err == nil {
+		return uid.String()
+	}
+	return "system"
+}
 
 // auditRecord appends one audit entry and mirrors it into the console feed.
 // Audit failures never block the operation that triggered them.

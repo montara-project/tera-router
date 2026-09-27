@@ -3,6 +3,7 @@ package main
 import (
 	"tera-router/server/internal/app"
 	"tera-router/server/internal/handlers"
+	"tera-router/server/internal/middlewares"
 
 	"github.com/getsentry/sentry-go"
 	"github.com/gofiber/fiber/v3"
@@ -36,7 +37,7 @@ func routes(r *fiber.App, app *app.Application) {
 	v1.Post("/auth/refresh", h.Auth.Refresh)
 	v1.Get("/auth/google/redirect", h.Auth.GoogleRedirect)
 
-	protected := v1.Group("/", handlers.RequireAuth(app))
+	protected := v1.Group("/", middlewares.RequireAuth(app))
 
 	// Auth
 	protected.Get("/auth/me", h.Auth.Me)
