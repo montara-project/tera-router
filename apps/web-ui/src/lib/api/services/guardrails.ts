@@ -60,22 +60,6 @@ const SEED: GuardrailsOverview = {
       },
     },
     {
-      id: 'gr-anthropic',
-      name: 'Anthropic Safety',
-      enabled: true,
-      scope: 'provider',
-      target: 'anthropic',
-      protections: ['PII', 'Injection'],
-    },
-    {
-      id: 'gr-openai',
-      name: 'OpenAI Moderation Bridge',
-      enabled: false,
-      scope: 'provider',
-      target: 'openai',
-      protections: ['Toxicity'],
-    },
-    {
       id: 'gr-claude',
       name: 'Claude Model Guard',
       enabled: true,

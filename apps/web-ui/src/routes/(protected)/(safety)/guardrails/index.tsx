@@ -1,4 +1,4 @@
-import { IconDownload, IconLock, IconUpload } from '@tabler/icons-react'
+import { IconDownload, IconLock, IconPlus, IconUpload } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
@@ -12,12 +12,13 @@ import type {
 
 import SectionCard from '@/components/block/common/section-card'
 import AuditList from '@/components/block/guardrails/audit-list'
-import EditPolicyDialog from '@/components/block/guardrails/edit-policy-dialog'
+import EditPolicyDialog, {
+  defaultGuardrailsConfig,
+} from '@/components/block/guardrails/edit-policy-dialog'
 import GuardrailsTabs, { GUARDRAILS_TABS } from '@/components/block/guardrails/guardrails-tabs'
 import PolicyRow from '@/components/block/guardrails/policy-row'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { guardrailsQueries } from '@/lib/api/queries/guardrails'
@@ -30,10 +31,12 @@ export const Route = createFileRoute('/(protected)/(safety)/guardrails/')({
 const PRIMARY_BUTTON_CLASS =
   'bg-emerald-600 text-white hover:bg-emerald-600/90 dark:bg-emerald-600 dark:hover:bg-emerald-600/90'
 
+const NEW_POLICY_BUTTON_CLASS =
+  'bg-amber-600 text-white hover:bg-amber-500/90 dark:bg-amber-600 dark:hover:bg-amber-500/90'
+
 const SCOPE_HINTS: Record<GuardrailsScope, string> = {
   global: 'Master policy that applies to every request when no more specific policy fires.',
-  provider:
-    'Policies scoped to a provider apply to every request routed through it, overriding global.',
+  provider: 'Per-provider overrides (OpenAI, Anthropic, Gemini, ...).',
   model: 'Policies scoped to a model apply only to that model, overriding provider and global.',
   chain:
     'Policies scoped to a chain apply at every hop of the chain, overriding model-level rules.',
@@ -98,10 +101,12 @@ function GuardrailsContent({ initial }: { initial: GuardrailsOverview }) {
   const [tab, setTab] = useState<GuardrailsScope | 'audit'>('global')
   const [overview, setOverview] = useState(initial)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [draftPolicy, setDraftPolicy] = useState<GuardrailPolicy | null>(null)
 
-  const activeTab = GUARDRAILS_TABS.find((item) => item.value === tab)
   const policies = overview.policies.filter((policy) => policy.scope === tab)
   const editingPolicy = overview.policies.find((policy) => policy.id === editingId) ?? null
+  const dialogPolicy = editingPolicy ?? draftPolicy
+  const dialogMode = editingPolicy ? 'edit' : 'create'
 
   const handleImport = () => {
     toast.info('Policy import is not wired to the backend yet')
@@ -115,13 +120,35 @@ function GuardrailsContent({ initial }: { initial: GuardrailsOverview }) {
     toast.info(`Deleting ${name} is not wired to the backend yet`)
   }
 
-  const handleSavePolicy = (updated: GuardrailPolicy) => {
-    setOverview((current) => ({
-      ...current,
-      policies: current.policies.map((policy) => (policy.id === updated.id ? updated : policy)),
-    }))
+  const handleNewPolicy = (scope: GuardrailsScope) => {
+    setDraftPolicy({
+      id: crypto.randomUUID(),
+      name: '',
+      enabled: true,
+      scope,
+      protections: [],
+      config: defaultGuardrailsConfig(),
+    })
+  }
+
+  const handleDialogClose = () => {
     setEditingId(null)
-    toast.success('Policy saved')
+    setDraftPolicy(null)
+  }
+
+  const handleSavePolicy = (updated: GuardrailPolicy) => {
+    setOverview((current) => {
+      const exists = current.policies.some((policy) => policy.id === updated.id)
+
+      return {
+        ...current,
+        policies: exists
+          ? current.policies.map((policy) => (policy.id === updated.id ? updated : policy))
+          : [...current.policies, updated],
+      }
+    })
+    handleDialogClose()
+    toast.success(editingPolicy ? 'Policy saved' : 'Policy created')
   }
 
   const handleToggleDetectors = (checked: boolean) => {
@@ -170,7 +197,18 @@ function GuardrailsContent({ initial }: { initial: GuardrailsOverview }) {
                 />
               )}
 
-              <p className="text-muted-foreground text-sm">{SCOPE_HINTS[tab]}</p>
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <p className="text-muted-foreground text-sm">{SCOPE_HINTS[tab]}</p>
+                {tab !== 'global' && (
+                  <Button
+                    className={NEW_POLICY_BUTTON_CLASS}
+                    onClick={() => handleNewPolicy(tab)}
+                  >
+                    <IconPlus />
+                    <span>New Policy</span>
+                  </Button>
+                )}
+              </div>
 
               {policies.length > 0 ? (
                 policies.map((policy) => (
@@ -183,13 +221,19 @@ function GuardrailsContent({ initial }: { initial: GuardrailsOverview }) {
                   />
                 ))
               ) : (
-                <Empty className="border">
-                  <EmptyHeader>
-                    <EmptyMedia variant="icon">{activeTab ? <activeTab.icon /> : null}</EmptyMedia>
-                    <EmptyTitle>No {activeTab?.label.toLowerCase()} policies yet</EmptyTitle>
-                    <EmptyDescription>Global policies still apply to this scope.</EmptyDescription>
-                  </EmptyHeader>
-                </Empty>
+                <div className="flex flex-col items-center gap-3 py-16 text-center">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                    <IconLock className="h-5 w-5 text-muted-foreground" />
+                  </span>
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold text-foreground">
+                      No {tab} policies yet
+                    </p>
+                    <p className="text-muted-foreground text-sm">
+                      Add a policy to override the global config for this scope.
+                    </p>
+                  </div>
+                </div>
               )}
             </div>
           )}
@@ -197,9 +241,10 @@ function GuardrailsContent({ initial }: { initial: GuardrailsOverview }) {
       </SectionCard>
 
       <EditPolicyDialog
-        policy={editingPolicy}
+        policy={dialogPolicy}
+        mode={dialogMode}
         onOpenChange={(open) => {
-          if (!open) setEditingId(null)
+          if (!open) handleDialogClose()
         }}
         onSave={handleSavePolicy}
       />

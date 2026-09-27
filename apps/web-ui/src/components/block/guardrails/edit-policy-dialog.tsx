@@ -31,7 +31,7 @@ const DETECTOR_LABELS: Record<keyof GuardrailsPolicyConfig, string> = {
   bias: 'Bias',
 }
 
-function defaultConfig(): GuardrailsPolicyConfig {
+export function defaultGuardrailsConfig(): GuardrailsPolicyConfig {
   return {
     pii: {
       enabled: false,
@@ -50,17 +50,24 @@ function defaultConfig(): GuardrailsPolicyConfig {
 
 interface EditPolicyDialogProps {
   policy: GuardrailPolicy | null
+  mode?: 'edit' | 'create'
   onOpenChange: (open: boolean) => void
   onSave: (updated: GuardrailPolicy) => void
 }
 
-export default function EditPolicyDialog({ policy, onOpenChange, onSave }: EditPolicyDialogProps) {
+export default function EditPolicyDialog({
+  policy,
+  mode = 'edit',
+  onOpenChange,
+  onSave,
+}: EditPolicyDialogProps) {
   return (
     <Dialog open={policy !== null} onOpenChange={onOpenChange}>
       {policy ? (
         <EditPolicyForm
           key={policy.id}
           policy={policy}
+          mode={mode}
           onCancel={() => onOpenChange(false)}
           onSave={onSave}
         />
@@ -71,15 +78,19 @@ export default function EditPolicyDialog({ policy, onOpenChange, onSave }: EditP
 
 function EditPolicyForm({
   policy,
+  mode,
   onCancel,
   onSave,
 }: {
   policy: GuardrailPolicy
+  mode: 'edit' | 'create'
   onCancel: () => void
   onSave: (updated: GuardrailPolicy) => void
 }) {
   const [name, setName] = useState(policy.name)
-  const [config, setConfig] = useState<GuardrailsPolicyConfig>(policy.config ?? defaultConfig())
+  const [config, setConfig] = useState<GuardrailsPolicyConfig>(
+    policy.config ?? defaultGuardrailsConfig()
+  )
   const [testInput, setTestInput] = useState('')
 
   const patch = <S extends keyof GuardrailsPolicyConfig>(
@@ -106,7 +117,9 @@ function EditPolicyForm({
   return (
     <DialogContent className="flex max-h-[85vh] w-full max-w-3xl gap-0 p-0">
       <DialogHeader className="mb-0 shrink-0 border-b border-border px-6 py-4">
-        <DialogTitle className="text-base">Edit policy · {policy.scope}</DialogTitle>
+        <DialogTitle className="text-base">
+          {mode === 'create' ? 'New policy' : 'Edit policy'} · {policy.scope}
+        </DialogTitle>
       </DialogHeader>
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
