@@ -4,6 +4,7 @@ import { authServices } from './auth'
 import { budgetServices } from './budget'
 import { chainServices } from './chain'
 import { consoleServices } from './console'
+import { guardrailsServices } from './guardrails'
 import { keyServices } from './key'
 import { mediaServices } from './media'
 import { overrideServices } from './override'
@@ -23,6 +24,7 @@ export const services = {
   budgets: budgetServices,
   chains: chainServices,
   console: consoleServices,
+  guardrails: guardrailsServices,
   keys: keyServices,
   media: mediaServices,
   overrides: overrideServices,

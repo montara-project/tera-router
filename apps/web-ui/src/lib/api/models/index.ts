@@ -17,6 +17,10 @@ export namespace Models {
   export type ChainStep = import('./chain').ChainStep
   export type ConsoleLogEntry = import('./console').ConsoleLogEntry
   export type CustomProvider = import('./provider-catalog').CustomProvider
+  export type GuardrailPolicy = import('./guardrails').GuardrailPolicy
+  export type GuardrailsAuditEntry = import('./guardrails').GuardrailsAuditEntry
+  export type GuardrailsOverview = import('./guardrails').GuardrailsOverview
+  export type GuardrailsScope = import('./guardrails').GuardrailsScope
   export type LogLevel = import('./console').LogLevel
   export type MediaCapability = import('./media').MediaCapability
   export type MediaCategory = import('./media').MediaCategory
