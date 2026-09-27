@@ -31,6 +31,7 @@ run:
 		--app-secret=$(APP_SECRET) \
 		--cors-allowed-origins=$(CORS_ALLOWED_ORIGINS) \
 		--database-url=$(DATABASE_URL) \
+		--migrate-on-boot=$(MIGRATE_ON_BOOT) \
 		--sentry-dsn=$(SENTRY_DSN)
 
 # ==================================================================================== #

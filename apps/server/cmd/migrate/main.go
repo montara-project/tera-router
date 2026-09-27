@@ -2,16 +2,11 @@ package main
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"log"
 
+	"tera-router/server/internal/migrator"
 	"tera-router/server/internal/seeders"
-
-	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database/postgres"
-
-	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
 func main() {
@@ -24,24 +19,14 @@ func main() {
 	}
 	defer db.Close()
 
-	driver, err := postgres.WithInstance(db, &postgres.Config{})
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	migrate, err := migrate.NewWithDatabaseInstance("file://./migrations/", "postgres", driver)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	switch cfg.mode {
 	case modeUp:
-		migrateUp(migrate)
+		migrateUp(db)
 	case modeDown:
-		migrateDown(migrate)
+		migrateDown(db)
 	case modeRefresh:
-		migrateDown(migrate)
-		migrateUp(migrate)
+		migrateDown(db)
+		migrateUp(db)
 	}
 
 	if cfg.seed != "" {
@@ -58,16 +43,16 @@ func main() {
 	fmt.Println("Completed")
 }
 
-func migrateUp(m *migrate.Migrate) {
+func migrateUp(db *sql.DB) {
 	fmt.Println("Running up migrations...")
-	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+	if err := migrator.Up(db, migrator.DefaultDir); err != nil {
 		log.Fatalf("failed to run up migrations: %v", err)
 	}
 }
 
-func migrateDown(m *migrate.Migrate) {
+func migrateDown(db *sql.DB) {
 	fmt.Println("Running down migrations...")
-	if err := m.Down(); err != nil {
+	if err := migrator.Down(db, migrator.DefaultDir); err != nil {
 		log.Fatalf("failed to run down migrations: %v", err)
 	}
 }

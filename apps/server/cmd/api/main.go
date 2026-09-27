@@ -10,6 +10,7 @@ import (
 	"tera-router/server/internal/app"
 	"tera-router/server/internal/config"
 	"tera-router/server/internal/lib/sealer"
+	"tera-router/server/internal/migrator"
 	"tera-router/server/internal/repositories"
 	"tera-router/server/internal/services"
 
@@ -75,6 +76,16 @@ func assemble(cfg config.Config, logger *slog.Logger) *app.Application {
 
 	if err := db.Ping(); err != nil {
 		log.Fatalf("database unreachable: %s", err)
+	}
+
+	// Migrate on boot: apply pending migrations before any repository assumes
+	// the schema exists. A failed migration aborts startup.
+	if cfg.Database.MigrateOnBoot {
+		logger.Info("migrate on boot enabled, applying migrations...")
+		if err := migrator.Up(db, migrator.DefaultDir); err != nil {
+			log.Fatalf("migrate on boot: %s", err)
+		}
+		logger.Info("migrations applied")
 	}
 
 	repos := repositories.New(db, &cfg.App)

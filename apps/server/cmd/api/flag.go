@@ -20,6 +20,7 @@ func parseFlag(cfg *config.Config) {
 
 	// Database
 	flag.StringVar(&cfg.Database.URL, "database-url", "", "Database URL")
+	flag.BoolVar(&cfg.Database.MigrateOnBoot, "migrate-on-boot", false, "Apply pending migrations before starting the server")
 
 	// Sentry
 	flag.StringVar(&cfg.Sentry.Dsn, "sentry-dsn", "", "Sentry DSN")

@@ -18,6 +18,8 @@ type ConfigApp struct {
 
 type ConfigDatabase struct {
 	URL string
+	// MigrateOnBoot applies pending SQL migrations before the server starts.
+	MigrateOnBoot bool
 }
 
 type ConfigSentry struct {
