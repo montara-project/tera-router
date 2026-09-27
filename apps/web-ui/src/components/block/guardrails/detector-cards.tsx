@@ -273,7 +273,9 @@ export function DetectorCards({ config, onPatch }: DetectorCardsProps) {
                   step={0.05}
                   value={config.pii.minConfidence}
                   aria-label="Minimum confidence"
-                  onChange={(event) => onPatch('pii', { minConfidence: Number(event.target.value) })}
+                  onChange={(event) =>
+                    onPatch('pii', { minConfidence: Number(event.target.value) })
+                  }
                 />
               </div>
             </div>
@@ -372,8 +374,8 @@ export function DetectorCards({ config, onPatch }: DetectorCardsProps) {
               onValueChange={(engine) => onPatch('topics', { engine })}
             />
             <p className="text-muted-foreground text-xs leading-relaxed">
-              Embedding catches paraphrases the keyword path misses. Requires an embeddings
-              provider configured in cache.embedding_provider=api.
+              Embedding catches paraphrases the keyword path misses. Requires an embeddings provider
+              configured in cache.embedding_provider=api.
             </p>
           </>
         ) : null}
@@ -416,7 +418,9 @@ export function DetectorCards({ config, onPatch }: DetectorCardsProps) {
                   max={100}
                   value={config.toxicity.threshold}
                   aria-label="Toxicity threshold"
-                  onChange={(event) => onPatch('toxicity', { threshold: Number(event.target.value) })}
+                  onChange={(event) =>
+                    onPatch('toxicity', { threshold: Number(event.target.value) })
+                  }
                 />
               </div>
               <SelectField

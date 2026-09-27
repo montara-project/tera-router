@@ -4,7 +4,11 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
-import type { GuardrailPolicy, GuardrailsOverview, GuardrailsScope } from '@/lib/api/models/guardrails'
+import type {
+  GuardrailPolicy,
+  GuardrailsOverview,
+  GuardrailsScope,
+} from '@/lib/api/models/guardrails'
 
 import SectionCard from '@/components/block/common/section-card'
 import AuditList from '@/components/block/guardrails/audit-list'
@@ -137,59 +141,59 @@ function GuardrailsContent({ initial }: { initial: GuardrailsOverview }) {
   return (
     <>
       <SectionCard
-      title="Guardrails"
-      description="Content-safety policies layered global → provider → model → chain → API key. Most specific wins."
-      toolbar={
-        <>
-          <Button className={PRIMARY_BUTTON_CLASS} onClick={handleImport}>
-            <IconUpload />
-            <span>Import</span>
-          </Button>
-          <Button className={PRIMARY_BUTTON_CLASS} onClick={handleExportAll}>
-            <IconDownload />
-            <span>Export all</span>
-          </Button>
-        </>
-      }
-    >
-      <div className="space-y-4">
-        <GuardrailsTabs value={tab} onChange={setTab} />
+        title="Guardrails"
+        description="Content-safety policies layered global → provider → model → chain → API key. Most specific wins."
+        toolbar={
+          <>
+            <Button className={PRIMARY_BUTTON_CLASS} onClick={handleImport}>
+              <IconUpload />
+              <span>Import</span>
+            </Button>
+            <Button className={PRIMARY_BUTTON_CLASS} onClick={handleExportAll}>
+              <IconDownload />
+              <span>Export all</span>
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <GuardrailsTabs value={tab} onChange={setTab} />
 
-        {tab === 'audit' ? (
-          <AuditList entries={overview.audit} />
-        ) : (
-          <div className="space-y-4">
-            {tab === 'global' && (
-              <ExternalDetectorsCard
-                checked={overview.externalDetectors}
-                onCheckedChange={handleToggleDetectors}
-              />
-            )}
-
-            <p className="text-muted-foreground text-sm">{SCOPE_HINTS[tab]}</p>
-
-            {policies.length > 0 ? (
-              policies.map((policy) => (
-                <PolicyRow
-                  key={policy.id}
-                  policy={policy}
-                  onToggle={(enabled) => handleTogglePolicy(policy.id, enabled)}
-                  onEdit={() => setEditingId(policy.id)}
-                  onDelete={() => handleDelete(policy.name)}
+          {tab === 'audit' ? (
+            <AuditList entries={overview.audit} />
+          ) : (
+            <div className="space-y-4">
+              {tab === 'global' && (
+                <ExternalDetectorsCard
+                  checked={overview.externalDetectors}
+                  onCheckedChange={handleToggleDetectors}
                 />
-              ))
-            ) : (
-              <Empty className="border">
-                <EmptyHeader>
-                  <EmptyMedia variant="icon">{activeTab ? <activeTab.icon /> : null}</EmptyMedia>
-                  <EmptyTitle>No {activeTab?.label.toLowerCase()} policies yet</EmptyTitle>
-                  <EmptyDescription>Global policies still apply to this scope.</EmptyDescription>
-                </EmptyHeader>
-              </Empty>
-            )}
-          </div>
-        )}
-      </div>
+              )}
+
+              <p className="text-muted-foreground text-sm">{SCOPE_HINTS[tab]}</p>
+
+              {policies.length > 0 ? (
+                policies.map((policy) => (
+                  <PolicyRow
+                    key={policy.id}
+                    policy={policy}
+                    onToggle={(enabled) => handleTogglePolicy(policy.id, enabled)}
+                    onEdit={() => setEditingId(policy.id)}
+                    onDelete={() => handleDelete(policy.name)}
+                  />
+                ))
+              ) : (
+                <Empty className="border">
+                  <EmptyHeader>
+                    <EmptyMedia variant="icon">{activeTab ? <activeTab.icon /> : null}</EmptyMedia>
+                    <EmptyTitle>No {activeTab?.label.toLowerCase()} policies yet</EmptyTitle>
+                    <EmptyDescription>Global policies still apply to this scope.</EmptyDescription>
+                  </EmptyHeader>
+                </Empty>
+              )}
+            </div>
+          )}
+        </div>
       </SectionCard>
 
       <EditPolicyDialog

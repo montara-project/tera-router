@@ -2,10 +2,7 @@ import { IconClipboardText, IconDeviceFloppy } from '@tabler/icons-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
-import type {
-  GuardrailPolicy,
-  GuardrailsPolicyConfig,
-} from '@/lib/api/models/guardrails'
+import type { GuardrailPolicy, GuardrailsPolicyConfig } from '@/lib/api/models/guardrails'
 
 import { DetectorCards } from '@/components/block/guardrails/detector-cards'
 import { Button } from '@/components/ui/button'
@@ -115,7 +112,11 @@ function EditPolicyForm({
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
         <div className="space-y-1.5">
           <p className="text-muted-foreground text-xs font-medium">Policy name</p>
-          <Input value={name} aria-label="Policy name" onChange={(event) => setName(event.target.value)} />
+          <Input
+            value={name}
+            aria-label="Policy name"
+            onChange={(event) => setName(event.target.value)}
+          />
         </div>
 
         <DetectorCards config={config} onPatch={patch} />

@@ -1,4 +1,11 @@
-import { IconBox, IconFileText, IconKey, IconNetwork, IconStack2, IconWorld } from '@tabler/icons-react'
+import {
+  IconBox,
+  IconFileText,
+  IconKey,
+  IconNetwork,
+  IconStack2,
+  IconWorld,
+} from '@tabler/icons-react'
 
 import type { GuardrailsScope } from '@/lib/api/models/guardrails'
 

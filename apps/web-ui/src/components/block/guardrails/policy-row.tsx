@@ -51,7 +51,12 @@ export default function PolicyRow({ policy, onToggle, onEdit, onDelete }: Policy
         <Button size="sm" className={EDIT_BUTTON_CLASS} onClick={onEdit}>
           Edit
         </Button>
-        <Button variant="secondary" size="icon" aria-label={`Delete ${policy.name}`} onClick={onDelete}>
+        <Button
+          variant="secondary"
+          size="icon"
+          aria-label={`Delete ${policy.name}`}
+          onClick={onDelete}
+        >
           <IconTrash className="h-4 w-4" />
         </Button>
       </CardContent>
