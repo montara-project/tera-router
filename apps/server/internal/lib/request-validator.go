@@ -85,9 +85,37 @@ func validateDict(obj Validatable, data map[string]interface{}) error {
 	return nil
 }
 
+// FieldError mirrors the validation error item shape the web UI expects:
+// an array of {code, field, message, param} in the response body.
+type FieldError struct {
+	Code    string `json:"code"`
+	Field   string `json:"field"`
+	Message string `json:"message"`
+	Param   string `json:"param"`
+}
+
+// WrapValidationError renders a MessageRecord into the validation error
+// envelope: {"message": "validation failed", "errors": [FieldError...]}.
 func WrapValidationError(mr validator.MessageRecord) map[string]interface{} {
 	return map[string]interface{}{
 		"message": "validation failed",
-		"errors":  mr,
+		"errors":  FieldErrorsFromRecord(mr),
 	}
+}
+
+// FieldErrorsFromRecord flattens the field → messages record into the array
+// shape the web UI consumes.
+func FieldErrorsFromRecord(mr validator.MessageRecord) []FieldError {
+	out := make([]FieldError, 0, len(mr))
+	for field, messages := range mr {
+		for _, message := range messages {
+			out = append(out, FieldError{
+				Code:    "validation",
+				Field:   field,
+				Message: message,
+				Param:   field,
+			})
+		}
+	}
+	return out
 }

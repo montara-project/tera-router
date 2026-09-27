@@ -19,3 +19,22 @@ func (dto ListQuery) Validate(v *validator.MapValidator) {
 	v.Field("order_by")
 	v.Field("order").Regex(`(?i)^(asc|desc)$`)
 }
+
+const (
+	defaultListLimit = 10
+	maxListLimit     = 100
+)
+
+// Clamp normalizes pagination values: a missing or zero limit falls back to
+// 10 and the limit never exceeds 100.
+func (dto *ListQuery) Clamp() {
+	if dto.Limit <= 0 {
+		dto.Limit = defaultListLimit
+	}
+	if dto.Limit > maxListLimit {
+		dto.Limit = maxListLimit
+	}
+	if dto.Offset < 0 {
+		dto.Offset = 0
+	}
+}
