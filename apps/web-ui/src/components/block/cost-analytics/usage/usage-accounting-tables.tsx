@@ -2,10 +2,7 @@ import { IconListDetails, IconStack2 } from '@tabler/icons-react'
 import { ArrowUpDown } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
-import type {
-  UsageModelAccountingRow,
-  UsageProviderAccountingRow,
-} from '@/lib/api/models/usage'
+import type { UsageModelAccountingRow, UsageProviderAccountingRow } from '@/lib/api/models/usage'
 
 import { Icons } from '@/components/block/common/icons'
 import { Badge } from '@/components/ui/badge'
@@ -41,13 +38,22 @@ export function ProviderAccountingTable({ rows }: { rows: UsageProviderAccountin
         <div className="mt-4 overflow-x-auto">
           <div className="min-w-[860px]">
             <div className={`${PROVIDER_COLUMNS} border-b border-border pb-3`}>
-              {['Provider', 'Requests', 'Input classes', 'Output classes', 'Cost / Savings', 'Latency', 'Pricing'].map(
-                (label) => (
-                  <p key={label} className="text-muted-foreground text-[10px] font-semibold uppercase tracking-[0.12em]">
-                    {label}
-                  </p>
-                )
-              )}
+              {[
+                'Provider',
+                'Requests',
+                'Input classes',
+                'Output classes',
+                'Cost / Savings',
+                'Latency',
+                'Pricing',
+              ].map((label) => (
+                <p
+                  key={label}
+                  className="text-muted-foreground text-[10px] font-semibold uppercase tracking-[0.12em]"
+                >
+                  {label}
+                </p>
+              ))}
             </div>
 
             <div className="divide-y divide-border/60">
@@ -56,44 +62,63 @@ export function ProviderAccountingTable({ rows }: { rows: UsageProviderAccountin
                   <div className="flex items-center gap-3">
                     <AvatarCell />
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-foreground">{row.provider}</p>
+                      <p className="truncate text-sm font-semibold text-foreground">
+                        {row.provider}
+                      </p>
                       <p className="text-muted-foreground truncate text-xs">{row.slug}</p>
                     </div>
                   </div>
 
                   <div>
-                    <p className="text-sm font-semibold tabular-nums text-foreground">{row.requests}</p>
+                    <p className="text-sm font-semibold tabular-nums text-foreground">
+                      {row.requests}
+                    </p>
                     <p className="text-muted-foreground text-xs">
                       {row.failed} failed · {row.successPct}%
                     </p>
                   </div>
 
                   <div>
-                    <p className="text-sm tabular-nums text-foreground">{fmtCompact(row.inputTokens)} input</p>
+                    <p className="text-sm tabular-nums text-foreground">
+                      {fmtCompact(row.inputTokens)} input
+                    </p>
                     <p className="text-muted-foreground truncate text-xs">
-                      {fmtCompact(row.cacheReadTokens)} cache read · {fmtCompact(row.cacheWriteTokens)} write
+                      {fmtCompact(row.cacheReadTokens)} cache read ·{' '}
+                      {fmtCompact(row.cacheWriteTokens)} write
                     </p>
                   </div>
 
                   <div>
-                    <p className="text-sm tabular-nums text-foreground">{fmtCompact(row.outputTokens)} output</p>
+                    <p className="text-sm tabular-nums text-foreground">
+                      {fmtCompact(row.outputTokens)} output
+                    </p>
                     <p className="text-muted-foreground truncate text-xs">
                       {fmtCompact(row.reasoningTokens)} reasoning subset
                     </p>
                   </div>
 
                   <div>
-                    <p className="text-sm font-semibold tabular-nums text-foreground">{fmtMoney(row.costMicros)}</p>
-                    <p className="text-xs tabular-nums text-emerald-500">{fmtMoney(row.savedMicros)} saved</p>
+                    <p className="text-sm font-semibold tabular-nums text-foreground">
+                      {fmtMoney(row.costMicros)}
+                    </p>
+                    <p className="text-xs tabular-nums text-emerald-500">
+                      {fmtMoney(row.savedMicros)} saved
+                    </p>
                   </div>
 
                   <div>
-                    <p className="text-sm tabular-nums text-foreground">{fmtLatency(row.latencyMs)}</p>
-                    <p className="text-muted-foreground truncate text-xs">TTFT {fmtLatency(row.ttftMs)}</p>
+                    <p className="text-sm tabular-nums text-foreground">
+                      {fmtLatency(row.latencyMs)}
+                    </p>
+                    <p className="text-muted-foreground truncate text-xs">
+                      TTFT {fmtLatency(row.ttftMs)}
+                    </p>
                   </div>
 
                   <div>
-                    <p className="text-sm font-semibold tabular-nums text-foreground">{row.coverage}%</p>
+                    <p className="text-sm font-semibold tabular-nums text-foreground">
+                      {row.coverage}%
+                    </p>
                     <p className="text-muted-foreground text-[10px] leading-relaxed">
                       {row.pricingEst} / {row.pricingEligible} pricing-eligible
                       <br />
@@ -123,8 +148,7 @@ export function ModelAccountingTable({ rows }: { rows: UsageModelAccountingRow[]
     const query = search.trim().toLowerCase()
     if (!query) return rows
     return rows.filter(
-      (row) =>
-        row.model.toLowerCase().includes(query) || row.provider.toLowerCase().includes(query)
+      (row) => row.model.toLowerCase().includes(query) || row.provider.toLowerCase().includes(query)
     )
   }, [rows, search])
 
@@ -163,15 +187,17 @@ export function ModelAccountingTable({ rows }: { rows: UsageModelAccountingRow[]
         <div className="mt-4 overflow-x-auto">
           <div className="min-w-[860px]">
             <div className={`${MODEL_COLUMNS} border-b border-border pb-3`}>
-              {['Provider / model', 'Requests', 'Tokens', 'Cost', 'Latency', 'Pricing'].map((label) => (
-                <p
-                  key={label}
-                  className="text-muted-foreground flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.12em]"
-                >
-                  {label}
-                  <ArrowUpDown className="h-3 w-3 opacity-60" />
-                </p>
-              ))}
+              {['Provider / model', 'Requests', 'Tokens', 'Cost', 'Latency', 'Pricing'].map(
+                (label) => (
+                  <p
+                    key={label}
+                    className="text-muted-foreground flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.12em]"
+                  >
+                    {label}
+                    <ArrowUpDown className="h-3 w-3 opacity-60" />
+                  </p>
+                )
+              )}
             </div>
 
             <div className="divide-y divide-border/60">
@@ -188,7 +214,9 @@ export function ModelAccountingTable({ rows }: { rows: UsageModelAccountingRow[]
                   </div>
 
                   <div>
-                    <p className="text-sm font-semibold tabular-nums text-foreground">{row.requests}</p>
+                    <p className="text-sm font-semibold tabular-nums text-foreground">
+                      {row.requests}
+                    </p>
                     <p className="text-muted-foreground text-xs">{row.successPct}% success</p>
                   </div>
 
@@ -200,7 +228,8 @@ export function ModelAccountingTable({ rows }: { rows: UsageModelAccountingRow[]
                       {fmtCompact(row.inputTokens)} in · {fmtCompact(row.outputTokens)} out
                     </p>
                     <p className="text-muted-foreground truncate text-xs">
-                      {fmtCompact(row.cachedTokens)} cached · {fmtCompact(row.reasoningTokens)} reasoning
+                      {fmtCompact(row.cachedTokens)} cached · {fmtCompact(row.reasoningTokens)}{' '}
+                      reasoning
                     </p>
                   </div>
 
@@ -213,13 +242,19 @@ export function ModelAccountingTable({ rows }: { rows: UsageModelAccountingRow[]
                         Missing price
                       </Badge>
                     ) : (
-                      <p className="text-xs tabular-nums text-emerald-500">{fmtMoney(row.savedMicros)} saved</p>
+                      <p className="text-xs tabular-nums text-emerald-500">
+                        {fmtMoney(row.savedMicros)} saved
+                      </p>
                     )}
                   </div>
 
                   <div>
-                    <p className="text-sm tabular-nums text-foreground">{fmtLatency(row.latencyMs)}</p>
-                    <p className="text-muted-foreground truncate text-xs">TTFT {fmtLatency(row.ttftMs)}</p>
+                    <p className="text-sm tabular-nums text-foreground">
+                      {fmtLatency(row.latencyMs)}
+                    </p>
+                    <p className="text-muted-foreground truncate text-xs">
+                      TTFT {fmtLatency(row.ttftMs)}
+                    </p>
                   </div>
 
                   <div>
@@ -242,7 +277,9 @@ export function ModelAccountingTable({ rows }: { rows: UsageModelAccountingRow[]
                       {row.legacy} legacy · {row.backfilled} backfilled
                     </p>
                     {row.pricingRates ? (
-                      <p className="text-muted-foreground mt-1 text-[10px] leading-relaxed">{row.pricingRates}</p>
+                      <p className="text-muted-foreground mt-1 text-[10px] leading-relaxed">
+                        {row.pricingRates}
+                      </p>
                     ) : (
                       <p className="text-muted-foreground mt-1 text-[10px] leading-relaxed">
                         No pricing key. Rates unavailable

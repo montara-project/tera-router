@@ -55,7 +55,9 @@ export default function UsageTrendCard({ telemetry }: { telemetry: UsageTelemetr
   const y = (value: number) => 16 + plotHeight - (value / top) * plotHeight
 
   const linePath = values
-    .map((value, index) => `${index === 0 ? 'M' : 'L'}${x(index).toFixed(1)},${y(value).toFixed(1)}`)
+    .map(
+      (value, index) => `${index === 0 ? 'M' : 'L'}${x(index).toFixed(1)},${y(value).toFixed(1)}`
+    )
     .join(' ')
   const areaPath = `${linePath} L${x(values.length - 1).toFixed(1)},${y(0).toFixed(1)} L${x(0).toFixed(1)},${y(0).toFixed(1)} Z`
 
@@ -103,8 +105,18 @@ export default function UsageTrendCard({ telemetry }: { telemetry: UsageTelemetr
         >
           <defs>
             <linearGradient id="usage-trend-fill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="currentColor" className="text-emerald-500" stopOpacity="0.18" />
-              <stop offset="100%" stopColor="currentColor" className="text-emerald-500" stopOpacity="0" />
+              <stop
+                offset="0%"
+                stopColor="currentColor"
+                className="text-emerald-500"
+                stopOpacity="0.18"
+              />
+              <stop
+                offset="100%"
+                stopColor="currentColor"
+                className="text-emerald-500"
+                stopOpacity="0"
+              />
             </linearGradient>
           </defs>
 
@@ -118,7 +130,12 @@ export default function UsageTrendCard({ telemetry }: { telemetry: UsageTelemetr
                 className="stroke-border/60"
                 strokeWidth="1"
               />
-              <text x={padLeft - 8} y={y(value) + 3} textAnchor="end" className="fill-muted-foreground text-[10px]">
+              <text
+                x={padLeft - 8}
+                y={y(value) + 3}
+                textAnchor="end"
+                className="fill-muted-foreground text-[10px]"
+              >
                 {formatY(value)}
               </text>
             </g>

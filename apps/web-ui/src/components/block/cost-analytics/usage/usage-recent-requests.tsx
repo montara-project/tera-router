@@ -11,8 +11,7 @@ import { Card, CardContent } from '@/components/ui/card'
 
 import { fmtCompact, fmtLatency, fmtMoney } from './format'
 
-const COLUMNS =
-  'grid grid-cols-[1.1fr_1.6fr_1fr_1fr_1.1fr_1.1fr_0.7fr_0.7fr] items-center gap-4'
+const COLUMNS = 'grid grid-cols-[1.1fr_1.6fr_1fr_1fr_1.1fr_1.1fr_0.7fr_0.7fr] items-center gap-4'
 const PAGE_SIZE = 10
 
 interface RecentRequestsProps {
@@ -44,16 +43,23 @@ export default function UsageRecentRequests({ rows }: RecentRequestsProps) {
         <div className="mt-4 overflow-x-auto">
           <div className="min-w-[900px]">
             <div className={`${COLUMNS} border-b border-border pb-3`}>
-              {['Status', 'Provider / Model', 'Input', 'Output', 'Cost', 'Latency', 'Time', 'Detail'].map(
-                (label) => (
-                  <p
-                    key={label}
-                    className="text-muted-foreground text-[10px] font-semibold uppercase tracking-[0.12em]"
-                  >
-                    {label}
-                  </p>
-                )
-              )}
+              {[
+                'Status',
+                'Provider / Model',
+                'Input',
+                'Output',
+                'Cost',
+                'Latency',
+                'Time',
+                'Detail',
+              ].map((label) => (
+                <p
+                  key={label}
+                  className="text-muted-foreground text-[10px] font-semibold uppercase tracking-[0.12em]"
+                >
+                  {label}
+                </p>
+              ))}
             </div>
 
             <div className="divide-y divide-border/60">
@@ -101,7 +107,8 @@ export default function UsageRecentRequests({ rows }: RecentRequestsProps) {
                       {fmtCompact(row.inputTokens)}
                     </p>
                     <p className="text-muted-foreground truncate text-xs">
-                      {fmtCompact(row.inputCacheRead)} read · {fmtCompact(row.inputCacheWrite)} write
+                      {fmtCompact(row.inputCacheRead)} read · {fmtCompact(row.inputCacheWrite)}{' '}
+                      write
                     </p>
                   </div>
 
@@ -128,7 +135,9 @@ export default function UsageRecentRequests({ rows }: RecentRequestsProps) {
                   </div>
 
                   <div>
-                    <p className="text-sm tabular-nums text-foreground">{fmtLatency(row.latencyMs)}</p>
+                    <p className="text-sm tabular-nums text-foreground">
+                      {fmtLatency(row.latencyMs)}
+                    </p>
                     <p className="text-muted-foreground truncate text-xs">
                       upstream {fmtLatency(row.upstreamMs)}
                     </p>

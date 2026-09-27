@@ -103,7 +103,12 @@ export type UsageTelemetryOverview = {
     outputTokens: number
   }
   spend: { costMicros: number; valueSavedMicros: number; tokensSaved: number }
-  performance: { successRate: number; avgLatencyMs: number; ttftMs: number; tokensPerRequest: number }
+  performance: {
+    successRate: number
+    avgLatencyMs: number
+    ttftMs: number
+    tokensPerRequest: number
+  }
   quality: { requestsCoverage: number; tokensCoverage: number; notes: number }
   optimization: {
     savedLabel: string

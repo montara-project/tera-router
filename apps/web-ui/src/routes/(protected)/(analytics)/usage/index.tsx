@@ -45,7 +45,12 @@ function RouteComponent() {
             defaultValue={range}
             onValueChange={(value) => setRange(value as UsageRange)}
           />
-          <Button variant="outline" size="icon" aria-label="Refresh usage data" onClick={handleRefresh}>
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label="Refresh usage data"
+            onClick={handleRefresh}
+          >
             <IconRefresh />
           </Button>
         </>

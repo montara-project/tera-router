@@ -48,8 +48,8 @@ export default function HealthSummaryCard({
           </div>
 
           <p className="text-muted-foreground text-xs">
-            Share of providers by current health status. Green is working normally; yellow is
-            slower or less reliable; red should be avoided.
+            Share of providers by current health status. Green is working normally; yellow is slower
+            or less reliable; red should be avoided.
           </p>
         </div>
 

@@ -25,7 +25,11 @@ export default function UsageDistributionCard({ telemetry }: DistributionCardPro
 
         <div className="mt-5 flex h-2.5 overflow-hidden rounded-full bg-muted">
           {distribution.map((entry) => (
-            <div key={entry.provider} style={{ width: `${entry.requestShare}%` }} className="bg-emerald-600/80" />
+            <div
+              key={entry.provider}
+              style={{ width: `${entry.requestShare}%` }}
+              className="bg-emerald-600/80"
+            />
           ))}
         </div>
 

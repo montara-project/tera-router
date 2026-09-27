@@ -48,8 +48,12 @@ export function QualityBar({ quality }: { quality: UsageTelemetryOverview['quali
         {expanded ? (
           <div className="border-t border-amber-600/20 px-4 py-3">
             <ul className="text-muted-foreground space-y-1.5 text-xs">
-              <li>· 36 requests carry estimated pricing (pricing est.) instead of recorded cost.</li>
-              <li>· 7 requests were attributed via usage estimates and may drift from provider bills.</li>
+              <li>
+                · 36 requests carry estimated pricing (pricing est.) instead of recorded cost.
+              </li>
+              <li>
+                · 7 requests were attributed via usage estimates and may drift from provider bills.
+              </li>
               <li>· Terminal requests without a pricing key are excluded from spend totals.</li>
             </ul>
           </div>
@@ -97,7 +101,10 @@ export function OptimizationBar({
 
         <div className="ml-auto flex items-center gap-3">
           <IconChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <Button className="bg-emerald-600 text-white hover:bg-emerald-600/90 dark:bg-emerald-600 dark:hover:bg-emerald-600/90" onClick={handleSavingsCard}>
+          <Button
+            className="bg-emerald-600 text-white hover:bg-emerald-600/90 dark:bg-emerald-600 dark:hover:bg-emerald-600/90"
+            onClick={handleSavingsCard}
+          >
             <span>Savings Card</span>
             <IconDownload />
           </Button>

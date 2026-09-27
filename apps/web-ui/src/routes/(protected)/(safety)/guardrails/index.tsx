@@ -200,10 +200,7 @@ function GuardrailsContent({ initial }: { initial: GuardrailsOverview }) {
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <p className="text-muted-foreground text-sm">{SCOPE_HINTS[tab]}</p>
                 {tab !== 'global' && (
-                  <Button
-                    className={NEW_POLICY_BUTTON_CLASS}
-                    onClick={() => handleNewPolicy(tab)}
-                  >
+                  <Button className={NEW_POLICY_BUTTON_CLASS} onClick={() => handleNewPolicy(tab)}>
                     <IconPlus />
                     <span>New Policy</span>
                   </Button>
@@ -226,9 +223,7 @@ function GuardrailsContent({ initial }: { initial: GuardrailsOverview }) {
                     <IconLock className="h-5 w-5 text-muted-foreground" />
                   </span>
                   <div className="space-y-1">
-                    <p className="text-sm font-semibold text-foreground">
-                      No {tab} policies yet
-                    </p>
+                    <p className="text-sm font-semibold text-foreground">No {tab} policies yet</p>
                     <p className="text-muted-foreground text-sm">
                       Add a policy to override the global config for this scope.
                     </p>

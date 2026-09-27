@@ -5,10 +5,7 @@ import type { UsageRange } from '@/lib/api/models/usage'
 import { Skeleton } from '@/components/ui/skeleton'
 import { usageQueries } from '@/lib/api/queries/usage'
 
-import {
-  ModelAccountingTable,
-  ProviderAccountingTable,
-} from './usage-accounting-tables'
+import { ModelAccountingTable, ProviderAccountingTable } from './usage-accounting-tables'
 import { OptimizationBar, QualityBar } from './usage-bars'
 import UsageDistributionCard from './usage-distribution-card'
 import UsageHealthStrip from './usage-health-strip'

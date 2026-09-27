@@ -45,8 +45,12 @@ function StatCard({
         <div className="grid grid-cols-3 gap-3 border-t border-border/60 pt-4">
           {subs.map((sub) => (
             <div key={sub.label} className="min-w-0">
-              <p className={`text-sm font-semibold ${sub.valueClass ?? 'text-foreground'}`}>{sub.value}</p>
-              <p className="text-muted-foreground mt-0.5 text-[10px] uppercase tracking-wide">{sub.label}</p>
+              <p className={`text-sm font-semibold ${sub.valueClass ?? 'text-foreground'}`}>
+                {sub.value}
+              </p>
+              <p className="text-muted-foreground mt-0.5 text-[10px] uppercase tracking-wide">
+                {sub.label}
+              </p>
             </div>
           ))}
         </div>
@@ -82,8 +86,15 @@ export default function UsageOverviewCards({ telemetry }: OverviewCardsProps) {
         big={fmtMoney(spend.costMicros)}
         bigLabel="tracked cost"
         subs={[
-          { value: fmtMoney(spend.valueSavedMicros), label: 'Value saved', valueClass: 'text-emerald-500' },
-          { value: fmtMoney(Math.round(spend.costMicros / Math.max(traffic.requests, 1))), label: 'Cost / Request' },
+          {
+            value: fmtMoney(spend.valueSavedMicros),
+            label: 'Value saved',
+            valueClass: 'text-emerald-500',
+          },
+          {
+            value: fmtMoney(Math.round(spend.costMicros / Math.max(traffic.requests, 1))),
+            label: 'Cost / Request',
+          },
           { value: fmtCompact(spend.tokensSaved), label: 'Tokens saved' },
         ]}
       />

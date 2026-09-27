@@ -15,10 +15,7 @@ import ProviderHealthTabs, {
 } from '@/components/block/provider-health/provider-health-tabs'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-  PROVIDER_HEALTH_QUERY_KEY,
-  providerHealthQueries,
-} from '@/lib/api/queries/provider-health'
+import { PROVIDER_HEALTH_QUERY_KEY, providerHealthQueries } from '@/lib/api/queries/provider-health'
 import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/(protected)/(safety)/provider-health/')({

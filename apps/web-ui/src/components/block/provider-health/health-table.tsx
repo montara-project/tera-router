@@ -5,7 +5,10 @@ import type { HealthEntry, HealthStatus } from '@/lib/api/models/provider-health
 import { Badge, BadgeDot } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 
-const STATUS_META: Record<HealthStatus, { label: string; variant: 'success' | 'warning' | 'destructive' }> = {
+const STATUS_META: Record<
+  HealthStatus,
+  { label: string; variant: 'success' | 'warning' | 'destructive' }
+> = {
   healthy: { label: 'Healthy', variant: 'success' },
   degraded: { label: 'Degraded', variant: 'warning' },
   down: { label: 'Down', variant: 'destructive' },
@@ -48,11 +51,11 @@ export default function HealthTable({ entityLabel, entries, onView }: HealthTabl
                     </Badge>
                   </div>
                   <p className="text-sm tabular-nums text-foreground">{entry.requests}</p>
-                  <p className="text-sm tabular-nums text-foreground">{entry.fallbackRate.toFixed(1)}%</p>
-                  <p className="text-sm tabular-nums text-foreground">{entry.finalFailures}</p>
-                  <p className="truncate text-sm text-muted-foreground">
-                    {entry.affected ?? '—'}
+                  <p className="text-sm tabular-nums text-foreground">
+                    {entry.fallbackRate.toFixed(1)}%
                   </p>
+                  <p className="text-sm tabular-nums text-foreground">{entry.finalFailures}</p>
+                  <p className="truncate text-sm text-muted-foreground">{entry.affected ?? '—'}</p>
                   <button
                     type="button"
                     onClick={() => onView(entry.name)}
