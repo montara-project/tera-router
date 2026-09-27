@@ -8,8 +8,9 @@ import type { Models } from '@/lib/api/models'
 
 import IconBadge from '@/components/block/common/icon-badge'
 import SectionCard from '@/components/block/common/section-card'
-import CapabilityChips from '@/components/block/providers/capability-chips'
+import CapabilityChips, { CAPABILITIES } from '@/components/block/providers/capability-chips'
 import ProviderGrid from '@/components/block/providers/provider-grid'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -31,11 +32,28 @@ export const Route = createFileRoute('/(protected)/(connection)/providers/')({
 function RouteSkeleton() {
   return (
     <div className="bg-sidebar border border-sidebar-accent p-2 rounded-2xl">
-      <div className="space-y-4 rounded-lg border border-border bg-background p-4">
-        <Skeleton className="h-10 w-full rounded-lg" />
-        <Skeleton className="h-9 w-2/3 rounded-lg" />
-        <Skeleton className="h-64 w-full rounded-lg" />
-        <Skeleton className="h-64 w-full rounded-lg" />
+      <div className="rounded-lg border border-border bg-background p-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0 space-y-2">
+            <Skeleton className="h-5 w-40 rounded-lg" />
+            <Skeleton className="h-4 w-72 rounded-lg" />
+          </div>
+          <Skeleton className="h-9 w-44 shrink-0 rounded-lg" />
+        </div>
+
+        <Skeleton className="mt-4 h-10 w-full rounded-lg" />
+
+        <div className="mt-4 flex gap-2">
+          {Array.from({ length: 8 }).map((_, index) => (
+            <Skeleton key={index} className="h-8 w-20 rounded-lg" />
+          ))}
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 8 }).map((_, index) => (
+            <Skeleton key={index} className="h-40 rounded-xl" />
+          ))}
+        </div>
       </div>
     </div>
   )
@@ -48,6 +66,7 @@ function ProvidersCard({
   providers,
   title,
   variant,
+  onConnect,
 }: {
   count: number
   description: string
@@ -55,10 +74,11 @@ function ProvidersCard({
   providers: Models.Provider[]
   title: string
   variant: 'connected' | 'available'
+  onConnect?: (provider: Models.Provider) => void
 }) {
   return (
-    <Card>
-      <CardHeader>
+    <Card className='bg-background'>
+      <CardHeader className='h-20'>
         <div className="flex items-center gap-3.5">
           <IconBadge icon={icon} variant="soft" className="h-10 w-10" iconClassName="h-5 w-5" />
           <CardHeading>
@@ -67,13 +87,13 @@ function ProvidersCard({
           </CardHeading>
         </div>
         <CardToolbar>
-          <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium tabular-nums">
+          <Badge variant="secondary" size="sm" className="tabular-nums">
             {count}
-          </span>
+          </Badge>
         </CardToolbar>
       </CardHeader>
       <CardContent className="p-0">
-        <ProviderGrid providers={providers} variant={variant} />
+        <ProviderGrid providers={providers} variant={variant} onConnect={onConnect} />
       </CardContent>
     </Card>
   )
@@ -85,6 +105,21 @@ function RouteComponent() {
 
   const { data } = useQuery(providerQueries.list())
   const overview = data?.data
+
+  const counts = useMemo(() => {
+    const all = [...(overview?.connected ?? []), ...(overview?.available ?? [])]
+    const map: Record<string, number> = { all: all.length }
+
+    for (const { value } of CAPABILITIES) {
+      if (value !== 'all') {
+        map[value] = all.filter((provider) =>
+          provider.capabilities.includes(value as Models.ProviderCapability)
+        ).length
+      }
+    }
+
+    return map
+  }, [overview])
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -105,6 +140,10 @@ function RouteComponent() {
 
   const handleNewProvider = () => {
     toast.info('Custom provider connection is not wired to the backend yet')
+  }
+
+  const handleConnect = (provider: Models.Provider) => {
+    toast.info(`Connect flow for ${provider.name} is not wired to the backend yet`)
   }
 
   return (
@@ -132,7 +171,7 @@ function RouteComponent() {
           />
         </InputWrapper>
 
-        <CapabilityChips value={capability} onChange={setCapability} />
+        <CapabilityChips value={capability} onChange={setCapability} counts={counts} />
 
         <ProvidersCard
           count={filtered.connected.length}
@@ -150,6 +189,7 @@ function RouteComponent() {
           providers={filtered.available}
           title="Available providers"
           variant="available"
+          onConnect={handleConnect}
         />
       </div>
     </SectionCard>

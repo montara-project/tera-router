@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-const CAPABILITIES = [
+export const CAPABILITIES = [
   { value: 'all', label: 'All', icon: IconHexagons },
   { value: 'chat', label: 'Chat', icon: IconMessageCircle },
   { value: 'embeddings', label: 'Embeddings', icon: IconTable },
@@ -26,9 +26,10 @@ const CAPABILITIES = [
 interface CapabilityChipsProps {
   value: string
   onChange: (value: string) => void
+  counts?: Record<string, number>
 }
 
-export default function CapabilityChips({ value, onChange }: CapabilityChipsProps) {
+export default function CapabilityChips({ value, onChange, counts }: CapabilityChipsProps) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       {CAPABILITIES.map((capability) => {
@@ -48,6 +49,11 @@ export default function CapabilityChips({ value, onChange }: CapabilityChipsProp
           >
             <capability.icon className="h-3.5 w-3.5" />
             <span>{capability.label}</span>
+            {counts ? (
+              <span className="text-[10px] leading-none font-medium tabular-nums opacity-60">
+                {counts[capability.value] ?? 0}
+              </span>
+            ) : null}
           </Button>
         )
       })}

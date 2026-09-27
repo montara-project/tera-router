@@ -1,10 +1,22 @@
-import { IconAlertTriangle } from '@tabler/icons-react'
+import {
+  IconAlertTriangle,
+  IconPlugConnected,
+  IconPlus,
+  IconSearch,
+} from '@tabler/icons-react'
 
 import type { Models } from '@/lib/api/models'
 
 import { Icons } from '@/components/block/common/icons'
+import { Badge, BadgeDot } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@/components/ui/empty'
 import { cn } from '@/lib/utils'
 
 type Brand = {
@@ -33,12 +45,12 @@ function ProviderAvatar({ slug }: { slug: string }) {
   return (
     <span
       className={cn(
-        'flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-white text-zinc-900',
+        'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-zinc-900 ring-1 ring-border',
         brand.tileClassName
       )}
     >
       {brand.icon ? (
-        <brand.icon className="h-6 w-6" />
+        <brand.icon className="h-5 w-5" />
       ) : (
         <span className="text-sm font-bold">{brand.letter}</span>
       )}
@@ -46,53 +58,89 @@ function ProviderAvatar({ slug }: { slug: string }) {
   )
 }
 
+function EmptyState({ variant }: { variant: 'connected' | 'available' }) {
+  const isConnected = variant === 'connected'
+
+  return (
+    <div className="p-4">
+      <Empty className="border">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            {isConnected ? <IconPlugConnected /> : <IconSearch />}
+          </EmptyMedia>
+          <EmptyTitle>
+            {isConnected ? 'No connected providers yet' : 'No providers found'}
+          </EmptyTitle>
+          <EmptyDescription>
+            {isConnected
+              ? 'Providers with linked accounts will show up here.'
+              : 'Try a different search or capability filter.'}
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    </div>
+  )
+}
+
 interface ProviderGridProps {
   providers: Models.Provider[]
   variant: 'connected' | 'available'
+  onConnect?: (provider: Models.Provider) => void
 }
 
-export default function ProviderGrid({ providers, variant }: ProviderGridProps) {
+export default function ProviderGrid({ providers, variant, onConnect }: ProviderGridProps) {
   if (providers.length === 0) {
-    return (
-      <div className="p-8">
-        <Empty>
-          <EmptyHeader>
-            <EmptyTitle>No providers found</EmptyTitle>
-            <EmptyDescription>Try a different search or capability.</EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      </div>
-    )
+    return <EmptyState variant={variant} />
   }
 
   return (
-    <div className="grid grid-cols-1 gap-px overflow-hidden rounded-b-xl bg-border sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
       {providers.map((provider) => (
-        <div key={provider.id} className="relative bg-card p-5">
+        <div
+          key={provider.id}
+          className="group relative flex flex-col rounded-xl border border-border bg-card p-4 transition-[border-color,box-shadow] hover:border-ring/50 hover:shadow-xs"
+        >
           {variant === 'connected' ? (
-            <span className="absolute right-4 top-4 inline-flex items-center gap-1.5 rounded-full bg-emerald-950/40 px-2 py-0.5 text-xs font-medium text-emerald-400 ring-1 ring-emerald-900/60 ring-inset">
-              <span className="size-1.5 rounded-full bg-emerald-500" />
+            <Badge
+              variant="success"
+              appearance="light"
+              size="sm"
+              shape="circle"
+              className="absolute right-3 top-3"
+            >
+              <BadgeDot />
               Connected
-            </span>
+            </Badge>
           ) : provider.official === false ? (
-            <span className="absolute right-4 top-4 inline-flex items-center gap-1.5 rounded-full bg-amber-950/40 px-2 py-0.5 text-xs font-medium text-amber-400 ring-1 ring-amber-900/60 ring-inset">
-              <IconAlertTriangle className="h-3 w-3" />
+            <Badge
+              variant="warning"
+              appearance="light"
+              size="sm"
+              shape="circle"
+              className="absolute right-3 top-3"
+            >
+              <IconAlertTriangle />
               unofficial
-            </span>
+            </Badge>
           ) : null}
 
           <ProviderAvatar slug={provider.slug} />
 
-          <div className="mt-4 space-y-1">
+          <div className="mt-3 min-w-0 space-y-0.5">
             <p className="truncate text-sm font-semibold text-foreground">{provider.name}</p>
             <p className="truncate font-mono text-xs text-muted-foreground">{provider.slug}</p>
+          </div>
+
+          <div className="mt-auto pt-3">
             {variant === 'connected' ? (
-              <p className="text-muted-foreground text-xs">
-                {provider.accounts} {provider.accounts === 1 ? 'account' : 'accounts'}
+              <p className="text-xs text-muted-foreground">
+                {provider.accounts ?? 0}{' '}
+                {(provider.accounts ?? 0) === 1 ? 'account' : 'accounts'}
               </p>
             ) : (
-              <Button variant="dim" size="sm" className="h-auto p-0">
-                Connect
+              <Button variant="outline" size="sm" onClick={() => onConnect?.(provider)}>
+                <IconPlus />
+                <span>Connect</span>
               </Button>
             )}
           </div>
