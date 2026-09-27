@@ -21,7 +21,10 @@ function RouteComponent() {
 
   const clearMutation = useMutation({
     mutationFn: () => services.console.clear(),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [CONSOLE_QUERY_KEY] }),
+    onSuccess: () => {
+      toast.success('Console cleared')
+      queryClient.invalidateQueries({ queryKey: [CONSOLE_QUERY_KEY] })
+    },
     onError: () => toast.error('Failed to clear console'),
   })
 
@@ -45,7 +48,13 @@ function RouteComponent() {
             <IconClipboard className="h-4 w-4" />
             Copy
           </Button>
-          <Button type="button" variant="outline" size="sm" onClick={() => clearMutation.mutate()}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={clearMutation.isPending}
+            onClick={() => clearMutation.mutate()}
+          >
             <IconTrash className="h-4 w-4" />
             Clear
           </Button>
