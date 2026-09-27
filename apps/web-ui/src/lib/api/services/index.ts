@@ -10,6 +10,7 @@ import { mediaServices } from './media'
 import { overrideServices } from './override'
 import { planServices } from './plan'
 import { providerServices } from './provider'
+import { providerHealthServices } from './provider-health'
 import { proxyPoolServices } from './proxy-pool'
 import { quotaServices } from './quota'
 import { settingsServices } from './settings'
@@ -29,6 +30,7 @@ export const services = {
   media: mediaServices,
   overrides: overrideServices,
   plans: planServices,
+  providerHealth: providerHealthServices,
   providers: providerServices,
   proxyPools: proxyPoolServices,
   quota: quotaServices,

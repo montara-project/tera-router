@@ -5,6 +5,7 @@ import { keyQueries } from './key'
 import { mediaQueries } from './media'
 import { planQueries } from './plan'
 import { providerQueries } from './provider'
+import { providerHealthQueries } from './provider-health'
 import { proxyPoolQueries } from './proxy-pool'
 import { quotaQueries } from './quota'
 import { settingsQueries } from './settings'
@@ -18,6 +19,7 @@ export const queries = {
   keys: keyQueries,
   media: mediaQueries,
   plans: planQueries,
+  providerHealth: providerHealthQueries,
   providers: providerQueries,
   proxyPools: proxyPoolQueries,
   quota: quotaQueries,
