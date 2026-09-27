@@ -59,9 +59,10 @@ export const MEDIA_CATEGORIES: {
 interface MediaTabsProps {
   value: MediaCategory
   onChange: (value: MediaCategory) => void
+  counts?: Record<MediaCategory, number>
 }
 
-export default function MediaTabs({ value, onChange }: MediaTabsProps) {
+export default function MediaTabs({ value, onChange, counts }: MediaTabsProps) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       {MEDIA_CATEGORIES.map((category) => {
@@ -81,6 +82,11 @@ export default function MediaTabs({ value, onChange }: MediaTabsProps) {
           >
             <category.icon className="h-3.5 w-3.5" />
             <span>{category.label}</span>
+            {counts ? (
+              <span className="text-[10px] leading-none font-medium tabular-nums opacity-60">
+                {counts[category.value] ?? 0}
+              </span>
+            ) : null}
           </Button>
         )
       })}

@@ -1,9 +1,10 @@
-import { IconArrowRight, IconBrandGithub } from '@tabler/icons-react'
+import { IconBrandGithub } from '@tabler/icons-react'
 
 import type { MediaCapability, MediaProvider } from '@/lib/api/models/media'
 
 import { Icons } from '@/components/block/common/icons'
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
+import { Badge } from '@/components/ui/badge'
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { cn } from '@/lib/utils'
 
 const CAPABILITY_LABELS: Record<MediaCapability, string> = {
@@ -13,7 +14,7 @@ const CAPABILITY_LABELS: Record<MediaCapability, string> = {
   stt: 'STT',
   search: 'Search',
   fetch: 'Fetch',
-  image_to_text: 'image_to_text',
+  image_to_text: 'Image to Text',
 }
 
 type Brand = {
@@ -50,12 +51,12 @@ function ProviderAvatar({ slug }: { slug: string }) {
   return (
     <span
       className={cn(
-        'flex h-11 w-11 shrink-0 items-center justify-center rounded-lg',
+        'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ring-1 ring-border',
         brand.tileClassName
       )}
     >
       {brand.icon ? (
-        <brand.icon className="h-6 w-6" />
+        <brand.icon className="h-5 w-5" />
       ) : (
         <span className="text-sm font-bold">{brand.letter}</span>
       )}
@@ -65,14 +66,18 @@ function ProviderAvatar({ slug }: { slug: string }) {
 
 interface MediaProviderGridProps {
   providers: MediaProvider[]
+  emptyIcon?: React.ComponentType<React.SVGProps<SVGSVGElement>>
 }
 
-export default function MediaProviderGrid({ providers }: MediaProviderGridProps) {
+export default function MediaProviderGrid({ providers, emptyIcon }: MediaProviderGridProps) {
   if (providers.length === 0) {
+    const EmptyIcon = emptyIcon
+
     return (
-      <div className="p-8">
-        <Empty>
+      <div className="p-4">
+        <Empty className="border">
           <EmptyHeader>
+            <EmptyMedia variant="icon">{EmptyIcon ? <EmptyIcon /> : null}</EmptyMedia>
             <EmptyTitle>No providers available</EmptyTitle>
             <EmptyDescription>Providers for this capability will appear here.</EmptyDescription>
           </EmptyHeader>
@@ -82,27 +87,30 @@ export default function MediaProviderGrid({ providers }: MediaProviderGridProps)
   }
 
   return (
-    <div className="grid grid-cols-1 gap-px overflow-hidden rounded-b-xl bg-border lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2">
       {providers.map((provider) => (
-        <div key={provider.id} className="flex items-center gap-4 bg-card p-5">
+        <div
+          key={provider.id}
+          className="flex items-center gap-4 rounded-xl border border-border bg-card p-4 transition-[border-color,box-shadow] hover:border-ring/50 hover:shadow-xs"
+        >
           <ProviderAvatar slug={provider.slug} />
 
-          <div className="min-w-0 flex-1 space-y-1.5">
+          <div className="min-w-0 flex-1 space-y-1">
             <p className="truncate text-sm font-semibold text-foreground">{provider.name}</p>
             <p className="truncate font-mono text-xs text-muted-foreground">{provider.slug}</p>
             <div className="flex flex-wrap gap-1.5">
               {provider.capabilities.map((capability) => (
-                <span
+                <Badge
                   key={capability}
-                  className="inline-flex items-center rounded-md bg-emerald-950/40 px-2 py-0.5 text-xs font-medium text-emerald-400 ring-1 ring-emerald-900/60 ring-inset"
+                  variant="success"
+                  appearance="light"
+                  size="sm"
                 >
                   {CAPABILITY_LABELS[capability]}
-                </span>
+                </Badge>
               ))}
             </div>
           </div>
-
-          <IconArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
         </div>
       ))}
     </div>
