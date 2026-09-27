@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -9,6 +10,8 @@ import (
 	"time"
 
 	"tera-router/server/internal/app"
+	"tera-router/server/internal/lib"
+	"tera-router/server/internal/lib/apperr"
 
 	sentryfiber "github.com/gofiber/contrib/v3/sentry"
 	"github.com/gofiber/fiber/v3"
@@ -37,11 +40,7 @@ func serve(app *app.Application) error {
 		ReadTimeout:  20 * time.Second,
 		WriteTimeout: 3 * time.Minute,
 		TrustProxy:   true,
-		ErrorHandler: func(c fiber.Ctx, err error) error {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error": err.Error(),
-			})
-		},
+		ErrorHandler: errorHandler,
 	})
 
 	// Middleware
@@ -77,9 +76,7 @@ func serve(app *app.Application) error {
 	server.Use(static.New("./public"))
 
 	// Initial Routes
-	routes(server, app)
-
-	// Create channel to listen for interrupt signals
+	routes(server, app) // Create channel to listen for interrupt signals
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 
@@ -103,4 +100,17 @@ func serve(app *app.Application) error {
 	}
 
 	return nil
+}
+
+// errorHandler renders every handler error into the response envelope the
+// web UI expects: {"message": "...", "errors": [...]} for validation and
+// {"message": "..."} otherwise.
+func errorHandler(c fiber.Ctx, err error) error {
+	var validation *lib.ErrValidationFailed
+	if errors.As(err, &validation) {
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(lib.WrapValidationError(validation.MessageRecord))
+	}
+
+	status, message := apperr.From(err)
+	return c.Status(status).JSON(fiber.Map{"message": message})
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"log"
 	"log/slog"
 	"os"
@@ -8,8 +9,11 @@ import (
 
 	"tera-router/server/internal/app"
 	"tera-router/server/internal/config"
+	"tera-router/server/internal/repositories"
+	"tera-router/server/internal/services"
 
 	"github.com/getsentry/sentry-go"
+	_ "github.com/lib/pq"
 )
 
 func main() {
@@ -26,11 +30,7 @@ func main() {
 		Level: loggerLevel,
 	}))
 
-	// Dependencies Injection
-	app := &app.Application{
-		Config: cfg,
-		Logger: logger,
-	}
+	app := assemble(cfg, logger)
 
 	if app.Config.Sentry.Dsn != "" {
 		err := sentry.Init(sentry.ClientOptions{
@@ -48,8 +48,47 @@ func main() {
 		defer sentry.Flush(2 * time.Second)
 	}
 
+	defer app.Close()
+
 	if err := serve(app); err != nil {
 		logger.Error("failed to start server", "error", err.Error())
 		os.Exit(1)
+	}
+}
+
+// assemble opens the database pool and wires repositories and services into
+// the application container. It logs and exits on any wiring failure — the
+// server cannot run half-initialized.
+func assemble(cfg config.Config, logger *slog.Logger) *app.Application {
+	if cfg.Database.URL == "" {
+		log.Fatal("DATABASE_URL / --database-url is required")
+	}
+
+	db, err := sql.Open("postgres", cfg.Database.URL)
+	if err != nil {
+		log.Fatalf("open database: %s", err)
+	}
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(30 * time.Minute)
+
+	if err := db.Ping(); err != nil {
+		log.Fatalf("database unreachable: %s", err)
+	}
+
+	repos := repositories.New(db, &cfg.App)
+	svcs, err := services.New(repos, &cfg, logger)
+	if err != nil {
+		log.Fatalf("wire services: %s", err)
+	}
+
+	logger.Info("dependencies assembled", "database", "connected")
+
+	return &app.Application{
+		Config:   cfg,
+		Logger:   logger,
+		DB:       db,
+		Repos:    repos,
+		Services: svcs,
 	}
 }
