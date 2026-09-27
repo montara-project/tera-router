@@ -3,8 +3,6 @@ package repositories
 import (
 	"context"
 	"database/sql"
-
-	"tera-router/server/internal/models"
 )
 
 type SettingRepository struct {
@@ -27,22 +25,4 @@ func (r *SettingRepository) Put(ctx context.Context, key, value string) error {
 		key, value,
 	)
 	return err
-}
-
-func (r *SettingRepository) All(ctx context.Context) ([]models.Setting, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT key, value::text, updated_at FROM settings ORDER BY key`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	out := []models.Setting{}
-	for rows.Next() {
-		var s models.Setting
-		if err := rows.Scan(&s.Key, &s.Value, &s.UpdatedAt); err != nil {
-			return nil, err
-		}
-		out = append(out, s)
-	}
-	return out, rows.Err()
 }

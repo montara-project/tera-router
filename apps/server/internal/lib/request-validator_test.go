@@ -70,24 +70,24 @@ func TestValidateRequestQuery_OptionalDefaultsPass(t *testing.T) {
 	}
 }
 
-func TestValidateRequestQuery_InvalidOrderFails(t *testing.T) {
-	err := runQuery(t, "/t?order=sideways", &dtos.ListQuery{})
+func TestValidateRequestQuery_InvalidOffsetFails(t *testing.T) {
+	err := runQuery(t, "/t?offset=sideways", &dtos.ListQuery{})
 	validationErr(t, err)
 }
 
 func TestValidateRequestQuery_ValidParamsPass(t *testing.T) {
 	q := &dtos.ListQuery{}
-	if err := runQuery(t, "/t?offset=20&limit=10&order=asc", q); err != nil {
+	if err := runQuery(t, "/t?offset=20&limit=10", q); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if q.Offset != 20 || q.Limit != 10 || q.Order != "asc" {
+	if q.Offset != 20 || q.Limit != 10 {
 		t.Fatalf("query not bound: %+v", q)
 	}
 }
 
 func TestValidateRequestQuery_EmptyParamTreatedAsAbsent(t *testing.T) {
 	q := &dtos.ListQuery{}
-	if err := runQuery(t, "/t?order=", q); err != nil {
-		t.Fatalf("empty order should pass like an absent param, got %v", err)
+	if err := runQuery(t, "/t?offset=", q); err != nil {
+		t.Fatalf("empty offset should pass like an absent param, got %v", err)
 	}
 }

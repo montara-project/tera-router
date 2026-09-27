@@ -1,9 +1,7 @@
 package seeders
 
 import (
-	"crypto/sha256"
 	"database/sql"
-	"encoding/hex"
 	"log"
 	"os"
 
@@ -165,14 +163,13 @@ func (s SampleKeySeeder) Seed() {
 	if err != nil {
 		log.Fatalf("generate sample key: %v", err)
 	}
-	lookup := sha256.Sum256([]byte(gen.Plaintext))
 
 	_, err = s.DB.Exec(`
 		INSERT INTO api_keys (id, plan_id, name, key_hash, lookup_hash, display, scopes)
 		VALUES ($1, $2, 'Dev', $3, $4, $5, '')`,
 		uuid.NewString(),
-		uuid.MustParse("00000000-0000-0000-0000-000000000010"),
-		gen.Hash, hex.EncodeToString(lookup[:]), gen.Display,
+		uuid.MustParse("00000000-0000-0000-0000-000000000010").String(),
+		gen.Hash, gen.Lookup, gen.Display,
 	)
 	if err != nil {
 		log.Fatalf("seed sample key: %v", err)
