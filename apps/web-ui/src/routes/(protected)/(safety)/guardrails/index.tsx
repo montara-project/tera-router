@@ -147,7 +147,9 @@ function GuardrailsContent({ overview }: { overview: GuardrailsOverview }) {
         enabled: updated.enabled,
         config: updated.config ?? defaultGuardrailsConfig(),
       }
-      return exists ? services.guardrails.update(updated.id, payload) : services.guardrails.store(payload)
+      return exists
+        ? services.guardrails.update(updated.id, payload)
+        : services.guardrails.store(payload)
     },
     onSuccess: async () => {
       await invalidate()
@@ -158,7 +160,8 @@ function GuardrailsContent({ overview }: { overview: GuardrailsOverview }) {
   })
 
   const toggleDetectors = useMutation({
-    mutationFn: (checked: boolean) => services.guardrails.updateSettings({ externalDetectors: checked }),
+    mutationFn: (checked: boolean) =>
+      services.guardrails.updateSettings({ externalDetectors: checked }),
     onSuccess: async () => {
       await invalidate()
       toast.success('External detector settings saved')
