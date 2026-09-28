@@ -35,7 +35,7 @@ const accountInsert = `
 		secret_wrapped_dek, secret_ciphertext, key_fingerprint, key_hash,
 		token_wrapped_dek, token_ciphertext, refresh_wrapped_dek, refresh_ciphertext,
 		token_expires_at, metadata, priority, disabled, proxy_pool_id, needs_reconnect)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14::jsonb, $15, $16, $17, $18)`
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`
 
 func insertAccount(ctx context.Context, exec interface {
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
@@ -119,8 +119,8 @@ func (r *AccountRepository) Update(ctx context.Context, a models.Account) error 
 		    secret_wrapped_dek = $4, secret_ciphertext = $5, key_fingerprint = $6, key_hash = $7,
 		    token_wrapped_dek = $8, token_ciphertext = $9,
 		    refresh_wrapped_dek = $10, refresh_ciphertext = $11,
-		    token_expires_at = $12, metadata = $13::jsonb, priority = $14, disabled = $15,
-		    proxy_pool_id = $16, needs_reconnect = $17, updated_at = now()
+		    token_expires_at = $12, metadata = $13, priority = $14, disabled = $15,
+		    proxy_pool_id = $16, needs_reconnect = $17, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now')
 		WHERE id = $1`,
 		a.ID, a.Label, a.AuthKind,
 		a.Secret.WrappedDEK, a.Secret.Ciphertext, a.KeyFingerprint, a.KeyHash,
@@ -136,7 +136,7 @@ func (r *AccountRepository) Update(ctx context.Context, a models.Account) error 
 
 func (r *AccountRepository) SetDisabled(ctx context.Context, id string, disabled bool) error {
 	res, err := r.db.ExecContext(ctx,
-		`UPDATE accounts SET disabled = $2, updated_at = now() WHERE id = $1`, id, disabled)
+		`UPDATE accounts SET disabled = $2, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now') WHERE id = $1`, id, disabled)
 	if err != nil {
 		return err
 	}
@@ -186,7 +186,7 @@ func (r *AccountRepository) DeleteAll(ctx context.Context, providerSlug string) 
 // SetDisabledByProvider flips every account of a provider.
 func (r *AccountRepository) SetDisabledByProvider(ctx context.Context, providerSlug string, disabled bool) (int64, error) {
 	res, err := r.db.ExecContext(ctx,
-		`UPDATE accounts SET disabled = $2, updated_at = now() WHERE provider = $1`, providerSlug, disabled)
+		`UPDATE accounts SET disabled = $2, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now') WHERE provider = $1`, providerSlug, disabled)
 	if err != nil {
 		return 0, err
 	}

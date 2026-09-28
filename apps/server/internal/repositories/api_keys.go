@@ -95,7 +95,7 @@ func (r *APIKeyRepository) FindByLookup(ctx context.Context, lookup string) (mod
 func (r *APIKeyRepository) Update(ctx context.Context, k models.APIKey) error {
 	_, err := r.db.ExecContext(ctx, `
 		UPDATE api_keys
-		SET name = $2, plan_id = $3, scopes = $4, disabled = $5, updated_at = now()
+		SET name = $2, plan_id = $3, scopes = $4, disabled = $5, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now')
 		WHERE id = $1`,
 		k.ID, k.Name, k.PlanID, k.Scopes, k.Disabled,
 	)

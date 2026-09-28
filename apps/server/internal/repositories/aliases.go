@@ -24,7 +24,7 @@ func (r *AliasRepository) Upsert(ctx context.Context, a models.ModelAlias) error
 		INSERT INTO model_aliases (id, name, context_window, active)
 		VALUES ($1, $2, $3, $4)
 		ON CONFLICT (name) DO UPDATE
-		SET context_window = EXCLUDED.context_window, active = EXCLUDED.active, updated_at = now()`,
+		SET context_window = EXCLUDED.context_window, active = EXCLUDED.active, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now')`,
 		a.ID, a.Name, a.ContextWindow, a.Active,
 	); err != nil {
 		return err

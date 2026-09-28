@@ -20,7 +20,7 @@ func (s SettingsSeeder) Seed() {
 "brandingDisplayName":"Tera Router","brandingTagline":"","brandingTheme":"forest-amber"}`
 
 	if _, err := s.DB.Exec(`
-		INSERT INTO settings (key, value) VALUES ('app', $1::jsonb)
+		INSERT INTO settings (key, value) VALUES ('app', $1)
 		ON CONFLICT (key) DO NOTHING`, settings); err != nil {
 		log.Fatalf("seed settings: %v", err)
 	}

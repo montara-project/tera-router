@@ -58,6 +58,6 @@ func (r *UserRepository) FindByID(ctx context.Context, id string) (models.User, 
 
 func (r *UserRepository) UpdatePassword(ctx context.Context, id, passwordHash string) error {
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE users SET password_hash = $2, updated_at = now() WHERE id = $1`, id, passwordHash)
+		`UPDATE users SET password_hash = $2, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now') WHERE id = $1`, id, passwordHash)
 	return err
 }

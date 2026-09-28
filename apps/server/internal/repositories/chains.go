@@ -129,7 +129,7 @@ func (r *ChainRepository) Update(ctx context.Context, c models.Chain) error {
 	res, err := tx.ExecContext(ctx, `
 		UPDATE chains
 		SET name = $2, strategy = $3, fallback_provider = $4, fallback_model = $5,
-		    context_window = $6, enabled = $7, updated_at = now()
+		    context_window = $6, enabled = $7, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now')
 		WHERE id = $1`,
 		c.ID, c.Name, c.Strategy, c.FallbackProvider, c.FallbackModel, c.ContextWindow, c.Enabled,
 	)

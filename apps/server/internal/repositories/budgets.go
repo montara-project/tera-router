@@ -63,7 +63,7 @@ func (r *BudgetRepository) Update(ctx context.Context, b models.Budget) error {
 		UPDATE budgets
 		SET scope_kind = $2, scope_id = $3, limit_micros = $4, limit_tokens = $5, period = $6,
 		    alert_pct = $7, hard_cutoff = $8, remaining_tokens = $9, remaining_micros = $10,
-		    period_bucket = $11, updated_at = now()
+		    period_bucket = $11, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now')
 		WHERE id = $1`,
 		b.ID, b.ScopeKind, b.ScopeID, b.LimitMicros, b.LimitTokens, b.Period,
 		b.AlertPct, b.HardCutoff, b.RemainingTokens, b.RemainingMicros, b.PeriodBucket,

@@ -26,7 +26,7 @@ func scanProvider(row interface{ Scan(...any) error }) (models.CustomProvider, e
 func (r *ProviderRepository) Create(ctx context.Context, p models.CustomProvider) error {
 	_, err := r.db.ExecContext(ctx, `
 		INSERT INTO custom_providers (id, name, slug, base_url, api_kind, pricing, enabled, priority, metadata)
-		VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9::jsonb)`,
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
 		p.ID, p.Name, p.Slug, p.BaseURL, p.APIKind, p.Pricing, p.Enabled, p.Priority, p.Metadata,
 	)
 	return err
@@ -58,8 +58,8 @@ func (r *ProviderRepository) FindByID(ctx context.Context, id string) (models.Cu
 func (r *ProviderRepository) Update(ctx context.Context, p models.CustomProvider) error {
 	res, err := r.db.ExecContext(ctx, `
 		UPDATE custom_providers
-		SET name = $2, base_url = $3, api_kind = $4, pricing = $5::jsonb, enabled = $6,
-		    priority = $7, metadata = $8::jsonb, updated_at = now()
+		SET name = $2, base_url = $3, api_kind = $4, pricing = $5, enabled = $6,
+		    priority = $7, metadata = $8, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now')
 		WHERE id = $1`,
 		p.ID, p.Name, p.BaseURL, p.APIKind, p.Pricing, p.Enabled, p.Priority, p.Metadata,
 	)

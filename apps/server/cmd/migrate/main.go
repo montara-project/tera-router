@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 
+	"tera-router/server/internal/database"
 	"tera-router/server/internal/migrator"
 	"tera-router/server/internal/seeders"
 )
@@ -13,7 +14,7 @@ func main() {
 	var cfg config
 	parseFlag(&cfg)
 
-	db, err := connectDB(cfg.dbDSN)
+	db, err := database.Open(cfg.dbPath)
 	if err != nil {
 		log.Fatal(err)
 	}

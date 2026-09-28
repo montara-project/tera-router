@@ -5,6 +5,8 @@ import (
 	"log"
 	"slices"
 	"strings"
+
+	"tera-router/server/internal/database"
 )
 
 const (
@@ -20,12 +22,12 @@ const (
 
 type config struct {
 	mode  string
-	dbDSN string
+	dbPath string
 	seed  string
 }
 
 func parseFlag(cfg *config) {
-	flag.StringVar(&cfg.dbDSN, "db-dsn", "", "PostgreSQL DSN")
+	flag.StringVar(&cfg.dbPath, "db-path", database.DefaultPath, "SQLite database file path")
 	flag.StringVar(&cfg.seed, "seed", "", "seed")
 
 	flag.Parse()
@@ -40,8 +42,8 @@ func validateFlag(cfg *config) {
 		log.Fatalf("command must be provided: %s", strings.Join(availableModes, ", "))
 	}
 
-	if cfg.dbDSN == "" {
-		log.Fatal("flag --db-dsn must be provided")
+	if cfg.dbPath == "" {
+		log.Fatal("flag --db-path must not be empty")
 	}
 
 	if cfg.mode == modeDown && cfg.seed != "" {

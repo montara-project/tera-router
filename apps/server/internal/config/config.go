@@ -17,7 +17,8 @@ type ConfigApp struct {
 }
 
 type ConfigDatabase struct {
-	URL string
+	// Path is the SQLite database file (default terarouter.db).
+	Path string
 	// MigrateOnBoot applies pending SQL migrations before the server starts.
 	MigrateOnBoot bool
 }

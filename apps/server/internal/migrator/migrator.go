@@ -12,7 +12,7 @@ import (
 	"fmt"
 
 	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database/postgres"
+	"github.com/golang-migrate/migrate/v4/database/sqlite"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
@@ -21,12 +21,12 @@ import (
 const DefaultDir = "./migrations"
 
 func newMigrate(db *sql.DB, dir string) (*migrate.Migrate, error) {
-	driver, err := postgres.WithInstance(db, &postgres.Config{})
+	driver, err := sqlite.WithInstance(db, &sqlite.Config{})
 	if err != nil {
-		return nil, fmt.Errorf("build postgres driver: %w", err)
+		return nil, fmt.Errorf("build sqlite driver: %w", err)
 	}
 
-	m, err := migrate.NewWithDatabaseInstance("file://"+dir, "postgres", driver)
+	m, err := migrate.NewWithDatabaseInstance("file://"+dir, "sqlite", driver)
 	if err != nil {
 		return nil, fmt.Errorf("init migrate: %w", err)
 	}

@@ -1,8 +1,8 @@
 -- One row per metered request. Populated by the gateway phase.
 CREATE TABLE usage_records (
-    id                bigserial PRIMARY KEY,
-    api_key_id        uuid,
-    account_id        uuid,
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    api_key_id        TEXT,
+    account_id        TEXT,
     provider          text NOT NULL DEFAULT '',
     model             text NOT NULL DEFAULT '',
     client            text NOT NULL DEFAULT '',
@@ -20,7 +20,7 @@ CREATE TABLE usage_records (
     error_kind        text NOT NULL DEFAULT '',
     error_status      integer NOT NULL DEFAULT 0,
     error_message     text NOT NULL DEFAULT '',
-    created_at        timestamptz NOT NULL DEFAULT now()
+    created_at        DATETIME NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f+00:00', 'now'))
 );
 
 CREATE INDEX idx_usage_records_created_at ON usage_records (created_at);

@@ -3,7 +3,9 @@ package main
 import (
 	"flag"
 	"log"
+
 	"tera-router/server/internal/config"
+	"tera-router/server/internal/database"
 )
 
 func parseFlag(cfg *config.Config) {
@@ -19,7 +21,7 @@ func parseFlag(cfg *config.Config) {
 	flag.StringVar(&cfg.App.CORSAllowedOrigins, "cors-allowed-origins", "*", "CORS Allowed Origins")
 
 	// Database
-	flag.StringVar(&cfg.Database.URL, "database-url", "", "Database URL")
+	flag.StringVar(&cfg.Database.Path, "database-path", database.DefaultPath, "SQLite database file path")
 	flag.BoolVar(&cfg.Database.MigrateOnBoot, "migrate-on-boot", false, "Apply pending migrations before starting the server")
 
 	// Sentry
@@ -49,5 +51,9 @@ func validateFlag(cfg *config.Config) {
 
 	if cfg.App.Secret == "" {
 		log.Fatal("flag app-secret must be provided")
+	}
+
+	if cfg.Database.Path == "" {
+		log.Fatal("flag database-path must not be empty")
 	}
 }

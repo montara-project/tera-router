@@ -7,8 +7,6 @@ import (
 
 	"tera-router/server/internal/lib/apperr"
 	"tera-router/server/internal/models"
-
-	"github.com/lib/pq"
 )
 
 type PlanRepository struct {
@@ -34,7 +32,7 @@ func scanPlan(row interface{ Scan(...any) error }) (models.Plan, error) {
 	var p models.Plan
 	err := row.Scan(
 		&p.ID, &p.Name, &p.Description, &p.LimitMicros, &p.LimitTokens, &p.Period, &p.AlertPct,
-		&p.HardCutoff, pq.Array(&p.AllowedModels), &p.RPM, &p.TPM, &p.Concurrent,
+		&p.HardCutoff, (*jsonStrings)(&p.AllowedModels), &p.RPM, &p.TPM, &p.Concurrent,
 		&p.CreatedAt, &p.UpdatedAt,
 	)
 	return p, translateNotFound(err)
@@ -45,7 +43,7 @@ func (r *PlanRepository) Create(ctx context.Context, p models.Plan) error {
 		INSERT INTO plans (id, name, description, limit_micros, limit_tokens, period, alert_pct, hard_cutoff, allowed_models, rpm, tpm, concurrent)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
 		p.ID, p.Name, p.Description, p.LimitMicros, p.LimitTokens, p.Period, p.AlertPct,
-		p.HardCutoff, pq.Array(p.AllowedModels), p.RPM, p.TPM, p.Concurrent,
+		p.HardCutoff, jsonStrings(p.AllowedModels), p.RPM, p.TPM, p.Concurrent,
 	)
 	return err
 }
@@ -77,10 +75,10 @@ func (r *PlanRepository) Update(ctx context.Context, p models.Plan) error {
 	res, err := r.db.ExecContext(ctx, `
 		UPDATE plans
 		SET name = $2, description = $3, limit_micros = $4, limit_tokens = $5, period = $6,
-		    alert_pct = $7, hard_cutoff = $8, allowed_models = $9, rpm = $10, tpm = $11, concurrent = $12, updated_at = now()
+		    alert_pct = $7, hard_cutoff = $8, allowed_models = $9, rpm = $10, tpm = $11, concurrent = $12, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now')
 		WHERE id = $1`,
 		p.ID, p.Name, p.Description, p.LimitMicros, p.LimitTokens, p.Period,
-		p.AlertPct, p.HardCutoff, pq.Array(p.AllowedModels), p.RPM, p.TPM, p.Concurrent,
+		p.AlertPct, p.HardCutoff, jsonStrings(p.AllowedModels), p.RPM, p.TPM, p.Concurrent,
 	)
 	if err != nil {
 		return err

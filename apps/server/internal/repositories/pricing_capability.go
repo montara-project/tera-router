@@ -3,7 +3,6 @@ package repositories
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 
 	"tera-router/server/internal/lib/apperr"
 	"tera-router/server/internal/models"
@@ -36,7 +35,7 @@ func (r *PricingRepository) Upsert(ctx context.Context, p models.PricingOverride
 			output_micros = EXCLUDED.output_micros,
 			cache_read_micros = EXCLUDED.cache_read_micros,
 			cache_write_micros = EXCLUDED.cache_write_micros,
-			updated_at = now()`,
+			updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now')`,
 		p.ID, p.Provider, p.Model, p.InputMicros, p.OutputMicros, p.CacheReadMicros, p.CacheWriteMicros,
 	)
 	return err
@@ -86,16 +85,10 @@ const capabilityColumns = `
 	id, provider, model, capabilities, created_at, updated_at`
 
 func scanCapability(row interface{ Scan(...any) error }) (models.CapabilityOverride, error) {
-	var (
-		c    models.CapabilityOverride
-		caps string
-	)
-	err := row.Scan(&c.ID, &c.Provider, &c.Model, &caps, &c.CreatedAt, &c.UpdatedAt)
+	var c models.CapabilityOverride
+	err := row.Scan(&c.ID, &c.Provider, &c.Model, (*jsonStrings)(&c.Capabilities), &c.CreatedAt, &c.UpdatedAt)
 	if err != nil {
 		return models.CapabilityOverride{}, translateNotFound(err)
-	}
-	if err := json.Unmarshal([]byte(caps), &c.Capabilities); err != nil {
-		return models.CapabilityOverride{}, err
 	}
 	return c, nil
 }
@@ -103,10 +96,10 @@ func scanCapability(row interface{ Scan(...any) error }) (models.CapabilityOverr
 func (r *CapabilityRepository) Upsert(ctx context.Context, c models.CapabilityOverride) error {
 	_, err := r.db.ExecContext(ctx, `
 		INSERT INTO model_capability_overrides (id, provider, model, capabilities)
-		VALUES ($1, $2, $3, $4::jsonb)
+		VALUES ($1, $2, $3, $4)
 		ON CONFLICT (provider, model) DO UPDATE SET
-			capabilities = EXCLUDED.capabilities, updated_at = now()`,
-		c.ID, c.Provider, c.Model, c.Capabilities,
+			capabilities = EXCLUDED.capabilities, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now')`,
+		c.ID, c.Provider, c.Model, jsonStrings(c.Capabilities),
 	)
 	return err
 }

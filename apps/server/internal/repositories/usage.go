@@ -40,7 +40,7 @@ func (r *UsageRepository) Summary(ctx context.Context, from time.Time) (UsageSum
 	row := r.db.QueryRowContext(ctx, `
 		SELECT count(*),
 		       COALESCE(SUM(prompt_tokens), 0), COALESCE(SUM(completion_tokens), 0),
-		       COALESCE(SUM(cost_micros), 0), COALESCE(AVG(latency_ms), 0)
+		       COALESCE(SUM(cost_micros), 0), CAST(COALESCE(AVG(latency_ms), 0) AS INTEGER)
 		FROM usage_records WHERE created_at >= $1`, from)
 
 	var s UsageSummary
@@ -65,7 +65,7 @@ func (r *UsageRepository) ByModel(ctx context.Context, from time.Time) ([]UsageB
 		       COALESCE(SUM(prompt_tokens), 0) AS prompt_tokens,
 		       COALESCE(SUM(completion_tokens), 0) AS completion_tokens,
 		       COALESCE(SUM(cost_micros), 0) AS cost_micros,
-		       COALESCE(AVG(latency_ms), 0) AS avg_latency_ms
+		       CAST(COALESCE(AVG(latency_ms), 0) AS INTEGER) AS avg_latency_ms
 		FROM usage_records
 		WHERE created_at >= $1
 		GROUP BY provider, model
@@ -96,7 +96,7 @@ type UsageDaily struct {
 
 func (r *UsageRepository) Daily(ctx context.Context, from time.Time) ([]UsageDaily, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT to_char(date_trunc('day', created_at), 'YYYY-MM-DD') AS day,
+		SELECT strftime('%Y-%m-%d', created_at) AS day,
 		       count(*) AS requests,
 		       COALESCE(SUM(cost_micros), 0),
 		       COALESCE(SUM(prompt_tokens + completion_tokens), 0)

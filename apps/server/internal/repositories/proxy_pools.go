@@ -59,7 +59,7 @@ func (r *ProxyPoolRepository) FindByID(ctx context.Context, id string) (models.P
 func (r *ProxyPoolRepository) Update(ctx context.Context, p models.ProxyPool) error {
 	res, err := r.db.ExecContext(ctx, `
 		UPDATE proxy_pools
-		SET name = $2, url = $3, mode = $4, label = $5, status = $6, updated_at = now()
+		SET name = $2, url = $3, mode = $4, label = $5, status = $6, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now')
 		WHERE id = $1`,
 		p.ID, p.Name, p.URL, p.Mode, p.Label, p.Status,
 	)
@@ -71,7 +71,7 @@ func (r *ProxyPoolRepository) Update(ctx context.Context, p models.ProxyPool) er
 
 func (r *ProxyPoolRepository) UpdateTestedAt(ctx context.Context, id string, at time.Time, status string) error {
 	res, err := r.db.ExecContext(ctx,
-		`UPDATE proxy_pools SET last_tested_at = $2, status = $3, updated_at = now() WHERE id = $1`, id, at, status)
+		`UPDATE proxy_pools SET last_tested_at = $2, status = $3, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now') WHERE id = $1`, id, at, status)
 	if err != nil {
 		return err
 	}

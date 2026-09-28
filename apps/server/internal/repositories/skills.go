@@ -47,7 +47,7 @@ func (r *SkillRepository) List(ctx context.Context) ([]models.Skill, error) {
 
 func (r *SkillRepository) Update(ctx context.Context, s models.Skill) error {
 	res, err := r.db.ExecContext(ctx, `
-		UPDATE skills SET name = $2, description = $3, prompt = $4, updated_at = now() WHERE id = $1`,
+		UPDATE skills SET name = $2, description = $3, prompt = $4, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now') WHERE id = $1`,
 		s.ID, s.Name, s.Description, s.Prompt,
 	)
 	if err != nil {

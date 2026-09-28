@@ -25,7 +25,7 @@ func (r *RefreshTokenRepository) FindValid(ctx context.Context, tokenHash string
 	row := r.db.QueryRowContext(ctx, `
 		SELECT id, user_id, token_hash, expires_at, revoked_at, created_at
 		FROM refresh_tokens
-		WHERE token_hash = $1 AND revoked_at IS NULL AND expires_at > now()`, tokenHash)
+		WHERE token_hash = $1 AND revoked_at IS NULL AND expires_at > strftime('%Y-%m-%d %H:%M:%f+00:00', 'now')`, tokenHash)
 
 	var t models.RefreshToken
 	err := row.Scan(&t.ID, &t.UserID, &t.TokenHash, &t.ExpiresAt, &t.RevokedAt, &t.CreatedAt)
@@ -34,7 +34,7 @@ func (r *RefreshTokenRepository) FindValid(ctx context.Context, tokenHash string
 
 func (r *RefreshTokenRepository) Revoke(ctx context.Context, id string) error {
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE refresh_tokens SET revoked_at = now() WHERE id = $1 AND revoked_at IS NULL`, id)
+		`UPDATE refresh_tokens SET revoked_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now') WHERE id = $1 AND revoked_at IS NULL`, id)
 	return err
 }
 
@@ -42,6 +42,6 @@ func (r *RefreshTokenRepository) Revoke(ctx context.Context, id string) error {
 // everywhere, password change).
 func (r *RefreshTokenRepository) RevokeAllForUser(ctx context.Context, userID string) error {
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE refresh_tokens SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL`, userID)
+		`UPDATE refresh_tokens SET revoked_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now') WHERE user_id = $1 AND revoked_at IS NULL`, userID)
 	return err
 }

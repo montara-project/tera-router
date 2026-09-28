@@ -121,7 +121,7 @@ func (r BaseRepository) softDeleteExec(exc Executor, id uuid.UUID) error {
 
 	query := fmt.Sprintf(`
 		UPDATE "%s"
-		SET "deleted_at" = now()
+		SET "deleted_at" = strftime('%%Y-%%m-%%d %%H:%%M:%%f+00:00', 'now')
 		WHERE "id" = $1;
 	`, tableName)
 

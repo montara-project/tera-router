@@ -2,21 +2,21 @@
 -- upstream credential accounts that belong to provider slugs. Secret material
 -- is stored as envelope-encrypted blobs (wrapped DEK + ciphertext).
 CREATE TABLE custom_providers (
-    id         uuid PRIMARY KEY,
+    id         TEXT PRIMARY KEY,
     name       text NOT NULL,
     slug       text NOT NULL UNIQUE,
     base_url   text NOT NULL DEFAULT '',
     api_kind   text NOT NULL DEFAULT 'openai',
-    pricing    jsonb NOT NULL DEFAULT '{}'::jsonb,
+    pricing    TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(pricing)),
     enabled    boolean NOT NULL DEFAULT true,
     priority   integer NOT NULL DEFAULT 100,
-    metadata   jsonb NOT NULL DEFAULT '{}'::jsonb,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz NOT NULL DEFAULT now()
+    metadata   TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(metadata)),
+    created_at DATETIME NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f+00:00', 'now')),
+    updated_at DATETIME NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f+00:00', 'now'))
 );
 
 CREATE TABLE accounts (
-    id                  uuid PRIMARY KEY,
+    id                  TEXT PRIMARY KEY,
     provider            text NOT NULL,
     label               text NOT NULL DEFAULT '',
     auth_kind           text NOT NULL DEFAULT 'api_key',
@@ -28,14 +28,14 @@ CREATE TABLE accounts (
     token_ciphertext    text NOT NULL DEFAULT '',
     refresh_wrapped_dek text NOT NULL DEFAULT '',
     refresh_ciphertext  text NOT NULL DEFAULT '',
-    token_expires_at    timestamptz,
-    metadata            jsonb NOT NULL DEFAULT '{}'::jsonb,
+    token_expires_at    DATETIME,
+    metadata            TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(metadata)),
     priority            integer NOT NULL DEFAULT 100,
     disabled            boolean NOT NULL DEFAULT false,
-    proxy_pool_id       uuid,
+    proxy_pool_id       TEXT,
     needs_reconnect     boolean NOT NULL DEFAULT false,
-    created_at          timestamptz NOT NULL DEFAULT now(),
-    updated_at          timestamptz NOT NULL DEFAULT now()
+    created_at          DATETIME NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f+00:00', 'now')),
+    updated_at          DATETIME NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f+00:00', 'now'))
 );
 
 CREATE INDEX idx_accounts_provider ON accounts (provider);

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"log"
 	"log/slog"
 	"os"
@@ -9,13 +8,13 @@ import (
 
 	"tera-router/server/internal/app"
 	"tera-router/server/internal/config"
+	"tera-router/server/internal/database"
 	"tera-router/server/internal/lib/sealer"
 	"tera-router/server/internal/migrator"
 	"tera-router/server/internal/repositories"
 	"tera-router/server/internal/services"
 
 	"github.com/getsentry/sentry-go"
-	_ "github.com/lib/pq"
 )
 
 func main() {
@@ -62,20 +61,9 @@ func main() {
 // the application container. It logs and exits on any wiring failure — the
 // server cannot run half-initialized.
 func assemble(cfg config.Config, logger *slog.Logger) *app.Application {
-	if cfg.Database.URL == "" {
-		log.Fatal("DATABASE_URL / --database-url is required")
-	}
-
-	db, err := sql.Open("postgres", cfg.Database.URL)
+	db, err := database.Open(cfg.Database.Path)
 	if err != nil {
 		log.Fatalf("open database: %s", err)
-	}
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(30 * time.Minute)
-
-	if err := db.Ping(); err != nil {
-		log.Fatalf("database unreachable: %s", err)
 	}
 
 	// Migrate on boot: apply pending migrations before any repository assumes
@@ -94,7 +82,7 @@ func assemble(cfg config.Config, logger *slog.Logger) *app.Application {
 		log.Fatalf("derive sealing key: %s", err)
 	}
 
-	logger.Info("dependencies assembled", "database", "connected")
+	logger.Info("dependencies assembled", "database", cfg.Database.Path)
 
 	return &app.Application{
 		Config:   cfg,
