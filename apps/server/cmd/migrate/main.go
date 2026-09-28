@@ -31,14 +31,7 @@ func main() {
 	}
 
 	if cfg.seed != "" {
-		s := []seeders.Seeder{
-			seeders.ProviderSeeder{DB: db},
-		}
-		if cfg.seed == seedDevelopment {
-			s = append(s, seeders.SampleKeySeeder{DB: db})
-		}
-
-		execSeeders(db, s...)
+		seeders.Run(db, cfg.seed == seedDevelopment)
 	}
 
 	fmt.Println("Completed")
@@ -55,12 +48,5 @@ func migrateDown(db *sql.DB) {
 	fmt.Println("Running down migrations...")
 	if err := migrator.Down(db, migrator.DefaultDir); err != nil {
 		log.Fatalf("failed to run down migrations: %v", err)
-	}
-}
-
-func execSeeders(db *sql.DB, seeders ...seeders.Seeder) {
-	for _, seeder := range seeders {
-		fmt.Printf("Running %s seeder...\n", seeder.Name())
-		seeder.Seed()
 	}
 }

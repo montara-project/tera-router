@@ -12,6 +12,7 @@ import (
 	"tera-router/server/internal/lib/sealer"
 	"tera-router/server/internal/migrator"
 	"tera-router/server/internal/repositories"
+	"tera-router/server/internal/seeders"
 	"tera-router/server/internal/services"
 
 	"github.com/getsentry/sentry-go"
@@ -66,14 +67,21 @@ func assemble(cfg config.Config, logger *slog.Logger) *app.Application {
 		log.Fatalf("open database: %s", err)
 	}
 
-	// Migrate on boot: apply pending migrations before any repository assumes
-	// the schema exists. A failed migration aborts startup.
+	// Migrate and seed on boot: apply pending migrations, then the idempotent
+	// baseline seeders, before any repository assumes the schema or its
+	// reference rows exist. A failure in either aborts startup.
 	if cfg.Database.MigrateOnBoot {
 		logger.Info("migrate on boot enabled, applying migrations...")
 		if err := migrator.Up(db, migrator.DefaultDir); err != nil {
 			log.Fatalf("migrate on boot: %s", err)
 		}
 		logger.Info("migrations applied")
+	}
+
+	if cfg.Database.SeedOnBoot {
+		logger.Info("seed on boot enabled, seeding baseline data...")
+		seeders.Run(db, cfg.App.Env == config.EnvDevelopment)
+		logger.Info("baseline data seeded")
 	}
 
 	repos := repositories.New(db, &cfg.App)

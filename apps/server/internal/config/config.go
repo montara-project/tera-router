@@ -1,4 +1,9 @@
+// Package config holds the runtime configuration assembled from CLI flags.
 package config
+
+// EnvDevelopment is the App.Env value that enables development-only behaviour
+// such as seeding the sample API key on boot.
+const EnvDevelopment = "development"
 
 type Config struct {
 	App      ConfigApp
@@ -21,6 +26,8 @@ type ConfigDatabase struct {
 	Path string
 	// MigrateOnBoot applies pending SQL migrations before the server starts.
 	MigrateOnBoot bool
+	// SeedOnBoot runs the idempotent baseline seeders after migrating.
+	SeedOnBoot bool
 }
 
 type ConfigSentry struct {

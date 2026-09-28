@@ -21,9 +21,9 @@ const (
 )
 
 type config struct {
-	mode  string
+	mode   string
 	dbPath string
-	seed  string
+	seed   string
 }
 
 func parseFlag(cfg *config) {

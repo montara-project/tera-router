@@ -23,6 +23,7 @@ func parseFlag(cfg *config.Config) {
 	// Database
 	flag.StringVar(&cfg.Database.Path, "database-path", database.DefaultPath, "SQLite database file path")
 	flag.BoolVar(&cfg.Database.MigrateOnBoot, "migrate-on-boot", false, "Apply pending migrations before starting the server")
+	flag.BoolVar(&cfg.Database.SeedOnBoot, "seed-on-boot", false, "Run baseline seeders after migrating on boot")
 
 	// Sentry
 	flag.StringVar(&cfg.Sentry.Dsn, "sentry-dsn", "", "Sentry DSN")

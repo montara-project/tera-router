@@ -34,6 +34,7 @@ run:
 		--cors-allowed-origins=$(CORS_ALLOWED_ORIGINS) \
 		--database-path=$(DATABASE_PATH) \
 		--migrate-on-boot=$(MIGRATE_ON_BOOT) \
+		--seed-on-boot=$(SEED_ON_BOOT) \
 		--sentry-dsn=$(SENTRY_DSN)
 
 # ==================================================================================== #
