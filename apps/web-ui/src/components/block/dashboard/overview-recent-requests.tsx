@@ -88,7 +88,9 @@ export default function OverviewRecentRequests({ rows }: OverviewRecentRequestsP
                         <Icons.chatgpt className="h-4 w-4" />
                       </span>
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-foreground">{row.model}</p>
+                        <p className="truncate text-sm font-semibold text-foreground">
+                          {row.model}
+                        </p>
                         <p className="text-muted-foreground truncate text-xs">{row.provider}</p>
                       </div>
                     </div>

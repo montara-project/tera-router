@@ -9,9 +9,7 @@ interface OverviewTokenCompositionProps {
   telemetry: UsageTelemetryOverview
 }
 
-export default function OverviewTokenComposition({
-  telemetry,
-}: OverviewTokenCompositionProps) {
+export default function OverviewTokenComposition({ telemetry }: OverviewTokenCompositionProps) {
   const { tokenComposition } = telemetry
   const total =
     tokenComposition.regularInput +

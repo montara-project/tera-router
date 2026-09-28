@@ -44,8 +44,12 @@ function StatCard({
         <div className="grid grid-cols-3 gap-3 border-t border-border/60 pt-4">
           {subs.map((sub) => (
             <div key={sub.label} className="min-w-0">
-              <p className={`text-sm font-semibold ${sub.valueClass ?? 'text-foreground'}`}>{sub.value}</p>
-              <p className="text-muted-foreground mt-0.5 text-[10px] uppercase tracking-wide">{sub.label}</p>
+              <p className={`text-sm font-semibold ${sub.valueClass ?? 'text-foreground'}`}>
+                {sub.value}
+              </p>
+              <p className="text-muted-foreground mt-0.5 text-[10px] uppercase tracking-wide">
+                {sub.label}
+              </p>
             </div>
           ))}
         </div>
@@ -56,7 +60,8 @@ function StatCard({
 
 export default function OverviewStatCards({ telemetry }: OverviewStatCardsProps) {
   const { traffic, spend, performance, quality, tokenComposition } = telemetry
-  const totalInput = tokenComposition.regularInput + tokenComposition.cacheRead + tokenComposition.cacheWrite
+  const totalInput =
+    tokenComposition.regularInput + tokenComposition.cacheRead + tokenComposition.cacheWrite
 
   return (
     <div className="grid gap-4 lg:grid-cols-3">
@@ -79,7 +84,11 @@ export default function OverviewStatCards({ telemetry }: OverviewStatCardsProps)
         big={fmtMoney(spend.costMicros)}
         bigLabel="tracked cost"
         subs={[
-          { value: fmtMoney(spend.valueSavedMicros), label: 'Value saved', valueClass: 'text-emerald-500' },
+          {
+            value: fmtMoney(spend.valueSavedMicros),
+            label: 'Value saved',
+            valueClass: 'text-emerald-500',
+          },
           {
             value: fmtMoney(Math.round(spend.costMicros / Math.max(traffic.requests, 1))),
             label: 'Cost / Request',
