@@ -9,6 +9,7 @@ import type { Models } from '@/lib/api/models'
 import IconBadge from '@/components/block/common/icon-badge'
 import SectionCard from '@/components/block/common/section-card'
 import CapabilityChips, { CAPABILITIES } from '@/components/block/providers/capability-chips'
+import CreateProviderDialog from '@/components/block/providers/create-provider-dialog'
 import ProviderGrid from '@/components/block/providers/provider-grid'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -102,6 +103,7 @@ function ProvidersCard({
 function RouteComponent() {
   const [search, setSearch] = useState('')
   const [capability, setCapability] = useState('all')
+  const [createOpen, setCreateOpen] = useState(false)
 
   const { data } = useQuery(providerQueries.list())
   const overview = data?.data
@@ -139,7 +141,7 @@ function RouteComponent() {
   }
 
   const handleNewProvider = () => {
-    toast.info('Custom provider connection is not wired to the backend yet')
+    setCreateOpen(true)
   }
 
   const handleConnect = (provider: Models.Provider) => {
@@ -147,19 +149,20 @@ function RouteComponent() {
   }
 
   return (
-    <SectionCard
-      title="Providers"
-      description="Connect and manage AI providers to power your routing."
-      toolbar={
-        <Button
-          className="bg-amber-600 text-white hover:bg-amber-500 dark:bg-amber-800 dark:text-amber-200 dark:hover:bg-amber-700"
-          onClick={handleNewProvider}
-        >
-          <IconPlus />
-          <span>New custom provider</span>
-        </Button>
-      }
-    >
+    <>
+      <SectionCard
+        title="Providers"
+        description="Connect and manage AI providers to power your routing."
+        toolbar={
+          <Button
+            className="bg-amber-600 text-white hover:bg-amber-500 dark:bg-amber-800 dark:text-amber-200 dark:hover:bg-amber-700"
+            onClick={handleNewProvider}
+          >
+            <IconPlus />
+            <span>New custom provider</span>
+          </Button>
+        }
+      >
       <div className="space-y-4">
         <InputWrapper variant="lg" className="rounded-lg">
           <IconSearch />
@@ -192,6 +195,9 @@ function RouteComponent() {
           onConnect={handleConnect}
         />
       </div>
-    </SectionCard>
+      </SectionCard>
+
+      <CreateProviderDialog open={createOpen} onOpenChange={setCreateOpen} />
+    </>
   )
 }

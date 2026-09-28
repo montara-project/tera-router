@@ -23,26 +23,29 @@ function rates(): Promise<AxiosItemResponse<{ overrides: Models.PricingOverride[
   return api.get(`${path}/rates`)
 }
 
-// Custom ([OI]-compatible) providers
+// Custom ([OI]-compatible) providers — server mounts these at
+// /v1/custom-providers, NOT under /v1/providers.
+const customPath = '/v1/custom-providers'
+
 function customList(): Promise<AxiosListResponse<Models.CustomProvider>> {
-  return api.get(`${path}/custom-providers`)
+  return api.get(customPath)
 }
 
 function customStore(
   payload: Record<string, unknown>
 ): Promise<AxiosItemResponse<Models.CustomProvider>> {
-  return api.post(`${path}/custom-providers`, payload)
+  return api.post(customPath, payload)
 }
 
 function customUpdate(
   id: string,
   payload: Record<string, unknown>
 ): Promise<AxiosItemResponse<Models.CustomProvider>> {
-  return api.patch(`${path}/custom-providers/${id}`, payload)
+  return api.patch(`${customPath}/${id}`, payload)
 }
 
 function customDelete(id: string): Promise<AxiosDeleteResponse> {
-  return api.delete(`${path}/custom-providers/${id}`)
+  return api.delete(`${customPath}/${id}`)
 }
 
 // Provider-scoped bulk account operations (provider slug as :id)
