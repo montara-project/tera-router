@@ -26,6 +26,7 @@ type Repositories struct {
 	Skills     *SkillRepository
 	Settings   *SettingRepository
 	Audit      *AuditRepository
+	Guardrails *GuardrailRepository
 	Pricing    *PricingRepository
 	Capability *CapabilityRepository
 }
@@ -48,6 +49,7 @@ func New(db *sql.DB, _ *config.ConfigApp) *Repositories {
 		Skills:     &SkillRepository{db},
 		Settings:   &SettingRepository{db},
 		Audit:      &AuditRepository{db},
+		Guardrails: &GuardrailRepository{db},
 		Pricing:    &PricingRepository{db},
 		Capability: &CapabilityRepository{db},
 	}

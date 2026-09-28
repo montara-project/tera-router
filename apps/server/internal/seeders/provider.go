@@ -19,6 +19,7 @@ func (s ProviderSeeder) Seed() {
 		AdminUserSeeder{DB: s.DB},
 		DefaultPlanSeeder{DB: s.DB},
 		SettingsSeeder{DB: s.DB},
+		GuardrailsSeeder{DB: s.DB},
 	}
 	for _, seeder := range seedAll {
 		log.Printf("running %s seed...", seeder.Name())

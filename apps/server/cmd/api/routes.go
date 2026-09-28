@@ -138,6 +138,16 @@ func routes(r *fiber.App, app *app.Application) {
 	protected.Delete("/capability-overrides/:provider/:model", h.Priming.CapabilityDelete)
 	protected.Post("/capability-overrides/reset", h.Priming.CapabilityReset)
 
+	// Guardrails (content-safety policies, layered global → provider →
+	// model → chain → key; most specific wins)
+	protected.Get("/guardrails", h.Guardrails.Overview)
+	protected.Post("/guardrails", h.Guardrails.Store)
+	protected.Put("/guardrails/settings", h.Guardrails.UpdateSettings)
+	protected.Post("/guardrails/evaluate", h.Guardrails.Evaluate)
+	protected.Put("/guardrails/:id", h.Guardrails.Update)
+	protected.Patch("/guardrails/:id", h.Guardrails.Update)
+	protected.Delete("/guardrails/:id", h.Guardrails.Delete)
+
 	// Settings, skills, console, system, media
 	protected.Get("/settings", h.Settings.Get)
 	protected.Put("/settings", h.Settings.Update)

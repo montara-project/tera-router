@@ -18,6 +18,7 @@ type Handlers struct {
 	Settings   *settingsHandler
 	Skills     *skillsHandler
 	Priming    *pricingHandler
+	Guardrails *guardrailsHandler
 	Console    *consoleHandler
 	System     *systemHandler
 	Media      *mediaHandler
@@ -40,6 +41,7 @@ func New(app *app.Application) *Handlers {
 		Settings:   &settingsHandler{app: app},
 		Skills:     &skillsHandler{app: app},
 		Priming:    &pricingHandler{app: app},
+		Guardrails: &guardrailsHandler{app: app},
 		Console:    &consoleHandler{app: app},
 		System:     &systemHandler{app: app},
 		Media:      &mediaHandler{app: app},

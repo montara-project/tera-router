@@ -1,5 +1,5 @@
 import { IconDownload, IconLock, IconPlus, IconUpload } from '@tabler/icons-react'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -21,7 +21,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
-import { guardrailsQueries } from '@/lib/api/queries/guardrails'
+import { GUARDRAILS_QUERY_KEY, guardrailsQueries } from '@/lib/api/queries/guardrails'
 import { services } from '@/lib/api/services'
 
 export const Route = createFileRoute('/(protected)/(safety)/guardrails/')({
@@ -97,11 +97,15 @@ function ExternalDetectorsCard({
   )
 }
 
-function GuardrailsContent({ initial }: { initial: GuardrailsOverview }) {
+function GuardrailsContent({ overview }: { overview: GuardrailsOverview }) {
+  const queryClient = useQueryClient()
   const [tab, setTab] = useState<GuardrailsScope | 'audit'>('global')
-  const [overview, setOverview] = useState(initial)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [draftPolicy, setDraftPolicy] = useState<GuardrailPolicy | null>(null)
+
+  const invalidate = async () => {
+    await queryClient.invalidateQueries({ queryKey: [GUARDRAILS_QUERY_KEY] })
+  }
 
   const policies = overview.policies.filter((policy) => policy.scope === tab)
   const editingPolicy = overview.policies.find((policy) => policy.id === editingId) ?? null
@@ -114,10 +118,6 @@ function GuardrailsContent({ initial }: { initial: GuardrailsOverview }) {
 
   const handleExportAll = () => {
     toast.info('Policy export is not wired to the backend yet')
-  }
-
-  const handleDelete = (name: string) => {
-    toast.info(`Deleting ${name} is not wired to the backend yet`)
   }
 
   const handleNewPolicy = (scope: GuardrailsScope) => {
@@ -136,34 +136,63 @@ function GuardrailsContent({ initial }: { initial: GuardrailsOverview }) {
     setDraftPolicy(null)
   }
 
-  const handleSavePolicy = (updated: GuardrailPolicy) => {
-    setOverview((current) => {
-      const exists = current.policies.some((policy) => policy.id === updated.id)
-
-      return {
-        ...current,
-        policies: exists
-          ? current.policies.map((policy) => (policy.id === updated.id ? updated : policy))
-          : [...current.policies, updated],
+  const savePolicy = useMutation({
+    mutationFn: (updated: GuardrailPolicy) => {
+      const exists = overview.policies.some((policy) => policy.id === updated.id)
+      const payload = {
+        name: updated.name,
+        scope: updated.scope,
+        target: updated.target ?? '',
+        protections: updated.protections,
+        enabled: updated.enabled,
+        config: updated.config ?? defaultGuardrailsConfig(),
       }
-    })
-    handleDialogClose()
-    toast.success(editingPolicy ? 'Policy saved' : 'Policy created')
-  }
+      return exists ? services.guardrails.update(updated.id, payload) : services.guardrails.store(payload)
+    },
+    onSuccess: async () => {
+      await invalidate()
+      handleDialogClose()
+      toast.success(editingPolicy ? 'Policy saved' : 'Policy created')
+    },
+    onError: () => toast.error('Failed to save policy'),
+  })
 
-  const handleToggleDetectors = (checked: boolean) => {
-    setOverview((current) => ({ ...current, externalDetectors: checked }))
-    services.guardrails.updateExternalDetectors(checked)
-  }
+  const toggleDetectors = useMutation({
+    mutationFn: (checked: boolean) => services.guardrails.updateSettings({ externalDetectors: checked }),
+    onSuccess: async () => {
+      await invalidate()
+      toast.success('External detector settings saved')
+    },
+    onError: () => toast.error('Failed to update external detector settings'),
+  })
 
-  const handleTogglePolicy = (id: string, enabled: boolean) => {
-    setOverview((current) => ({
-      ...current,
-      policies: current.policies.map((policy) =>
-        policy.id === id ? { ...policy, enabled } : policy
-      ),
-    }))
-  }
+  const togglePolicy = useMutation({
+    mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) => {
+      const policy = overview.policies.find((item) => item.id === id)
+      if (!policy) throw new Error('Policy not found')
+      return services.guardrails.update(id, {
+        name: policy.name,
+        scope: policy.scope,
+        target: policy.target ?? '',
+        protections: policy.protections,
+        enabled,
+        config: policy.config ?? defaultGuardrailsConfig(),
+      })
+    },
+    onSuccess: async () => {
+      await invalidate()
+    },
+    onError: () => toast.error('Failed to update policy'),
+  })
+
+  const deletePolicy = useMutation({
+    mutationFn: (id: string) => services.guardrails.remove(id),
+    onSuccess: async () => {
+      await invalidate()
+      toast.success('Policy deleted')
+    },
+    onError: () => toast.error('Failed to delete policy'),
+  })
 
   return (
     <>
@@ -193,7 +222,7 @@ function GuardrailsContent({ initial }: { initial: GuardrailsOverview }) {
               {tab === 'global' && (
                 <ExternalDetectorsCard
                   checked={overview.externalDetectors}
-                  onCheckedChange={handleToggleDetectors}
+                  onCheckedChange={(checked) => toggleDetectors.mutate(checked)}
                 />
               )}
 
@@ -212,9 +241,9 @@ function GuardrailsContent({ initial }: { initial: GuardrailsOverview }) {
                   <PolicyRow
                     key={policy.id}
                     policy={policy}
-                    onToggle={(enabled) => handleTogglePolicy(policy.id, enabled)}
+                    onToggle={(enabled) => togglePolicy.mutate({ id: policy.id, enabled })}
                     onEdit={() => setEditingId(policy.id)}
-                    onDelete={() => handleDelete(policy.name)}
+                    onDelete={() => deletePolicy.mutate(policy.id)}
                   />
                 ))
               ) : (
@@ -241,7 +270,7 @@ function GuardrailsContent({ initial }: { initial: GuardrailsOverview }) {
         onOpenChange={(open) => {
           if (!open) handleDialogClose()
         }}
-        onSave={handleSavePolicy}
+        onSave={(updated) => savePolicy.mutate(updated)}
       />
     </>
   )
@@ -249,10 +278,11 @@ function GuardrailsContent({ initial }: { initial: GuardrailsOverview }) {
 
 function RouteComponent() {
   const { data } = useQuery(guardrailsQueries.overview())
+  const overview = data?.data
 
-  if (!data) {
+  if (!overview) {
     return <RouteSkeleton />
   }
 
-  return <GuardrailsContent initial={data} />
+  return <GuardrailsContent overview={overview} />
 }
