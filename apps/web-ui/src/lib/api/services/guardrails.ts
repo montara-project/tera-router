@@ -1,6 +1,5 @@
-import type { ApiItemResponse } from '@/types/api'
-
 import type { GuardrailsOverview } from '../models/guardrails'
+import type { GuardrailsResources } from './types/guardrails'
 
 // TODO: wire to the backend `/v1/guardrails` endpoints once they exist.
 // Until then the guardrails page renders on this seed data and its
@@ -132,15 +131,15 @@ const SEED: GuardrailsOverview = {
   ],
 }
 
-function overview(): Promise<ApiItemResponse<GuardrailsOverview>> {
-  return Promise.resolve({ data: SEED, metadata: {} })
+const resources = (): GuardrailsResources => {
+  return {
+    overview: () => {
+      return Promise.resolve({ data: SEED, metadata: {} })
+    },
+    updateExternalDetectors: (_enabled) => {
+      return Promise.resolve({ data: SEED, metadata: {} })
+    },
+  }
 }
 
-function updateExternalDetectors(_enabled: boolean): Promise<ApiItemResponse<GuardrailsOverview>> {
-  return overview()
-}
-
-export const guardrailsServices = {
-  overview,
-  updateExternalDetectors,
-}
+export const guardrailsServices = resources()

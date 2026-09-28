@@ -1,10 +1,7 @@
-import type { AxiosDeleteResponse, AxiosItemResponse, AxiosListResponse } from '@/types/api'
-
 import { env } from '@/config/env'
 import { AUTH_STORAGE_KEYS } from '@/lib/constants/auth'
 
-import type { CreateSkillDto } from '../dtos/skill/schema'
-import type { Skill } from '../models/skill'
+import type { SkillResources } from './types/skill'
 
 import { ClientFetchApi } from '../client-fetch'
 
@@ -15,21 +12,21 @@ const api = new ClientFetchApi({
   storageKey: AUTH_STORAGE_KEYS.AUTH_STORAGE,
 }).default
 
-function list(): Promise<AxiosListResponse<Skill>> {
-  return api.get(path)
+const resources = (): SkillResources => {
+  return {
+    list: () => {
+      const url = path
+      return api.get(url)
+    },
+    store: (payload) => {
+      const url = path
+      return api.post(url, payload)
+    },
+    remove: (id) => {
+      const url = `${path}/${id}`
+      return api.delete(url)
+    },
+  }
 }
 
-function store(payload: CreateSkillDto): Promise<AxiosItemResponse<Skill>> {
-  return api.post(path, payload)
-}
-
-function remove(id: string): Promise<AxiosDeleteResponse> {
-  return api.delete(`${path}/${id}`)
-}
-
-export const skillServices = {
-  path,
-  list,
-  store,
-  remove,
-}
+export const skillServices = resources()

@@ -1,9 +1,7 @@
-import type { ApiItemResponse, AxiosItemResponse, AxiosListResponse } from '@/types/api'
-
 import { env } from '@/config/env'
 import { AUTH_STORAGE_KEYS } from '@/lib/constants/auth'
 
-import type { Models } from '../models'
+import type { UsageResources } from './types/usage'
 
 import { ClientFetchApi } from '../client-fetch'
 import { USAGE_TELEMETRY_SEED } from './usage-telemetry-seed'
@@ -15,42 +13,32 @@ const api = new ClientFetchApi({
   storageKey: AUTH_STORAGE_KEYS.AUTH_STORAGE,
 }).default
 
-function summary(range?: Models.UsageRange): Promise<AxiosItemResponse<Models.UsageSummary>> {
-  return api.get(path, { params: range ? { range } : undefined })
+const resources = (): UsageResources => {
+  return {
+    summary: (range) => {
+      const url = path
+      return api.get(url, { params: range ? { range } : undefined })
+    },
+    /** per-provider/model breakdown */
+    models: (range) => {
+      const url = `${path}/models`
+      return api.get(url, { params: range ? { range } : undefined })
+    },
+    /** daily series plus summary and model ranking */
+    insights: (range) => {
+      const url = `${path}/insights`
+      return api.get(url, { params: range ? { range } : undefined })
+    },
+    /**
+     * Rich usage telemetry for the Usage page. TODO: the seed mirrors the
+     * KeiRouter reference until the backend exposes cache/reasoning/TTFT/
+     * pricing-snapshot fields; when it does, merge them from
+     * `/v1/usage/summary` + `/v1/usage/insights` and drop the seed.
+     */
+    telemetry: (_range) => {
+      return Promise.resolve({ data: USAGE_TELEMETRY_SEED, metadata: {} })
+    },
+  }
 }
 
-/** per-provider/model breakdown */
-function models(range?: Models.UsageRange): Promise<AxiosListResponse<Models.UsageByModel>> {
-  return api.get(`${path}/models`, { params: range ? { range } : undefined })
-}
-
-/** daily series plus summary and model ranking */
-function insights(range?: Models.UsageRange): Promise<
-  AxiosItemResponse<{
-    summary: Models.UsageSummary
-    daily: Models.UsageDaily[]
-    models: Models.UsageByModel[]
-  }>
-> {
-  return api.get(`${path}/insights`, { params: range ? { range } : undefined })
-}
-
-/**
- * Rich usage telemetry for the Usage page. TODO: the seed mirrors the
- * KeiRouter reference until the backend exposes cache/reasoning/TTFT/
- * pricing-snapshot fields; when it does, merge them from
- * `/v1/usage/summary` + `/v1/usage/insights` and drop the seed.
- */
-function telemetry(
-  _range?: Models.UsageRange
-): Promise<ApiItemResponse<Models.UsageTelemetryOverview>> {
-  return Promise.resolve({ data: USAGE_TELEMETRY_SEED, metadata: {} })
-}
-
-export const usageServices = {
-  path,
-  summary,
-  models,
-  insights,
-  telemetry,
-}
+export const usageServices = resources()

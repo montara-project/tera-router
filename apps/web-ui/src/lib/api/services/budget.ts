@@ -1,9 +1,7 @@
-import type { AxiosItemResponse, AxiosListResponse } from '@/types/api'
-
 import { env } from '@/config/env'
 import { AUTH_STORAGE_KEYS } from '@/lib/constants/auth'
 
-import type { Budget, BudgetPayload, BudgetStatus } from '../models/budget'
+import type { BudgetResources } from './types/budget'
 
 import { ClientFetchApi } from '../client-fetch'
 
@@ -14,32 +12,30 @@ const api = new ClientFetchApi({
   storageKey: AUTH_STORAGE_KEYS.AUTH_STORAGE,
 }).default
 
-function list(): Promise<AxiosListResponse<Budget>> {
-  return api.get(path)
+const resources = (): BudgetResources => {
+  return {
+    list: () => {
+      const url = path
+      return api.get(url)
+    },
+    /** spend vs limit for every budget over its current period */
+    status: () => {
+      const url = `${path}/status`
+      return api.get(url)
+    },
+    store: (payload) => {
+      const url = path
+      return api.post(url, payload)
+    },
+    update: (id, payload) => {
+      const url = `${path}/${id}`
+      return api.patch(url, payload)
+    },
+    remove: (id) => {
+      const url = `${path}/${id}`
+      return api.delete(url)
+    },
+  }
 }
 
-/** spend vs limit for every budget over its current period */
-function status(): Promise<AxiosListResponse<BudgetStatus>> {
-  return api.get(`${path}/status`)
-}
-
-function store(payload: BudgetPayload): Promise<AxiosItemResponse<Budget>> {
-  return api.post(path, payload)
-}
-
-function update(id: string, payload: BudgetPayload): Promise<AxiosItemResponse<Budget>> {
-  return api.patch(`${path}/${id}`, payload)
-}
-
-function remove(id: string): Promise<AxiosItemResponse<unknown>> {
-  return api.delete(`${path}/${id}`)
-}
-
-export const budgetServices = {
-  path,
-  list,
-  status,
-  store,
-  update,
-  remove,
-}
+export const budgetServices = resources()

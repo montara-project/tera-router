@@ -1,6 +1,5 @@
-import type { ApiItemResponse } from '@/types/api'
-
-import type { HealthWindow, ProviderHealthOverview } from '../models/provider-health'
+import type { ProviderHealthOverview } from '../models/provider-health'
+import type { ProviderHealthResources } from './types/provider-health'
 
 // TODO: wire to the backend `/v1/provider-health` endpoints once they exist.
 // The seed is returned for every window until then, mirroring the
@@ -187,10 +186,12 @@ const SEED: ProviderHealthOverview = {
   ],
 }
 
-function overview(_window: HealthWindow): Promise<ApiItemResponse<ProviderHealthOverview>> {
-  return Promise.resolve({ data: SEED, metadata: {} })
+const resources = (): ProviderHealthResources => {
+  return {
+    overview: (_window) => {
+      return Promise.resolve({ data: SEED, metadata: {} })
+    },
+  }
 }
 
-export const providerHealthServices = {
-  overview,
-}
+export const providerHealthServices = resources()

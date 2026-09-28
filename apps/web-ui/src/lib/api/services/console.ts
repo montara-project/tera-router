@@ -1,9 +1,7 @@
-import type { AxiosListResponse } from '@/types/api'
-
 import { env } from '@/config/env'
 import { AUTH_STORAGE_KEYS } from '@/lib/constants/auth'
 
-import type { ConsoleLogEntry } from '../models/console'
+import type { ConsoleResources } from './types/console'
 
 import { ClientFetchApi } from '../client-fetch'
 
@@ -14,16 +12,17 @@ const api = new ClientFetchApi({
   storageKey: AUTH_STORAGE_KEYS.AUTH_STORAGE,
 }).default
 
-function get(): Promise<AxiosListResponse<ConsoleLogEntry>> {
-  return api.get(path)
+const resources = (): ConsoleResources => {
+  return {
+    get: () => {
+      const url = path
+      return api.get(url)
+    },
+    clear: () => {
+      const url = path
+      return api.delete(url)
+    },
+  }
 }
 
-function clear(): Promise<AxiosListResponse<ConsoleLogEntry>> {
-  return api.delete(path)
-}
-
-export const consoleServices = {
-  path,
-  get,
-  clear,
-}
+export const consoleServices = resources()

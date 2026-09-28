@@ -1,9 +1,7 @@
-import type { AxiosDeleteResponse, AxiosItemResponse, AxiosListResponse } from '@/types/api'
-
 import { env } from '@/config/env'
 import { AUTH_STORAGE_KEYS } from '@/lib/constants/auth'
 
-import type { Models } from '../models'
+import type { AliasResources } from './types/alias'
 
 import { ClientFetchApi } from '../client-fetch'
 
@@ -14,27 +12,22 @@ const api = new ClientFetchApi({
   storageKey: AUTH_STORAGE_KEYS.AUTH_STORAGE,
 }).default
 
-function list(): Promise<AxiosListResponse<Models.ModelAlias>> {
-  return api.get(path)
+const resources = (): AliasResources => {
+  return {
+    list: () => {
+      const url = path
+      return api.get(url)
+    },
+    /** upserts one alias pool by name (PUT semantics) */
+    put: (payload) => {
+      const url = path
+      return api.put(url, payload)
+    },
+    remove: (name) => {
+      const url = path
+      return api.delete(url, { params: { name } })
+    },
+  }
 }
 
-/** upserts one alias pool by name (PUT semantics) */
-function put(payload: {
-  name: string
-  context_window?: number
-  active?: boolean
-  targets: { provider: string; model: string; active?: boolean }[]
-}): Promise<AxiosItemResponse<Models.ModelAlias>> {
-  return api.put(path, payload)
-}
-
-function remove(name: string): Promise<AxiosDeleteResponse> {
-  return api.delete(path, { params: { name } })
-}
-
-export const aliasServices = {
-  path,
-  list,
-  put,
-  remove,
-}
+export const aliasServices = resources()

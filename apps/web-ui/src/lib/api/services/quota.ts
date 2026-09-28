@@ -1,9 +1,7 @@
-import type { AxiosItemResponse, AxiosListResponse } from '@/types/api'
-
 import { env } from '@/config/env'
 import { AUTH_STORAGE_KEYS } from '@/lib/constants/auth'
 
-import type { QuotaAccount, QuotaOverview, QuotaRange } from '../models/quota'
+import type { QuotaResources } from './types/quota'
 
 import { ClientFetchApi } from '../client-fetch'
 
@@ -14,31 +12,26 @@ const api = new ClientFetchApi({
   storageKey: AUTH_STORAGE_KEYS.AUTH_STORAGE,
 }).default
 
-function list(params?: {
-  offset?: number
-  limit?: number
-  range?: QuotaRange
-}): Promise<AxiosListResponse<QuotaAccount>> {
-  return api.get(path, { params })
+const resources = (): QuotaResources => {
+  return {
+    list: (params) => {
+      const url = path
+      return api.get(url, { params })
+    },
+    overview: (range = '30d') => {
+      const url = `${path}/overview`
+      return api.get(url, { params: { range } })
+    },
+    /** toggles the account between active and paused (PATCH /v1/quota/:id) */
+    toggleStatus: (id) => {
+      const url = `${path}/${id}`
+      return api.patch(url)
+    },
+    remove: (id) => {
+      const url = `${path}/${id}`
+      return api.delete(url)
+    },
+  }
 }
 
-function overview(range: QuotaRange = '30d'): Promise<AxiosItemResponse<QuotaOverview>> {
-  return api.get(`${path}/overview`, { params: { range } })
-}
-
-/** toggles the account between active and paused (PATCH /v1/quota/:id) */
-function toggleStatus(id: string): Promise<AxiosItemResponse<{ id: string }>> {
-  return api.patch(`${path}/${id}`)
-}
-
-function remove(id: string): Promise<AxiosItemResponse<{ id: string }>> {
-  return api.delete(`${path}/${id}`)
-}
-
-export const quotaServices = {
-  path,
-  list,
-  overview,
-  toggleStatus,
-  remove,
-}
+export const quotaServices = resources()

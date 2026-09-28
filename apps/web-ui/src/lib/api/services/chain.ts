@@ -1,9 +1,7 @@
-import type { AxiosDeleteResponse, AxiosItemResponse, AxiosListResponse } from '@/types/api'
-
 import { env } from '@/config/env'
 import { AUTH_STORAGE_KEYS } from '@/lib/constants/auth'
 
-import type { Models } from '../models'
+import type { ChainResources } from './types/chain'
 
 import { ClientFetchApi } from '../client-fetch'
 
@@ -14,40 +12,34 @@ const api = new ClientFetchApi({
   storageKey: AUTH_STORAGE_KEYS.AUTH_STORAGE,
 }).default
 
-function list(params?: Record<string, unknown>): Promise<AxiosListResponse<Models.Chain>> {
-  return api.get(path, { params })
+const resources = (): ChainResources => {
+  return {
+    list: (params) => {
+      const url = path
+      return api.get(url, { params })
+    },
+    get: (id) => {
+      const url = `${path}/${id}`
+      return api.get(url)
+    },
+    store: (payload) => {
+      const url = path
+      return api.post(url, payload)
+    },
+    update: (id, payload) => {
+      const url = `${path}/${id}`
+      return api.put(url, payload)
+    },
+    remove: (id) => {
+      const url = `${path}/${id}`
+      return api.delete(url)
+    },
+    /** per-chain model usage aggregation (GET /v1/chains/:id/usage) */
+    usage: (id) => {
+      const url = `${path}/${id}/usage`
+      return api.get(url)
+    },
+  }
 }
 
-function get(id: string): Promise<AxiosItemResponse<Models.Chain>> {
-  return api.get(`${path}/${id}`)
-}
-
-function store(payload: Record<string, unknown>): Promise<AxiosItemResponse<Models.Chain>> {
-  return api.post(path, payload)
-}
-
-function update(
-  id: string,
-  payload: Record<string, unknown>
-): Promise<AxiosItemResponse<Models.Chain>> {
-  return api.put(`${path}/${id}`, payload)
-}
-
-function remove(id: string): Promise<AxiosDeleteResponse> {
-  return api.delete(`${path}/${id}`)
-}
-
-/** per-chain model usage aggregation (GET /v1/chains/:id/usage) */
-function usage(id: string): Promise<AxiosListResponse<Models.UsageByModel>> {
-  return api.get(`${path}/${id}/usage`)
-}
-
-export const chainServices = {
-  path,
-  list,
-  get,
-  store,
-  update,
-  remove,
-  usage,
-}
+export const chainServices = resources()

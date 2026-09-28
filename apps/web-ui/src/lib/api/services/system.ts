@@ -1,9 +1,7 @@
-import type { AxiosItemResponse } from '@/types/api'
-
 import { env } from '@/config/env'
 import { AUTH_STORAGE_KEYS } from '@/lib/constants/auth'
 
-import type { Models } from '../models'
+import type { SystemResources } from './types/system'
 
 import { ClientFetchApi } from '../client-fetch'
 
@@ -14,11 +12,13 @@ const api = new ClientFetchApi({
   storageKey: AUTH_STORAGE_KEYS.AUTH_STORAGE,
 }).default
 
-function stats(): Promise<AxiosItemResponse<Models.SystemStats>> {
-  return api.get(`${path}/stats`)
+const resources = (): SystemResources => {
+  return {
+    stats: () => {
+      const url = `${path}/stats`
+      return api.get(url)
+    },
+  }
 }
 
-export const systemServices = {
-  path,
-  stats,
-}
+export const systemServices = resources()

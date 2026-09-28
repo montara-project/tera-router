@@ -1,9 +1,7 @@
-import type { AxiosItemResponse } from '@/types/api'
-
 import { env } from '@/config/env'
 import { AUTH_STORAGE_KEYS } from '@/lib/constants/auth'
 
-import type { MediaProvider } from '../models/media'
+import type { MediaResources } from './types/media'
 
 import { ClientFetchApi } from '../client-fetch'
 
@@ -14,11 +12,13 @@ const api = new ClientFetchApi({
   storageKey: AUTH_STORAGE_KEYS.AUTH_STORAGE,
 }).default
 
-function list(): Promise<AxiosItemResponse<{ providers: MediaProvider[] }>> {
-  return api.get(path)
+const resources = (): MediaResources => {
+  return {
+    list: () => {
+      const url = path
+      return api.get(url)
+    },
+  }
 }
 
-export const mediaServices = {
-  path,
-  list,
-}
+export const mediaServices = resources()

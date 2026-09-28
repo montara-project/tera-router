@@ -1,9 +1,7 @@
-import type { AxiosItemResponse } from '@/types/api'
-
 import { env } from '@/config/env'
 import { AUTH_STORAGE_KEYS } from '@/lib/constants/auth'
 
-import type { AppSettings } from '../models/settings'
+import type { SettingsResources } from './types/settings'
 
 import { ClientFetchApi } from '../client-fetch'
 
@@ -14,16 +12,17 @@ const api = new ClientFetchApi({
   storageKey: AUTH_STORAGE_KEYS.AUTH_STORAGE,
 }).default
 
-function get(): Promise<AxiosItemResponse<AppSettings>> {
-  return api.get(path)
+const resources = (): SettingsResources => {
+  return {
+    get: () => {
+      const url = path
+      return api.get(url)
+    },
+    update: (patch) => {
+      const url = path
+      return api.patch(url, patch)
+    },
+  }
 }
 
-function update(patch: Partial<AppSettings>): Promise<AxiosItemResponse<AppSettings>> {
-  return api.patch(path, patch)
-}
-
-export const settingsServices = {
-  path,
-  get,
-  update,
-}
+export const settingsServices = resources()
