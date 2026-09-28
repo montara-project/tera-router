@@ -1,10 +1,16 @@
 import { z } from 'zod'
 
-import { optionalBoolean, optionalNumber, optionalString, requiredString } from '@/lib/validation'
-
-import { enumValues } from '../enum'
+import {
+  optionalBoolean,
+  optionalNumber,
+  optionalString,
+  optionalStringArray,
+  requiredString,
+} from '@/lib/validation'
 
 import type { GuardrailsScope } from '../../models/guardrails'
+
+import { enumValues } from '../enum'
 
 const SCOPES = enumValues<GuardrailsScope>({
   global: true,

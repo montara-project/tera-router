@@ -1,11 +1,7 @@
 import type { AxiosDeleteResponse, AxiosItemResponse } from '@/types/api'
 
+import type { EvaluateDto, GuardrailsSettingsDto, PolicyDto } from '../../dtos/guardrails/schema'
 import type { GuardrailsOverview, GuardrailPolicy } from '../../models/guardrails'
-import type {
-  EvaluateDto,
-  GuardrailsSettingsDto,
-  PolicyDto,
-} from '../../dtos/guardrails/schema'
 
 /** One detector hit rendered in the dashboard test panel. */
 export type GuardrailsDetectorMatch = {
@@ -35,14 +31,14 @@ export type GuardrailsEvaluateResult = {
 
 export type GuardrailsResources = {
   /** settings toggle + policies + recent guardrail audit trail */
-  overview: () => Promise<ApiItemResponse<GuardrailsOverview>>
-  store: (payload: PolicyDto) => Promise<ApiItemResponse<GuardrailPolicy>>
-  update: (id: string, payload: PolicyDto) => Promise<ApiItemResponse<GuardrailPolicy>>
+  overview: () => Promise<AxiosItemResponse<GuardrailsOverview>>
+  store: (payload: PolicyDto) => Promise<AxiosItemResponse<GuardrailPolicy>>
+  update: (id: string, payload: PolicyDto) => Promise<AxiosItemResponse<GuardrailPolicy>>
   remove: (id: string) => Promise<AxiosDeleteResponse>
   /** tenant-wide external detector engines toggle */
   updateSettings: (
     payload: GuardrailsSettingsDto
-  ) => Promise<ApiItemResponse<GuardrailsSettingsDto>>
+  ) => Promise<AxiosItemResponse<GuardrailsSettingsDto>>
   /** dry-run sample text against a detector config (or the merged policies) */
-  evaluate: (payload: EvaluateDto) => Promise<ApiItemResponse<GuardrailsEvaluateResult>>
+  evaluate: (payload: EvaluateDto) => Promise<AxiosItemResponse<GuardrailsEvaluateResult>>
 }

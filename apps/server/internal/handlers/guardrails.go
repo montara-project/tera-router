@@ -89,7 +89,7 @@ func (h *guardrailsHandler) Overview(c fiber.Ctx) error {
 	for _, entry := range entries {
 		audit = append(audit, fiber.Map{
 			"id":     entry.ID,
-			"time":   entry.CreatedAt,
+			"time":   entry.CreatedAt.UTC().Format("2006-01-02 15:04:05"),
 			"actor":  entry.Actor,
 			"action": entry.Action,
 			"target": entry.Target,
