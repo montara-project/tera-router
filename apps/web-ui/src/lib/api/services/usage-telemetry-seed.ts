@@ -211,6 +211,14 @@ export const USAGE_TELEMETRY_SEED: UsageTelemetryOverview = {
     optimizedRequests: 250,
     promptReducedBytes: 970_000,
   },
+  tokenComposition: {
+    regularInput: 15_600_000,
+    cacheRead: 5_800_000,
+    cacheWrite: 0,
+    output: 662_900,
+    reasoning: 224_900,
+    requestCacheHits: 0,
+  },
   trend: buildTrend(),
   trendBusiest: 'Sep 07',
   distribution: [

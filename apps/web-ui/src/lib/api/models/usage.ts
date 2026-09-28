@@ -116,6 +116,14 @@ export type UsageTelemetryOverview = {
     optimizedRequests: number
     promptReducedBytes: number
   }
+  tokenComposition: {
+    regularInput: number
+    cacheRead: number
+    cacheWrite: number
+    output: number
+    reasoning: number
+    requestCacheHits: number
+  }
   trend: { day: string; requests: number; tokens: number; costMicros: number; failures: number }[]
   trendBusiest: string
   distribution: { provider: string; requests: number; requestShare: number; tokenShare: number }[]
