@@ -1,7 +1,6 @@
 export namespace Models {
   export type Account = import('./account').Account
   export type AccountAuthKind = import('./account').AccountAuthKind
-  export type AccountPayload = import('./account').AccountPayload
   export type AccountStatus = import('./account').AccountStatus
   export type TestResult = import('./account').TestResult
   export type AliasTarget = import('./provider-catalog').AliasTarget
@@ -9,7 +8,6 @@ export namespace Models {
   export type ApiKeyStatus = import('./key').ApiKeyStatus
   export type AppSettings = import('./settings').AppSettings
   export type Budget = import('./budget').Budget
-  export type BudgetPayload = import('./budget').BudgetPayload
   export type BudgetScopeKind = import('./budget').BudgetScopeKind
   export type BudgetStatus = import('./budget').BudgetStatus
   export type CapabilityOverride = import('./override').CapabilityOverride

@@ -3,6 +3,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
+import type { CustomProviderDto } from '@/lib/api/dtos/provider/schema'
+
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -67,7 +69,7 @@ export default function CreateProviderDialog({ open, onOpenChange }: CreateProvi
 
     setSubmitting(true)
     try {
-      const payload: Record<string, unknown> = {
+      const payload: CustomProviderDto = {
         name: trimmedName,
         base_url: trimmedBaseUrl,
         api_kind: dialect,

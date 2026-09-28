@@ -4,6 +4,8 @@ import { AUTH_STORAGE_KEYS } from '@/lib/constants/auth'
 import type { ChainResources } from './types/chain'
 
 import { ClientFetchApi } from '../client-fetch'
+import { ChainSchema } from '../dtos/chain/schema'
+import { parseDto } from '../dtos/parse'
 
 const path = '/v1/chains'
 
@@ -24,11 +26,11 @@ const resources = (): ChainResources => {
     },
     store: (payload) => {
       const url = path
-      return api.post(url, payload)
+      return api.post(url, parseDto(ChainSchema, payload))
     },
     update: (id, payload) => {
       const url = `${path}/${id}`
-      return api.put(url, payload)
+      return api.put(url, parseDto(ChainSchema, payload))
     },
     remove: (id) => {
       const url = `${path}/${id}`

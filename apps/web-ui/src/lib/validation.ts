@@ -92,7 +92,14 @@ export function getValidationMessage<R extends ValidationMessagesKey>(
  * @returns
  */
 export const requiredString = (attribute: string) =>
-  z.string().nonempty(getValidationMessage('required', { attribute }))
+  z
+    .string({
+      error: (issue) =>
+        issue.input === undefined
+          ? getValidationMessage('required', { attribute })
+          : getValidationMessage('string', { attribute }),
+    })
+    .nonempty(getValidationMessage('required', { attribute }))
 
 /**
  * Required email validation
@@ -108,7 +115,75 @@ export const requiredEmail = (attribute: string) =>
  * @returns
  */
 export const requiredNumber = (attribute: string) =>
-  z.number().refine(Number.isInteger, getValidationMessage('numeric', { attribute }))
+  z
+    .number({
+      error: (issue) =>
+        issue.input === undefined
+          ? getValidationMessage('required', { attribute })
+          : getValidationMessage('numeric', { attribute }),
+    })
+    .refine(Number.isInteger, getValidationMessage('numeric', { attribute }))
+
+/**
+ * Optional integer validation
+ * @param attribute
+ * @returns
+ */
+export const optionalNumber = (attribute: string) =>
+  z
+    .number({ error: getValidationMessage('numeric', { attribute }) })
+    .refine(Number.isInteger, getValidationMessage('numeric', { attribute }))
+    .optional()
+
+/**
+ * Optional string validation
+ * @param attribute
+ * @returns
+ */
+export const optionalString = (attribute: string) =>
+  z.string({ error: getValidationMessage('string', { attribute }) }).optional()
+
+/**
+ * Optional enum validation; the accepted values are the source of truth for
+ * the union type it validates.
+ * @param values
+ * @param attribute
+ * @returns
+ */
+export const optionalEnum = <const T extends readonly [string, ...string[]]>(
+  values: T,
+  attribute: string
+) => z.enum(values, { error: getValidationMessage('enum', { attribute }) }).optional()
+
+/**
+ * Optional boolean validation
+ * @param attribute
+ * @returns
+ */
+export const optionalBoolean = (attribute: string) =>
+  z.boolean({ error: getValidationMessage('boolean', { attribute }) }).optional()
+
+/**
+ * Optional free-form JSON object validation
+ * @param attribute
+ * @returns
+ */
+export const optionalObject = (attribute: string) =>
+  z
+    .record(z.string(), z.unknown(), { error: getValidationMessage('json', { attribute }) })
+    .optional()
+
+/**
+ * Optional string array validation
+ * @param attribute
+ * @returns
+ */
+export const optionalStringArray = (attribute: string) =>
+  z
+    .array(z.string({ error: getValidationMessage('string', { attribute }) }), {
+      error: getValidationMessage('array', { attribute }),
+    })
+    .optional()
 
 /**
  * Required date validation

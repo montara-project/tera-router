@@ -24,14 +24,3 @@ export type BudgetStatus = Budget & {
   spend_pct: number
   token_pct: number
 }
-
-export type BudgetPayload = {
-  scope_kind?: BudgetScopeKind
-  scope_id?: string
-  /** USD; stored as micros */
-  budgetSpend?: number
-  limitTokens?: number
-  period?: 'daily' | 'weekly' | 'monthly'
-  alertAtPercent?: number
-  hardCutoff?: boolean
-}

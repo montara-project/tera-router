@@ -4,6 +4,8 @@ import { AUTH_STORAGE_KEYS } from '@/lib/constants/auth'
 import type { ProxyPoolResources } from './types/proxy-pool'
 
 import { ClientFetchApi } from '../client-fetch'
+import { parseDto } from '../dtos/parse'
+import { ProxyPoolSchema } from '../dtos/proxy-pool/schema'
 
 const path = '/v1/proxy-pools'
 
@@ -20,7 +22,7 @@ const resources = (): ProxyPoolResources => {
     },
     store: (payload) => {
       const url = path
-      return api.post(url, payload)
+      return api.post(url, parseDto(ProxyPoolSchema, payload))
     },
     test: (id) => {
       const url = `${path}/${id}/test`

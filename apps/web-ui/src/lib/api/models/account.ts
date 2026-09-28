@@ -20,19 +20,6 @@ export type Account = {
   updated_at: string
 }
 
-export type AccountPayload = {
-  provider: string
-  label?: string
-  auth_kind: AccountAuthKind
-  api_key?: string
-  token?: string
-  refresh?: string
-  metadata?: Record<string, unknown>
-  priority?: number
-  proxy_pool_id?: string
-  disabled?: boolean
-}
-
 export type TestResult = {
   ok: boolean
   status: number

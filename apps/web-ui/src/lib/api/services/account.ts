@@ -4,6 +4,8 @@ import { AUTH_STORAGE_KEYS } from '@/lib/constants/auth'
 import type { AccountResources } from './types/account'
 
 import { ClientFetchApi } from '../client-fetch'
+import { AccountSchema, BulkAccountsSchema, ValidateKeySchema } from '../dtos/account/schema'
+import { parseDto } from '../dtos/parse'
 
 const path = '/v1/accounts'
 const validateKeyPath = '/v1/validate-key'
@@ -21,17 +23,17 @@ const resources = (): AccountResources => {
     },
     store: (payload) => {
       const url = path
-      return api.post(url, payload)
+      return api.post(url, parseDto(AccountSchema, payload))
     },
     /** bulk credential import (POST /v1/accounts/bulk) */
     bulk: (payload) => {
       const url = `${path}/bulk`
-      return api.post(url, payload)
+      return api.post(url, parseDto(BulkAccountsSchema, payload))
     },
     /** pre-save credential probe (POST /v1/validate-key) */
     validateKey: (payload) => {
       const url = validateKeyPath
-      return api.post(url, payload)
+      return api.post(url, parseDto(ValidateKeySchema, payload))
     },
     get: (id) => {
       const url = `${path}/${id}`
@@ -39,7 +41,7 @@ const resources = (): AccountResources => {
     },
     update: (id, payload) => {
       const url = `${path}/${id}`
-      return api.patch(url, payload)
+      return api.patch(url, parseDto(AccountSchema.partial(), payload))
     },
     remove: (id) => {
       const url = `${path}/${id}`

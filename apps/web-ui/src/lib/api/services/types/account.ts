@@ -1,20 +1,16 @@
 import type { AxiosItemResponse, AxiosListResponse } from '@/types/api'
 
-import type { Account, AccountPayload, TestResult } from '../../models/account'
-
-export type AccountListParams = { offset?: number; limit?: number }
+import type { AccountDto, BulkAccountsDto, ValidateKeyDto } from '../../dtos/account/schema'
+import type { PaginateDto } from '../../dtos/paginate'
+import type { Account, TestResult } from '../../models/account'
 
 export type AccountResources = {
-  list: (params?: AccountListParams) => Promise<AxiosListResponse<Account>>
-  store: (payload: AccountPayload) => Promise<AxiosItemResponse<Account>>
-  bulk: (payload: { accounts: AccountPayload[] }) => Promise<AxiosItemResponse<Account[]>>
-  validateKey: (payload: {
-    provider: string
-    api_key: string
-    metadata?: Record<string, unknown>
-  }) => Promise<AxiosItemResponse<TestResult>>
+  list: (params?: PaginateDto) => Promise<AxiosListResponse<Account>>
+  store: (payload: AccountDto) => Promise<AxiosItemResponse<Account>>
+  bulk: (payload: BulkAccountsDto) => Promise<AxiosItemResponse<Account[]>>
+  validateKey: (payload: ValidateKeyDto) => Promise<AxiosItemResponse<TestResult>>
   get: (id: string) => Promise<AxiosItemResponse<Account>>
-  update: (id: string, payload: Partial<AccountPayload>) => Promise<AxiosItemResponse<Account>>
+  update: (id: string, payload: Partial<AccountDto>) => Promise<AxiosItemResponse<Account>>
   remove: (id: string) => Promise<AxiosItemResponse<{ id: string }>>
   test: (id: string) => Promise<AxiosItemResponse<TestResult>>
   reveal: (id: string) => Promise<AxiosItemResponse<{ id: string; api_key: string }>>

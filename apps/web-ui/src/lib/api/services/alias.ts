@@ -4,6 +4,8 @@ import { AUTH_STORAGE_KEYS } from '@/lib/constants/auth'
 import type { AliasResources } from './types/alias'
 
 import { ClientFetchApi } from '../client-fetch'
+import { AliasSchema } from '../dtos/alias/schema'
+import { parseDto } from '../dtos/parse'
 
 const path = '/v1/models/alias'
 
@@ -21,7 +23,7 @@ const resources = (): AliasResources => {
     /** upserts one alias pool by name (PUT semantics) */
     put: (payload) => {
       const url = path
-      return api.put(url, payload)
+      return api.put(url, parseDto(AliasSchema, payload))
     },
     remove: (name) => {
       const url = path

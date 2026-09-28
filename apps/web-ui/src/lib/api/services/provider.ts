@@ -4,6 +4,8 @@ import { AUTH_STORAGE_KEYS } from '@/lib/constants/auth'
 import type { ProviderResources } from './types/provider'
 
 import { ClientFetchApi } from '../client-fetch'
+import { parseDto } from '../dtos/parse'
+import { CustomProviderSchema } from '../dtos/provider/schema'
 
 const path = '/v1/providers'
 
@@ -33,11 +35,11 @@ const resources = (): ProviderResources => {
     },
     customStore: (payload) => {
       const url = customPath
-      return api.post(url, payload)
+      return api.post(url, parseDto(CustomProviderSchema, payload))
     },
     customUpdate: (id, payload) => {
       const url = `${customPath}/${id}`
-      return api.patch(url, payload)
+      return api.patch(url, parseDto(CustomProviderSchema, payload))
     },
     customDelete: (id) => {
       const url = `${customPath}/${id}`

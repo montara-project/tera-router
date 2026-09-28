@@ -1,6 +1,9 @@
 import type { ProviderHealthOverview } from '../models/provider-health'
 import type { ProviderHealthResources } from './types/provider-health'
 
+import { parseDto } from '../dtos/parse'
+import { ProviderHealthQuerySchema } from '../dtos/query/schema'
+
 // TODO: wire to the backend `/v1/provider-health` endpoints once they exist.
 // The seed is returned for every window until then, mirroring the
 // pre-wiring mock pattern used by the guardrails page.
@@ -188,7 +191,8 @@ const SEED: ProviderHealthOverview = {
 
 const resources = (): ProviderHealthResources => {
   return {
-    overview: (_window) => {
+    overview: (window) => {
+      parseDto(ProviderHealthQuerySchema, { window })
       return Promise.resolve({ data: SEED, metadata: {} })
     },
   }

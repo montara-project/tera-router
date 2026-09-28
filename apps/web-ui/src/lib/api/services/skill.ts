@@ -4,6 +4,8 @@ import { AUTH_STORAGE_KEYS } from '@/lib/constants/auth'
 import type { SkillResources } from './types/skill'
 
 import { ClientFetchApi } from '../client-fetch'
+import { parseDto } from '../dtos/parse'
+import { CreateSkillSchema } from '../dtos/skill/schema'
 
 const path = '/v1/skills'
 
@@ -20,7 +22,7 @@ const resources = (): SkillResources => {
     },
     store: (payload) => {
       const url = path
-      return api.post(url, payload)
+      return api.post(url, parseDto(CreateSkillSchema, payload))
     },
     remove: (id) => {
       const url = `${path}/${id}`

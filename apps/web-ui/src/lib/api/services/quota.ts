@@ -4,6 +4,8 @@ import { AUTH_STORAGE_KEYS } from '@/lib/constants/auth'
 import type { QuotaResources } from './types/quota'
 
 import { ClientFetchApi } from '../client-fetch'
+import { parseDto } from '../dtos/parse'
+import { QuotaListSchema, QuotaOverviewSchema } from '../dtos/query/schema'
 
 const path = '/v1/quota'
 
@@ -16,11 +18,11 @@ const resources = (): QuotaResources => {
   return {
     list: (params) => {
       const url = path
-      return api.get(url, { params })
+      return api.get(url, { params: parseDto(QuotaListSchema, params ?? {}) })
     },
     overview: (range = '30d') => {
       const url = `${path}/overview`
-      return api.get(url, { params: { range } })
+      return api.get(url, { params: parseDto(QuotaOverviewSchema, { range }) })
     },
     /** toggles the account between active and paused (PATCH /v1/quota/:id) */
     toggleStatus: (id) => {

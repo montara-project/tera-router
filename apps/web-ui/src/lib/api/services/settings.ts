@@ -4,6 +4,8 @@ import { AUTH_STORAGE_KEYS } from '@/lib/constants/auth'
 import type { SettingsResources } from './types/settings'
 
 import { ClientFetchApi } from '../client-fetch'
+import { parseDto } from '../dtos/parse'
+import { SettingsSchema } from '../dtos/settings/schema'
 
 const path = '/v1/settings'
 
@@ -20,7 +22,7 @@ const resources = (): SettingsResources => {
     },
     update: (patch) => {
       const url = path
-      return api.patch(url, patch)
+      return api.patch(url, parseDto(SettingsSchema, patch))
     },
   }
 }

@@ -4,6 +4,8 @@ import { AUTH_STORAGE_KEYS } from '@/lib/constants/auth'
 import type { BudgetResources } from './types/budget'
 
 import { ClientFetchApi } from '../client-fetch'
+import { BudgetSchema } from '../dtos/budget/schema'
+import { parseDto } from '../dtos/parse'
 
 const path = '/v1/budgets'
 
@@ -25,11 +27,11 @@ const resources = (): BudgetResources => {
     },
     store: (payload) => {
       const url = path
-      return api.post(url, payload)
+      return api.post(url, parseDto(BudgetSchema, payload))
     },
     update: (id, payload) => {
       const url = `${path}/${id}`
-      return api.patch(url, payload)
+      return api.patch(url, parseDto(BudgetSchema, payload))
     },
     remove: (id) => {
       const url = `${path}/${id}`

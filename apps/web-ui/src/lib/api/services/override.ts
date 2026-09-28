@@ -4,6 +4,8 @@ import { AUTH_STORAGE_KEYS } from '@/lib/constants/auth'
 import type { OverrideResources } from './types/override'
 
 import { ClientFetchApi } from '../client-fetch'
+import { CapabilitySchema, PricingSchema } from '../dtos/override/schema'
+import { parseDto } from '../dtos/parse'
 
 const pricingPath = '/v1/model-pricing-overrides'
 const capabilityPath = '/v1/capability-overrides'
@@ -22,7 +24,7 @@ const resources = (): OverrideResources => {
     },
     pricingUpsert: (payload) => {
       const url = pricingPath
-      return api.post(url, payload)
+      return api.post(url, parseDto(PricingSchema, payload))
     },
     pricingDelete: (provider, model) => {
       const url = pricingPath
@@ -34,7 +36,7 @@ const resources = (): OverrideResources => {
     },
     capabilityPut: (payload) => {
       const url = capabilityPath
-      return api.put(url, payload)
+      return api.put(url, parseDto(CapabilitySchema, payload))
     },
     capabilityDelete: (provider, model) => {
       const url = `${capabilityPath}/${provider}/${model}`

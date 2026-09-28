@@ -4,6 +4,8 @@ import { AUTH_STORAGE_KEYS } from '@/lib/constants/auth'
 import type { KeyResources } from './types/key'
 
 import { ClientFetchApi } from '../client-fetch'
+import { CreateKeySchema, UpdateKeySchema } from '../dtos/key/schema'
+import { parseDto } from '../dtos/parse'
 
 const path = '/v1/keys'
 
@@ -21,12 +23,12 @@ const resources = (): KeyResources => {
     store: (payload) => {
       const url = path
       // The server requires a name; default one when the caller omits it.
-      return api.post(url, { name: 'New Key', ...payload })
+      return api.post(url, parseDto(CreateKeySchema, { name: 'New Key', ...payload }))
     },
     /** enable/disable a key (PATCH /v1/keys/:id) */
     toggleStatus: (id, disabled) => {
       const url = `${path}/${id}`
-      return api.patch(url, { disabled })
+      return api.patch(url, parseDto(UpdateKeySchema, { disabled }))
     },
     remove: (id) => {
       const url = `${path}/${id}`
