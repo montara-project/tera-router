@@ -1,3 +1,4 @@
+import { accountQueries } from './account'
 import { chainQueries } from './chain'
 import { consoleQueries } from './console'
 import { guardrailsQueries } from './guardrails'
@@ -13,6 +14,7 @@ import { skillQueries } from './skill'
 import { systemQueries } from './system'
 
 export const queries = {
+  accounts: accountQueries,
   chains: chainQueries,
   console: consoleQueries,
   guardrails: guardrailsQueries,

@@ -21,6 +21,7 @@ import { Route as protectedanalyticsUsageIndexRouteImport } from './routes/(prot
 import { Route as protectedconnectionKeysIndexRouteImport } from './routes/(protected)/(connection)/keys/index'
 import { Route as protectedconnectionMediaIndexRouteImport } from './routes/(protected)/(connection)/media/index'
 import { Route as protectedconnectionProvidersIndexRouteImport } from './routes/(protected)/(connection)/providers/index'
+import { Route as protectedconnectionProvidersProviderIdRouteImport } from './routes/(protected)/(connection)/providers/$providerId'
 import { Route as protectedconnectionProxyPoolsIndexRouteImport } from './routes/(protected)/(connection)/proxy-pools/index'
 import { Route as protecteddeveloperCliToolsIndexRouteImport } from './routes/(protected)/(developer)/cli-tools/index'
 import { Route as protecteddeveloperConsoleIndexRouteImport } from './routes/(protected)/(developer)/console/index'
@@ -97,6 +98,12 @@ const protectedconnectionProvidersIndexRoute =
     path: '/providers/',
     getParentRoute: () => protectedRouteRoute,
   } as any)
+const protectedconnectionProvidersProviderIdRoute =
+  protectedconnectionProvidersProviderIdRouteImport.update({
+    id: '/(connection)/providers/$providerId',
+    path: '/providers/$providerId',
+    getParentRoute: () => protectedRouteRoute,
+  } as any)
 const protectedconnectionProxyPoolsIndexRoute =
   protectedconnectionProxyPoolsIndexRouteImport.update({
     id: '/(connection)/proxy-pools/',
@@ -150,6 +157,7 @@ export interface FileRoutesByFullPath {
   '/': typeof authloginIndexRoute
   '/register/': typeof authRegisterIndexRoute
   '/dashboard/': typeof protectedDashboardIndexRoute
+  '/providers/$providerId': typeof protectedconnectionProvidersProviderIdRoute
   '/plans/': typeof protectedanalyticsPlansIndexRoute
   '/quota/': typeof protectedanalyticsQuotaIndexRoute
   '/settings/': typeof protectedanalyticsSettingsIndexRoute
@@ -171,6 +179,7 @@ export interface FileRoutesByTo {
   '/': typeof authloginIndexRoute
   '/register': typeof authRegisterIndexRoute
   '/dashboard': typeof protectedDashboardIndexRoute
+  '/providers/$providerId': typeof protectedconnectionProvidersProviderIdRoute
   '/plans': typeof protectedanalyticsPlansIndexRoute
   '/quota': typeof protectedanalyticsQuotaIndexRoute
   '/settings': typeof protectedanalyticsSettingsIndexRoute
@@ -194,6 +203,7 @@ export interface FileRoutesById {
   '/(auth)/(login)/': typeof authloginIndexRoute
   '/(auth)/register/': typeof authRegisterIndexRoute
   '/(protected)/dashboard/': typeof protectedDashboardIndexRoute
+  '/(protected)/(connection)/providers/$providerId': typeof protectedconnectionProvidersProviderIdRoute
   '/(protected)/(analytics)/plans/': typeof protectedanalyticsPlansIndexRoute
   '/(protected)/(analytics)/quota/': typeof protectedanalyticsQuotaIndexRoute
   '/(protected)/(analytics)/settings/': typeof protectedanalyticsSettingsIndexRoute
@@ -217,6 +227,7 @@ export interface FileRouteTypes {
     | '/'
     | '/register/'
     | '/dashboard/'
+    | '/providers/$providerId'
     | '/plans/'
     | '/quota/'
     | '/settings/'
@@ -238,6 +249,7 @@ export interface FileRouteTypes {
     | '/'
     | '/register'
     | '/dashboard'
+    | '/providers/$providerId'
     | '/plans'
     | '/quota'
     | '/settings'
@@ -260,6 +272,7 @@ export interface FileRouteTypes {
     | '/(auth)/(login)/'
     | '/(auth)/register/'
     | '/(protected)/dashboard/'
+    | '/(protected)/(connection)/providers/$providerId'
     | '/(protected)/(analytics)/plans/'
     | '/(protected)/(analytics)/quota/'
     | '/(protected)/(analytics)/settings/'
@@ -370,6 +383,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof protectedconnectionProvidersIndexRouteImport
       parentRoute: typeof protectedRouteRoute
     }
+    '/(protected)/(connection)/providers/$providerId': {
+      id: '/(protected)/(connection)/providers/$providerId'
+      path: '/providers/$providerId'
+      fullPath: '/providers/$providerId'
+      preLoaderRoute: typeof protectedconnectionProvidersProviderIdRouteImport
+      parentRoute: typeof protectedRouteRoute
+    }
     '/(protected)/(connection)/proxy-pools/': {
       id: '/(protected)/(connection)/proxy-pools/'
       path: '/proxy-pools'
@@ -431,6 +451,7 @@ declare module '@tanstack/react-router' {
 
 interface protectedRouteRouteChildren {
   protectedDashboardIndexRoute: typeof protectedDashboardIndexRoute
+  protectedconnectionProvidersProviderIdRoute: typeof protectedconnectionProvidersProviderIdRoute
   protectedanalyticsPlansIndexRoute: typeof protectedanalyticsPlansIndexRoute
   protectedanalyticsQuotaIndexRoute: typeof protectedanalyticsQuotaIndexRoute
   protectedanalyticsSettingsIndexRoute: typeof protectedanalyticsSettingsIndexRoute
@@ -451,6 +472,8 @@ interface protectedRouteRouteChildren {
 
 const protectedRouteRouteChildren: protectedRouteRouteChildren = {
   protectedDashboardIndexRoute: protectedDashboardIndexRoute,
+  protectedconnectionProvidersProviderIdRoute:
+    protectedconnectionProvidersProviderIdRoute,
   protectedanalyticsPlansIndexRoute: protectedanalyticsPlansIndexRoute,
   protectedanalyticsQuotaIndexRoute: protectedanalyticsQuotaIndexRoute,
   protectedanalyticsSettingsIndexRoute: protectedanalyticsSettingsIndexRoute,

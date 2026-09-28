@@ -68,6 +68,7 @@ function ProvidersCard({
   title,
   variant,
   onConnect,
+  detailBasePath,
 }: {
   count: number
   description: string
@@ -76,6 +77,7 @@ function ProvidersCard({
   title: string
   variant: 'connected' | 'available'
   onConnect?: (provider: Models.Provider) => void
+  detailBasePath?: string
 }) {
   return (
     <Card className="bg-background">
@@ -94,7 +96,12 @@ function ProvidersCard({
         </CardToolbar>
       </CardHeader>
       <CardContent className="p-0">
-        <ProviderGrid providers={providers} variant={variant} onConnect={onConnect} />
+        <ProviderGrid
+          providers={providers}
+          variant={variant}
+          onConnect={onConnect}
+          detailBasePath={detailBasePath}
+        />
       </CardContent>
     </Card>
   )
@@ -183,6 +190,7 @@ function RouteComponent() {
             providers={filtered.connected}
             title="Connected providers"
             variant="connected"
+            detailBasePath="/providers"
           />
 
           <ProvidersCard

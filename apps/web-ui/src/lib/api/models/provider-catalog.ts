@@ -5,6 +5,8 @@ export type CustomProvider = {
   slug: string
   base_url: string
   api_kind: string
+  pricing: string
+  metadata: string
   enabled: boolean
   priority: number
   created_at: string
