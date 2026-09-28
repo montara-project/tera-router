@@ -163,38 +163,38 @@ function RouteComponent() {
           </Button>
         }
       >
-      <div className="space-y-4">
-        <InputWrapper variant="lg" className="rounded-lg">
-          <IconSearch />
-          <Input
-            aria-label="Search providers"
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search providers..."
-            value={search}
+        <div className="space-y-4">
+          <InputWrapper variant="lg" className="rounded-lg">
+            <IconSearch />
+            <Input
+              aria-label="Search providers"
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search providers..."
+              value={search}
+            />
+          </InputWrapper>
+
+          <CapabilityChips value={capability} onChange={setCapability} counts={counts} />
+
+          <ProvidersCard
+            count={filtered.connected.length}
+            description="These providers have accounts and are ready to use."
+            icon={IconPlugConnected}
+            providers={filtered.connected}
+            title="Connected providers"
+            variant="connected"
           />
-        </InputWrapper>
 
-        <CapabilityChips value={capability} onChange={setCapability} counts={counts} />
-
-        <ProvidersCard
-          count={filtered.connected.length}
-          description="These providers have accounts and are ready to use."
-          icon={IconPlugConnected}
-          providers={filtered.connected}
-          title="Connected providers"
-          variant="connected"
-        />
-
-        <ProvidersCard
-          count={filtered.available.length}
-          description="Add new providers to expand your routing options."
-          icon={IconApps}
-          providers={filtered.available}
-          title="Available providers"
-          variant="available"
-          onConnect={handleConnect}
-        />
-      </div>
+          <ProvidersCard
+            count={filtered.available.length}
+            description="Add new providers to expand your routing options."
+            icon={IconApps}
+            providers={filtered.available}
+            title="Available providers"
+            variant="available"
+            onConnect={handleConnect}
+          />
+        </div>
       </SectionCard>
 
       <CreateProviderDialog open={createOpen} onOpenChange={setCreateOpen} />

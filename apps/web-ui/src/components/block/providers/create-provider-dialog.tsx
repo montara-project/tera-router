@@ -157,7 +157,11 @@ export default function CreateProviderDialog({ open, onOpenChange }: CreateProvi
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button className={AMBER_BUTTON_CLASS} disabled={!canSubmit || submitting} onClick={handleCreate}>
+          <Button
+            className={AMBER_BUTTON_CLASS}
+            disabled={!canSubmit || submitting}
+            onClick={handleCreate}
+          >
             <IconPlus />
             <span>{submitting ? 'Creating…' : 'Create provider'}</span>
           </Button>
