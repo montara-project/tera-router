@@ -9,10 +9,17 @@ export const metadata: Metadata = {
   icons: { icon: '/static/images/tera.png?v=3' },
 }
 
+// Resolves the stored theme before first paint so the page never flashes the
+// wrong palette. Kept inline and dependency-free on purpose.
+const themeInit = `(function(){try{var t=localStorage.getItem('tera-theme');var d=t==='dark'||((!t||t==='system')&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);}catch(e){}})()`
+
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
-      <body className="bg-[#020617] font-sans text-ink antialiased">{children}</body>
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInit }} />
+      </head>
+      <body className="bg-canvas font-sans text-ink antialiased">{children}</body>
     </html>
   )
 }

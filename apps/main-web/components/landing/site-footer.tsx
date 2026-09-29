@@ -8,14 +8,14 @@ const footerLinks = [
 
 export function SiteFooter() {
   return (
-    <footer className="border-t border-white/5">
+    <footer className="border-t border-divide">
       <div className="mx-auto max-w-6xl px-6 py-14">
         <div className="flex flex-col justify-between gap-10 sm:flex-row sm:items-start">
           <div className="max-w-xs">
             <div className="flex items-center gap-2.5">
               <img
                 alt="Tera Router logo"
-                className="size-7 rounded-lg ring-1 ring-white/10"
+                className="size-7 rounded-lg ring-1 ring-line"
                 src="/static/images/tera.png?v=3"
                 height={28}
                 width={28}
@@ -52,7 +52,7 @@ export function SiteFooter() {
           </div>
         </div>
 
-        <div className="mt-12 flex flex-col justify-between gap-2 border-t border-white/5 pt-6 text-xs text-faint sm:flex-row">
+        <div className="mt-12 flex flex-col justify-between gap-2 border-t border-divide pt-6 text-xs text-faint sm:flex-row">
           <p>© 2026 Tera Router</p>
           <p className="font-mono">built with vinext · deployed on Cloudflare Workers</p>
         </div>
