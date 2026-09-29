@@ -2,7 +2,7 @@ import { useId } from 'react'
 
 import type { SystemPoint } from '@/lib/api/models/system'
 
-import { formatClock } from './formatters'
+import { formatClock } from '@/lib/date'
 
 interface SystemLineChartProps {
   points: SystemPoint[]

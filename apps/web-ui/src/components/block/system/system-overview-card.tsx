@@ -12,8 +12,9 @@ import {
   CardHeading,
   CardTitle,
 } from '@/components/ui/card'
+import { formatDuration } from '@/lib/date'
 
-import { formatCount, formatMb, formatUptime } from './formatters'
+import { formatCount, formatMb } from './formatters'
 import StatRow from './stat-row'
 import SystemIconBadge from './system-icon-badge'
 import SystemProgress from './system-progress'
@@ -76,7 +77,7 @@ export default function SystemOverviewCard({ stats }: SystemOverviewCardProps) {
           <SystemProgress
             label="CPU"
             percent={process.cpu_percent}
-            sublabel={`Uptime ${formatUptime(host.uptime_seconds)}`}
+            sublabel={`Uptime ${formatDuration(host.uptime_seconds)}`}
           />
           <SystemProgress
             label="RSS"

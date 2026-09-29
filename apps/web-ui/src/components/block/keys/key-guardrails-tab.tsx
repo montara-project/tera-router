@@ -168,8 +168,8 @@ export default function KeyGuardrailsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
 
   return (
     <div className="space-y-4">
-      <Card className="bg-card">
-        <CardHeader>
+      <Card className="bg-background">
+        <CardHeader className="h-20">
           <CardHeading>
             <CardTitle>Per-key guardrails</CardTitle>
             <CardDescription>
@@ -258,8 +258,8 @@ export default function KeyGuardrailsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
         </CardContent>
       </Card>
 
-      <Card className="bg-card">
-        <CardHeader>
+      <Card className="bg-background">
+        <CardHeader className="h-20">
           <CardHeading>
             <CardTitle>Effective protection</CardTitle>
             <CardDescription>

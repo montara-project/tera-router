@@ -21,14 +21,16 @@ const (
 )
 
 type config struct {
-	mode   string
-	dbPath string
-	seed   string
+	mode      string
+	dbPath    string
+	seed      string
+	appSecret string
 }
 
 func parseFlag(cfg *config) {
 	flag.StringVar(&cfg.dbPath, "db-path", database.DefaultPath, "SQLite database file path")
 	flag.StringVar(&cfg.seed, "seed", "", "seed")
+	flag.StringVar(&cfg.appSecret, "app-secret", "", "App Secret (required with --seed dev)")
 
 	flag.Parse()
 	validateFlag(cfg)
@@ -55,5 +57,9 @@ func validateFlag(cfg *config) {
 		if !slices.Contains(availableSeeds, cfg.seed) {
 			log.Fatalf("seed must be provided: %s", strings.Join(availableSeeds, ", "))
 		}
+	}
+
+	if cfg.seed == seedDevelopment && cfg.appSecret == "" {
+		log.Fatal("flag --app-secret must be provided when --seed dev")
 	}
 }

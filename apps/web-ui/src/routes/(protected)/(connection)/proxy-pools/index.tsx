@@ -35,6 +35,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { throwAxiosError } from '@/lib/api/axios-error'
 import { PROXY_POOL_QUERY_KEY, proxyPoolQueries } from '@/lib/api/queries/proxy-pool'
 import { services } from '@/lib/api/services'
+import { formatTimeAgo } from '@/lib/date'
 import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/(protected)/(connection)/proxy-pools/')({
@@ -49,17 +50,6 @@ function RouteSkeleton() {
       </div>
     </div>
   )
-}
-
-function formatTestedAgo(iso: string) {
-  const minutes = Math.floor((Date.now() - new Date(iso).getTime()) / 60_000)
-
-  if (minutes < 1) return 'just now'
-  if (minutes < 60) return `${minutes}m ago`
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours}h ago`
-
-  return `${Math.floor(hours / 24)}d ago`
 }
 
 function RouteComponent() {
@@ -383,7 +373,7 @@ function ProxyPoolRow({ pool, selected, onToggle }: ProxyPoolRowProps) {
         <div className="flex flex-wrap items-center gap-3">
           <code className="truncate font-mono text-xs text-muted-foreground">{pool.url}</code>
           <span className="text-muted-foreground whitespace-nowrap text-xs">
-            tested {formatTestedAgo(pool.tested_at)}
+            tested {formatTimeAgo(pool.tested_at)}
           </span>
           {pool.mode && (
             <span className="text-muted-foreground whitespace-nowrap text-xs">{pool.mode}</span>

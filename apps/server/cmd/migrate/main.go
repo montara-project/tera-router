@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"tera-router/server/internal/database"
+	"tera-router/server/internal/lib/sealer"
 	"tera-router/server/internal/migrator"
 	"tera-router/server/internal/seeders"
 )
@@ -31,7 +32,14 @@ func main() {
 	}
 
 	if cfg.seed != "" {
-		seeders.Run(db, cfg.seed == seedDevelopment)
+		var secrets *sealer.Sealer
+		if cfg.appSecret != "" {
+			secrets, err = sealer.FromSecret(cfg.appSecret)
+			if err != nil {
+				log.Fatalf("derive sealing key: %s", err)
+			}
+		}
+		seeders.Run(db, cfg.seed == seedDevelopment, secrets)
 	}
 
 	fmt.Println("Completed")

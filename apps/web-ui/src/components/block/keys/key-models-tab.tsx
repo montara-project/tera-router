@@ -65,8 +65,8 @@ export default function KeyModelsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
 
   return (
     <>
-      <Card className="bg-card">
-        <CardHeader>
+      <Card className="bg-background">
+        <CardHeader className="h-20">
           <CardHeading>
             <CardTitle>Model access</CardTitle>
             <CardDescription>

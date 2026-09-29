@@ -9,7 +9,7 @@ import {
   IconLink,
   IconTrash,
 } from '@tabler/icons-react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import React, { useMemo, useState } from 'react'
 import { toast } from 'sonner'
@@ -23,9 +23,9 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
-import { throwAxiosError } from '@/lib/api/axios-error'
-import { KEY_QUERY_KEY } from '@/lib/api/queries/key'
-import { services } from '@/lib/api/services'
+import { toastAxiosError } from '@/lib/api/axios-error'
+import { queries } from '@/lib/api/queries'
+import { formatDate } from '@/lib/date'
 
 type ColumnType = ColumnDef<typeof features, Models.ApiKey, unknown>
 
@@ -33,14 +33,6 @@ const STATUS_DOTS: Record<Models.ApiKeyStatus, string> = {
   active: 'bg-emerald-500 text-emerald-500',
   disabled: 'bg-zinc-400 text-zinc-400',
   restricted: 'bg-amber-500 text-amber-500',
-}
-
-function formatKeyDate(iso: string) {
-  const date = new Date(iso)
-  const day = String(date.getDate()).padStart(2, '0')
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-
-  return `${day}/${month}/${date.getFullYear()}`
 }
 
 function KeyCopyCell({ record }: { record: Models.ApiKey }) {
@@ -120,7 +112,7 @@ export function KeysColumn({ loading }: BaseColumnProps) {
                 </span>
               </div>
               <div className="text-muted-foreground mt-0.5 text-xs">
-                Created {formatKeyDate(row.original.created_at)}
+                Created {formatDate(row.original.created_at)}
               </div>
             </div>
           )
@@ -195,54 +187,26 @@ interface ActionCellProps {
 function ActionCell({ record }: ActionCellProps) {
   const [openDelete, setOpenDelete] = useState(false)
 
-  const queryClient = useQueryClient()
-
-  const invalidateAll = () => queryClient.invalidateQueries({ queryKey: [KEY_QUERY_KEY] })
-
-  const toggleMutation = useMutation({
-    mutationFn: async () => {
-      try {
-        await services.keys.toggleStatus(record.id, record.status === 'active')
-      } catch (error) {
-        throwAxiosError(error as Error)
-      }
-    },
-    onSuccess: () => {
-      toast.success(`Key ${record.status === 'active' ? 'disabled' : 'enabled'}`)
-      return invalidateAll()
-    },
-  })
-
-  const deleteMutation = useMutation({
-    mutationFn: async () => {
-      try {
-        await services.keys.remove(record.id)
-      } catch (error) {
-        throwAxiosError(error as Error)
-      }
-    },
-    onSuccess: () => {
-      toast.success('Key deleted')
-      setOpenDelete(false)
-      return invalidateAll()
-    },
-  })
+  const toggleMutation = useMutation(queries.keys.toggleStatus())
+  const deleteMutation = useMutation(queries.keys.delete())
 
   const handleToggle = async () => {
+    const disabled = record.status === 'active'
     try {
-      await toggleMutation.mutateAsync()
+      await toggleMutation.mutateAsync({ id: record.id, disabled })
+      toast.success(`Key ${disabled ? 'disabled' : 'enabled'}`)
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'An error occurred'
-      toast.error(message)
+      toastAxiosError(error)
     }
   }
 
   const handleDelete = async () => {
     try {
-      await deleteMutation.mutateAsync()
+      await deleteMutation.mutateAsync(record.id)
+      toast.success('Key deleted')
+      setOpenDelete(false)
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'An error occurred'
-      toast.error(message)
+      toastAxiosError(error)
     }
   }
 

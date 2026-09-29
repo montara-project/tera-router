@@ -1,8 +1,7 @@
 import { IconKey, IconPlus } from '@tabler/icons-react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
-import { toast } from 'sonner'
 
 import type { KeysFilters } from '@/components/block/keys/filter-keys'
 
@@ -14,6 +13,7 @@ import FilterKeys, {
   applyKeysFilters,
   DEFAULT_KEYS_FILTERS,
 } from '@/components/block/keys/filter-keys'
+import { AddKeyForm } from '@/components/block/keys/form'
 import KeysStatsStrip from '@/components/block/keys/keys-stats-strip'
 import { Button } from '@/components/ui/button'
 import {
@@ -26,8 +26,7 @@ import {
 } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { usePaginationQuery } from '@/hooks/use-pagination-query'
-import { KEY_QUERY_KEY, keyQueries } from '@/lib/api/queries/key'
-import { services } from '@/lib/api/services'
+import { keyQueries } from '@/lib/api/queries/key'
 import { getTotal } from '@/lib/constants/paginate'
 
 export const Route = createFileRoute('/(protected)/(connection)/keys/')({
@@ -46,9 +45,9 @@ function RouteSkeleton() {
 }
 
 function RouteComponent() {
-  const queryClient = useQueryClient()
   const [filters, setFilters] = useState<KeysFilters>(DEFAULT_KEYS_FILTERS)
 
+  const [openDialog, setOpenDialog] = useState(false)
   const { offset, limit, pageIndex } = usePaginationQuery()
 
   const { data, isFetching, isLoading } = useQuery(keyQueries.list({ offset, limit }))
@@ -64,14 +63,6 @@ function RouteComponent() {
     return <RouteSkeleton />
   }
 
-  const refresh = () => queryClient.invalidateQueries({ queryKey: [KEY_QUERY_KEY] })
-
-  const handleNewKey = async () => {
-    await services.keys.store()
-    toast.success('Key created')
-    await refresh()
-  }
-
   const handleFilterChange = (patch: Partial<KeysFilters>) =>
     setFilters((previous) => ({ ...previous, ...patch }))
 
@@ -82,7 +73,7 @@ function RouteComponent() {
       toolbar={
         <Button
           className="bg-amber-600 text-white hover:bg-amber-500 dark:bg-amber-800 dark:text-amber-200 dark:hover:bg-amber-700"
-          onClick={handleNewKey}
+          onClick={() => setOpenDialog(true)}
         >
           <IconPlus />
           <span>New key</span>
@@ -123,6 +114,8 @@ function RouteComponent() {
           </CardContent>
         </Card>
       </div>
+
+      <AddKeyForm open={openDialog} onOpenChange={setOpenDialog} />
     </SectionCard>
   )
 }

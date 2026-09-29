@@ -10,8 +10,9 @@ import {
   CardHeading,
   CardTitle,
 } from '@/components/ui/card'
+import { formatDuration } from '@/lib/date'
 
-import { formatGb, formatMb, formatUptime } from './formatters'
+import { formatGb, formatMb } from './formatters'
 import StatsGrid from './stats-grid'
 import SystemIconBadge from './system-icon-badge'
 
@@ -26,7 +27,7 @@ export default function HostInfoCard({ host, process }: HostInfoCardProps) {
     { label: 'OS', value: host.os },
     { label: 'Architecture', value: host.architecture },
     { label: 'PID', value: process.pid },
-    { label: 'Uptime', value: formatUptime(host.uptime_seconds) },
+    { label: 'Uptime', value: formatDuration(host.uptime_seconds) },
     { label: 'Memory Available', value: formatMb(host.memory_available_mb) },
     { label: 'Disk Free', value: formatGb(host.disk_free_gb) },
   ]

@@ -70,6 +70,11 @@ func assemble(cfg config.Config, logger *slog.Logger) *app.Application {
 		log.Fatalf("open database: %s", err)
 	}
 
+	secrets, err := sealer.FromSecret(cfg.App.Secret)
+	if err != nil {
+		log.Fatalf("derive sealing key: %s", err)
+	}
+
 	// Migrate and seed on boot: apply pending migrations, then the idempotent
 	// baseline seeders, before any repository assumes the schema or its
 	// reference rows exist. A failure in either aborts startup.
@@ -83,15 +88,11 @@ func assemble(cfg config.Config, logger *slog.Logger) *app.Application {
 
 	if cfg.Database.SeedOnBoot {
 		logger.Info("seed on boot enabled, seeding baseline data...")
-		seeders.Run(db, cfg.App.Env == config.EnvDevelopment)
+		seeders.Run(db, cfg.App.Env == config.EnvDevelopment, secrets)
 		logger.Info("baseline data seeded")
 	}
 
 	repos := repositories.New(db, &cfg.App)
-	secrets, err := sealer.FromSecret(cfg.App.Secret)
-	if err != nil {
-		log.Fatalf("derive sealing key: %s", err)
-	}
 
 	logger.Info("dependencies assembled", "database", cfg.Database.Path)
 
