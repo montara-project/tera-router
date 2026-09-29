@@ -286,9 +286,13 @@ func catalogDialect(d string) core.Dialect {
 
 // customProviderDialect maps an operator-set api_kind onto a core dialect.
 // Anything that is not explicitly Anthropic or Responses is OpenAI-compatible,
-// which is what "custom OpenAI-compatible provider" means.
+// which is what "custom OpenAI-compatible provider" means. The leading
+// "custom-" marker the web UI sends (custom-openai, custom-anthropic) is
+// ignored.
 func customProviderDialect(apiKind string) core.Dialect {
-	switch strings.ToLower(strings.TrimSpace(apiKind)) {
+	kind := strings.ToLower(strings.TrimSpace(apiKind))
+	kind = strings.TrimPrefix(kind, "custom-")
+	switch kind {
 	case "anthropic":
 		return core.DialectAnthropic
 	case "openai_responses", "responses":

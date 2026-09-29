@@ -3,6 +3,7 @@ package handlers
 import (
 	"cmp"
 	"encoding/json"
+	"strings"
 
 	"tera-router/server/internal/app"
 	"tera-router/server/internal/catalog"
@@ -19,11 +20,52 @@ type providersHandler struct {
 	app *app.Application
 }
 
+// customProviderSlug marks a custom provider slug with its api kind, e.g.
+// "custom-openai-vllm". It is idempotent: an incoming slug that already
+// carries a custom-<kind>- marker is re-prefixed rather than stacked, so an
+// api_kind change swaps the marker instead of nesting it. The gateway never
+// parses the slug — it resolves providers by exact lookup — so the marker is
+// purely a naming convention shared by accounts, usage rows, and the web UI.
+func customProviderSlug(apiKind, slug string) string {
+	kind := strings.ToLower(strings.TrimSpace(apiKind))
+	if kind == "" {
+		kind = "openai"
+	}
+	if !strings.HasPrefix(kind, "custom-") {
+		kind = "custom-" + kind
+	}
+
+	slug = strings.ToLower(strings.TrimSpace(slug))
+	if rest, ok := strings.CutPrefix(slug, "custom-"); ok {
+		if _, tail, found := strings.Cut(rest, "-"); found {
+			slug = tail
+		}
+	}
+	return kind + "-" + slug
+}
+
+// slugify folds a display name into a slug segment: lowercase, non-alnum runs
+// become single dashes.
+func slugify(s string) string {
+	var b strings.Builder
+	dash := true
+	for _, r := range strings.ToLower(strings.TrimSpace(s)) {
+		if r >= 'a' && r <= 'z' || r >= '0' && r <= '9' {
+			b.WriteRune(r)
+			dash = false
+		} else if !dash {
+			b.WriteByte('-')
+			dash = true
+		}
+	}
+	return strings.TrimSuffix(b.String(), "-")
+}
+
 // customProviderFrom converts a CustomProvider DTO into the stored model.
 func customProviderFrom(d dtos.CustomProvider) models.CustomProvider {
 	p := models.CustomProvider{
 		Name:     d.Name,
-		Slug:     d.Slug,
+		Slug:     customProviderSlug(d.APIKind, cmp.Or(d.Slug, slugify(d.Name))),
 		BaseURL:  d.BaseURL,
 		APIKind:  cmp.Or(d.APIKind, "openai"),
 		Priority: d.Priority,
@@ -44,14 +86,14 @@ func applyCustomProviderPatch(p *models.CustomProvider, d dtos.CustomProvider) {
 	if d.Name != "" {
 		p.Name = d.Name
 	}
-	if d.Slug != "" {
-		p.Slug = d.Slug
+	if d.APIKind != "" {
+		p.APIKind = d.APIKind
+	}
+	if d.Slug != "" || d.APIKind != "" {
+		p.Slug = customProviderSlug(p.APIKind, cmp.Or(d.Slug, p.Slug))
 	}
 	if d.BaseURL != "" {
 		p.BaseURL = d.BaseURL
-	}
-	if d.APIKind != "" {
-		p.APIKind = d.APIKind
 	}
 	if d.Pricing != nil {
 		p.Pricing = encodeJSON(d.Pricing)
