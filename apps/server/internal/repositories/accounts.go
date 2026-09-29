@@ -58,7 +58,7 @@ func (r *AccountRepository) insertExec(ctx context.Context, ex Executor, a model
 // BulkInsert inserts many accounts in a single transaction, aborting on the
 // first failure.
 func (r *AccountRepository) BulkInsert(ctx context.Context, accounts []models.Account) error {
-	return withTx(ctx, r.DB, func(tx Executor) error {
+	return r.withTx(ctx, func(tx Executor) error {
 		for _, a := range accounts {
 			if err := r.insertExec(ctx, tx, a); err != nil {
 				return err

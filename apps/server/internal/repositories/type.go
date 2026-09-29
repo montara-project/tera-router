@@ -68,19 +68,34 @@ func buildOrderBy(opts *QueryOptions, allowedColumns map[string]bool, defaultOrd
 // withTx runs fn inside a transaction, committing when fn returns nil and
 // rolling back otherwise. fn receives the transaction as an Executor, so
 // multi-statement writes reuse the repository's *Exec helpers and the same SQL
-// runs standalone or atomically.
-func withTx(ctx context.Context, db *sql.DB, fn func(tx Executor) error) error {
-	tx, err := db.BeginTx(ctx, nil)
+// runs standalone or atomically. The BEGIN/COMMIT/ROLLBACK boundaries are
+// logged too, so a debug trace shows exactly which statements shared a
+// transaction.
+func (r BaseRepository) withTx(ctx context.Context, fn func(tx Executor) error) error {
+	r.debugQuery("BEGIN")
+	tx, err := r.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return errtrace.Wrap(err)
 	}
-	defer func() { _ = tx.Rollback() }()
+
+	finished := false
+	defer func() {
+		if !finished {
+			r.debugQuery("ROLLBACK")
+			_ = tx.Rollback()
+		}
+	}()
 
 	if err := fn(tx); err != nil {
 		return err
 	}
 
-	return errtrace.Wrap(tx.Commit())
+	r.debugQuery("COMMIT")
+	err = tx.Commit()
+	// The transaction is over either way, so never roll back after this.
+	finished = true
+
+	return errtrace.Wrap(err)
 }
 
 // requireAffected turns a write that touched no row into apperr.ErrNotFound,

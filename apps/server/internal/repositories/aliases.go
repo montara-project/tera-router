@@ -18,7 +18,7 @@ const aliasColumns = `id, name, context_window, active, created_at, updated_at`
 
 // Upsert writes an alias and replaces its target list in one transaction.
 func (r *AliasRepository) Upsert(ctx context.Context, a models.ModelAlias) error {
-	return withTx(ctx, r.DB, func(tx Executor) error {
+	return r.withTx(ctx, func(tx Executor) error {
 		return r.upsertExec(ctx, tx, a)
 	})
 }

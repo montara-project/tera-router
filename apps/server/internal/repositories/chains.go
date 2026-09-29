@@ -28,7 +28,7 @@ func scanChain(row rowScanner) (models.Chain, error) {
 
 // Insert persists a chain and its steps in one transaction.
 func (r *ChainRepository) Insert(ctx context.Context, c models.Chain) error {
-	return withTx(ctx, r.DB, func(tx Executor) error {
+	return r.withTx(ctx, func(tx Executor) error {
 		return r.insertExec(ctx, tx, c)
 	})
 }
@@ -134,7 +134,7 @@ func (r *ChainRepository) getExec(ctx context.Context, ex Executor, id string) (
 
 // Update rewrites a chain and replaces its steps in one transaction.
 func (r *ChainRepository) Update(ctx context.Context, c models.Chain) error {
-	return withTx(ctx, r.DB, func(tx Executor) error {
+	return r.withTx(ctx, func(tx Executor) error {
 		return r.updateExec(ctx, tx, c)
 	})
 }
