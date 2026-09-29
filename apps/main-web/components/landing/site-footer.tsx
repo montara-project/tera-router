@@ -13,9 +13,13 @@ export function SiteFooter() {
         <div className="flex flex-col justify-between gap-10 sm:flex-row sm:items-start">
           <div className="max-w-xs">
             <div className="flex items-center gap-2.5">
-              <span className="flex size-7 items-center justify-center rounded-lg bg-gradient-to-br from-accent-soft to-accent font-mono text-xs font-bold text-[#052e16]">
-                T
-              </span>
+              <img
+                alt="Tera Router logo"
+                className="size-7 rounded-lg ring-1 ring-white/10"
+                src="/static/images/tera.png?v=3"
+                height={28}
+                width={28}
+              />
               <span className="font-semibold tracking-tight">Tera Router</span>
             </div>
             <p className="mt-4 text-sm leading-relaxed text-faint">
