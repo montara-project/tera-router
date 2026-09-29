@@ -6,6 +6,7 @@ export const metadata: Metadata = {
   title: 'Tera Router — Unified AI Provider Gateway',
   description:
     'Self-hosted inference gateway that unifies every AI provider behind one OpenAI-compatible endpoint. Multi-dialect, multi-account, with keys, guardrails, and usage analytics.',
+  icons: { icon: '/static/images/tera.png?v=3' },
 }
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

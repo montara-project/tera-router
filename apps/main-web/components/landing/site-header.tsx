@@ -13,9 +13,13 @@ export function SiteHeader() {
     <header className="sticky top-0 z-50 border-b border-white/5 bg-[#020617]/80 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
         <a className="group flex items-center gap-2.5" href="/">
-          <span className="flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-accent-soft to-accent font-mono text-sm font-bold text-[#052e16] shadow-[0_0_18px_-4px_rgba(74,222,128,0.55)]">
-            T
-          </span>
+          <img
+            alt="Tera Router logo"
+            className="size-8 rounded-lg ring-1 ring-white/10"
+            src="/static/images/tera.png?v=3"
+            height={32}
+            width={32}
+          />
           <span className="font-semibold tracking-tight transition-colors duration-200 group-hover:text-white">
             Tera Router
           </span>
