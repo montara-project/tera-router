@@ -3,7 +3,7 @@ package repositories
 import (
 	"context"
 	"database/sql"
-	"log/slog"
+	"fmt"
 
 	"tera-router/server/internal/config"
 
@@ -27,7 +27,9 @@ func (r BaseRepository) debugQuery(query string, args ...any) {
 	if r.Config == nil || !r.Config.Debug {
 		return
 	}
-	slog.Debug("query", "sql", sqlfmt.PrettyFormat(query), "args", args)
+
+	sqlfmt.PrettyPrint(query)
+	fmt.Println()
 }
 
 // execContext runs a write statement against ex — the pool or an open
