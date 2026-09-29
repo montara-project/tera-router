@@ -3,6 +3,7 @@ packages:
   - "packages/*"
 allowBuilds:
   esbuild: true
+  workerd: true
 minimumReleaseAgeExclude:
   - '@oxfmt/binding-android-arm-eabi@0.67.0'
   - '@oxfmt/binding-android-arm64@0.67.0'
