@@ -157,18 +157,19 @@ func (s *Server) handleChat(c fiber.Ctx, dialect core.Dialect) error {
 		return s.fail(c, dialect, http.StatusInternalServerError, "model access check failed")
 	}
 
-	if plan != nil && len(plan.AllowedModels) > 0 {
-		filtered := filterAllowedTargets(key, resolved.Targets, resolved.ChainName, plan.AllowedModels)
-		if len(filtered) == 0 {
-			routeCancel()
-			release()
-			s.log.Warn("gateway model access denied",
-				"key", meta.KeyName, "model", req.Model, "plan", plan.Name)
-			return s.fail(c, dialect, http.StatusForbidden,
-				"access denied: this API key is not permitted to use model "+req.Model)
-		}
-		resolved.Targets = filtered
+	// Model access narrows in two layers: the key's own allowlist first, then
+	// the plan's. A key allowlist only ever restricts, never widens, so
+	// applying both yields the intersection of the two.
+	narrowed, layer := narrowByAllowlist(key, resolved.Targets, resolved.ChainName, plan)
+	if len(narrowed) == 0 {
+		routeCancel()
+		release()
+		s.log.Warn("gateway model access denied",
+			"key", meta.KeyName, "model", req.Model, "layer", layer, "plan", planName(plan))
+		return s.fail(c, dialect, http.StatusForbidden,
+			"access denied: this API key is not permitted to use model "+req.Model)
 	}
+	resolved.Targets = narrowed
 
 	if err := s.checkBudgets(routeCtx, key, plan); err != nil {
 		routeCancel()

@@ -13,4 +13,13 @@ export type ApiKey = {
   created_at: string
   plan_id?: string
   last_used_at?: string | null
+  /** per-key narrowing of the plan allowlist; empty follows the plan */
+  allowed_models: string[]
+}
+
+/** GET /v1/keys/:id — the list payload plus the fields only the detail page
+ * renders. */
+export type ApiKeyDetail = ApiKey & {
+  scopes: string
+  updated_at: string
 }

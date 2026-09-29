@@ -24,13 +24,14 @@ type APIKeyWithPlan struct {
 
 const apiKeyColumns = `
 	id, user_id, plan_id, name, key_hash, lookup_hash, display, scopes, disabled, last_used_at,
-	secret_wrapped_dek, secret_ciphertext, created_at, updated_at`
+	allowed_models, secret_wrapped_dek, secret_ciphertext, created_at, updated_at`
 
 func scanAPIKey(row rowScanner) (models.APIKey, error) {
 	var k models.APIKey
 	err := row.Scan(
 		&k.ID, &k.UserID, &k.PlanID, &k.Name, &k.KeyHash, &k.LookupHash, &k.Display, &k.Scopes, &k.Disabled,
-		&k.LastUsedAt, &k.Secret.WrappedDEK, &k.Secret.Ciphertext, &k.CreatedAt, &k.UpdatedAt,
+		&k.LastUsedAt, (*jsonStrings)(&k.AllowedModels), &k.Secret.WrappedDEK, &k.Secret.Ciphertext,
+		&k.CreatedAt, &k.UpdatedAt,
 	)
 	return k, translateNotFound(err)
 }
@@ -42,10 +43,10 @@ func (r *APIKeyRepository) Insert(ctx context.Context, k models.APIKey) error {
 
 func (r *APIKeyRepository) insertExec(ctx context.Context, k models.APIKey) error {
 	_, err := r.execContext(ctx, r.DB, `
-		INSERT INTO api_keys (id, user_id, plan_id, name, key_hash, lookup_hash, display, scopes, disabled, secret_wrapped_dek, secret_ciphertext)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+		INSERT INTO api_keys (id, user_id, plan_id, name, key_hash, lookup_hash, display, scopes, disabled, allowed_models, secret_wrapped_dek, secret_ciphertext)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
 		k.ID, k.UserID, k.PlanID, k.Name, k.KeyHash, k.LookupHash, k.Display, k.Scopes, k.Disabled,
-		k.Secret.WrappedDEK, k.Secret.Ciphertext,
+		jsonStrings(k.AllowedModels), k.Secret.WrappedDEK, k.Secret.Ciphertext,
 	)
 	return err
 }
@@ -59,7 +60,7 @@ func (r *APIKeyRepository) List(ctx context.Context, offset, limit int) ([]APIKe
 func (r *APIKeyRepository) listExec(ctx context.Context, offset, limit int) ([]APIKeyWithPlan, int, error) {
 	rows, err := r.queryContext(ctx, r.DB, `
 		SELECT k.id, k.user_id, k.plan_id, k.name, k.display, k.scopes, k.disabled, k.last_used_at,
-		       k.secret_wrapped_dek, k.secret_ciphertext, k.created_at, k.updated_at,
+		       k.allowed_models, k.secret_wrapped_dek, k.secret_ciphertext, k.created_at, k.updated_at,
 		       p.name, p.description,
 		       count(*) OVER () AS total
 		FROM api_keys k
@@ -80,7 +81,8 @@ func (r *APIKeyRepository) listExec(ctx context.Context, offset, limit int) ([]A
 		)
 		if err := rows.Scan(
 			&k.ID, &k.UserID, &k.PlanID, &k.Name, &k.Display, &k.Scopes, &k.Disabled, &k.LastUsedAt,
-			&k.Secret.WrappedDEK, &k.Secret.Ciphertext, &k.CreatedAt, &k.UpdatedAt,
+			(*jsonStrings)(&k.AllowedModels), &k.Secret.WrappedDEK, &k.Secret.Ciphertext,
+			&k.CreatedAt, &k.UpdatedAt,
 			&k.PlanName, &k.PlanNote, &totalRows,
 		); err != nil {
 			return nil, 0, errtrace.Wrap(err)
@@ -100,6 +102,29 @@ func (r *APIKeyRepository) getExec(ctx context.Context, id string) (models.APIKe
 	row := r.queryRowContext(ctx, r.DB,
 		`SELECT`+apiKeyColumns+` FROM api_keys WHERE id = $1`, id)
 	return scanAPIKey(row)
+}
+
+// GetWithPlan returns one key joined with its bound plan, the detail view's
+// shape. PlanName/PlanNote are nil when the key has no plan.
+func (r *APIKeyRepository) GetWithPlan(ctx context.Context, id string) (APIKeyWithPlan, error) {
+	return r.getWithPlanExec(ctx, id)
+}
+
+func (r *APIKeyRepository) getWithPlanExec(ctx context.Context, id string) (APIKeyWithPlan, error) {
+	var k APIKeyWithPlan
+	err := r.queryRowContext(ctx, r.DB, `
+		SELECT k.id, k.user_id, k.plan_id, k.name, k.display, k.scopes, k.disabled, k.last_used_at,
+		       k.allowed_models, k.secret_wrapped_dek, k.secret_ciphertext, k.created_at, k.updated_at,
+		       p.name, p.description
+		FROM api_keys k
+		LEFT JOIN plans p ON p.id = k.plan_id
+		WHERE k.id = $1`, id).Scan(
+		&k.ID, &k.UserID, &k.PlanID, &k.Name, &k.Display, &k.Scopes, &k.Disabled, &k.LastUsedAt,
+		(*jsonStrings)(&k.AllowedModels), &k.Secret.WrappedDEK, &k.Secret.Ciphertext,
+		&k.CreatedAt, &k.UpdatedAt,
+		&k.PlanName, &k.PlanNote,
+	)
+	return k, translateNotFound(err)
 }
 
 // GetByLookup resolves a key by its fast sha-256 lookup index, ahead of the
@@ -122,9 +147,9 @@ func (r *APIKeyRepository) Update(ctx context.Context, k models.APIKey) error {
 func (r *APIKeyRepository) updateExec(ctx context.Context, k models.APIKey) error {
 	_, err := r.execContext(ctx, r.DB, `
 		UPDATE api_keys
-		SET name = $2, plan_id = $3, scopes = $4, disabled = $5, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now')
+		SET name = $2, plan_id = $3, scopes = $4, disabled = $5, allowed_models = $6, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now')
 		WHERE id = $1`,
-		k.ID, k.Name, k.PlanID, k.Scopes, k.Disabled,
+		k.ID, k.Name, k.PlanID, k.Scopes, k.Disabled, jsonStrings(k.AllowedModels),
 	)
 	return err
 }

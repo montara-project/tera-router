@@ -51,6 +51,39 @@ func filterAllowedTargets(key models.APIKey, targets []target, chainName string,
 	return out
 }
 
+// narrowByAllowlist applies the key's own model allowlist and then its plan's,
+// returning the surviving targets and, when nothing survives, the layer that
+// rejected the request ("key" or "plan").
+//
+// A key allowlist only ever restricts: a key can never reach a model its plan
+// forbids, so the two layers compose to their intersection. Either layer being
+// empty means "no restriction at that layer".
+func narrowByAllowlist(key models.APIKey, targets []target, chainName string, plan *models.Plan) ([]target, string) {
+	if len(key.AllowedModels) > 0 {
+		targets = filterAllowedTargets(key, targets, chainName, key.AllowedModels)
+		if len(targets) == 0 {
+			return nil, "key"
+		}
+	}
+
+	if plan != nil && len(plan.AllowedModels) > 0 {
+		targets = filterAllowedTargets(key, targets, chainName, plan.AllowedModels)
+		if len(targets) == 0 {
+			return nil, "plan"
+		}
+	}
+
+	return targets, ""
+}
+
+// planName is the plan's name for log fields, or "" when the key has no plan.
+func planName(plan *models.Plan) string {
+	if plan == nil {
+		return ""
+	}
+	return plan.Name
+}
+
 // targetMatchesAny reports whether a target satisfies any allowed pattern.
 func targetMatchesAny(t target, allowed []string) bool {
 	bare := strings.ToLower(t.Model)

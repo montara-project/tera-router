@@ -14,7 +14,10 @@ type APIKey struct {
 	Scopes     string     `json:"scopes"`
 	Disabled   bool       `json:"disabled"`
 	LastUsedAt *time.Time `json:"last_used_at"`
-	Secret     Sealed     `json:"-"`
-	CreatedAt  time.Time  `json:"created_at"`
-	UpdatedAt  time.Time  `json:"updated_at"`
+	// AllowedModels narrows the assigned plan's allowlist for this key alone.
+	// Empty means the key follows its plan.
+	AllowedModels []string  `json:"allowed_models"`
+	Secret        Sealed    `json:"-"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }

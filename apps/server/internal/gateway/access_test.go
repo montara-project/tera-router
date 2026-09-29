@@ -107,6 +107,91 @@ func TestFilterAllowedTargetsChainNotAllowedIsEmpty(t *testing.T) {
 	}
 }
 
+// A key allowlist narrows the plan's: the request only survives where both
+// agree, so a key can never reach a model its plan forbids.
+func TestNarrowByAllowlistIntersectsKeyAndPlan(t *testing.T) {
+	targets := []target{
+		{Provider: "openai", Model: "gpt-4o"},
+		{Provider: "openai", Model: "gpt-4o-mini"},
+		{Provider: "anthropic", Model: "claude-sonnet"},
+	}
+	plan := &models.Plan{Name: "Pro", AllowedModels: []string{"gpt-4o", "claude-sonnet"}}
+
+	cases := []struct {
+		name      string
+		keyModels []string
+		want      []string
+		wantLayer string
+	}{
+		{
+			name:      "key allowlist narrower than plan",
+			keyModels: []string{"gpt-4o"},
+			want:      []string{"openai/gpt-4o"},
+		},
+		{
+			name:      "key allowlist wider than plan still intersects",
+			keyModels: []string{"gpt-4o", "gpt-4o-mini"},
+			want:      []string{"openai/gpt-4o"},
+		},
+		{
+			name:      "no key allowlist defers to plan",
+			keyModels: nil,
+			want:      []string{"openai/gpt-4o", "anthropic/claude-sonnet"},
+		},
+		{
+			name:      "key allowlist matching no target is denied at the key layer",
+			keyModels: []string{"gemini-*"},
+			wantLayer: "key",
+		},
+		{
+			name:      "key allowlist surviving its layer but not the plan is denied at the plan layer",
+			keyModels: []string{"gpt-4o-mini"},
+			wantLayer: "plan",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			key := models.APIKey{AllowedModels: tc.keyModels}
+			got, layer := narrowByAllowlist(key, targets, "", plan)
+
+			if layer != tc.wantLayer {
+				t.Fatalf("layer = %q, want %q", layer, tc.wantLayer)
+			}
+			if len(got) != len(tc.want) {
+				t.Fatalf("got %d targets (%v), want %d (%v)",
+					len(got), qualified(got), len(tc.want), tc.want)
+			}
+			for i := range got {
+				if qualified(got)[i] != tc.want[i] {
+					t.Errorf("target[%d] = %q, want %q", i, qualified(got)[i], tc.want[i])
+				}
+			}
+		})
+	}
+}
+
+// Without a plan, only the key allowlist applies.
+func TestNarrowByAllowlistWithoutPlan(t *testing.T) {
+	targets := []target{
+		{Provider: "openai", Model: "gpt-4o"},
+		{Provider: "deepseek", Model: "deepseek-chat"},
+	}
+
+	got, layer := narrowByAllowlist(models.APIKey{AllowedModels: []string{"deepseek-*"}}, targets, "", nil)
+	if layer != "" {
+		t.Fatalf("layer = %q, want no rejection", layer)
+	}
+	if len(got) != 1 || qualified(got)[0] != "deepseek/deepseek-chat" {
+		t.Fatalf("got %v, want only the deepseek target", qualified(got))
+	}
+
+	got, layer = narrowByAllowlist(models.APIKey{AllowedModels: []string{"gemini-*"}}, targets, "", nil)
+	if layer != "key" || len(got) != 0 {
+		t.Fatalf("got (%v, %q), want none denied at the key layer", qualified(got), layer)
+	}
+}
+
 func TestTargetMatchesAny(t *testing.T) {
 	tgt := target{Provider: "anthropic", Model: "claude-3-5-sonnet", Alias: "smart"}
 

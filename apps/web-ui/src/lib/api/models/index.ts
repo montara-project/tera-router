@@ -5,6 +5,7 @@ export namespace Models {
   export type TestResult = import('./account').TestResult
   export type AliasTarget = import('./provider-catalog').AliasTarget
   export type ApiKey = import('./key').ApiKey
+  export type ApiKeyDetail = import('./key').ApiKeyDetail
   export type ApiKeyStatus = import('./key').ApiKeyStatus
   export type AppSettings = import('./settings').AppSettings
   export type Budget = import('./budget').Budget

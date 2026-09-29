@@ -19,6 +19,7 @@ import { Route as protectedanalyticsSettingsIndexRouteImport } from './routes/(p
 import { Route as protectedanalyticsSystemIndexRouteImport } from './routes/(protected)/(analytics)/system/index'
 import { Route as protectedanalyticsUsageIndexRouteImport } from './routes/(protected)/(analytics)/usage/index'
 import { Route as protectedconnectionKeysIndexRouteImport } from './routes/(protected)/(connection)/keys/index'
+import { Route as protectedconnectionKeysKeyIdRouteImport } from './routes/(protected)/(connection)/keys/$keyId'
 import { Route as protectedconnectionMediaIndexRouteImport } from './routes/(protected)/(connection)/media/index'
 import { Route as protectedconnectionProvidersIndexRouteImport } from './routes/(protected)/(connection)/providers/index'
 import { Route as protectedconnectionProvidersProviderIdRouteImport } from './routes/(protected)/(connection)/providers/$providerId'
@@ -84,6 +85,12 @@ const protectedconnectionKeysIndexRoute =
   protectedconnectionKeysIndexRouteImport.update({
     id: '/(connection)/keys/',
     path: '/keys/',
+    getParentRoute: () => protectedRouteRoute,
+  } as any)
+const protectedconnectionKeysKeyIdRoute =
+  protectedconnectionKeysKeyIdRouteImport.update({
+    id: '/(connection)/keys/$keyId',
+    path: '/keys/$keyId',
     getParentRoute: () => protectedRouteRoute,
   } as any)
 const protectedconnectionMediaIndexRoute =
@@ -157,6 +164,7 @@ export interface FileRoutesByFullPath {
   '/': typeof authloginIndexRoute
   '/register/': typeof authRegisterIndexRoute
   '/dashboard/': typeof protectedDashboardIndexRoute
+  '/keys/$keyId': typeof protectedconnectionKeysKeyIdRoute
   '/providers/$providerId': typeof protectedconnectionProvidersProviderIdRoute
   '/plans/': typeof protectedanalyticsPlansIndexRoute
   '/quota/': typeof protectedanalyticsQuotaIndexRoute
@@ -179,6 +187,7 @@ export interface FileRoutesByTo {
   '/': typeof authloginIndexRoute
   '/register': typeof authRegisterIndexRoute
   '/dashboard': typeof protectedDashboardIndexRoute
+  '/keys/$keyId': typeof protectedconnectionKeysKeyIdRoute
   '/providers/$providerId': typeof protectedconnectionProvidersProviderIdRoute
   '/plans': typeof protectedanalyticsPlansIndexRoute
   '/quota': typeof protectedanalyticsQuotaIndexRoute
@@ -203,6 +212,7 @@ export interface FileRoutesById {
   '/(auth)/(login)/': typeof authloginIndexRoute
   '/(auth)/register/': typeof authRegisterIndexRoute
   '/(protected)/dashboard/': typeof protectedDashboardIndexRoute
+  '/(protected)/(connection)/keys/$keyId': typeof protectedconnectionKeysKeyIdRoute
   '/(protected)/(connection)/providers/$providerId': typeof protectedconnectionProvidersProviderIdRoute
   '/(protected)/(analytics)/plans/': typeof protectedanalyticsPlansIndexRoute
   '/(protected)/(analytics)/quota/': typeof protectedanalyticsQuotaIndexRoute
@@ -227,6 +237,7 @@ export interface FileRouteTypes {
     | '/'
     | '/register/'
     | '/dashboard/'
+    | '/keys/$keyId'
     | '/providers/$providerId'
     | '/plans/'
     | '/quota/'
@@ -249,6 +260,7 @@ export interface FileRouteTypes {
     | '/'
     | '/register'
     | '/dashboard'
+    | '/keys/$keyId'
     | '/providers/$providerId'
     | '/plans'
     | '/quota'
@@ -272,6 +284,7 @@ export interface FileRouteTypes {
     | '/(auth)/(login)/'
     | '/(auth)/register/'
     | '/(protected)/dashboard/'
+    | '/(protected)/(connection)/keys/$keyId'
     | '/(protected)/(connection)/providers/$providerId'
     | '/(protected)/(analytics)/plans/'
     | '/(protected)/(analytics)/quota/'
@@ -369,6 +382,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof protectedconnectionKeysIndexRouteImport
       parentRoute: typeof protectedRouteRoute
     }
+    '/(protected)/(connection)/keys/$keyId': {
+      id: '/(protected)/(connection)/keys/$keyId'
+      path: '/keys/$keyId'
+      fullPath: '/keys/$keyId'
+      preLoaderRoute: typeof protectedconnectionKeysKeyIdRouteImport
+      parentRoute: typeof protectedRouteRoute
+    }
     '/(protected)/(connection)/media/': {
       id: '/(protected)/(connection)/media/'
       path: '/media'
@@ -451,6 +471,7 @@ declare module '@tanstack/react-router' {
 
 interface protectedRouteRouteChildren {
   protectedDashboardIndexRoute: typeof protectedDashboardIndexRoute
+  protectedconnectionKeysKeyIdRoute: typeof protectedconnectionKeysKeyIdRoute
   protectedconnectionProvidersProviderIdRoute: typeof protectedconnectionProvidersProviderIdRoute
   protectedanalyticsPlansIndexRoute: typeof protectedanalyticsPlansIndexRoute
   protectedanalyticsQuotaIndexRoute: typeof protectedanalyticsQuotaIndexRoute
@@ -472,6 +493,7 @@ interface protectedRouteRouteChildren {
 
 const protectedRouteRouteChildren: protectedRouteRouteChildren = {
   protectedDashboardIndexRoute: protectedDashboardIndexRoute,
+  protectedconnectionKeysKeyIdRoute: protectedconnectionKeysKeyIdRoute,
   protectedconnectionProvidersProviderIdRoute:
     protectedconnectionProvidersProviderIdRoute,
   protectedanalyticsPlansIndexRoute: protectedanalyticsPlansIndexRoute,

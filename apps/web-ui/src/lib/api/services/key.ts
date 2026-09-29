@@ -20,10 +20,18 @@ const resources = (): KeyResources => {
       const url = path
       return api.get(url, { params })
     },
+    get: (id) => {
+      const url = `${path}/${id}`
+      return api.get(url)
+    },
     store: (payload) => {
       const url = path
       // The server requires a name; default one when the caller omits it.
       return api.post(url, parseDto(CreateKeySchema, { name: 'New Key', ...payload }))
+    },
+    update: (id, payload) => {
+      const url = `${path}/${id}`
+      return api.patch(url, parseDto(UpdateKeySchema, payload))
     },
     /** enable/disable a key (PATCH /v1/keys/:id) */
     toggleStatus: (id, disabled) => {

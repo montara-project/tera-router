@@ -13,6 +13,16 @@ const list = (params?: { offset?: number; limit?: number }) =>
     },
   })
 
+const get = (id: string) =>
+  queryOptions({
+    queryKey: [KEY_QUERY_KEY, 'detail', id],
+    queryFn: async () => {
+      const res = await services.keys.get(id)
+      return res.data.data
+    },
+  })
+
 export const keyQueries = {
   list,
+  get,
 } as const

@@ -10,6 +10,7 @@ import {
   IconTrash,
 } from '@tabler/icons-react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import React, { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
@@ -167,13 +168,15 @@ export function KeysColumn({ loading }: BaseColumnProps) {
       {
         id: 'details',
         header: '',
-        cell: () => {
+        cell: ({ row }) => {
           return loading ? (
             <Skeleton className="h-5 w-full" />
           ) : (
-            <Button variant="outline">
-              <span>Details</span>
-              <IconArrowRight />
+            <Button asChild variant="outline">
+              <Link params={{ keyId: row.original.id }} to="/keys/$keyId">
+                <span>Details</span>
+                <IconArrowRight />
+              </Link>
             </Button>
           )
         },

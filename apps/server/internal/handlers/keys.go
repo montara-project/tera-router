@@ -33,16 +33,21 @@ func keyView(k repositories.APIKeyWithPlan) fiber.Map {
 			planNote = *k.PlanNote
 		}
 	}
+	allowedModels := k.AllowedModels
+	if allowedModels == nil {
+		allowedModels = []string{}
+	}
 	return fiber.Map{
-		"id":           k.ID,
-		"name":         k.Name,
-		"status":       status,
-		"key_preview":  k.Display,
-		"plan_label":   planLabel,
-		"plan_note":    planNote,
-		"created_at":   k.CreatedAt,
-		"plan_id":      k.PlanID,
-		"last_used_at": k.LastUsedAt,
+		"id":             k.ID,
+		"name":           k.Name,
+		"status":         status,
+		"key_preview":    k.Display,
+		"plan_label":     planLabel,
+		"plan_note":      planNote,
+		"created_at":     k.CreatedAt,
+		"plan_id":        k.PlanID,
+		"last_used_at":   k.LastUsedAt,
+		"allowed_models": allowedModels,
 	}
 }
 
@@ -92,6 +97,9 @@ func (h *keysHandler) Store(c fiber.Ctx) error {
 		Scopes:     req.Scopes,
 		Secret:     toModelsSealed(sealed),
 	}
+	if req.AllowedModels != nil {
+		key.AllowedModels = *req.AllowedModels
+	}
 	if req.PlanID != "" {
 		if _, err := h.app.Repos.Plans.Get(c.Context(), req.PlanID); err != nil {
 			return fmt.Errorf("plan %s: %w", req.PlanID, err)
@@ -116,23 +124,23 @@ func (h *keysHandler) Store(c fiber.Ctx) error {
 	}, "Key created")
 }
 
+// Get returns the full detail view for one key: the list payload plus the
+// stored scopes and update timestamp the detail page renders.
 func (h *keysHandler) Get(c fiber.Ctx) error {
 	id, err := lib.ContextParamUUID(c, "id")
 	if err != nil {
 		return apperr.ErrBadRequest
 	}
 
-	key, err := h.app.Repos.APIKeys.Get(c.Context(), id.String())
+	key, err := h.app.Repos.APIKeys.GetWithPlan(c.Context(), id.String())
 	if err != nil {
 		return err
 	}
-	return dtos.OK(c, fiber.Map{
-		"id":          key.ID,
-		"name":        key.Name,
-		"status":      statusLabel(key.Disabled),
-		"key_preview": key.Display,
-		"created_at":  key.CreatedAt,
-	})
+
+	view := keyView(key)
+	view["scopes"] = key.Scopes
+	view["updated_at"] = key.UpdatedAt
+	return dtos.OK(c, view)
 }
 
 // Update mutates name/plan/scopes/disabled on an existing key.
@@ -169,6 +177,9 @@ func (h *keysHandler) Update(c fiber.Ctx) error {
 	}
 	if req.Disabled != nil {
 		key.Disabled = *req.Disabled
+	}
+	if req.AllowedModels != nil {
+		key.AllowedModels = *req.AllowedModels
 	}
 
 	if err := h.app.Repos.APIKeys.Update(c.Context(), key); err != nil {

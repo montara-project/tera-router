@@ -1,6 +1,11 @@
 import { z } from 'zod'
 
-import { optionalBoolean, optionalString, requiredString } from '@/lib/validation'
+import {
+  optionalBoolean,
+  optionalString,
+  optionalStringArray,
+  requiredString,
+} from '@/lib/validation'
 
 /**
  * Key minting body (POST /v1/keys). The server mints the key material; only
@@ -10,6 +15,7 @@ export const CreateKeySchema = z.object({
   name: requiredString('name'),
   plan_id: optionalString('plan'),
   scopes: optionalString('scopes'),
+  allowed_models: optionalStringArray('allowed models'),
 })
 
 /**
@@ -21,6 +27,7 @@ export const UpdateKeySchema = z.object({
   plan_id: optionalString('plan'),
   scopes: optionalString('scopes'),
   disabled: optionalBoolean('disabled'),
+  allowed_models: optionalStringArray('allowed models'),
 })
 
 export type CreateKeyDto = z.infer<typeof CreateKeySchema>
