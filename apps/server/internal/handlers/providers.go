@@ -17,19 +17,6 @@ type providersHandler struct {
 	app *app.Application
 }
 
-// ProviderView matches the web UI Provider model: id, name, slug, connected,
-// accounts, capabilities, official.
-type ProviderView struct {
-	ID           string   `json:"id"`
-	Name         string   `json:"name"`
-	Slug         string   `json:"slug"`
-	Connected    bool     `json:"connected"`
-	Accounts     int      `json:"accounts,omitempty"`
-	Capabilities []string `json:"capabilities"`
-	Official     bool     `json:"official,omitempty"`
-	Notice       string   `json:"notice,omitempty"`
-}
-
 // customProviderFrom converts a CustomProvider DTO into the stored model.
 func customProviderFrom(d dtos.CustomProvider) models.CustomProvider {
 	p := models.CustomProvider{
@@ -75,16 +62,13 @@ func (h *providersHandler) Index(c fiber.Ctx) error {
 		customSlugs[c.Slug] = true
 	}
 
-	overview := struct {
-		Connected []ProviderView `json:"connected"`
-		Available []ProviderView `json:"available"`
-	}{
-		Connected: []ProviderView{},
-		Available: []ProviderView{},
+	overview := dtos.ProviderOverview{
+		Connected: []dtos.ProviderView{},
+		Available: []dtos.ProviderView{},
 	}
 
 	for _, spec := range Catalog() {
-		view := ProviderView{
+		view := dtos.ProviderView{
 			ID:           "prov-" + spec.Slug,
 			Name:         spec.Name,
 			Slug:         spec.Slug,
@@ -107,7 +91,7 @@ func (h *providersHandler) Index(c fiber.Ctx) error {
 		if _, ok := CatalogLookup(c.Slug); ok {
 			continue
 		}
-		overview.Connected = append(overview.Connected, ProviderView{
+		overview.Connected = append(overview.Connected, dtos.ProviderView{
 			ID:           c.ID,
 			Name:         c.Name,
 			Slug:         c.Slug,

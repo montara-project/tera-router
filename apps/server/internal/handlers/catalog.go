@@ -1,39 +1,14 @@
 package handlers
 
-// CatalogProvider is a built-in provider spec, ported (condensed) from
-// IDRouter's connectors catalog: the subset of metadata the dashboard needs
-// to render the providers page and validate credentials.
-type CatalogProvider struct {
-	// Slug is the stable identifier used by accounts and the web UI.
-	Slug string `json:"slug"`
-	// Name is the human-readable display name.
-	Name string `json:"name"`
-	// Capabilities lists the service kinds this provider serves
-	// (chat, embeddings, image, tts, stt, search).
-	Capabilities []string `json:"capabilities"`
-	// BaseURL is the default upstream endpoint for API-key providers.
-	BaseURL string `json:"base_url,omitempty"`
-	// AuthKind is the default authentication mechanism
-	// (api_key, oauth, none).
-	AuthKind string `json:"auth_kind"`
-	// AuthModes lists every supported mechanism.
-	AuthModes []string `json:"auth_modes"`
-	// Official marks first-party providers; subscription/OAuth-session
-	// providers are false and carry usage risk.
-	Official bool `json:"official"`
-	// Pinned providers render at the top of the listing.
-	Pinned bool `json:"pinned"`
-	// Notice is an optional human-readable usage note.
-	Notice string `json:"notice,omitempty"`
-}
+import "tera-router/server/internal/dtos"
 
 func llmCaps(extra ...string) []string {
 	return append([]string{"chat"}, extra...)
 }
 
 // Catalog returns the built-in provider specs.
-func Catalog() []CatalogProvider {
-	return []CatalogProvider{
+func Catalog() []dtos.CatalogProvider {
+	return []dtos.CatalogProvider{
 		{Slug: "custom-openai", Name: "Custom (OpenAI-compatible)", Capabilities: llmCaps("embeddings", "image", "tts", "stt"), AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true, Pinned: true},
 		{Slug: "custom-anthropic", Name: "Custom (Anthropic-compatible)", Capabilities: llmCaps(), AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true, Pinned: true},
 		{Slug: "openai", Name: "OpenAI", BaseURL: "https://api.openai.com/v1", Capabilities: llmCaps("embeddings", "image", "tts", "stt", "search"), AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true},
@@ -68,11 +43,11 @@ func Catalog() []CatalogProvider {
 }
 
 // CatalogLookup finds one provider spec by slug.
-func CatalogLookup(slug string) (CatalogProvider, bool) {
+func CatalogLookup(slug string) (dtos.CatalogProvider, bool) {
 	for _, p := range Catalog() {
 		if p.Slug == slug {
 			return p, true
 		}
 	}
-	return CatalogProvider{}, false
+	return dtos.CatalogProvider{}, false
 }

@@ -17,45 +17,7 @@ type quotaHandler struct {
 	app *app.Application
 }
 
-// QuotaAccount is one row of the quota page. Field names match the web UI
-// QuotaAccount model.
-type QuotaAccount struct {
-	ID              string  `json:"id"`
-	Name            string  `json:"name"`
-	Provider        string  `json:"provider"`
-	AuthLabel       string  `json:"auth_label"`
-	Initials        string  `json:"initials"`
-	Status          string  `json:"status"`
-	Priority        int     `json:"priority"`
-	QuotaVisibility string  `json:"quota_visibility"`
-	QuotaNote       string  `json:"quota_note"`
-	Requests        int64   `json:"requests"`
-	InputTokens     int64   `json:"input_tokens"`
-	OutputTokens    int64   `json:"output_tokens"`
-	AttributedCost  float64 `json:"attributed_cost"`
-	Attention       bool    `json:"attention"`
-	Depleted        bool    `json:"depleted"`
-}
-
-// quotaSummary totals the account list for the header cards. Field names
-// match the web UI QuotaSummary model.
-type quotaSummary struct {
-	TotalAccounts     int     `json:"total_accounts"`
-	ActiveAccounts    int     `json:"active_accounts"`
-	Paused            int     `json:"paused"`
-	Attention         int     `json:"attention"`
-	Depleted          int     `json:"depleted"`
-	Requests          int64   `json:"requests"`
-	InputTokens       int64   `json:"input_tokens"`
-	OutputTokens      int64   `json:"output_tokens"`
-	AttributedCost    float64 `json:"attributed_cost"`
-	AccountsReporting int     `json:"accounts_reporting"`
-	QuotaCapable      int     `json:"quota_capable"`
-	UsageOnly         int     `json:"usage_only"`
-	NotReported       int     `json:"not_reported"`
-}
-
-func (h *quotaHandler) quotaRows(ctx context.Context, rng string) ([]QuotaAccount, error) {
+func (h *quotaHandler) quotaRows(ctx context.Context, rng string) ([]dtos.QuotaAccount, error) {
 	accounts, _, err := h.app.Repos.Accounts.List(ctx, 0, 100)
 	if err != nil {
 		return nil, err
@@ -70,14 +32,14 @@ func (h *quotaHandler) quotaRows(ctx context.Context, rng string) ([]QuotaAccoun
 		usageByAccount[u.AccountID] = u
 	}
 
-	out := make([]QuotaAccount, 0, len(accounts))
+	out := make([]dtos.QuotaAccount, 0, len(accounts))
 	for _, a := range accounts {
 		u := usageByAccount[a.ID]
 		status := "active"
 		if a.Disabled {
 			status = "paused"
 		}
-		out = append(out, QuotaAccount{
+		out = append(out, dtos.QuotaAccount{
 			ID:              a.ID,
 			Name:            a.Label,
 			Provider:        a.Provider,
@@ -113,7 +75,7 @@ func (h *quotaHandler) Overview(c fiber.Ctx) error {
 		return err
 	}
 
-	summary := quotaSummary{TotalAccounts: len(accounts)}
+	summary := dtos.QuotaSummary{TotalAccounts: len(accounts)}
 	for _, a := range accounts {
 		summary.Requests += a.Requests
 		summary.InputTokens += a.InputTokens

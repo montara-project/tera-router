@@ -19,8 +19,8 @@ func (h *consoleHandler) Index(c fiber.Ctx) error {
 // Clear empties the console feed.
 func (h *consoleHandler) Clear(c fiber.Ctx) error {
 	ConsoleClear()
-	ConsolePush(LogLevelInfo, "Console cleared", "")
-	return dtos.List(c, []ConsoleEntry{}, dtos.Metadata{})
+	ConsolePush(dtos.LogLevelInfo, "Console cleared", "")
+	return dtos.List(c, []dtos.ConsoleEntry{}, dtos.Metadata{})
 }
 
 type systemHandler struct {
@@ -36,15 +36,6 @@ func (h *systemHandler) Stats(c fiber.Ctx) error {
 	return dtos.OK(c, stats)
 }
 
-// MediaProvider is one media-capable provider entry, ported from IDRouter's
-// connectors media catalog.
-type MediaProvider struct {
-	ID           string   `json:"id"`
-	Name         string   `json:"name"`
-	Slug         string   `json:"slug"`
-	Capabilities []string `json:"capabilities"`
-}
-
 type mediaHandler struct {
 	app *app.Application
 }
@@ -52,7 +43,7 @@ type mediaHandler struct {
 // Index returns the static media provider catalog (embeddings, TTS, STT,
 // image, search, image-to-text).
 func (h *mediaHandler) Index(c fiber.Ctx) error {
-	providers := []MediaProvider{
+	providers := []dtos.MediaProvider{
 		{ID: "media-openrouter", Name: "OpenRouter", Slug: "openrouter", Capabilities: []string{"embed", "image_to_text"}},
 		{ID: "media-nvidia", Name: "NVIDIA NIM", Slug: "nvidia", Capabilities: []string{"tts", "embed"}},
 		{ID: "media-vllm", Name: "vLLM", Slug: "vllm", Capabilities: []string{"embed"}},

@@ -80,16 +80,6 @@ func (h *budgetsHandler) Index(c fiber.Ctx) error {
 	return dtos.List(c, budgets, dtos.TotalMeta(len(budgets)))
 }
 
-// budgetStatus is one row of the budgets/status endpoint: the budget plus
-// its spend over the current period.
-type budgetStatus struct {
-	models.Budget
-	SpentMicros int64   `json:"spent_micros"`
-	SpentTokens int64   `json:"spent_tokens"`
-	SpendPct    float64 `json:"spend_pct"`
-	TokenPct    float64 `json:"token_pct"`
-}
-
 // Status computes spend vs limit for every budget over its current period,
 // refreshing lazy allocations when the bucket rolled over.
 func (h *budgetsHandler) Status(c fiber.Ctx) error {
@@ -98,7 +88,7 @@ func (h *budgetsHandler) Status(c fiber.Ctx) error {
 		return err
 	}
 
-	out := make([]budgetStatus, 0, len(budgets))
+	out := make([]dtos.BudgetStatus, 0, len(budgets))
 	for _, b := range budgets {
 		if bucket, _ := periodWindow(b.Period, time.Now()); b.PeriodBucket != bucket {
 			b = resetAllocations(b, bucket)
@@ -113,7 +103,7 @@ func (h *budgetsHandler) Status(c fiber.Ctx) error {
 			return err
 		}
 
-		out = append(out, budgetStatus{
+		out = append(out, dtos.BudgetStatus{
 			Budget:      b,
 			SpentMicros: spent.CostMicros,
 			SpentTokens: spent.PromptTokens + spent.CompletionTokens,

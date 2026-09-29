@@ -4,44 +4,27 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"tera-router/server/internal/dtos"
 )
-
-// LogLevel classifies console feed entries.
-type LogLevel string
-
-const (
-	LogLevelDebug LogLevel = "debug"
-	LogLevelInfo  LogLevel = "info"
-	LogLevelWarn  LogLevel = "warn"
-	LogLevelError LogLevel = "error"
-)
-
-// ConsoleEntry is one console feed line.
-type ConsoleEntry struct {
-	ID      int64    `json:"id"`
-	Time    string   `json:"time"`
-	Level   LogLevel `json:"level"`
-	Message string   `json:"message"`
-	Detail  string   `json:"detail,omitempty"`
-}
 
 // consoleCapacity bounds the ring buffer; the web client renders at most 500.
 const consoleCapacity = 500
 
 var console = struct {
 	mu      sync.Mutex
-	entries []ConsoleEntry
+	entries []dtos.ConsoleEntry
 	nextID  int64
-}{entries: make([]ConsoleEntry, 0, consoleCapacity)}
+}{entries: make([]dtos.ConsoleEntry, 0, consoleCapacity)}
 
 // ConsolePush appends one entry to the console ring buffer, dropping the
 // oldest beyond capacity. Process-wide, mirroring IDRouter's consolelog.
-func ConsolePush(level LogLevel, message, detail string) {
+func ConsolePush(level dtos.LogLevel, message, detail string) {
 	console.mu.Lock()
 	defer console.mu.Unlock()
 
 	console.nextID++
-	console.entries = append(console.entries, ConsoleEntry{
+	console.entries = append(console.entries, dtos.ConsoleEntry{
 		ID:      console.nextID,
 		Time:    time.Now().UTC().Format("15:04:05.000"),
 		Level:   level,
@@ -54,11 +37,11 @@ func ConsolePush(level LogLevel, message, detail string) {
 }
 
 // ConsoleList returns a snapshot of the buffer, newest last.
-func ConsoleList() []ConsoleEntry {
+func ConsoleList() []dtos.ConsoleEntry {
 	console.mu.Lock()
 	defer console.mu.Unlock()
 
-	out := make([]ConsoleEntry, len(console.entries))
+	out := make([]dtos.ConsoleEntry, len(console.entries))
 	copy(out, console.entries)
 	return out
 }
@@ -72,5 +55,5 @@ func ConsoleClear() {
 
 // consoleInfof logs a formatted info line into the feed.
 func consoleInfof(format string, args ...any) {
-	ConsolePush(LogLevelInfo, fmt.Sprintf(format, args...), "")
+	ConsolePush(dtos.LogLevelInfo, fmt.Sprintf(format, args...), "")
 }

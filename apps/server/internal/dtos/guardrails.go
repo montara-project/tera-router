@@ -33,6 +33,12 @@ func (d *GuardrailsSettingsRequest) Validate(v *validator.MapValidator) {
 	v.Field("external_detectors").Required()
 }
 
+// GuardrailsSettings is the stored settings document for the tenant-wide
+// toggle, persisted as JSON under the "guardrails" settings key.
+type GuardrailsSettings struct {
+	ExternalDetectors bool `json:"external_detectors"`
+}
+
 // EvaluateRequest is the Test Policy body: sample text plus the draft
 // detector config to run it against.
 type EvaluateRequest struct {

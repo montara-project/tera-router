@@ -25,23 +25,18 @@ type guardrailsHandler struct {
 	app *app.Application
 }
 
-// guardrailsSettings is the settings document for the tenant-wide toggle.
-type guardrailsSettings struct {
-	ExternalDetectors bool `json:"external_detectors"`
-}
-
 // loadGuardrailsSettings reads the toggle, defaulting to enabled.
-func loadGuardrailsSettings(ctx context.Context, a *app.Application) (guardrailsSettings, error) {
+func loadGuardrailsSettings(ctx context.Context, a *app.Application) (dtos.GuardrailsSettings, error) {
 	raw, err := a.Repos.Settings.Get(ctx, guardrailsSettingsKey)
 	if errors.Is(err, apperr.ErrNotFound) {
-		return guardrailsSettings{ExternalDetectors: true}, nil
+		return dtos.GuardrailsSettings{ExternalDetectors: true}, nil
 	}
 	if err != nil {
-		return guardrailsSettings{}, err
+		return dtos.GuardrailsSettings{}, err
 	}
-	var settings guardrailsSettings
+	var settings dtos.GuardrailsSettings
 	if err := json.Unmarshal([]byte(raw), &settings); err != nil {
-		return guardrailsSettings{ExternalDetectors: true}, nil
+		return dtos.GuardrailsSettings{ExternalDetectors: true}, nil
 	}
 	return settings, nil
 }
@@ -173,7 +168,7 @@ func (h *guardrailsHandler) UpdateSettings(c fiber.Ctx) error {
 		return err
 	}
 
-	settings := guardrailsSettings{ExternalDetectors: *req.ExternalDetectors}
+	settings := dtos.GuardrailsSettings{ExternalDetectors: *req.ExternalDetectors}
 	raw, err := json.Marshal(settings)
 	if err != nil {
 		return err

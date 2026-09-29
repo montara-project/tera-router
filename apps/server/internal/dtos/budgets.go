@@ -1,6 +1,9 @@
 package dtos
 
-import "tera-router/server/internal/lib/validator"
+import (
+	"tera-router/server/internal/lib/validator"
+	"tera-router/server/internal/models"
+)
 
 // Budget is the budget create/update request body
 // (POST/PUT/PATCH /v1/budgets).
@@ -17,4 +20,14 @@ type Budget struct {
 func (d *Budget) Validate(v *validator.MapValidator) {
 	v.Field("scope_kind").WithinS("tenant", "api_key", "account")
 	v.Field("period").WithinS("daily", "weekly", "monthly")
+}
+
+// BudgetStatus is one row of the budgets/status endpoint: the budget plus
+// its spend over the current period.
+type BudgetStatus struct {
+	models.Budget
+	SpentMicros int64   `json:"spent_micros"`
+	SpentTokens int64   `json:"spent_tokens"`
+	SpendPct    float64 `json:"spend_pct"`
+	TokenPct    float64 `json:"token_pct"`
 }

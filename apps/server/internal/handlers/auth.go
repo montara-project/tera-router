@@ -51,21 +51,21 @@ func (h *authHandler) SignIn(c fiber.Ctx) error {
 }
 
 // signIn verifies the credentials and issues a new token pair.
-func (h *authHandler) signIn(ctx context.Context, email, plainPassword string) (Session, error) {
+func (h *authHandler) signIn(ctx context.Context, email, plainPassword string) (dtos.Session, error) {
 	user, err := h.app.Repos.Users.GetByEmail(ctx, email)
 	if err != nil {
 		if errors.Is(err, apperr.ErrNotFound) {
-			return Session{}, ErrBadCredentials
+			return dtos.Session{}, ErrBadCredentials
 		}
-		return Session{}, err
+		return dtos.Session{}, err
 	}
 	if !user.IsActive || user.IsBlocked {
-		return Session{}, ErrBadCredentials
+		return dtos.Session{}, ErrBadCredentials
 	}
 
 	ok, err := password.Verify(plainPassword, user.PasswordHash)
 	if err != nil || !ok {
-		return Session{}, ErrBadCredentials
+		return dtos.Session{}, ErrBadCredentials
 	}
 
 	return h.issueSession(ctx, user)
@@ -141,32 +141,17 @@ func (h *authHandler) GoogleRedirect(c fiber.Ctx) error {
 	return dtos.Message(c, fiber.StatusNotImplemented, "Google sign-in is not configured yet")
 }
 
-// Session is the sign-in result: the user plus freshly issued tokens.
-type Session struct {
-	User   models.User `json:"-"`
-	Tokens TokenPair   `json:"-"`
-}
-
-// TokenPair carries the three tokens the web client stores.
-type TokenPair struct {
-	AccessToken  string    `json:"access_token"`
-	RefreshToken string    `json:"refresh_token"`
-	IDToken      string    `json:"id_token"`
-	ExpiresAt    time.Time `json:"expires_at"`
-	ExpiresIn    int       `json:"expires_in"`
-}
-
-func (h *authHandler) issueSession(ctx context.Context, user models.User) (Session, error) {
+func (h *authHandler) issueSession(ctx context.Context, user models.User) (dtos.Session, error) {
 	now := time.Now()
 
 	access, expiresAt, err := token.SignAccess(h.app.Config.App.Secret, user.ID, user.Email, user.Role.Name, now, accessTTL)
 	if err != nil {
-		return Session{}, err
+		return dtos.Session{}, err
 	}
 
 	refreshRaw, refreshHash, err := token.NewRefresh()
 	if err != nil {
-		return Session{}, err
+		return dtos.Session{}, err
 	}
 	rt := models.RefreshToken{
 		ID:        uuid.NewString(),
@@ -175,12 +160,12 @@ func (h *authHandler) issueSession(ctx context.Context, user models.User) (Sessi
 		ExpiresAt: now.Add(refreshTTL),
 	}
 	if err := h.app.Repos.Refresh.Insert(ctx, rt); err != nil {
-		return Session{}, err
+		return dtos.Session{}, err
 	}
 
-	return Session{
+	return dtos.Session{
 		User: user,
-		Tokens: TokenPair{
+		Tokens: dtos.TokenPair{
 			AccessToken:  access,
 			RefreshToken: refreshRaw,
 			IDToken:      access,
@@ -191,7 +176,7 @@ func (h *authHandler) issueSession(ctx context.Context, user models.User) (Sessi
 }
 
 // sessionView renders the token response contract of the web UI.
-func sessionView(s Session) fiber.Map {
+func sessionView(s dtos.Session) fiber.Map {
 	return fiber.Map{
 		"uid":           s.User.ID,
 		"display_name":  displayName(s.User),

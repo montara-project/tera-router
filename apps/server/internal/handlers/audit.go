@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 
 	"tera-router/server/internal/app"
+	"tera-router/server/internal/dtos"
 	"tera-router/server/internal/lib"
 	"tera-router/server/internal/models"
 
@@ -39,8 +40,8 @@ func auditRecord(ctx context.Context, a *app.Application, actor, action, target 
 		Detail: raw,
 	}
 	if err := a.Repos.Audit.Insert(ctx, entry); err != nil {
-		ConsolePush(LogLevelWarn, "audit write failed for "+action+": "+err.Error(), "")
+		ConsolePush(dtos.LogLevelWarn, "audit write failed for "+action+": "+err.Error(), "")
 		return
 	}
-	ConsolePush(LogLevelInfo, action+" · "+target, raw)
+	ConsolePush(dtos.LogLevelInfo, action+" · "+target, raw)
 }
