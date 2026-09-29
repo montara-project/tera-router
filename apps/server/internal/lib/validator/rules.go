@@ -5,8 +5,6 @@ import (
 	"regexp"
 	"slices"
 	"strings"
-
-	"github.com/google/uuid"
 )
 
 // rule reports a failure message; ok=false means validation failed. data
@@ -34,13 +32,7 @@ func (v *FieldValidator) String() *FieldValidator {
 }
 
 func (v *FieldValidator) Regex(pattern string) *FieldValidator {
-	return v.Match(regexp.MustCompile(pattern))
-}
-
-// Match validates a string against a pre-compiled pattern; prefer it over
-// Regex when the pattern is a package-level var so it is not recompiled per
-// request.
-func (v *FieldValidator) Match(re *regexp.Regexp) *FieldValidator {
+	re := regexp.MustCompile(pattern)
 	v.registerRule(func(key string, data interface{}) (string, bool) {
 		if data == nil {
 			return "", true
@@ -72,21 +64,6 @@ func (v *FieldValidator) WithinS(vals ...string) *FieldValidator {
 	v.registerRule(func(key string, data interface{}) (string, bool) {
 		if s, ok := data.(string); ok && !slices.Contains(vals, s) {
 			return fmt.Sprintf("%s may only contain %s", key, strings.Join(vals, ", ")), false
-		}
-		return "", true
-	})
-	return v
-}
-
-func (v *FieldValidator) UUID() *FieldValidator {
-	v.registerRule(func(key string, data interface{}) (string, bool) {
-		if data == nil {
-			return "", true
-		}
-		if s, ok := data.(string); !ok {
-			return fmt.Sprintf("%s must be a valid UUID", key), false
-		} else if _, err := uuid.Parse(s); err != nil {
-			return fmt.Sprintf("%s must be a valid UUID", key), false
 		}
 		return "", true
 	})

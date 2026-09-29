@@ -12,7 +12,6 @@ import (
 type SystemService struct {
 	mu      sync.Mutex
 	history SystemHistory
-	booted  time.Time
 }
 
 // SystemPoint is one timestamped metric sample (unix millis).
@@ -87,10 +86,6 @@ type SystemCore struct {
 const historyLimit = 60
 
 var sampleDivider = float64(runtime.NumCPU())
-
-func NewSystemService() *SystemService {
-	return &SystemService{booted: time.Now()}
-}
 
 // Stats samples current metrics and appends them to the rolling history.
 func (s *SystemService) Stats() (SystemStats, error) {

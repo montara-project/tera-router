@@ -26,6 +26,3 @@ type UsageRecord struct {
 	ErrorMessage     string    `json:"error_message"`
 	CreatedAt        time.Time `json:"created_at"`
 }
-
-// TableName returns the backing table for the model.
-func (UsageRecord) TableName() string { return "usage_records" }

@@ -18,6 +18,3 @@ type User struct {
 	UpdatedAt    time.Time  `json:"updated_at"`
 	DeletedAt    *time.Time `json:"deleted_at"`
 }
-
-// TableName returns the backing table for the model.
-func (User) TableName() string { return "users" }

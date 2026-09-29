@@ -29,11 +29,11 @@ func scanPricing(row rowScanner) (models.PricingOverride, error) {
 
 // Upsert inserts or updates the override for one (provider, model) pair.
 func (r *PricingRepository) Upsert(ctx context.Context, p models.PricingOverride) error {
-	return r.upsertExec(ctx, r.DB, p)
+	return r.upsertExec(ctx, p)
 }
 
-func (r *PricingRepository) upsertExec(ctx context.Context, ex Executor, p models.PricingOverride) error {
-	_, err := r.execContext(ctx, ex, `
+func (r *PricingRepository) upsertExec(ctx context.Context, p models.PricingOverride) error {
+	_, err := r.execContext(ctx, r.DB, `
 		INSERT INTO model_pricing_overrides (id, provider, model, input_micros, output_micros, cache_read_micros, cache_write_micros)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		ON CONFLICT (provider, model) DO UPDATE SET
@@ -50,10 +50,10 @@ func (r *PricingRepository) upsertExec(ctx context.Context, ex Executor, p model
 // List returns overrides ordered by provider/model, optionally narrowed to one
 // provider.
 func (r *PricingRepository) List(ctx context.Context, provider string) ([]models.PricingOverride, error) {
-	return r.listExec(ctx, r.DB, provider)
+	return r.listExec(ctx, provider)
 }
 
-func (r *PricingRepository) listExec(ctx context.Context, ex Executor, provider string) ([]models.PricingOverride, error) {
+func (r *PricingRepository) listExec(ctx context.Context, provider string) ([]models.PricingOverride, error) {
 	query := `SELECT` + pricingColumns + ` FROM model_pricing_overrides`
 	args := []any{}
 	if provider != "" {
@@ -62,7 +62,7 @@ func (r *PricingRepository) listExec(ctx context.Context, ex Executor, provider 
 	}
 	query += ` ORDER BY provider, model`
 
-	rows, err := r.queryContext(ctx, ex, query, args...)
+	rows, err := r.queryContext(ctx, r.DB, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -81,11 +81,11 @@ func (r *PricingRepository) listExec(ctx context.Context, ex Executor, provider 
 
 // Delete removes the override for one (provider, model) pair.
 func (r *PricingRepository) Delete(ctx context.Context, provider, model string) error {
-	return r.deleteExec(ctx, r.DB, provider, model)
+	return r.deleteExec(ctx, provider, model)
 }
 
-func (r *PricingRepository) deleteExec(ctx context.Context, ex Executor, provider, model string) error {
-	res, err := r.execContext(ctx, ex,
+func (r *PricingRepository) deleteExec(ctx context.Context, provider, model string) error {
+	res, err := r.execContext(ctx, r.DB,
 		`DELETE FROM model_pricing_overrides WHERE provider = $1 AND model = $2`, provider, model)
 	if err != nil {
 		return err
@@ -109,11 +109,11 @@ func scanCapability(row rowScanner) (models.CapabilityOverride, error) {
 
 // Upsert inserts or updates the capability set of one (provider, model) pair.
 func (r *CapabilityRepository) Upsert(ctx context.Context, c models.CapabilityOverride) error {
-	return r.upsertExec(ctx, r.DB, c)
+	return r.upsertExec(ctx, c)
 }
 
-func (r *CapabilityRepository) upsertExec(ctx context.Context, ex Executor, c models.CapabilityOverride) error {
-	_, err := r.execContext(ctx, ex, `
+func (r *CapabilityRepository) upsertExec(ctx context.Context, c models.CapabilityOverride) error {
+	_, err := r.execContext(ctx, r.DB, `
 		INSERT INTO model_capability_overrides (id, provider, model, capabilities)
 		VALUES ($1, $2, $3, $4)
 		ON CONFLICT (provider, model) DO UPDATE SET
@@ -125,11 +125,11 @@ func (r *CapabilityRepository) upsertExec(ctx context.Context, ex Executor, c mo
 
 // List returns every capability override ordered by provider/model.
 func (r *CapabilityRepository) List(ctx context.Context) ([]models.CapabilityOverride, error) {
-	return r.listExec(ctx, r.DB)
+	return r.listExec(ctx)
 }
 
-func (r *CapabilityRepository) listExec(ctx context.Context, ex Executor) ([]models.CapabilityOverride, error) {
-	rows, err := r.queryContext(ctx, ex, `SELECT`+capabilityColumns+` FROM model_capability_overrides ORDER BY provider, model`)
+func (r *CapabilityRepository) listExec(ctx context.Context) ([]models.CapabilityOverride, error) {
+	rows, err := r.queryContext(ctx, r.DB, `SELECT`+capabilityColumns+` FROM model_capability_overrides ORDER BY provider, model`)
 	if err != nil {
 		return nil, err
 	}
@@ -148,11 +148,11 @@ func (r *CapabilityRepository) listExec(ctx context.Context, ex Executor) ([]mod
 
 // Delete removes the capability override for one (provider, model) pair.
 func (r *CapabilityRepository) Delete(ctx context.Context, provider, model string) error {
-	return r.deleteExec(ctx, r.DB, provider, model)
+	return r.deleteExec(ctx, provider, model)
 }
 
-func (r *CapabilityRepository) deleteExec(ctx context.Context, ex Executor, provider, model string) error {
-	res, err := r.execContext(ctx, ex,
+func (r *CapabilityRepository) deleteExec(ctx context.Context, provider, model string) error {
+	res, err := r.execContext(ctx, r.DB,
 		`DELETE FROM model_capability_overrides WHERE provider = $1 AND model = $2`, provider, model)
 	if err != nil {
 		return err
@@ -162,11 +162,11 @@ func (r *CapabilityRepository) deleteExec(ctx context.Context, ex Executor, prov
 
 // Reset clears every capability override.
 func (r *CapabilityRepository) Reset(ctx context.Context) error {
-	return r.resetExec(ctx, r.DB)
+	return r.resetExec(ctx)
 }
 
-func (r *CapabilityRepository) resetExec(ctx context.Context, ex Executor) error {
-	if _, err := r.execContext(ctx, ex, `DELETE FROM model_capability_overrides`); err != nil {
+func (r *CapabilityRepository) resetExec(ctx context.Context) error {
+	if _, err := r.execContext(ctx, r.DB, `DELETE FROM model_capability_overrides`); err != nil {
 		return apperr.New(apperr.KindInternal, "reset capability overrides: %v", err)
 	}
 	return nil

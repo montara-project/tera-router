@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"cmp"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -43,7 +45,7 @@ func accountInputFrom(d dtos.Account) accountInput {
 	return accountInput{
 		Provider:    d.Provider,
 		Label:       d.Label,
-		AuthKind:    models.AuthKind(orDefault(d.AuthKind, "api_key")),
+		AuthKind:    models.AuthKind(cmp.Or(d.AuthKind, "api_key")),
 		APIKey:      d.APIKey,
 		Token:       d.Token,
 		Refresh:     d.Refresh,
@@ -179,8 +181,12 @@ func (h *accountsHandler) Store(c fiber.Ctx) error {
 	}
 
 	if account.KeyHash != "" {
+		// Only a genuine miss means "no duplicate"; any other error is a real
+		// failure and must not be mistaken for a free slot.
 		if _, err := h.app.Repos.Accounts.GetByKeyHash(c.Context(), account.KeyHash); err == nil {
 			return apperr.New(apperr.KindConflict, "an account with this key already exists")
+		} else if !errors.Is(err, apperr.ErrNotFound) {
+			return err
 		}
 	}
 
@@ -276,8 +282,11 @@ func (h *accountsHandler) Update(c fiber.Ctx) error {
 	if in.Label != "" {
 		account.Label = in.Label
 	}
-	if in.AuthKind != "" {
-		account.AuthKind = in.AuthKind
+	// Branch on the raw request: accountInputFrom applies the "api_key"
+	// default for creates, so in.AuthKind is never empty and would otherwise
+	// overwrite an oauth/none account on every update.
+	if req.AuthKind != "" {
+		account.AuthKind = models.AuthKind(req.AuthKind)
 	}
 	if in.Metadata != "" {
 		account.Metadata = in.Metadata
@@ -292,7 +301,7 @@ func (h *accountsHandler) Update(c fiber.Ctx) error {
 	if req.Disabled != nil {
 		account.Disabled = *req.Disabled
 	}
-	if in.APIKey != "" {
+	if in.APIKey != "" || in.Token != "" || in.Refresh != "" {
 		if err := sealCredential(h.app, &account, in); err != nil {
 			return err
 		}
@@ -330,9 +339,17 @@ func (h *accountsHandler) Test(c fiber.Ctx) error {
 		return err
 	}
 
+	// OAuth accounts carry the credential in Token, not Secret; probe
+	// whichever one is populated so the test reflects the stored auth kind.
 	apiKey := ""
 	if !account.Secret.Empty() {
 		apiKey, err = h.app.Secrets.OpenString(fromModelsSealed(account.Secret))
+		if err != nil {
+			return err
+		}
+	}
+	if apiKey == "" && !account.Token.Empty() {
+		apiKey, err = h.app.Secrets.OpenString(fromModelsSealed(account.Token))
 		if err != nil {
 			return err
 		}

@@ -37,11 +37,11 @@ func scanAPIKey(row rowScanner) (models.APIKey, error) {
 
 // Insert persists a new API key.
 func (r *APIKeyRepository) Insert(ctx context.Context, k models.APIKey) error {
-	return r.insertExec(ctx, r.DB, k)
+	return r.insertExec(ctx, k)
 }
 
-func (r *APIKeyRepository) insertExec(ctx context.Context, ex Executor, k models.APIKey) error {
-	_, err := r.execContext(ctx, ex, `
+func (r *APIKeyRepository) insertExec(ctx context.Context, k models.APIKey) error {
+	_, err := r.execContext(ctx, r.DB, `
 		INSERT INTO api_keys (id, user_id, plan_id, name, key_hash, lookup_hash, display, scopes, disabled, secret_wrapped_dek, secret_ciphertext)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
 		k.ID, k.UserID, k.PlanID, k.Name, k.KeyHash, k.LookupHash, k.Display, k.Scopes, k.Disabled,
@@ -53,11 +53,11 @@ func (r *APIKeyRepository) insertExec(ctx context.Context, ex Executor, k models
 // List returns a page of keys joined with their plan, newest-first, plus the
 // unpaged total.
 func (r *APIKeyRepository) List(ctx context.Context, offset, limit int) ([]APIKeyWithPlan, int, error) {
-	return r.listExec(ctx, r.DB, offset, limit)
+	return r.listExec(ctx, offset, limit)
 }
 
-func (r *APIKeyRepository) listExec(ctx context.Context, ex Executor, offset, limit int) ([]APIKeyWithPlan, int, error) {
-	rows, err := r.queryContext(ctx, ex, `
+func (r *APIKeyRepository) listExec(ctx context.Context, offset, limit int) ([]APIKeyWithPlan, int, error) {
+	rows, err := r.queryContext(ctx, r.DB, `
 		SELECT k.id, k.user_id, k.plan_id, k.name, k.display, k.scopes, k.disabled, k.last_used_at,
 		       k.secret_wrapped_dek, k.secret_ciphertext, k.created_at, k.updated_at,
 		       p.name, p.description,
@@ -93,11 +93,11 @@ func (r *APIKeyRepository) listExec(ctx context.Context, ex Executor, offset, li
 
 // Get returns one key by id.
 func (r *APIKeyRepository) Get(ctx context.Context, id string) (models.APIKey, error) {
-	return r.getExec(ctx, r.DB, id)
+	return r.getExec(ctx, id)
 }
 
-func (r *APIKeyRepository) getExec(ctx context.Context, ex Executor, id string) (models.APIKey, error) {
-	row := r.queryRowContext(ctx, ex,
+func (r *APIKeyRepository) getExec(ctx context.Context, id string) (models.APIKey, error) {
+	row := r.queryRowContext(ctx, r.DB,
 		`SELECT`+apiKeyColumns+` FROM api_keys WHERE id = $1`, id)
 	return scanAPIKey(row)
 }
@@ -105,22 +105,22 @@ func (r *APIKeyRepository) getExec(ctx context.Context, ex Executor, id string) 
 // GetByLookup resolves a key by its fast sha-256 lookup index, ahead of the
 // expensive argon2 verification.
 func (r *APIKeyRepository) GetByLookup(ctx context.Context, lookup string) (models.APIKey, error) {
-	return r.getByLookupExec(ctx, r.DB, lookup)
+	return r.getByLookupExec(ctx, lookup)
 }
 
-func (r *APIKeyRepository) getByLookupExec(ctx context.Context, ex Executor, lookup string) (models.APIKey, error) {
-	row := r.queryRowContext(ctx, ex,
+func (r *APIKeyRepository) getByLookupExec(ctx context.Context, lookup string) (models.APIKey, error) {
+	row := r.queryRowContext(ctx, r.DB,
 		`SELECT`+apiKeyColumns+` FROM api_keys WHERE lookup_hash = $1`, lookup)
 	return scanAPIKey(row)
 }
 
 // Update rewrites a key's mutable fields.
 func (r *APIKeyRepository) Update(ctx context.Context, k models.APIKey) error {
-	return r.updateExec(ctx, r.DB, k)
+	return r.updateExec(ctx, k)
 }
 
-func (r *APIKeyRepository) updateExec(ctx context.Context, ex Executor, k models.APIKey) error {
-	_, err := r.execContext(ctx, ex, `
+func (r *APIKeyRepository) updateExec(ctx context.Context, k models.APIKey) error {
+	_, err := r.execContext(ctx, r.DB, `
 		UPDATE api_keys
 		SET name = $2, plan_id = $3, scopes = $4, disabled = $5, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now')
 		WHERE id = $1`,
@@ -131,22 +131,22 @@ func (r *APIKeyRepository) updateExec(ctx context.Context, ex Executor, k models
 
 // TouchLastUsed stamps the last-used timestamp of a key.
 func (r *APIKeyRepository) TouchLastUsed(ctx context.Context, id string, at time.Time) error {
-	return r.touchLastUsedExec(ctx, r.DB, id, at)
+	return r.touchLastUsedExec(ctx, id, at)
 }
 
-func (r *APIKeyRepository) touchLastUsedExec(ctx context.Context, ex Executor, id string, at time.Time) error {
-	_, err := r.execContext(ctx, ex,
+func (r *APIKeyRepository) touchLastUsedExec(ctx context.Context, id string, at time.Time) error {
+	_, err := r.execContext(ctx, r.DB,
 		`UPDATE api_keys SET last_used_at = $2 WHERE id = $1`, id, at)
 	return err
 }
 
 // Delete removes one key.
 func (r *APIKeyRepository) Delete(ctx context.Context, id string) error {
-	return r.deleteExec(ctx, r.DB, id)
+	return r.deleteExec(ctx, id)
 }
 
-func (r *APIKeyRepository) deleteExec(ctx context.Context, ex Executor, id string) error {
-	res, err := r.execContext(ctx, ex, `DELETE FROM api_keys WHERE id = $1`, id)
+func (r *APIKeyRepository) deleteExec(ctx context.Context, id string) error {
+	res, err := r.execContext(ctx, r.DB, `DELETE FROM api_keys WHERE id = $1`, id)
 	if err != nil {
 		return err
 	}
@@ -155,11 +155,11 @@ func (r *APIKeyRepository) deleteExec(ctx context.Context, ex Executor, id strin
 
 // CountByPlan returns how many keys are bound to each plan id.
 func (r *APIKeyRepository) CountByPlan(ctx context.Context) (map[string]int, error) {
-	return r.countByPlanExec(ctx, r.DB)
+	return r.countByPlanExec(ctx)
 }
 
-func (r *APIKeyRepository) countByPlanExec(ctx context.Context, ex Executor) (map[string]int, error) {
-	rows, err := r.queryContext(ctx, ex,
+func (r *APIKeyRepository) countByPlanExec(ctx context.Context) (map[string]int, error) {
+	rows, err := r.queryContext(ctx, r.DB,
 		`SELECT plan_id, count(*) FROM api_keys WHERE plan_id IS NOT NULL GROUP BY plan_id`)
 	if err != nil {
 		return nil, err

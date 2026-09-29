@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"cmp"
 	"time"
 
 	"tera-router/server/internal/app"
@@ -22,20 +23,56 @@ type chainsHandler struct {
 func chainFromRequest(req dtos.Chain) models.Chain {
 	chain := models.Chain{
 		Name:             req.Name,
-		Strategy:         orDefault(req.Strategy, "priority"),
+		Strategy:         cmp.Or(req.Strategy, "priority"),
 		FallbackProvider: req.FallbackProvider,
 		FallbackModel:    req.FallbackModel,
 		ContextWindow:    req.ContextWindow,
 		Enabled:          true,
-		Steps:            make([]models.ChainStep, 0, len(req.Steps)),
 	}
 	if req.Enabled != nil {
 		chain.Enabled = *req.Enabled
 	}
-	for _, s := range req.Steps {
-		chain.Steps = append(chain.Steps, models.ChainStep{Provider: s.Provider, Model: s.Model})
+	if req.Steps != nil {
+		chain.Steps = toChainSteps(*req.Steps)
 	}
 	return chain
+}
+
+// toChainSteps maps request steps onto stored steps.
+func toChainSteps(in []dtos.ChainStep) []models.ChainStep {
+	out := make([]models.ChainStep, 0, len(in))
+	for _, s := range in {
+		out = append(out, models.ChainStep{Provider: s.Provider, Model: s.Model})
+	}
+	return out
+}
+
+// applyChainPatch overlays the fields the request actually supplied onto the
+// stored chain. Writing a freshly built model would blank every omitted field
+// and — because the update replaces the whole step list — silently clear the
+// chain's routing.
+func applyChainPatch(chain *models.Chain, req dtos.Chain) {
+	if req.Name != "" {
+		chain.Name = req.Name
+	}
+	if req.Strategy != "" {
+		chain.Strategy = req.Strategy
+	}
+	if req.FallbackProvider != "" {
+		chain.FallbackProvider = req.FallbackProvider
+	}
+	if req.FallbackModel != "" {
+		chain.FallbackModel = req.FallbackModel
+	}
+	if req.ContextWindow != 0 {
+		chain.ContextWindow = req.ContextWindow
+	}
+	if req.Enabled != nil {
+		chain.Enabled = *req.Enabled
+	}
+	if req.Steps != nil {
+		chain.Steps = toChainSteps(*req.Steps)
+	}
 }
 
 func (h *chainsHandler) Index(c fiber.Ctx) error {
@@ -96,8 +133,11 @@ func (h *chainsHandler) Update(c fiber.Ctx) error {
 		return err
 	}
 
-	chain := chainFromRequest(req)
-	chain.ID = id.String()
+	chain, err := h.app.Repos.Chains.Get(c.Context(), id.String())
+	if err != nil {
+		return err
+	}
+	applyChainPatch(&chain, req)
 	for i := range chain.Steps {
 		chain.Steps[i].ID = uuid.NewString()
 		chain.Steps[i].ChainID = chain.ID

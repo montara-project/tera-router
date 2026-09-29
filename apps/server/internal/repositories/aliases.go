@@ -54,11 +54,11 @@ func (r *AliasRepository) upsertExec(ctx context.Context, ex Executor, a models.
 
 // List returns every alias with its targets attached, newest first.
 func (r *AliasRepository) List(ctx context.Context) ([]models.ModelAlias, error) {
-	return r.listExec(ctx, r.DB)
+	return r.listExec(ctx)
 }
 
-func (r *AliasRepository) listExec(ctx context.Context, ex Executor) ([]models.ModelAlias, error) {
-	rows, err := r.queryContext(ctx, ex, `
+func (r *AliasRepository) listExec(ctx context.Context) ([]models.ModelAlias, error) {
+	rows, err := r.queryContext(ctx, r.DB, `
 		SELECT `+aliasColumns+`
 		FROM model_aliases ORDER BY created_at DESC`)
 	if err != nil {
@@ -77,7 +77,7 @@ func (r *AliasRepository) listExec(ctx context.Context, ex Executor) ([]models.M
 	if err := rows.Err(); err != nil {
 		return nil, errtrace.Wrap(err)
 	}
-	return r.attachTargetsExec(ctx, ex, aliases)
+	return r.attachTargetsExec(ctx, r.DB, aliases)
 }
 
 func (r *AliasRepository) attachTargetsExec(ctx context.Context, ex Executor, aliases []models.ModelAlias) ([]models.ModelAlias, error) {
@@ -112,11 +112,11 @@ func (r *AliasRepository) attachTargetsExec(ctx context.Context, ex Executor, al
 
 // Delete removes one alias pool by name; targets cascade.
 func (r *AliasRepository) Delete(ctx context.Context, name string) error {
-	return r.deleteExec(ctx, r.DB, name)
+	return r.deleteExec(ctx, name)
 }
 
-func (r *AliasRepository) deleteExec(ctx context.Context, ex Executor, name string) error {
-	res, err := r.execContext(ctx, ex, `DELETE FROM model_aliases WHERE name = $1`, name)
+func (r *AliasRepository) deleteExec(ctx context.Context, name string) error {
+	res, err := r.execContext(ctx, r.DB, `DELETE FROM model_aliases WHERE name = $1`, name)
 	if err != nil {
 		return err
 	}

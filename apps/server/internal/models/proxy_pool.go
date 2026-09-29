@@ -14,6 +14,3 @@ type ProxyPool struct {
 	CreatedAt    time.Time  `json:"created_at"`
 	UpdatedAt    time.Time  `json:"updated_at"`
 }
-
-// TableName returns the backing table for the model.
-func (ProxyPool) TableName() string { return "proxy_pools" }

@@ -83,7 +83,16 @@ func (h *proxyPoolsHandler) Update(c fiber.Ctx) error {
 		return err
 	}
 
-	pool := models.ProxyPool{ID: id.String(), Name: req.Name, URL: req.URL, Mode: req.Mode, Label: req.Label}
+	// Status/last_tested_at are owned by the health check (UpdateTestedAt), so
+	// carry the stored values through instead of blanking them.
+	stored, err := h.app.Repos.ProxyPools.Get(c.Context(), id.String())
+	if err != nil {
+		return err
+	}
+	pool := models.ProxyPool{
+		ID: id.String(), Name: req.Name, URL: req.URL, Mode: req.Mode, Label: req.Label,
+		Status: stored.Status, LastTestedAt: stored.LastTestedAt,
+	}
 	if err := h.app.Repos.ProxyPools.Update(c.Context(), pool); err != nil {
 		return err
 	}

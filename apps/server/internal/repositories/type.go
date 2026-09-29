@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strings"
 
 	"tera-router/server/internal/lib/apperr"
 
@@ -26,51 +25,15 @@ type rowScanner interface {
 	Scan(dest ...any) error
 }
 
-type QueryOptions struct {
-	Offset int64
-	Limit  int64
-
-	OrderBy string
-	Order   string // asc | desc
-}
-
-type PaginationMetadata struct {
-	Total int64 `json:"total"`
-}
-
-// buildOrderBy resolves the ORDER BY column and direction from user-supplied
-// options. Both the default and the resolved OrderBy are bare column names
-// (matching allowedColumns keys); the caller owns identifier quoting and any
-// table qualification, so never pass a pre-quoted default. Order is
-// case-insensitively matched to ASC/DESC.
-func buildOrderBy(opts *QueryOptions, allowedColumns map[string]bool, defaultOrderBy string) (string, string, error) {
-	orderBy := defaultOrderBy
-	order := "DESC"
-
-	if opts.OrderBy != "" {
-		if !allowedColumns[opts.OrderBy] {
-			return "", "", errtrace.New("invalid order by column")
-		}
-		orderBy = opts.OrderBy
-	}
-
-	if opts.Order != "" {
-		upperOrder := strings.ToUpper(opts.Order)
-		if upperOrder != "ASC" && upperOrder != "DESC" {
-			return "", "", errtrace.New("invalid order")
-		}
-		order = upperOrder
-	}
-
-	return orderBy, order, nil
-}
-
 // withTx runs fn inside a transaction, committing when fn returns nil and
 // rolling back otherwise. fn receives the transaction as an Executor, so
 // multi-statement writes reuse the repository's *Exec helpers and the same SQL
 // runs standalone or atomically. The BEGIN/COMMIT/ROLLBACK boundaries are
 // logged too, so a debug trace shows exactly which statements shared a
 // transaction.
+//
+// COMMIT is logged only after the commit succeeds, so a failed commit appears
+// as BEGIN + ROLLBACK rather than a COMMIT that never happened.
 func (r BaseRepository) withTx(ctx context.Context, fn func(tx Executor) error) error {
 	r.debugQuery("BEGIN")
 	tx, err := r.DB.BeginTx(ctx, nil)
@@ -90,12 +53,15 @@ func (r BaseRepository) withTx(ctx context.Context, fn func(tx Executor) error) 
 		return err
 	}
 
-	r.debugQuery("COMMIT")
 	err = tx.Commit()
 	// The transaction is over either way, so never roll back after this.
 	finished = true
+	if err != nil {
+		return errtrace.Wrap(err)
+	}
 
-	return errtrace.Wrap(err)
+	r.debugQuery("COMMIT")
+	return nil
 }
 
 // requireAffected turns a write that touched no row into apperr.ErrNotFound,

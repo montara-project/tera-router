@@ -29,11 +29,11 @@ func scanPlan(row rowScanner) (models.Plan, error) {
 
 // Insert persists a new plan.
 func (r *PlanRepository) Insert(ctx context.Context, p models.Plan) error {
-	return r.insertExec(ctx, r.DB, p)
+	return r.insertExec(ctx, p)
 }
 
-func (r *PlanRepository) insertExec(ctx context.Context, ex Executor, p models.Plan) error {
-	_, err := r.execContext(ctx, ex, `
+func (r *PlanRepository) insertExec(ctx context.Context, p models.Plan) error {
+	_, err := r.execContext(ctx, r.DB, `
 		INSERT INTO plans (id, name, description, limit_micros, limit_tokens, period, alert_pct, hard_cutoff, allowed_models, rpm, tpm, concurrent)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
 		p.ID, p.Name, p.Description, p.LimitMicros, p.LimitTokens, p.Period, p.AlertPct,
@@ -44,11 +44,11 @@ func (r *PlanRepository) insertExec(ctx context.Context, ex Executor, p models.P
 
 // List returns every plan, newest first.
 func (r *PlanRepository) List(ctx context.Context) ([]models.Plan, error) {
-	return r.listExec(ctx, r.DB)
+	return r.listExec(ctx)
 }
 
-func (r *PlanRepository) listExec(ctx context.Context, ex Executor) ([]models.Plan, error) {
-	rows, err := r.queryContext(ctx, ex, `SELECT`+planColumns+` FROM plans ORDER BY created_at DESC`)
+func (r *PlanRepository) listExec(ctx context.Context) ([]models.Plan, error) {
+	rows, err := r.queryContext(ctx, r.DB, `SELECT`+planColumns+` FROM plans ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -67,21 +67,21 @@ func (r *PlanRepository) listExec(ctx context.Context, ex Executor) ([]models.Pl
 
 // Get returns one plan by id.
 func (r *PlanRepository) Get(ctx context.Context, id string) (models.Plan, error) {
-	return r.getExec(ctx, r.DB, id)
+	return r.getExec(ctx, id)
 }
 
-func (r *PlanRepository) getExec(ctx context.Context, ex Executor, id string) (models.Plan, error) {
-	row := r.queryRowContext(ctx, ex, `SELECT`+planColumns+` FROM plans WHERE id = $1`, id)
+func (r *PlanRepository) getExec(ctx context.Context, id string) (models.Plan, error) {
+	row := r.queryRowContext(ctx, r.DB, `SELECT`+planColumns+` FROM plans WHERE id = $1`, id)
 	return scanPlan(row)
 }
 
 // Update rewrites a plan.
 func (r *PlanRepository) Update(ctx context.Context, p models.Plan) error {
-	return r.updateExec(ctx, r.DB, p)
+	return r.updateExec(ctx, p)
 }
 
-func (r *PlanRepository) updateExec(ctx context.Context, ex Executor, p models.Plan) error {
-	res, err := r.execContext(ctx, ex, `
+func (r *PlanRepository) updateExec(ctx context.Context, p models.Plan) error {
+	res, err := r.execContext(ctx, r.DB, `
 		UPDATE plans
 		SET name = $2, description = $3, limit_micros = $4, limit_tokens = $5, period = $6,
 		    alert_pct = $7, hard_cutoff = $8, allowed_models = $9, rpm = $10, tpm = $11, concurrent = $12, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now')
@@ -97,11 +97,11 @@ func (r *PlanRepository) updateExec(ctx context.Context, ex Executor, p models.P
 
 // Delete removes one plan.
 func (r *PlanRepository) Delete(ctx context.Context, id string) error {
-	return r.deleteExec(ctx, r.DB, id)
+	return r.deleteExec(ctx, id)
 }
 
-func (r *PlanRepository) deleteExec(ctx context.Context, ex Executor, id string) error {
-	res, err := r.execContext(ctx, ex, `DELETE FROM plans WHERE id = $1`, id)
+func (r *PlanRepository) deleteExec(ctx context.Context, id string) error {
+	res, err := r.execContext(ctx, r.DB, `DELETE FROM plans WHERE id = $1`, id)
 	if err != nil {
 		return err
 	}

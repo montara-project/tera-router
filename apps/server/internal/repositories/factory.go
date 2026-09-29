@@ -6,11 +6,15 @@
 // connection and a private *Exec method taking an Executor, so the identical
 // SQL can also run inside a transaction:
 //
-//	List/listExec, Count/countExec, Get/getExec, Insert/insertExec,
-//	Update/updateExec, Delete/deleteExec
+//	List/listExec, Get/getExec, Insert/insertExec, Update/updateExec,
+//	Delete/deleteExec
 //
-// Statements never reach the driver directly; they go through the
-// BaseRepository helpers, which log every query when debug mode is on.
+// Not every family exists on every repository — Count, for instance, is only
+// present as the targeted CountByProvider/CountByPlan reads.
+//
+// Statements in this package never reach the driver directly; they go through
+// the BaseRepository helpers, which log every query when debug mode is on.
+// Seeder and migrator SQL lives outside this package and does not.
 package repositories
 
 import (

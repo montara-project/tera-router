@@ -15,6 +15,3 @@ type PricingOverride struct {
 	CreatedAt        time.Time `json:"created_at"`
 	UpdatedAt        time.Time `json:"updated_at"`
 }
-
-// TableName returns the backing table for the model.
-func (PricingOverride) TableName() string { return "model_pricing_overrides" }

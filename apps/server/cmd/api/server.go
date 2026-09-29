@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"tera-router/server/internal/app"
+	"tera-router/server/internal/config"
 	"tera-router/server/internal/middlewares"
 
 	sentryfiber "github.com/gofiber/contrib/v3/sentry"
@@ -57,7 +58,7 @@ func serve(app *app.Application) error {
 	}))
 
 	// Rate Limit
-	server.Use(middlewares.RateLimit())
+	server.Use(middlewares.RateLimit(app.Config.App.Env == config.EnvDevelopment))
 
 	server.Use(static.New("./public"))
 

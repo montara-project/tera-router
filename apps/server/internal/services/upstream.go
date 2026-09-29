@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"time"
@@ -15,6 +16,75 @@ import (
 // proxies. It never touches the database; callers resolve the endpoint and
 // hand over the already decrypted credential.
 type UpstreamService struct{}
+
+// blockedEndpoints are address ranges that are never a legitimate provider
+// endpoint. Link-local covers the cloud metadata services (169.254.169.254,
+// fe80::/10) and IPv6 unique-local is the equivalent of RFC1918 space.
+//
+// Loopback and RFC1918 addresses are deliberately NOT blocked: the provider
+// catalog ships self-hosted entries (ollama-local on localhost:11434, vLLM on
+// localhost:8000), so an operator must be able to probe those. Callers that
+// accept an operator-supplied base_url therefore still allow internal targets
+// by design; only the ranges above are rejected outright.
+var blockedEndpoints = func() []*net.IPNet {
+	cidrs := []string{
+		"169.254.0.0/16", // link-local, incl. 169.254.169.254 metadata
+		"fe80::/10",      // IPv6 link-local
+		"fd00:ec2::254/128",
+	}
+	nets := make([]*net.IPNet, 0, len(cidrs))
+	for _, c := range cidrs {
+		_, n, err := net.ParseCIDR(c)
+		if err != nil {
+			panic("upstream: bad builtin CIDR " + c)
+		}
+		nets = append(nets, n)
+	}
+	return nets
+}()
+
+// validateEndpoint rejects outbound URLs that cannot be a real provider:
+// non-HTTP(S) schemes (file://, gopher://, …) and link-local/metadata hosts.
+func validateEndpoint(rawURL string) error {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("invalid endpoint url: %w", err)
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return fmt.Errorf("unsupported endpoint scheme %q: only http and https are allowed", u.Scheme)
+	}
+
+	host := u.Hostname()
+	if host == "" {
+		return fmt.Errorf("endpoint has no host")
+	}
+
+	ips, err := net.LookupIP(host)
+	if err != nil {
+		// A name that does not resolve cannot be dialed; let the request fail
+		// naturally rather than reporting a misleading validation error.
+		return nil
+	}
+	for _, ip := range ips {
+		for _, n := range blockedEndpoints {
+			if n.Contains(ip) {
+				return fmt.Errorf("endpoint host %s resolves to blocked address %s", host, ip)
+			}
+		}
+	}
+	return nil
+}
+
+// probeClient never follows redirects: an allowed public endpoint must not be
+// able to pivot the request onto a blocked internal one.
+func probeClient() *http.Client {
+	return &http.Client{
+		Timeout: 15 * time.Second,
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+}
 
 // TestProxy dials a public URL through the given proxy and reports whether
 // the proxy answered.
@@ -41,6 +111,10 @@ func (s *UpstreamService) TestProxy(ctx context.Context, proxyURL string) (bool,
 // provider's model-list endpoint to verify a credential before it is stored.
 // The caller decides the endpoint and wire dialect.
 func (s *UpstreamService) ProbeCredential(ctx context.Context, endpoint string, anthropicDialect bool, apiKey string) (dtos.TestResult, error) {
+	if err := validateEndpoint(endpoint); err != nil {
+		return dtos.TestResult{OK: false, Detail: err.Error()}, nil
+	}
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return dtos.TestResult{}, err
@@ -53,7 +127,7 @@ func (s *UpstreamService) ProbeCredential(ctx context.Context, endpoint string, 
 	}
 
 	start := time.Now()
-	client := &http.Client{Timeout: 15 * time.Second}
+	client := probeClient()
 	resp, err := client.Do(req)
 	latency := time.Since(start).Milliseconds()
 	if err != nil {

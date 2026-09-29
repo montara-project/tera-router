@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"cmp"
 	"time"
 
 	"tera-router/server/internal/app"
@@ -37,12 +38,12 @@ func periodWindow(period string, now time.Time) (bucket string, from time.Time) 
 	}
 }
 
-// budgetFromRequest converts a Budget DTO into the stored model.
+// budgetFromRequest builds a new budget from a create request.
 func budgetFromRequest(d dtos.Budget) models.Budget {
 	b := models.Budget{
-		ScopeKind: models.BudgetScope(orDefault(d.ScopeKind, "tenant")),
+		ScopeKind: models.BudgetScope(cmp.Or(d.ScopeKind, "tenant")),
 		ScopeID:   d.ScopeID,
-		Period:    orDefault(d.Period, "monthly"),
+		Period:    cmp.Or(d.Period, "monthly"),
 		AlertPct:  80,
 	}
 	if d.BudgetSpend != nil {
@@ -70,6 +71,34 @@ func resetAllocations(b models.Budget, bucket string) models.Budget {
 		b.RemainingTokens = b.LimitTokens
 	}
 	return b
+}
+
+// applyBudgetPatch overlays the fields the request actually supplied onto the
+// stored budget. Rebuilding the row from the patch would drop limit_micros
+// and hard_cutoff — silently removing the spend cap — whenever the dashboard
+// PATCHes an unrelated field.
+func applyBudgetPatch(b *models.Budget, d dtos.Budget) {
+	if d.ScopeKind != "" {
+		b.ScopeKind = models.BudgetScope(d.ScopeKind)
+	}
+	if d.ScopeID != "" {
+		b.ScopeID = d.ScopeID
+	}
+	if d.Period != "" {
+		b.Period = d.Period
+	}
+	if d.BudgetSpend != nil {
+		b.LimitMicros = int64(*d.BudgetSpend * 1_000_000)
+	}
+	if d.LimitTokens != nil {
+		b.LimitTokens = *d.LimitTokens
+	}
+	if d.AlertPct != nil {
+		b.AlertPct = *d.AlertPct
+	}
+	if d.HardCutoff != nil {
+		b.HardCutoff = *d.HardCutoff
+	}
 }
 
 func (h *budgetsHandler) Index(c fiber.Ctx) error {
@@ -151,8 +180,11 @@ func (h *budgetsHandler) Update(c fiber.Ctx) error {
 		return err
 	}
 
-	budget := budgetFromRequest(req)
-	budget.ID = id.String()
+	budget, err := h.app.Repos.Budgets.Get(c.Context(), id.String())
+	if err != nil {
+		return err
+	}
+	applyBudgetPatch(&budget, req)
 	bucket, _ := periodWindow(budget.Period, time.Now())
 	budget = resetAllocations(budget, bucket)
 

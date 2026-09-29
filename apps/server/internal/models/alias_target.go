@@ -9,6 +9,3 @@ type AliasTarget struct {
 	Model    string `json:"model"`
 	Active   bool   `json:"active"`
 }
-
-// TableName returns the backing table for the model.
-func (AliasTarget) TableName() string { return "alias_targets" }

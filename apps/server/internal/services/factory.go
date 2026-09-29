@@ -14,7 +14,7 @@ type Services struct {
 // New wires the third-party integrations.
 func New() *Services {
 	return &Services{
-		System:   NewSystemService(),
+		System:   &SystemService{},
 		Upstream: &UpstreamService{},
 	}
 }

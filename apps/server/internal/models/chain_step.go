@@ -11,6 +11,3 @@ type ChainStep struct {
 	Model     string    `json:"model"`
 	CreatedAt time.Time `json:"created_at"`
 }
-
-// TableName returns the backing table for the model.
-func (ChainStep) TableName() string { return "chain_steps" }

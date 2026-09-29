@@ -59,11 +59,11 @@ func (r *ChainRepository) insertStepsExec(ctx context.Context, ex Executor, chai
 
 // List returns every chain with its steps attached, newest first.
 func (r *ChainRepository) List(ctx context.Context) ([]models.Chain, error) {
-	return r.listExec(ctx, r.DB)
+	return r.listExec(ctx)
 }
 
-func (r *ChainRepository) listExec(ctx context.Context, ex Executor) ([]models.Chain, error) {
-	rows, err := r.queryContext(ctx, ex, `SELECT`+chainColumns+` FROM chains ORDER BY created_at DESC`)
+func (r *ChainRepository) listExec(ctx context.Context) ([]models.Chain, error) {
+	rows, err := r.queryContext(ctx, r.DB, `SELECT`+chainColumns+` FROM chains ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +80,7 @@ func (r *ChainRepository) listExec(ctx context.Context, ex Executor) ([]models.C
 	if err := rows.Err(); err != nil {
 		return nil, errtrace.Wrap(err)
 	}
-	return r.attachStepsExec(ctx, ex, chains)
+	return r.attachStepsExec(ctx, r.DB, chains)
 }
 
 func (r *ChainRepository) attachStepsExec(ctx context.Context, ex Executor, chains []models.Chain) ([]models.Chain, error) {
@@ -115,17 +115,17 @@ func (r *ChainRepository) attachStepsExec(ctx context.Context, ex Executor, chai
 
 // Get returns one chain by id with its steps attached.
 func (r *ChainRepository) Get(ctx context.Context, id string) (models.Chain, error) {
-	return r.getExec(ctx, r.DB, id)
+	return r.getExec(ctx, id)
 }
 
-func (r *ChainRepository) getExec(ctx context.Context, ex Executor, id string) (models.Chain, error) {
-	row := r.queryRowContext(ctx, ex, `SELECT`+chainColumns+` FROM chains WHERE id = $1`, id)
+func (r *ChainRepository) getExec(ctx context.Context, id string) (models.Chain, error) {
+	row := r.queryRowContext(ctx, r.DB, `SELECT`+chainColumns+` FROM chains WHERE id = $1`, id)
 	c, err := scanChain(row)
 	if err != nil {
 		return models.Chain{}, err
 	}
 
-	attached, err := r.attachStepsExec(ctx, ex, []models.Chain{c})
+	attached, err := r.attachStepsExec(ctx, r.DB, []models.Chain{c})
 	if err != nil {
 		return models.Chain{}, err
 	}
@@ -162,11 +162,11 @@ func (r *ChainRepository) updateExec(ctx context.Context, ex Executor, c models.
 
 // Delete removes one chain; its steps go with it via ON DELETE CASCADE.
 func (r *ChainRepository) Delete(ctx context.Context, id string) error {
-	return r.deleteExec(ctx, r.DB, id)
+	return r.deleteExec(ctx, id)
 }
 
-func (r *ChainRepository) deleteExec(ctx context.Context, ex Executor, id string) error {
-	res, err := r.execContext(ctx, ex, `DELETE FROM chains WHERE id = $1`, id)
+func (r *ChainRepository) deleteExec(ctx context.Context, id string) error {
+	res, err := r.execContext(ctx, r.DB, `DELETE FROM chains WHERE id = $1`, id)
 	if err != nil {
 		return err
 	}

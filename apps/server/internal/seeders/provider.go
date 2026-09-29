@@ -9,6 +9,9 @@ import (
 // every dashboard seed in dependency order.
 type ProviderSeeder struct {
 	DB *sql.DB
+	// Dev marks a development seed, forwarded to the admin seeder so it may
+	// fall back to a known password.
+	Dev bool
 }
 
 func (s ProviderSeeder) Name() string { return "provider" }
@@ -16,7 +19,7 @@ func (s ProviderSeeder) Name() string { return "provider" }
 func (s ProviderSeeder) Seed() {
 	seedAll := []Seeder{
 		RoleSeeder{DB: s.DB},
-		AdminUserSeeder{DB: s.DB},
+		AdminUserSeeder{DB: s.DB, Dev: s.Dev},
 		DefaultPlanSeeder{DB: s.DB},
 		SettingsSeeder{DB: s.DB},
 		GuardrailsSeeder{DB: s.DB},

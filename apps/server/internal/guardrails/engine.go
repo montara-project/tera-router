@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -298,7 +299,7 @@ func Evaluate(cfg Config, externalDetectors bool, text string) Result {
 				}
 			}
 			if hits > 0 {
-				score := minInt(100, hits*25)
+				score := min(100, hits*25)
 				if score >= cfg.Toxicity.Threshold {
 					result.Decision = strongest(result.Decision, cfg.Toxicity.Action)
 					break
@@ -327,7 +328,7 @@ func Evaluate(cfg Config, externalDetectors bool, text string) Result {
 				}
 			}
 			if hits > 0 {
-				score := minInt(100, hits*25)
+				score := min(100, hits*25)
 				if score >= cfg.Bias.Threshold {
 					result.Decision = strongest(result.Decision, cfg.Bias.Action)
 					break
@@ -396,13 +397,9 @@ func maskText(text string, matches []Match, strategy string) string {
 	// Sort by start and drop overlaps so replacements stay consistent.
 	sorted := make([]Match, len(matches))
 	copy(sorted, matches)
-	for i := range sorted {
-		for j := i + 1; j < len(sorted); j++ {
-			if sorted[j].Start < sorted[i].Start {
-				sorted[i], sorted[j] = sorted[j], sorted[i]
-			}
-		}
-	}
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].Start < sorted[j].Start
+	})
 
 	var b strings.Builder
 	cursor := 0
@@ -442,11 +439,4 @@ func strongest(current, triggered string) string {
 		return triggered
 	}
 	return current
-}
-
-func minInt(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }

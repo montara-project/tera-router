@@ -8,6 +8,3 @@ type Setting struct {
 	Value     string    `json:"value"` // raw JSON
 	UpdatedAt time.Time `json:"updated_at"`
 }
-
-// TableName returns the backing table for the model.
-func (Setting) TableName() string { return "settings" }

@@ -1,13 +1,8 @@
 package validator
 
-import (
-	"regexp"
-	"testing"
-)
+import "testing"
 
 func TestRules(t *testing.T) {
-	uuid := "f47ac10b-58cc-4372-a567-0e02b2c3d479"
-
 	cases := []struct {
 		name  string
 		build func(fv *FieldValidator)
@@ -23,15 +18,11 @@ func TestRules(t *testing.T) {
 		{"email ok", func(fv *FieldValidator) { fv.Email() }, "a@b.co", true},
 		{"email bad", func(fv *FieldValidator) { fv.Email() }, "nope", false},
 		{"email absent passes", func(fv *FieldValidator) { fv.Email() }, nil, true},
-		{"uuid ok", func(fv *FieldValidator) { fv.UUID() }, uuid, true},
-		{"uuid bad", func(fv *FieldValidator) { fv.UUID() }, "nope", false},
-		{"uuid non-string fails", func(fv *FieldValidator) { fv.UUID() }, float64(1), false},
 		{"withins ok", func(fv *FieldValidator) { fv.WithinS("a", "b") }, "a", true},
 		{"withins bad", func(fv *FieldValidator) { fv.WithinS("a", "b") }, "z", false},
 		{"withins non-string passes", func(fv *FieldValidator) { fv.WithinS("a", "b") }, float64(1), true},
 		{"regex ok", func(fv *FieldValidator) { fv.Regex(`^\d+$`) }, "42", true},
 		{"regex bad", func(fv *FieldValidator) { fv.Regex(`^\d+$`) }, "x", false},
-		{"match ok", func(fv *FieldValidator) { fv.Match(regexp.MustCompile(`^a`)) }, "abc", true},
 	}
 
 	for _, tc := range cases {

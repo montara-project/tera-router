@@ -11,6 +11,3 @@ type Skill struct {
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
-
-// TableName returns the backing table for the model.
-func (Skill) TableName() string { return "skills" }

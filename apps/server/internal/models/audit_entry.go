@@ -11,6 +11,3 @@ type AuditEntry struct {
 	Detail    string    `json:"detail"` // raw JSON
 	CreatedAt time.Time `json:"created_at"`
 }
-
-// TableName returns the backing table for the model.
-func (AuditEntry) TableName() string { return "audit_entries" }

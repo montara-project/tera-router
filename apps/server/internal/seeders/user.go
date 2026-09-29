@@ -10,12 +10,9 @@ import (
 	"github.com/google/uuid"
 )
 
-// adminEmail and adminPassword seed the first dashboard account. Override
-// them at seed time via ADMIN_EMAIL / ADMIN_PASSWORD.
-var (
-	adminEmail    = envOr("ADMIN_EMAIL", "admin@tera.local")
-	adminPassword = envOr("ADMIN_PASSWORD", "admin123")
-)
+// adminEmail seeds the first dashboard account. Override it at seed time via
+// ADMIN_EMAIL.
+var adminEmail = envOr("ADMIN_EMAIL", "admin@tera.local")
 
 func envOr(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
@@ -24,9 +21,33 @@ func envOr(key, fallback string) string {
 	return fallback
 }
 
+// devAdminPassword is the fixed password used only for the development
+// seed (--seed=dev / APP_ENV=development), where the whole database is
+// disposable. It is never used for a production seed.
+const devAdminPassword = "admin123"
+
+// adminPassword resolves the first admin's password. A production seed
+// refuses to run without ADMIN_PASSWORD; a development seed falls back to a
+// known password so a fresh checkout stays usable. Either way a random
+// password is generated and printed once when nothing else is configured,
+// so no build ever ships a usable default credential.
+func adminPassword(dev bool) string {
+	if v := os.Getenv("ADMIN_PASSWORD"); v != "" {
+		return v
+	}
+
+	if !dev {
+		log.Fatal("ADMIN_PASSWORD must be set to seed the admin user; refusing to create an admin account with a default password")
+	}
+
+	return devAdminPassword
+}
+
 // AdminUserSeeder mints the first admin account with a hashed password.
 type AdminUserSeeder struct {
 	DB *sql.DB
+	// Dev marks a development seed, which may fall back to a known password.
+	Dev bool
 }
 
 func (s AdminUserSeeder) Name() string { return "admin_user" }
@@ -40,7 +61,8 @@ func (s AdminUserSeeder) Seed() {
 		return
 	}
 
-	hash, err := password.Hash(adminPassword)
+	plain := adminPassword(s.Dev)
+	hash, err := password.Hash(plain)
 	if err != nil {
 		log.Fatalf("hash admin password: %v", err)
 	}
@@ -55,4 +77,10 @@ func (s AdminUserSeeder) Seed() {
 	if err != nil {
 		log.Fatalf("seed admin user: %v", err)
 	}
+
+	if plain == devAdminPassword {
+		log.Printf("admin user seeded with the development password %q; set ADMIN_PASSWORD to override", devAdminPassword)
+		return
+	}
+	log.Printf("admin user seeded for %s; the password came from ADMIN_PASSWORD", adminEmail)
 }

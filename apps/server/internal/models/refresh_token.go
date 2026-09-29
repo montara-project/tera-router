@@ -11,6 +11,3 @@ type RefreshToken struct {
 	RevokedAt *time.Time `json:"revoked_at"`
 	CreatedAt time.Time  `json:"created_at"`
 }
-
-// TableName returns the backing table for the model.
-func (RefreshToken) TableName() string { return "refresh_tokens" }

@@ -12,7 +12,7 @@ import (
 // Every seeder is idempotent, so Run is safe on an already-seeded database and
 // can be called on each server boot.
 func Run(db *sql.DB, dev bool) {
-	toRun := []Seeder{ProviderSeeder{DB: db}}
+	toRun := []Seeder{ProviderSeeder{DB: db, Dev: dev}}
 	if dev {
 		toRun = append(toRun, SampleKeySeeder{DB: db})
 	}

@@ -10,13 +10,15 @@ type ChainStep struct {
 
 // Chain is the chain create/update request body (POST/PUT/PATCH /v1/chains).
 type Chain struct {
-	Name             string      `json:"name"`
-	Strategy         string      `json:"strategy"`
-	FallbackProvider string      `json:"fallback_provider"`
-	FallbackModel    string      `json:"fallback_model"`
-	ContextWindow    int         `json:"context_window"`
-	Enabled          *bool       `json:"enabled"`
-	Steps            []ChainStep `json:"steps"`
+	Name             string `json:"name"`
+	Strategy         string `json:"strategy"`
+	FallbackProvider string `json:"fallback_provider"`
+	FallbackModel    string `json:"fallback_model"`
+	ContextWindow    int    `json:"context_window"`
+	Enabled          *bool  `json:"enabled"`
+	// Pointer so an update can tell "field omitted" (keep the stored steps)
+	// from "explicitly empty" (clear the chain).
+	Steps *[]ChainStep `json:"steps"`
 }
 
 func (d *Chain) Validate(v *validator.MapValidator) {

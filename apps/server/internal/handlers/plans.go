@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"cmp"
 	"tera-router/server/internal/app"
 	"tera-router/server/internal/dtos"
 	"tera-router/server/internal/lib"
@@ -68,13 +69,15 @@ func (h *plansHandler) Index(c fiber.Ctx) error {
 // planFromRequest converts a Plan DTO into the stored model.
 func planFromRequest(req dtos.Plan) models.Plan {
 	plan := models.Plan{
-		Name:          req.Name,
-		Description:   req.Description,
-		Period:        orDefault(req.Period, "monthly"),
-		AllowedModels: req.AllowedModels,
-		RPM:           req.RPM,
-		TPM:           req.TPM,
-		Concurrent:    req.Concurrent,
+		Name:        req.Name,
+		Description: req.Description,
+		Period:      cmp.Or(req.Period, "monthly"),
+		RPM:         req.RPM,
+		TPM:         req.TPM,
+		Concurrent:  req.Concurrent,
+	}
+	if req.AllowedModels != nil {
+		plan.AllowedModels = *req.AllowedModels
 	}
 	if req.BudgetSpend != nil {
 		plan.LimitMicros = int64(*req.BudgetSpend * 1_000_000)
@@ -91,6 +94,46 @@ func planFromRequest(req dtos.Plan) models.Plan {
 	return plan
 }
 
+// applyPlanPatch overlays the fields the request actually supplied onto the
+// stored plan. The dashboard PATCHes single fields, so writing a freshly
+// built model would reset every omitted field — clearing allowed_models to
+// "unrestricted" and dropping the rate limits.
+func applyPlanPatch(plan *models.Plan, req dtos.Plan) {
+	if req.Name != "" {
+		plan.Name = req.Name
+	}
+	if req.Description != "" {
+		plan.Description = req.Description
+	}
+	if req.Period != "" {
+		plan.Period = req.Period
+	}
+	if req.AllowedModels != nil {
+		plan.AllowedModels = *req.AllowedModels
+	}
+	if req.RPM != nil {
+		plan.RPM = req.RPM
+	}
+	if req.TPM != nil {
+		plan.TPM = req.TPM
+	}
+	if req.Concurrent != nil {
+		plan.Concurrent = req.Concurrent
+	}
+	if req.BudgetSpend != nil {
+		plan.LimitMicros = int64(*req.BudgetSpend * 1_000_000)
+	}
+	if req.BudgetTokens != nil {
+		plan.LimitTokens = *req.BudgetTokens
+	}
+	if req.AlertPct != nil {
+		plan.AlertPct = *req.AlertPct
+	}
+	if req.HardCutoff != nil {
+		plan.HardCutoff = *req.HardCutoff
+	}
+}
+
 func (h *plansHandler) Store(c fiber.Ctx) error {
 	var req dtos.Plan
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
@@ -99,7 +142,7 @@ func (h *plansHandler) Store(c fiber.Ctx) error {
 
 	plan := planFromRequest(req)
 	plan.ID = uuid.NewString()
-	plan.Name = orDefault(req.Name, "Plan")
+	plan.Name = cmp.Or(req.Name, "Plan")
 	if err := h.app.Repos.Plans.Insert(c.Context(), plan); err != nil {
 		return err
 	}
@@ -131,9 +174,11 @@ func (h *plansHandler) Update(c fiber.Ctx) error {
 		return err
 	}
 
-	plan := planFromRequest(req)
-	plan.ID = id.String()
-	plan.Name = orDefault(req.Name, "Plan")
+	plan, err := h.app.Repos.Plans.Get(c.Context(), id.String())
+	if err != nil {
+		return err
+	}
+	applyPlanPatch(&plan, req)
 	if err := h.app.Repos.Plans.Update(c.Context(), plan); err != nil {
 		return err
 	}
@@ -182,11 +227,4 @@ func (h *plansHandler) Keys(c fiber.Ctx) error {
 		}
 	}
 	return dtos.List(c, out, dtos.TotalMeta(len(out)))
-}
-
-func orDefault(value, fallback string) string {
-	if value == "" {
-		return fallback
-	}
-	return value
 }

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"cmp"
 	"encoding/json"
 
 	"tera-router/server/internal/app"
@@ -23,7 +24,7 @@ func customProviderFrom(d dtos.CustomProvider) models.CustomProvider {
 		Name:     d.Name,
 		Slug:     d.Slug,
 		BaseURL:  d.BaseURL,
-		APIKind:  orDefault(d.APIKind, "openai"),
+		APIKind:  cmp.Or(d.APIKind, "openai"),
 		Priority: d.Priority,
 		Pricing:  encodeJSON(d.Pricing),
 		Metadata: encodeJSON(d.Metadata),
@@ -33,6 +34,36 @@ func customProviderFrom(d dtos.CustomProvider) models.CustomProvider {
 		p.Enabled = *d.Enabled
 	}
 	return p
+}
+
+// applyCustomProviderPatch overlays the fields the request actually supplied
+// onto the stored provider. Rebuilding the row would blank pricing/metadata to
+// "{}", re-enable a disabled provider and reset its priority.
+func applyCustomProviderPatch(p *models.CustomProvider, d dtos.CustomProvider) {
+	if d.Name != "" {
+		p.Name = d.Name
+	}
+	if d.Slug != "" {
+		p.Slug = d.Slug
+	}
+	if d.BaseURL != "" {
+		p.BaseURL = d.BaseURL
+	}
+	if d.APIKind != "" {
+		p.APIKind = d.APIKind
+	}
+	if d.Pricing != nil {
+		p.Pricing = encodeJSON(d.Pricing)
+	}
+	if d.Metadata != nil {
+		p.Metadata = encodeJSON(d.Metadata)
+	}
+	if d.Priority != 0 {
+		p.Priority = d.Priority
+	}
+	if d.Enabled != nil {
+		p.Enabled = *d.Enabled
+	}
 }
 
 func encodeJSON(v any) string {
@@ -147,8 +178,11 @@ func (h *providersHandler) CustomUpdate(c fiber.Ctx) error {
 		return err
 	}
 
-	provider := customProviderFrom(req)
-	provider.ID = id.String()
+	provider, err := h.app.Repos.Providers.Get(c.Context(), id.String())
+	if err != nil {
+		return err
+	}
+	applyCustomProviderPatch(&provider, req)
 	if err := h.app.Repos.Providers.Update(c.Context(), provider); err != nil {
 		return err
 	}
@@ -192,7 +226,7 @@ func (h *providersHandler) AccountsBulkEnable(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "account.bulk_disable", provider, map[string]any{"disabled": false, "updated": updated})
+	auditRecord(c.Context(), h.app, actorFrom(c), "account.bulk_enable", provider, map[string]any{"disabled": false, "updated": updated})
 	return dtos.OK(c, fiber.Map{"updated": updated})
 }
 

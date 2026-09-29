@@ -16,6 +16,3 @@ type CustomProvider struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
-
-// TableName returns the backing table for the model.
-func (CustomProvider) TableName() string { return "custom_providers" }

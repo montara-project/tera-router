@@ -39,11 +39,11 @@ func scanUser(row rowScanner) (models.User, error) {
 
 // Insert persists a new user.
 func (r *UserRepository) Insert(ctx context.Context, u models.User) error {
-	return r.insertExec(ctx, r.DB, u)
+	return r.insertExec(ctx, u)
 }
 
-func (r *UserRepository) insertExec(ctx context.Context, ex Executor, u models.User) error {
-	_, err := r.execContext(ctx, ex, `
+func (r *UserRepository) insertExec(ctx context.Context, u models.User) error {
+	_, err := r.execContext(ctx, r.DB, `
 		INSERT INTO users (id, fullname, email, phone, address, token_verify, password_hash, is_active, is_blocked, role_id)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
 		u.ID, u.Fullname, u.Email, u.Phone, u.Address, u.TokenVerify, u.PasswordHash, u.IsActive, u.IsBlocked, u.RoleID,
@@ -53,31 +53,31 @@ func (r *UserRepository) insertExec(ctx context.Context, ex Executor, u models.U
 
 // GetByEmail resolves a live user by email.
 func (r *UserRepository) GetByEmail(ctx context.Context, email string) (models.User, error) {
-	return r.getByEmailExec(ctx, r.DB, email)
+	return r.getByEmailExec(ctx, email)
 }
 
-func (r *UserRepository) getByEmailExec(ctx context.Context, ex Executor, email string) (models.User, error) {
-	row := r.queryRowContext(ctx, ex, `SELECT`+userColumns+userFrom+` WHERE u.email = $1 AND u.deleted_at IS NULL`, email)
+func (r *UserRepository) getByEmailExec(ctx context.Context, email string) (models.User, error) {
+	row := r.queryRowContext(ctx, r.DB, `SELECT`+userColumns+userFrom+` WHERE u.email = $1 AND u.deleted_at IS NULL`, email)
 	return scanUser(row)
 }
 
 // Get resolves a live user by id.
 func (r *UserRepository) Get(ctx context.Context, id string) (models.User, error) {
-	return r.getExec(ctx, r.DB, id)
+	return r.getExec(ctx, id)
 }
 
-func (r *UserRepository) getExec(ctx context.Context, ex Executor, id string) (models.User, error) {
-	row := r.queryRowContext(ctx, ex, `SELECT`+userColumns+userFrom+` WHERE u.id = $1 AND u.deleted_at IS NULL`, id)
+func (r *UserRepository) getExec(ctx context.Context, id string) (models.User, error) {
+	row := r.queryRowContext(ctx, r.DB, `SELECT`+userColumns+userFrom+` WHERE u.id = $1 AND u.deleted_at IS NULL`, id)
 	return scanUser(row)
 }
 
 // UpdatePassword rewrites the stored password hash.
 func (r *UserRepository) UpdatePassword(ctx context.Context, id, passwordHash string) error {
-	return r.updatePasswordExec(ctx, r.DB, id, passwordHash)
+	return r.updatePasswordExec(ctx, id, passwordHash)
 }
 
-func (r *UserRepository) updatePasswordExec(ctx context.Context, ex Executor, id, passwordHash string) error {
-	_, err := r.execContext(ctx, ex,
+func (r *UserRepository) updatePasswordExec(ctx context.Context, id, passwordHash string) error {
+	_, err := r.execContext(ctx, r.DB,
 		`UPDATE users SET password_hash = $2, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now') WHERE id = $1`, id, passwordHash)
 	return err
 }

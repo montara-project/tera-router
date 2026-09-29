@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"cmp"
 	"context"
 	"strings"
 
@@ -43,7 +44,7 @@ func (h *quotaHandler) quotaRows(ctx context.Context, rng string) ([]dtos.QuotaA
 			ID:              a.ID,
 			Name:            a.Label,
 			Provider:        a.Provider,
-			AuthLabel:       a.Provider + " · " + orDefault(string(a.AuthKind), "api_key"),
+			AuthLabel:       a.Provider + " · " + cmp.Or(string(a.AuthKind), "api_key"),
 			Initials:        initialsOf(a.Label, a.Provider),
 			Status:          status,
 			Priority:        a.Priority,
