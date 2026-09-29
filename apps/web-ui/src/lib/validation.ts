@@ -136,6 +136,19 @@ export const optionalNumber = (attribute: string) =>
     .optional()
 
 /**
+ * Optional decimal validation for scores and ratios, which are legitimately
+ * fractional (e.g. a 0.5 detector confidence) and would fail the integer
+ * refinement in optionalNumber.
+ * @param attribute
+ * @returns
+ */
+export const optionalFloat = (attribute: string) =>
+  z
+    .number({ error: getValidationMessage('numeric', { attribute }) })
+    .finite(getValidationMessage('numeric', { attribute }))
+    .optional()
+
+/**
  * Optional string validation
  * @param attribute
  * @returns

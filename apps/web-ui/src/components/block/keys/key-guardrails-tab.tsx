@@ -3,11 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
-import type {
-  GuardrailPolicy,
-  GuardrailsPolicyConfig,
-  GuardrailsScope,
-} from '@/lib/api/models/guardrails'
+import type { GuardrailPolicy, GuardrailsScope } from '@/lib/api/models/guardrails'
 import type { ApiKeyDetail } from '@/lib/api/models/key'
 
 import SimpleAlertDialog from '@/components/block/common/simple-alert-dialog'
@@ -45,6 +41,9 @@ const DETECTORS = [
 
 type DetectorKey = (typeof DETECTORS)[number]['key']
 
+/** Most specific first, matching the server's ListEnabled ordering. */
+const SPECIFICITY_ORDER: GuardrailsScope[] = ['key', 'chain', 'model', 'provider', 'global']
+
 type EffectiveDetector = {
   key: DetectorKey
   label: string
@@ -74,14 +73,10 @@ export default function KeyGuardrailsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
     () => policies.filter((policy) => UPSTREAM_SCOPES.includes(policy.scope) && policy.enabled),
     [policies]
   )
-  const globalPolicy = useMemo(
-    () => policies.find((policy) => policy.scope === 'global') ?? null,
-    [policies]
-  )
 
   const effective = useMemo(
-    () => mergeDetectors(keyPolicies, globalPolicy, upstreamPolicies),
-    [keyPolicies, globalPolicy, upstreamPolicies]
+    () => mergeDetectors(keyPolicies, upstreamPolicies),
+    [keyPolicies, upstreamPolicies]
   )
   const activeDetectors = effective.filter((detector) => detector.enabled)
 
@@ -357,70 +352,59 @@ export default function KeyGuardrailsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
 }
 
 /**
- * Resolves the detectors that apply to a key: the key's own layer wins where it
- * configures a detector, everything else falls back to the upstream layers.
+ * Resolves the detectors that apply to a key.
+ *
+ * This mirrors the server's merge in the guardrails Evaluate path: layers are
+ * walked most-specific-first, a detector counts as active if ANY applicable
+ * layer enables it (a key override cannot switch off upstream protection), and
+ * the settings shown come from the most specific layer that enables it.
  */
 function mergeDetectors(
   keyPolicies: GuardrailPolicy[],
-  globalPolicy: GuardrailPolicy | null,
   upstreamPolicies: GuardrailPolicy[]
 ): EffectiveDetector[] {
-  const upstreamConfigs = upstreamPolicies
-    .map((policy) => policy.config)
-    .filter((config): config is GuardrailsPolicyConfig => Boolean(config))
+  // Most specific first: key, chain, model, provider, global.
+  const layers = [...keyPolicies, ...sortBySpecificity(upstreamPolicies)]
 
   return DETECTORS.map((detector) => {
-    const keyConfig = pickConfig(
-      keyPolicies.map((policy) => policy.config),
-      detector.key
-    )
-    if (keyConfig) {
-      return {
-        key: detector.key,
-        label: detector.label,
-        enabled: keyConfig.enabled ?? false,
-        source: keyConfig.enabled ? 'key' : 'off',
-        config: keyConfig as Record<string, unknown>,
-      }
-    }
+    let config: { enabled?: boolean } | undefined
+    let source: EffectiveDetector['source'] = 'off'
+    let enabled = false
 
-    const inherited = pickConfig([globalPolicy?.config, ...upstreamConfigs], detector.key)
-    if (inherited) {
-      return {
-        key: detector.key,
-        label: detector.label,
-        enabled: inherited.enabled ?? false,
-        source: inherited.enabled ? 'inherited' : 'off',
-        config: inherited as Record<string, unknown>,
-      }
-    }
-
-    // Policies saved without a config document still list their detectors by
-    // name; fall back to that so the tab is not blank.
-    const enabled = upstreamPolicies.some((policy) =>
-      policy.protections.some((protection) =>
+    for (const policy of layers) {
+      const section = policy.config?.[detector.key]
+      // A policy saved without a config document still names its detectors.
+      const named = policy.protections.some((protection) =>
         detector.aliases.includes(protection.toLowerCase() as never)
       )
-    )
+
+      if (section?.enabled) {
+        enabled = true
+        if (!config) {
+          config = section
+          source = policy.scope === 'key' ? 'key' : 'inherited'
+        }
+      } else if (named) {
+        enabled = true
+        if (!config) source = policy.scope === 'key' ? 'key' : 'inherited'
+      }
+    }
 
     return {
       key: detector.key,
       label: detector.label,
       enabled,
-      source: enabled ? 'inherited' : 'off',
+      source: enabled ? source : 'off',
+      config: config as Record<string, unknown> | undefined,
     }
   })
 }
 
-function pickConfig(
-  configs: (GuardrailsPolicyConfig | undefined)[],
-  key: DetectorKey
-): { enabled?: boolean } | undefined {
-  for (const config of configs) {
-    const section = config?.[key]
-    if (section) return section
-  }
-  return undefined
+/** Orders policies by scope specificity, most specific first. */
+function sortBySpecificity(policies: GuardrailPolicy[]) {
+  return [...policies].sort(
+    (a, b) => SPECIFICITY_ORDER.indexOf(a.scope) - SPECIFICITY_ORDER.indexOf(b.scope)
+  )
 }
 
 function describeConfig(config?: Record<string, unknown>) {

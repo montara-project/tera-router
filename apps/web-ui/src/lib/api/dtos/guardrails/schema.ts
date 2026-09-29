@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 import {
   optionalBoolean,
+  optionalFloat,
   optionalNumber,
   optionalString,
   optionalStringArray,
@@ -24,7 +25,9 @@ const PiiConfigSchema = z.object({
   enabled: optionalBoolean('pii enabled'),
   entities: optionalStringArray('pii entities'),
   masking_strategy: optionalString('pii masking strategy'),
-  min_confidence: optionalNumber('pii minimum confidence'),
+  // A detector confidence is a 0–1 ratio, so this one field is fractional
+  // where the thresholds below are whole percentages.
+  min_confidence: optionalFloat('pii minimum confidence'),
   engine: optionalString('pii engine'),
   scan_output: optionalBoolean('pii scan output'),
 })
