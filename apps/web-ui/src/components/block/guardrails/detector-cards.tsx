@@ -4,6 +4,7 @@ import {
   IconShieldCheck,
   IconSlash,
   IconTag,
+  type TablerIcon,
 } from '@tabler/icons-react'
 
 import type { GuardrailsPolicyConfig as PolicyConfig } from '@/lib/api/models/guardrails'
@@ -188,7 +189,7 @@ function DetectorSection({
   experimental,
   children,
 }: {
-  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>
+  icon: TablerIcon
   tileClass: string
   title: string
   description: string
