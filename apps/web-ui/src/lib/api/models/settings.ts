@@ -1,22 +1,22 @@
 export type SourceCodeFilterMode = 'off' | 'minimal' | 'aggressive'
 
 export type AppSettings = {
-  rtkEnabled: boolean
-  sourceCodeFilter: SourceCodeFilterMode
-  cavemanEnabled: boolean
-  terseEnabled: boolean
-  headroomEnabled: boolean
-  ponytailEnabled: boolean
-  providerRoundRobin: boolean
-  providerStickyLimit: number
-  chainRoundRobin: boolean
-  connectTimeout: number
-  streamStallTimeout: number
-  requestTimeout: number
-  enforceRateLimits: boolean
-  outboundProxyEnabled: boolean
-  requestDetailRecording: boolean
-  brandingDisplayName: string
-  brandingTagline: string
-  brandingTheme: string
+  rtk_enabled: boolean
+  source_code_filter: SourceCodeFilterMode
+  caveman_enabled: boolean
+  terse_enabled: boolean
+  headroom_enabled: boolean
+  ponytail_enabled: boolean
+  provider_round_robin: boolean
+  provider_sticky_limit: number
+  chain_round_robin: boolean
+  connect_timeout: number
+  stream_stall_timeout: number
+  request_timeout: number
+  enforce_rate_limits: boolean
+  outbound_proxy_enabled: boolean
+  request_detail_recording: boolean
+  branding_display_name: string
+  branding_tagline: string
+  branding_theme: string
 }

@@ -17,10 +17,10 @@ import (
 type PiiConfig struct {
 	Enabled         bool     `json:"enabled"`
 	Entities        []string `json:"entities"`
-	MaskingStrategy string   `json:"maskingStrategy"`
-	MinConfidence   float64  `json:"minConfidence"`
+	MaskingStrategy string   `json:"masking_strategy"`
+	MinConfidence   float64  `json:"min_confidence"`
 	Engine          string   `json:"engine"`
-	ScanOutput      bool     `json:"scanOutput"`
+	ScanOutput      bool     `json:"scan_output"`
 }
 
 // InjectionConfig mirrors the prompt-injection detector options.
@@ -113,7 +113,7 @@ type DetectorResult struct {
 // text after PII masking, and every detector outcome.
 type Result struct {
 	Decision   string           `json:"decision"`
-	MaskedText string           `json:"maskedText"`
+	MaskedText string           `json:"masked_text"`
 	Detectors  []DetectorResult `json:"detectors"`
 }
 

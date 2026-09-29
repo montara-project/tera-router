@@ -1,7 +1,7 @@
 import type { AxiosDeleteResponse, AxiosItemResponse } from '@/types/api'
 
 import type { EvaluateDto, GuardrailsSettingsDto, PolicyDto } from '../../dtos/guardrails/schema'
-import type { GuardrailsOverview, GuardrailPolicy } from '../../models/guardrails'
+import type { GuardrailPolicy, GuardrailsOverview } from '../../models/guardrails'
 
 /** One detector hit rendered in the dashboard test panel. */
 export type GuardrailsDetectorMatch = {
@@ -25,7 +25,7 @@ export type GuardrailsDetectorResult = {
 /** Result of POST /v1/guardrails/evaluate. */
 export type GuardrailsEvaluateResult = {
   decision: string
-  maskedText: string
+  masked_text: string
   detectors: GuardrailsDetectorResult[]
 }
 

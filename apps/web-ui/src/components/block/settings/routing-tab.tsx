@@ -23,13 +23,13 @@ interface RoutingTabProps {
 export default function RoutingTab({ settings, onUpdate }: RoutingTabProps) {
   const switchClass = 'data-[state=checked]:bg-amber-600'
 
-  const distribution = settings.providerRoundRobin
-    ? `Distributing requests across all available accounts with ${settings.providerStickyLimit} ${
-        settings.providerStickyLimit === 1 ? 'call' : 'calls'
+  const distribution = settings.provider_round_robin
+    ? `Distributing requests across all available accounts with ${settings.provider_sticky_limit} ${
+        settings.provider_sticky_limit === 1 ? 'call' : 'calls'
       } per account.`
     : 'Requests stick to the first available account in each provider group.'
 
-  const chain = settings.chainRoundRobin
+  const chain = settings.chain_round_robin
     ? 'Chains cycle through their providers round robin.'
     : 'Chains always start with their first model.'
 
@@ -59,9 +59,9 @@ export default function RoutingTab({ settings, onUpdate }: RoutingTabProps) {
           >
             <Switch
               aria-label="Enable provider group round robin"
-              checked={settings.providerRoundRobin}
+              checked={settings.provider_round_robin}
               className={switchClass}
-              onCheckedChange={(value) => onUpdate({ providerRoundRobin: value })}
+              onCheckedChange={(value) => onUpdate({ provider_round_robin: value })}
             />
           </SettingRow>
 
@@ -77,11 +77,11 @@ export default function RoutingTab({ settings, onUpdate }: RoutingTabProps) {
               type="number"
               min={1}
               step={1}
-              value={settings.providerStickyLimit}
+              value={settings.provider_sticky_limit}
               className="flex-1 text-center font-mono"
               onChange={(e) => {
                 const value = e.target.valueAsNumber
-                if (!Number.isNaN(value) && value >= 1) onUpdate({ providerStickyLimit: value })
+                if (!Number.isNaN(value) && value >= 1) onUpdate({ provider_sticky_limit: value })
               }}
             />
           </div>
@@ -92,9 +92,9 @@ export default function RoutingTab({ settings, onUpdate }: RoutingTabProps) {
           >
             <Switch
               aria-label="Enable chain round robin"
-              checked={settings.chainRoundRobin}
+              checked={settings.chain_round_robin}
               className={switchClass}
-              onCheckedChange={(value) => onUpdate({ chainRoundRobin: value })}
+              onCheckedChange={(value) => onUpdate({ chain_round_robin: value })}
             />
           </SettingRow>
         </div>

@@ -135,12 +135,16 @@ function UploadZone({ label, hint, id }: { label: string; hint: string; id: stri
 }
 
 export default function BrandingTab({ settings, onUpdate }: BrandingTabProps) {
-  const [displayName, setDisplayName] = useState(settings.brandingDisplayName)
-  const [tagline, setTagline] = useState(settings.brandingTagline)
-  const [theme, setTheme] = useState(settings.brandingTheme)
+  const [displayName, setDisplayName] = useState(settings.branding_display_name)
+  const [tagline, setTagline] = useState(settings.branding_tagline)
+  const [theme, setTheme] = useState(settings.branding_theme)
 
   const handleSave = () => {
-    onUpdate({ brandingDisplayName: displayName, brandingTagline: tagline, brandingTheme: theme })
+    onUpdate({
+      branding_display_name: displayName,
+      branding_tagline: tagline,
+      branding_theme: theme,
+    })
     toast.success('Branding saved')
   }
 

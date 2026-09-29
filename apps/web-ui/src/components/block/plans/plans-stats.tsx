@@ -17,8 +17,8 @@ const tileTones = {
 }
 
 export default function PlansStats({ plans }: PlansStatsProps) {
-  const keysAssigned = plans.reduce((total, plan) => total + plan.keysAssigned, 0)
-  const hardCutoff = plans.filter((plan) => plan.hardCutoff).length
+  const keysAssigned = plans.reduce((total, plan) => total + plan.keys_assigned, 0)
+  const hardCutoff = plans.filter((plan) => plan.hard_cutoff).length
   const advisory = plans.length - hardCutoff
 
   const stats = [

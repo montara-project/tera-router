@@ -18,26 +18,26 @@ const SOURCE_CODE_FILTERS = enumValues<SourceCodeFilterMode>({
  * the keys they changed.
  */
 export const SettingsSchema = z.object({
-  rtkEnabled: optionalBoolean('rtk enabled'),
-  sourceCodeFilter: z
+  rtk_enabled: optionalBoolean('rtk enabled'),
+  source_code_filter: z
     .enum(SOURCE_CODE_FILTERS, { error: 'The selected source code filter is invalid.' })
     .optional(),
-  cavemanEnabled: optionalBoolean('caveman enabled'),
-  terseEnabled: optionalBoolean('terse enabled'),
-  headroomEnabled: optionalBoolean('headroom enabled'),
-  ponytailEnabled: optionalBoolean('ponytail enabled'),
-  providerRoundRobin: optionalBoolean('provider round robin'),
-  providerStickyLimit: optionalNumber('provider sticky limit'),
-  chainRoundRobin: optionalBoolean('chain round robin'),
-  connectTimeout: optionalNumber('connect timeout'),
-  streamStallTimeout: optionalNumber('stream stall timeout'),
-  requestTimeout: optionalNumber('request timeout'),
-  enforceRateLimits: optionalBoolean('enforce rate limits'),
-  outboundProxyEnabled: optionalBoolean('outbound proxy enabled'),
-  requestDetailRecording: optionalBoolean('request detail recording'),
-  brandingDisplayName: optionalString('branding display name'),
-  brandingTagline: optionalString('branding tagline'),
-  brandingTheme: optionalString('branding theme'),
+  caveman_enabled: optionalBoolean('caveman enabled'),
+  terse_enabled: optionalBoolean('terse enabled'),
+  headroom_enabled: optionalBoolean('headroom enabled'),
+  ponytail_enabled: optionalBoolean('ponytail enabled'),
+  provider_round_robin: optionalBoolean('provider round robin'),
+  provider_sticky_limit: optionalNumber('provider sticky limit'),
+  chain_round_robin: optionalBoolean('chain round robin'),
+  connect_timeout: optionalNumber('connect timeout'),
+  stream_stall_timeout: optionalNumber('stream stall timeout'),
+  request_timeout: optionalNumber('request timeout'),
+  enforce_rate_limits: optionalBoolean('enforce rate limits'),
+  outbound_proxy_enabled: optionalBoolean('outbound proxy enabled'),
+  request_detail_recording: optionalBoolean('request detail recording'),
+  branding_display_name: optionalString('branding display name'),
+  branding_tagline: optionalString('branding tagline'),
+  branding_theme: optionalString('branding theme'),
 }) satisfies z.ZodType<Partial<AppSettings>>
 
 export type SettingsDto = z.infer<typeof SettingsSchema>

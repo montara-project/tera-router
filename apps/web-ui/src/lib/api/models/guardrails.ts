@@ -3,10 +3,10 @@ export type GuardrailsScope = 'global' | 'provider' | 'model' | 'chain' | 'key'
 export type GuardrailsPiiConfig = {
   enabled: boolean
   entities: string[]
-  maskingStrategy: string
-  minConfidence: number
+  masking_strategy: string
+  min_confidence: number
   engine: string
-  scanOutput: boolean
+  scan_output: boolean
 }
 
 export type GuardrailsInjectionConfig = {
@@ -67,7 +67,7 @@ export type GuardrailsAuditEntry = {
 }
 
 export type GuardrailsOverview = {
-  externalDetectors: boolean
+  external_detectors: boolean
   policies: GuardrailPolicy[]
   audit: GuardrailsAuditEntry[]
 }

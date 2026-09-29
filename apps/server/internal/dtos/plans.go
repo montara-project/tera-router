@@ -6,12 +6,12 @@ import "tera-router/server/internal/lib/validator"
 type Plan struct {
 	Name          string   `json:"name"`
 	Description   string   `json:"description"`
-	BudgetSpend   *float64 `json:"budgetSpend"` // USD; stored as micros
-	BudgetTokens  *int64   `json:"budgetTokens"`
+	BudgetSpend   *float64 `json:"budget_spend"` // USD; stored as micros
+	BudgetTokens  *int64   `json:"budget_tokens"`
 	Period        string   `json:"period"`
-	AlertPct      *int     `json:"alertAtPercent"`
-	HardCutoff    *bool    `json:"hardCutoff"`
-	AllowedModels []string `json:"allowedModels"`
+	AlertPct      *int     `json:"alert_at_percent"`
+	HardCutoff    *bool    `json:"hard_cutoff"`
+	AllowedModels []string `json:"allowed_models"`
 	RPM           *int     `json:"rpm"`
 	TPM           *int     `json:"tpm"`
 	Concurrent    *int     `json:"concurrent"`

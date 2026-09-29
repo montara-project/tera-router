@@ -38,8 +38,8 @@ export const TEMPLATES: {
           'PHONE_NUMBER',
           'CREDIT_CARD',
         ],
-        maskingStrategy: 'redact',
-        minConfidence: 0.7,
+        masking_strategy: 'redact',
+        min_confidence: 0.7,
       },
     },
   },
@@ -63,7 +63,7 @@ export const TEMPLATES: {
     description:
       'Every detector enabled at action=log_only — useful as a dry run before tightening to warn/block.',
     config: {
-      pii: { enabled: true, scanOutput: true },
+      pii: { enabled: true, scan_output: true },
       injection: { enabled: true, severity: 'low', action: 'log' },
       topics: { enabled: true, action: 'log' },
       toxicity: { enabled: true, action: 'log' },
@@ -75,7 +75,7 @@ export const TEMPLATES: {
     description:
       'Redact PII (both directions), block prompt injection, scope topics to programming/general help.',
     config: {
-      pii: { enabled: true, scanOutput: true },
+      pii: { enabled: true, scan_output: true },
       injection: { enabled: true, severity: 'high', action: 'block' },
       topics: {
         enabled: true,

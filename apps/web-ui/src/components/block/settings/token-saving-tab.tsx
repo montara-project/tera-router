@@ -2,8 +2,8 @@ import {
   IconBolt,
   IconExternalLink,
   IconInfoCircle,
-  IconStack2,
   IconMessage,
+  IconStack2,
   IconTerminal2,
 } from '@tabler/icons-react'
 
@@ -43,11 +43,11 @@ const CODE_LINES: { command: string; comment?: string }[] = [
 ]
 
 const ariaLabels = {
-  rtkEnabled: 'Enable RTK token saver',
-  cavemanEnabled: 'Enable caveman mode',
-  terseEnabled: 'Enable terse mode',
-  headroomEnabled: 'Enable Headroom',
-  ponytailEnabled: 'Enable Ponytail',
+  rtk_enabled: 'Enable RTK token saver',
+  caveman_enabled: 'Enable caveman mode',
+  terse_enabled: 'Enable terse mode',
+  headroom_enabled: 'Enable Headroom',
+  ponytail_enabled: 'Enable Ponytail',
 }
 
 export default function TokenSavingTab({ settings, onUpdate }: TokenSavingTabProps) {
@@ -77,17 +77,19 @@ export default function TokenSavingTab({ settings, onUpdate }: TokenSavingTabPro
           <div className="divide-y divide-border">
             <SettingRow title="Enable RTK token saver">
               <Switch
-                aria-label={ariaLabels.rtkEnabled}
-                checked={settings.rtkEnabled}
+                aria-label={ariaLabels.rtk_enabled}
+                checked={settings.rtk_enabled}
                 className={switchClass}
-                onCheckedChange={(value) => onUpdate({ rtkEnabled: value })}
+                onCheckedChange={(value) => onUpdate({ rtk_enabled: value })}
               />
             </SettingRow>
             <SettingRow title="Source code filter" description="No source code comment stripping.">
               <SegmentedControl
-                onChange={(value) => onUpdate({ sourceCodeFilter: value as SourceCodeFilterMode })}
+                onChange={(value) =>
+                  onUpdate({ source_code_filter: value as SourceCodeFilterMode })
+                }
                 options={SOURCE_CODE_FILTER_OPTIONS}
-                value={settings.sourceCodeFilter}
+                value={settings.source_code_filter}
               />
             </SettingRow>
           </div>
@@ -116,10 +118,10 @@ export default function TokenSavingTab({ settings, onUpdate }: TokenSavingTabPro
           <div className="divide-y divide-border">
             <SettingRow title="Enable caveman mode">
               <Switch
-                aria-label={ariaLabels.cavemanEnabled}
-                checked={settings.cavemanEnabled}
+                aria-label={ariaLabels.caveman_enabled}
+                checked={settings.caveman_enabled}
                 className={switchClass}
-                onCheckedChange={(value) => onUpdate({ cavemanEnabled: value })}
+                onCheckedChange={(value) => onUpdate({ caveman_enabled: value })}
               />
             </SettingRow>
           </div>
@@ -148,10 +150,10 @@ export default function TokenSavingTab({ settings, onUpdate }: TokenSavingTabPro
           <div className="divide-y divide-border">
             <SettingRow title="Enable terse mode">
               <Switch
-                aria-label={ariaLabels.terseEnabled}
-                checked={settings.terseEnabled}
+                aria-label={ariaLabels.terse_enabled}
+                checked={settings.terse_enabled}
                 className={switchClass}
-                onCheckedChange={(value) => onUpdate({ terseEnabled: value })}
+                onCheckedChange={(value) => onUpdate({ terse_enabled: value })}
               />
             </SettingRow>
           </div>
@@ -201,10 +203,10 @@ export default function TokenSavingTab({ settings, onUpdate }: TokenSavingTabPro
           <div className="divide-y divide-border border-t border-border">
             <SettingRow title="Enable Headroom">
               <Switch
-                aria-label={ariaLabels.headroomEnabled}
-                checked={settings.headroomEnabled}
+                aria-label={ariaLabels.headroom_enabled}
+                checked={settings.headroom_enabled}
                 className={switchClass}
-                onCheckedChange={(value) => onUpdate({ headroomEnabled: value })}
+                onCheckedChange={(value) => onUpdate({ headroom_enabled: value })}
               />
             </SettingRow>
           </div>
@@ -272,10 +274,10 @@ export default function TokenSavingTab({ settings, onUpdate }: TokenSavingTabPro
           <div className="divide-y divide-border">
             <SettingRow title="Enable Ponytail">
               <Switch
-                aria-label={ariaLabels.ponytailEnabled}
-                checked={settings.ponytailEnabled}
+                aria-label={ariaLabels.ponytail_enabled}
+                checked={settings.ponytail_enabled}
                 className={switchClass}
-                onCheckedChange={(value) => onUpdate({ ponytailEnabled: value })}
+                onCheckedChange={(value) => onUpdate({ ponytail_enabled: value })}
               />
             </SettingRow>
           </div>

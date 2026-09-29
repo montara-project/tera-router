@@ -19,10 +19,10 @@ export const Route = createFileRoute('/(protected)/(analytics)/system/')({
 const LOAD_THRESHOLD = 80
 
 const CHART_COLORS = {
-  hostCpu: '#10b981',
-  hostMemory: '#f97316',
-  processCpu: '#f59e0b',
-  processRss: '#06b6d4',
+  host_cpu: '#10b981',
+  host_memory: '#f97316',
+  process_cpu: '#f59e0b',
+  process_rss: '#06b6d4',
 } as const
 
 function RouteSkeleton() {
@@ -69,43 +69,43 @@ function RouteComponent() {
 
         <div className="grid gap-4 lg:grid-cols-2">
           <SystemMetricChartCard
-            color={CHART_COLORS.hostCpu}
+            color={CHART_COLORS.host_cpu}
             description="System-wide CPU percentage over time"
             icon={Cpu}
             max={100}
             min={0}
-            points={stats.history.hostCpu}
+            points={stats.history.host_cpu}
             threshold={LOAD_THRESHOLD}
             title="Host CPU"
             tone="emerald"
           />
           <SystemMetricChartCard
-            color={CHART_COLORS.hostMemory}
+            color={CHART_COLORS.host_memory}
             description="System-wide memory percentage over time"
             icon={MemoryStick}
             max={100}
             min={0}
-            points={stats.history.hostMemory}
+            points={stats.history.host_memory}
             threshold={LOAD_THRESHOLD}
             title="Host Memory"
             tone="orange"
           />
           <SystemMetricChartCard
-            color={CHART_COLORS.processCpu}
+            color={CHART_COLORS.process_cpu}
             description="Tera Router's own CPU usage over time"
             icon={Cpu}
             max={100}
             min={0}
-            points={stats.history.processCpu}
+            points={stats.history.process_cpu}
             threshold={LOAD_THRESHOLD}
             title="Process CPU"
             tone="amber"
           />
           <SystemMetricChartCard
-            color={CHART_COLORS.processRss}
+            color={CHART_COLORS.process_rss}
             description="Tera Router's resident memory over time"
             icon={MemoryStick}
-            points={stats.history.processRss}
+            points={stats.history.process_rss}
             title="Process RSS"
             tone="cyan"
           />

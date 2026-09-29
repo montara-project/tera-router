@@ -23,10 +23,10 @@ type SystemPoint struct {
 
 // SystemHistory is the rolling window of the four charted series.
 type SystemHistory struct {
-	HostCpu    []SystemPoint `json:"hostCpu"`
-	HostMemory []SystemPoint `json:"hostMemory"`
-	ProcessCpu []SystemPoint `json:"processCpu"`
-	ProcessRss []SystemPoint `json:"processRss"`
+	HostCpu    []SystemPoint `json:"host_cpu"`
+	HostMemory []SystemPoint `json:"host_memory"`
+	ProcessCpu []SystemPoint `json:"process_cpu"`
+	ProcessRss []SystemPoint `json:"process_rss"`
 }
 
 // SystemStats is the GET /v1/system/stats payload, matching the web UI
@@ -43,38 +43,38 @@ type SystemHost struct {
 	Hostname          string  `json:"hostname"`
 	OS                string  `json:"os"`
 	Architecture      string  `json:"architecture"`
-	CPUCores          int     `json:"cpuCores"`
-	CPUPercent        float64 `json:"cpuPercent"`
-	MemoryTotalMb     float64 `json:"memoryTotalMb"`
-	MemoryUsedMb      float64 `json:"memoryUsedMb"`
-	MemoryPercent     float64 `json:"memoryPercent"`
-	MemoryAvailableMb float64 `json:"memoryAvailableMb"`
-	DiskTotalGb       float64 `json:"diskTotalGb"`
-	DiskUsedGb        float64 `json:"diskUsedGb"`
-	DiskFreeGb        float64 `json:"diskFreeGb"`
-	DiskPercent       float64 `json:"diskPercent"`
-	UptimeSeconds     uint64  `json:"uptimeSeconds"`
+	CPUCores          int     `json:"cpu_cores"`
+	CPUPercent        float64 `json:"cpu_percent"`
+	MemoryTotalMb     float64 `json:"memory_total_mb"`
+	MemoryUsedMb      float64 `json:"memory_used_mb"`
+	MemoryPercent     float64 `json:"memory_percent"`
+	MemoryAvailableMb float64 `json:"memory_available_mb"`
+	DiskTotalGb       float64 `json:"disk_total_gb"`
+	DiskUsedGb        float64 `json:"disk_used_gb"`
+	DiskFreeGb        float64 `json:"disk_free_gb"`
+	DiskPercent       float64 `json:"disk_percent"`
+	UptimeSeconds     uint64  `json:"uptime_seconds"`
 }
 
 type SystemProcess struct {
 	PID                int     `json:"pid"`
-	CPUPercent         float64 `json:"cpuPercent"`
-	RssMb              float64 `json:"rssMb"`
-	RssPercent         float64 `json:"rssPercent"`
+	CPUPercent         float64 `json:"cpu_percent"`
+	RssMb              float64 `json:"rss_mb"`
+	RssPercent         float64 `json:"rss_percent"`
 	Goroutines         int     `json:"goroutines"`
 	Threads            int     `json:"threads"`
-	OpenFds            int     `json:"openFds"`
-	NetworkConnections int     `json:"networkConnections"`
+	OpenFds            int     `json:"open_fds"`
+	NetworkConnections int     `json:"network_connections"`
 }
 
 type SystemRuntime struct {
-	HeapAllocMb    float64 `json:"heapAllocMb"`
-	HeapSysMb      float64 `json:"heapSysMb"`
-	HeapInUseMb    float64 `json:"heapInUseMb"`
-	HeapIdleMb     float64 `json:"heapIdleMb"`
-	GCCycles       uint32  `json:"gcCycles"`
-	GCPauseTotalMs float64 `json:"gcPauseTotalMs"`
-	GCPauseLastMs  float64 `json:"gcPauseLastMs"`
+	HeapAllocMb    float64 `json:"heap_alloc_mb"`
+	HeapSysMb      float64 `json:"heap_sys_mb"`
+	HeapInUseMb    float64 `json:"heap_in_use_mb"`
+	HeapIdleMb     float64 `json:"heap_idle_mb"`
+	GCCycles       uint32  `json:"gc_cycles"`
+	GCPauseTotalMs float64 `json:"gc_pause_total_ms"`
+	GCPauseLastMs  float64 `json:"gc_pause_last_ms"`
 }
 
 type SystemCore struct {

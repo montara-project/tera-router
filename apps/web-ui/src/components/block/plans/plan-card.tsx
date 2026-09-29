@@ -85,7 +85,7 @@ export default function PlanCard({ plan }: PlanCardProps) {
             <CardHeading className="min-w-0">
               <div className="flex items-center gap-2">
                 <CardTitle>{plan.name}</CardTitle>
-                {plan.hardCutoff && (
+                {plan.hard_cutoff && (
                   <span className="inline-flex items-center whitespace-nowrap rounded-md bg-red-950/40 px-2 py-0.5 text-xs font-medium text-red-400 ring-1 ring-red-900/60 ring-inset">
                     hard cutoff
                   </span>
@@ -128,11 +128,11 @@ export default function PlanCard({ plan }: PlanCardProps) {
               <div className="grid grid-cols-2 gap-4">
                 <div className="min-w-0">
                   <p className={limitLabel}>Spend</p>
-                  <p className={limitValue}>{formatLimit(plan.budgetSpend, '$')}</p>
+                  <p className={limitValue}>{formatLimit(plan.budget_spend, '$')}</p>
                 </div>
                 <div className="min-w-0">
                   <p className={limitLabel}>Tokens</p>
-                  <p className={limitValue}>{formatLimit(plan.budgetTokens)}</p>
+                  <p className={limitValue}>{formatLimit(plan.budget_tokens)}</p>
                 </div>
               </div>
             </div>
@@ -163,9 +163,9 @@ export default function PlanCard({ plan }: PlanCardProps) {
                 <IconDeviceDesktop className="h-3.5 w-3.5" />
                 Allowed Models
               </p>
-              {plan.allowedModels ? (
+              {plan.allowed_models ? (
                 <div className="flex flex-wrap gap-1.5">
-                  {plan.allowedModels.map((model) => (
+                  {plan.allowed_models.map((model) => (
                     <span
                       key={model}
                       className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground"
@@ -184,11 +184,11 @@ export default function PlanCard({ plan }: PlanCardProps) {
         <CardFooter className="justify-between">
           <span className="flex items-center gap-2 text-muted-foreground text-sm">
             <IconKey className="h-4 w-4" />
-            {plan.keysAssigned} {plan.keysAssigned === 1 ? 'key' : 'keys'} assigned
+            {plan.keys_assigned} {plan.keys_assigned === 1 ? 'key' : 'keys'} assigned
           </span>
           <span className="flex items-center gap-2 text-muted-foreground text-sm">
             <IconBell className="h-4 w-4" />
-            Alert at {plan.alertAtPercent}%
+            Alert at {plan.alert_at_percent}%
           </span>
         </CardFooter>
       </Card>

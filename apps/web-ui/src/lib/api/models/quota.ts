@@ -9,36 +9,36 @@ export interface QuotaAccount {
   name: string
   /** Provider name used by the provider filter */
   provider: string
-  authLabel: string
+  auth_label: string
   initials: string
   /** Renders the avatar with the provider brand color instead of the neutral one */
-  brandAvatar?: boolean
+  brand_avatar?: boolean
   status: QuotaAccountStatus
   priority: number
-  quotaVisibility: QuotaVisibility
-  quotaNote: string
+  quota_visibility: QuotaVisibility
+  quota_note: string
   requests: number
-  inputTokens: number
-  outputTokens: number
-  attributedCost: number
+  input_tokens: number
+  output_tokens: number
+  attributed_cost: number
   attention: boolean
   depleted: boolean
 }
 
 export interface QuotaSummary {
-  totalAccounts: number
-  activeAccounts: number
+  total_accounts: number
+  active_accounts: number
   paused: number
   attention: number
   depleted: number
   requests: number
-  inputTokens: number
-  outputTokens: number
-  attributedCost: number
-  accountsReporting: number
-  quotaCapable: number
-  usageOnly: number
-  notReported: number
+  input_tokens: number
+  output_tokens: number
+  attributed_cost: number
+  accounts_reporting: number
+  quota_capable: number
+  usage_only: number
+  not_reported: number
 }
 
 export interface QuotaOverview {

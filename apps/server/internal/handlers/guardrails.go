@@ -27,7 +27,7 @@ type guardrailsHandler struct {
 
 // guardrailsSettings is the settings document for the tenant-wide toggle.
 type guardrailsSettings struct {
-	ExternalDetectors bool `json:"externalDetectors"`
+	ExternalDetectors bool `json:"external_detectors"`
 }
 
 // loadGuardrailsSettings reads the toggle, defaulting to enabled.
@@ -107,9 +107,9 @@ func (h *guardrailsHandler) Overview(c fiber.Ctx) error {
 	}
 
 	return dtos.OK(c, fiber.Map{
-		"externalDetectors": settings.ExternalDetectors,
-		"policies":          views,
-		"audit":             audit,
+		"external_detectors": settings.ExternalDetectors,
+		"policies":           views,
+		"audit":              audit,
 	})
 }
 

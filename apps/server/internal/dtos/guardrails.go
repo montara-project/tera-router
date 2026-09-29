@@ -25,12 +25,12 @@ func (d *GuardrailPolicyRequest) Validate(v *validator.MapValidator) {
 
 // GuardrailsSettingsRequest is the body for the tenant-wide toggle.
 type GuardrailsSettingsRequest struct {
-	ExternalDetectors *bool `json:"externalDetectors"`
+	ExternalDetectors *bool `json:"external_detectors"`
 }
 
 // Validate requires the toggle field.
 func (d *GuardrailsSettingsRequest) Validate(v *validator.MapValidator) {
-	v.Field("externalDetectors").Required()
+	v.Field("external_detectors").Required()
 }
 
 // EvaluateRequest is the Test Policy body: sample text plus the draft

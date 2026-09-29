@@ -12,9 +12,9 @@ type healthHandler struct {
 
 func (h *healthHandler) Check(c fiber.Ctx) error {
 	v := fiber.Map{
-		"machineID": h.app.Config.App.MachineID,
-		"status":    "ok",
-		"systemInfo": map[string]interface{}{
+		"machine_id": h.app.Config.App.MachineID,
+		"status":     "ok",
+		"system_info": map[string]interface{}{
 			"debug": h.app.Config.App.Debug,
 		},
 	}

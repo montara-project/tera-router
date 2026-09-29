@@ -34,15 +34,15 @@ func keyView(k repositories.APIKeyWithPlan) fiber.Map {
 		}
 	}
 	return fiber.Map{
-		"id":         k.ID,
-		"name":       k.Name,
-		"status":     status,
-		"keyPreview": k.Display,
-		"planLabel":  planLabel,
-		"planNote":   planNote,
-		"createdAt":  k.CreatedAt,
-		"planId":     k.PlanID,
-		"lastUsedAt": k.LastUsedAt,
+		"id":           k.ID,
+		"name":         k.Name,
+		"status":       status,
+		"key_preview":  k.Display,
+		"plan_label":   planLabel,
+		"plan_note":    planNote,
+		"created_at":   k.CreatedAt,
+		"plan_id":      k.PlanID,
+		"last_used_at": k.LastUsedAt,
 	}
 }
 
@@ -105,14 +105,14 @@ func (h *keysHandler) Store(c fiber.Ctx) error {
 
 	auditRecord(c.Context(), h.app, actorFrom(c), "key.create", key.ID, map[string]string{"name": req.Name})
 	return dtos.Created(c, fiber.Map{
-		"id":         key.ID,
-		"name":       key.Name,
-		"status":     "active",
-		"keyPreview": gen.Display,
-		"fullKey":    gen.Plaintext,
-		"planLabel":  "No plan",
-		"planNote":   "Custom limits",
-		"createdAt":  key.CreatedAt,
+		"id":          key.ID,
+		"name":        key.Name,
+		"status":      "active",
+		"key_preview": gen.Display,
+		"full_key":    gen.Plaintext,
+		"plan_label":  "No plan",
+		"plan_note":   "Custom limits",
+		"created_at":  key.CreatedAt,
 	}, "Key created")
 }
 
@@ -127,11 +127,11 @@ func (h *keysHandler) Get(c fiber.Ctx) error {
 		return err
 	}
 	return dtos.OK(c, fiber.Map{
-		"id":         key.ID,
-		"name":       key.Name,
-		"status":     statusLabel(key.Disabled),
-		"keyPreview": key.Display,
-		"createdAt":  key.CreatedAt,
+		"id":          key.ID,
+		"name":        key.Name,
+		"status":      statusLabel(key.Disabled),
+		"key_preview": key.Display,
+		"created_at":  key.CreatedAt,
 	})
 }
 
@@ -216,7 +216,7 @@ func (h *keysHandler) Reveal(c fiber.Ctx) error {
 		return err
 	}
 	auditRecord(c.Context(), h.app, actorFrom(c), "key.reveal", id.String(), nil)
-	return dtos.OK(c, fiber.Map{"id": id.String(), "fullKey": plaintext})
+	return dtos.OK(c, fiber.Map{"id": id.String(), "full_key": plaintext})
 }
 
 func statusLabel(disabled bool) string {

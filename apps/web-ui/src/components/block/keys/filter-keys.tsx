@@ -87,12 +87,12 @@ export function applyKeysFilters(keys: Models.ApiKey[], filters: KeysFilters): M
   sorted.sort((left, right) => {
     switch (filters.sort) {
       case 'oldest':
-        return left.createdAt.localeCompare(right.createdAt)
+        return left.created_at.localeCompare(right.created_at)
       case 'name':
         return left.name.localeCompare(right.name)
       case 'newest':
       default:
-        return right.createdAt.localeCompare(left.createdAt)
+        return right.created_at.localeCompare(left.created_at)
     }
   })
 

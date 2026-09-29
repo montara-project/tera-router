@@ -8,38 +8,38 @@ export interface SystemHost {
   hostname: string
   os: string
   architecture: string
-  cpuCores: number
-  cpuPercent: number
-  memoryTotalMb: number
-  memoryUsedMb: number
-  memoryPercent: number
-  memoryAvailableMb: number
-  diskTotalGb: number
-  diskUsedGb: number
-  diskFreeGb: number
-  diskPercent: number
-  uptimeSeconds: number
+  cpu_cores: number
+  cpu_percent: number
+  memory_total_mb: number
+  memory_used_mb: number
+  memory_percent: number
+  memory_available_mb: number
+  disk_total_gb: number
+  disk_used_gb: number
+  disk_free_gb: number
+  disk_percent: number
+  uptime_seconds: number
 }
 
 export interface SystemProcess {
   pid: number
-  cpuPercent: number
-  rssMb: number
-  rssPercent: number
+  cpu_percent: number
+  rss_mb: number
+  rss_percent: number
   goroutines: number
   threads: number
-  openFds: number
-  networkConnections: number
+  open_fds: number
+  network_connections: number
 }
 
 export interface SystemRuntime {
-  heapAllocMb: number
-  heapSysMb: number
-  heapInUseMb: number
-  heapIdleMb: number
-  gcCycles: number
-  gcPauseTotalMs: number
-  gcPauseLastMs: number
+  heap_alloc_mb: number
+  heap_sys_mb: number
+  heap_in_use_mb: number
+  heap_idle_mb: number
+  gc_cycles: number
+  gc_pause_total_ms: number
+  gc_pause_last_ms: number
 }
 
 export interface SystemCore {
@@ -48,10 +48,10 @@ export interface SystemCore {
 }
 
 export interface SystemHistory {
-  hostCpu: SystemPoint[]
-  hostMemory: SystemPoint[]
-  processCpu: SystemPoint[]
-  processRss: SystemPoint[]
+  host_cpu: SystemPoint[]
+  host_memory: SystemPoint[]
+  process_cpu: SystemPoint[]
+  process_rss: SystemPoint[]
 }
 
 export interface SystemStats {

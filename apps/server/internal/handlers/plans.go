@@ -31,20 +31,20 @@ func planView(p models.Plan, keysAssigned int) fiber.Map {
 	}
 
 	return fiber.Map{
-		"id":             p.ID,
-		"name":           p.Name,
-		"description":    p.Description,
-		"hardCutoff":     p.HardCutoff,
-		"budgetSpend":    budgetSpend,
-		"budgetTokens":   budgetTokens,
-		"rpm":            p.RPM,
-		"tpm":            p.TPM,
-		"concurrent":     p.Concurrent,
-		"allowedModels":  allowedModels,
-		"keysAssigned":   keysAssigned,
-		"alertAtPercent": p.AlertPct,
-		"period":         p.Period,
-		"createdAt":      p.CreatedAt,
+		"id":               p.ID,
+		"name":             p.Name,
+		"description":      p.Description,
+		"hard_cutoff":      p.HardCutoff,
+		"budget_spend":     budgetSpend,
+		"budget_tokens":    budgetTokens,
+		"rpm":              p.RPM,
+		"tpm":              p.TPM,
+		"concurrent":       p.Concurrent,
+		"allowed_models":   allowedModels,
+		"keys_assigned":    keysAssigned,
+		"alert_at_percent": p.AlertPct,
+		"period":           p.Period,
+		"created_at":       p.CreatedAt,
 	}
 }
 

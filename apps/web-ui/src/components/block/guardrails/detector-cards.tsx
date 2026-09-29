@@ -260,9 +260,9 @@ export function DetectorCards({ config, onPatch }: DetectorCardsProps) {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <SelectField
                 label="Masking Strategy"
-                value={config.pii.maskingStrategy}
+                value={config.pii.masking_strategy}
                 options={MASKING_STRATEGIES}
-                onValueChange={(maskingStrategy) => onPatch('pii', { maskingStrategy })}
+                onValueChange={(masking_strategy) => onPatch('pii', { masking_strategy })}
               />
               <div className="min-w-0 space-y-1.5">
                 <FieldLabel>Minimum confidence (0.0–1.0)</FieldLabel>
@@ -271,10 +271,10 @@ export function DetectorCards({ config, onPatch }: DetectorCardsProps) {
                   min={0}
                   max={1}
                   step={0.05}
-                  value={config.pii.minConfidence}
+                  value={config.pii.min_confidence}
                   aria-label="Minimum confidence"
                   onChange={(event) =>
-                    onPatch('pii', { minConfidence: Number(event.target.value) })
+                    onPatch('pii', { min_confidence: Number(event.target.value) })
                   }
                 />
               </div>
@@ -294,8 +294,8 @@ export function DetectorCards({ config, onPatch }: DetectorCardsProps) {
             <ToggleRow
               label="Scan output (LLM response)"
               sub="Also redact PII the model may leak in its reply"
-              checked={config.pii.scanOutput}
-              onCheckedChange={(scanOutput) => onPatch('pii', { scanOutput })}
+              checked={config.pii.scan_output}
+              onCheckedChange={(scan_output) => onPatch('pii', { scan_output })}
             />
           </>
         ) : null}

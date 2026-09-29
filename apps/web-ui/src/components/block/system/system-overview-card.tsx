@@ -55,37 +55,37 @@ export default function SystemOverviewCard({ stats }: SystemOverviewCardProps) {
           <ColumnLabel>Host</ColumnLabel>
           <SystemProgress
             label="CPU"
-            percent={host.cpuPercent}
-            sublabel={`${host.cpuCores} cores`}
+            percent={host.cpu_percent}
+            sublabel={`${host.cpu_cores} cores`}
           />
           <SystemProgress
             label="Memory"
-            percent={host.memoryPercent}
-            sublabel={`${formatCount(host.memoryUsedMb)} / ${formatCount(host.memoryTotalMb)} MB`}
+            percent={host.memory_percent}
+            sublabel={`${formatCount(host.memory_used_mb)} / ${formatCount(host.memory_total_mb)} MB`}
           />
           <SystemProgress
             label="Disk"
-            percent={host.diskPercent}
-            sublabel={`${host.diskUsedGb.toFixed(1)} / ${host.diskTotalGb.toFixed(1)} GB`}
+            percent={host.disk_percent}
+            sublabel={`${host.disk_used_gb.toFixed(1)} / ${host.disk_total_gb.toFixed(1)} GB`}
           />
-          <StatRow label="Network Connections" value={process.networkConnections} />
+          <StatRow label="Network Connections" value={process.network_connections} />
         </div>
 
         <div className="space-y-5 sm:border-l sm:border-border sm:pl-8">
           <ColumnLabel>Process (PID {process.pid})</ColumnLabel>
           <SystemProgress
             label="CPU"
-            percent={process.cpuPercent}
-            sublabel={`Uptime ${formatUptime(host.uptimeSeconds)}`}
+            percent={process.cpu_percent}
+            sublabel={`Uptime ${formatUptime(host.uptime_seconds)}`}
           />
           <SystemProgress
             label="RSS"
-            percent={process.rssPercent}
-            sublabel={formatMb(process.rssMb)}
+            percent={process.rss_percent}
+            sublabel={formatMb(process.rss_mb)}
           />
           <StatRow label="Goroutines" value={process.goroutines} />
           <StatRow label="Threads" value={process.threads} />
-          <StatRow label="Open FDs" value={process.openFds} />
+          <StatRow label="Open FDs" value={process.open_fds} />
         </div>
       </CardContent>
     </Card>

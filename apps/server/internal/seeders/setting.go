@@ -13,11 +13,11 @@ type SettingsSeeder struct {
 func (s SettingsSeeder) Name() string { return "settings" }
 
 func (s SettingsSeeder) Seed() {
-	settings := `{"rtkEnabled":true,"sourceCodeFilter":"off","cavemanEnabled":false,"terseEnabled":false,
-"headroomEnabled":false,"ponytailEnabled":false,"providerRoundRobin":true,"providerStickyLimit":3,
-"chainRoundRobin":false,"connectTimeout":60,"streamStallTimeout":300,"requestTimeout":300,
-"enforceRateLimits":true,"outboundProxyEnabled":false,"requestDetailRecording":true,
-"brandingDisplayName":"Tera Router","brandingTagline":"","brandingTheme":"forest-amber"}`
+	settings := `{"rtk_enabled":true,"source_code_filter":"off","caveman_enabled":false,"terse_enabled":false,
+"headroom_enabled":false,"ponytail_enabled":false,"provider_round_robin":true,"provider_sticky_limit":3,
+"chain_round_robin":false,"connect_timeout":60,"stream_stall_timeout":300,"request_timeout":300,
+"enforce_rate_limits":true,"outbound_proxy_enabled":false,"request_detail_recording":true,
+"branding_display_name":"Tera Router","branding_tagline":"","branding_theme":"forest-amber"}`
 
 	if _, err := s.DB.Exec(`
 		INSERT INTO settings (key, value) VALUES ('app', $1)

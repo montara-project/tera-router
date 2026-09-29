@@ -48,10 +48,10 @@ export function defaultGuardrailsConfig(): GuardrailsPolicyConfig {
     pii: {
       enabled: false,
       entities: [],
-      maskingStrategy: 'redact',
-      minConfidence: 0.5,
+      masking_strategy: 'redact',
+      min_confidence: 0.5,
       engine: 'native',
-      scanOutput: false,
+      scan_output: false,
     },
     injection: { enabled: false, severity: 'high', action: 'block' },
     topics: { enabled: false, mode: 'block', topics: [], action: 'warn', engine: 'keyword' },

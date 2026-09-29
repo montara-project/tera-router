@@ -48,12 +48,12 @@ function KeyCopyCell({ record }: { record: Models.ApiKey }) {
   return (
     <div className="flex items-center gap-2">
       <IconLink className="h-4 w-4 shrink-0 text-muted-foreground" />
-      <code className="font-mono text-sm">{record.keyPreview}</code>
+      <code className="font-mono text-sm">{record.key_preview}</code>
       <Button
         aria-label={`Copy ${record.name} key`}
         className="text-muted-foreground hover:text-foreground"
         mode="icon"
-        onClick={() => record.fullKey && copy(record.fullKey)}
+        onClick={() => record.full_key && copy(record.full_key)}
         size="sm"
         variant="ghost"
       >
@@ -119,14 +119,14 @@ export function KeysColumn({ loading }: BaseColumnProps) {
                 </span>
               </div>
               <div className="text-muted-foreground mt-0.5 text-xs">
-                Created {formatKeyDate(row.original.createdAt)}
+                Created {formatKeyDate(row.original.created_at)}
               </div>
             </div>
           )
         },
       },
       {
-        accessorKey: 'keyPreview',
+        accessorKey: 'key_preview',
         header: 'Identifier',
         size: 210,
         cell: ({ row }) => {
@@ -138,7 +138,7 @@ export function KeysColumn({ loading }: BaseColumnProps) {
         },
       },
       {
-        accessorKey: 'planLabel',
+        accessorKey: 'plan_label',
         header: 'Access',
         size: 150,
         cell: ({ row }) => {
@@ -146,8 +146,8 @@ export function KeysColumn({ loading }: BaseColumnProps) {
             <Skeleton className="h-5 w-full" />
           ) : (
             <div className="text-sm">
-              <span className="font-semibold">{row.original.planLabel}</span>
-              <span className="text-muted-foreground"> · {row.original.planNote}</span>
+              <span className="font-semibold">{row.original.plan_label}</span>
+              <span className="text-muted-foreground"> · {row.original.plan_note}</span>
             </div>
           )
         },

@@ -4,8 +4,8 @@ import { optionalBoolean, optionalNumber, optionalString } from '@/lib/validatio
 
 import type { Plan } from '../../models/plan'
 
-/** id, keysAssigned, and createdAt are server-owned and not writable. */
-type PlanPayload = Partial<Omit<Plan, 'id' | 'keysAssigned' | 'createdAt'>>
+/** id, keys_assigned, and created_at are server-owned and not writable. */
+type PlanPayload = Partial<Omit<Plan, 'id' | 'keys_assigned' | 'created_at'>>
 
 /**
  * Plan create/update body (POST/PUT/PATCH /v1/plans). The server takes spend
@@ -14,14 +14,14 @@ type PlanPayload = Partial<Omit<Plan, 'id' | 'keysAssigned' | 'createdAt'>>
 export const PlanSchema = z.object({
   name: optionalString('name'),
   description: optionalString('description'),
-  budgetSpend: z.number({ error: 'The budget spend must be a number.' }).nullish(),
-  budgetTokens: optionalNumber('budget tokens').nullish(),
+  budget_spend: z.number({ error: 'The budget spend must be a number.' }).nullish(),
+  budget_tokens: optionalNumber('budget tokens').nullish(),
   period: z
     .enum(['daily', 'weekly', 'monthly'], { error: 'The selected period is invalid.' })
     .optional(),
-  alertAtPercent: optionalNumber('alert at percent'),
-  hardCutoff: optionalBoolean('hard cutoff'),
-  allowedModels: z
+  alert_at_percent: optionalNumber('alert at percent'),
+  hard_cutoff: optionalBoolean('hard cutoff'),
+  allowed_models: z
     .array(z.string({ error: 'The allowed models field must be an array.' }), {
       error: 'The allowed models field must be an array.',
     })

@@ -3,17 +3,17 @@ export type Plan = {
   name: string
   description: string
   /** true renders the red "hard cutoff" badge */
-  hardCutoff: boolean
+  hard_cutoff: boolean
   /** null renders "Unlimited" */
-  budgetSpend: number | null
-  budgetTokens: number | null
+  budget_spend: number | null
+  budget_tokens: number | null
   rpm: number | null
   tpm: number | null
   concurrent: number | null
   /** null renders "All models allowed" */
-  allowedModels: string[] | null
-  keysAssigned: number
-  alertAtPercent: number
+  allowed_models: string[] | null
+  keys_assigned: number
+  alert_at_percent: number
   period: string
-  createdAt?: string
+  created_at?: string
 }

@@ -8,7 +8,7 @@ import (
 // guardrailsSettings is the guardrails settings document: external detector
 // engines (Presidio / OpenAI moderation) are on unless the operator turns
 // them off for GDPR / data-residency setups.
-const guardrailsSettings = `{"externalDetectors": true}`
+const guardrailsSettings = `{"external_detectors": true}`
 
 // globalGuardrailsPolicy is the master policy seeded on first run: every
 // detector enabled with the reference defaults.
@@ -17,10 +17,10 @@ const globalGuardrailsPolicy = `{
     "enabled": true,
     "entities": ["EMAIL_ADDRESS", "PHONE_NUMBER", "CREDIT_CARD", "IBAN_CODE",
                  "IP_ADDRESS", "URL", "ID_NIK", "ID_NPWP", "ID_PASSPORT", "PERSON"],
-    "maskingStrategy": "redact",
-    "minConfidence": 0.5,
+    "masking_strategy": "redact",
+    "min_confidence": 0.5,
     "engine": "native",
-    "scanOutput": false
+    "scan_output": false
   },
   "injection": { "enabled": true, "severity": "high", "action": "block" },
   "topics": {

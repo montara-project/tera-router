@@ -26,9 +26,9 @@ export default function HostInfoCard({ host, process }: HostInfoCardProps) {
     { label: 'OS', value: host.os },
     { label: 'Architecture', value: host.architecture },
     { label: 'PID', value: process.pid },
-    { label: 'Uptime', value: formatUptime(host.uptimeSeconds) },
-    { label: 'Memory Available', value: formatMb(host.memoryAvailableMb) },
-    { label: 'Disk Free', value: formatGb(host.diskFreeGb) },
+    { label: 'Uptime', value: formatUptime(host.uptime_seconds) },
+    { label: 'Memory Available', value: formatMb(host.memory_available_mb) },
+    { label: 'Disk Free', value: formatGb(host.disk_free_gb) },
   ]
 
   return (

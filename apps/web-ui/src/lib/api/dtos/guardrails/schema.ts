@@ -23,10 +23,10 @@ const SCOPES = enumValues<GuardrailsScope>({
 const PiiConfigSchema = z.object({
   enabled: optionalBoolean('pii enabled'),
   entities: optionalStringArray('pii entities'),
-  maskingStrategy: optionalString('pii masking strategy'),
-  minConfidence: optionalNumber('pii minimum confidence'),
+  masking_strategy: optionalString('pii masking strategy'),
+  min_confidence: optionalNumber('pii minimum confidence'),
   engine: optionalString('pii engine'),
-  scanOutput: optionalBoolean('pii scan output'),
+  scan_output: optionalBoolean('pii scan output'),
 })
 
 const InjectionConfigSchema = z.object({
@@ -79,7 +79,7 @@ export const PolicySchema = z.object({
 
 /** Tenant-wide guardrails settings body (PUT /v1/guardrails/settings). */
 export const SettingsSchema = z.object({
-  externalDetectors: z.boolean({ error: 'The external detectors toggle is required.' }),
+  external_detectors: z.boolean({ error: 'The external detectors toggle is required.' }),
 })
 
 /** Test-policy body (POST /v1/guardrails/evaluate). */

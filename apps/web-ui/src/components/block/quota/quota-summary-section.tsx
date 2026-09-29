@@ -21,8 +21,8 @@ export default function QuotaSummarySection({ summary }: QuotaSummarySectionProp
           { value: summary.attention, label: 'Attention' },
           { value: summary.depleted, label: 'Depleted' },
         ]}
-        value={summary.activeAccounts}
-        valueLabel={`of ${summary.totalAccounts} active`}
+        value={summary.active_accounts}
+        valueLabel={`of ${summary.total_accounts} active`}
       />
 
       <QuotaSummaryCard
@@ -30,9 +30,9 @@ export default function QuotaSummarySection({ summary }: QuotaSummarySectionProp
         iconTone="amber"
         label="Period Usage"
         stats={[
-          { value: formatCompactNumber(summary.inputTokens), label: 'Input' },
-          { value: formatCompactNumber(summary.outputTokens), label: 'Output' },
-          { value: formatCost(summary.attributedCost), label: 'Attributed cost' },
+          { value: formatCompactNumber(summary.input_tokens), label: 'Input' },
+          { value: formatCompactNumber(summary.output_tokens), label: 'Output' },
+          { value: formatCost(summary.attributed_cost), label: 'Attributed cost' },
         ]}
         value={summary.requests}
         valueLabel="requests"
@@ -44,11 +44,11 @@ export default function QuotaSummarySection({ summary }: QuotaSummarySectionProp
         iconTone="neutral"
         label="Quota Visibility"
         stats={[
-          { value: summary.quotaCapable, label: 'Quota-capable' },
-          { value: summary.usageOnly, label: 'Usage only' },
-          { value: summary.notReported, label: 'Not reported' },
+          { value: summary.quota_capable, label: 'Quota-capable' },
+          { value: summary.usage_only, label: 'Usage only' },
+          { value: summary.not_reported, label: 'Not reported' },
         ]}
-        value={summary.accountsReporting}
+        value={summary.accounts_reporting}
         valueLabel="accounts reporting"
       />
     </div>

@@ -113,7 +113,8 @@ export function applyQuotaFilters(
   const filtered = accounts.filter((account) => {
     if (filters.provider !== 'all' && account.provider !== filters.provider) return false
     if (filters.status !== 'all' && account.status !== filters.status) return false
-    if (filters.quotaState !== 'all' && account.quotaVisibility !== filters.quotaState) return false
+    if (filters.quotaState !== 'all' && account.quota_visibility !== filters.quotaState)
+      return false
     if (query && !`${account.provider} ${account.name}`.toLowerCase().includes(query)) {
       return false
     }
@@ -129,7 +130,7 @@ export function applyQuotaFilters(
       case 'requests':
         return right.requests - left.requests
       case 'cost':
-        return right.attributedCost - left.attributedCost
+        return right.attributed_cost - left.attributed_cost
       case 'attention':
       default: {
         // Stable sort: flagged accounts first, otherwise keep the original order

@@ -7,5 +7,5 @@ export type ProxyPool = {
   status: ProxyPoolStatus
   label?: string
   mode?: string
-  testedAt: string
+  tested_at: string
 }

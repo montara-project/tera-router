@@ -21,19 +21,19 @@ interface NetworkTabProps {
 }
 
 const TIMEOUT_FIELDS: {
-  key: 'connectTimeout' | 'streamStallTimeout' | 'requestTimeout'
+  key: 'connect_timeout' | 'stream_stall_timeout' | 'request_timeout'
   label: string
   default: string
 }[] = [
-  { key: 'connectTimeout', label: 'Connect timeout (sec)', default: '60s' },
-  { key: 'streamStallTimeout', label: 'Stream stall timeout (sec)', default: '120s' },
-  { key: 'requestTimeout', label: 'Request timeout (sec)', default: '300s (5 min)' },
+  { key: 'connect_timeout', label: 'Connect timeout (sec)', default: '60s' },
+  { key: 'stream_stall_timeout', label: 'Stream stall timeout (sec)', default: '120s' },
+  { key: 'request_timeout', label: 'Request timeout (sec)', default: '300s (5 min)' },
 ]
 
 const ariaLabels = {
-  enforceRateLimits: 'Enforce API key rate limits',
+  enforce_rate_limits: 'Enforce API key rate limits',
   outboundProxy: 'Enable outbound proxy',
-  requestDetailRecording: 'Enable request detail recording',
+  request_detail_recording: 'Enable request detail recording',
 }
 
 export default function NetworkTab({ settings, onUpdate }: NetworkTabProps) {
@@ -113,10 +113,10 @@ export default function NetworkTab({ settings, onUpdate }: NetworkTabProps) {
               description="When enabled, plan limits are enforced immediately. Blank or 0 plan values remain unlimited."
             >
               <Switch
-                aria-label={ariaLabels.enforceRateLimits}
-                checked={settings.enforceRateLimits}
+                aria-label={ariaLabels.enforce_rate_limits}
+                checked={settings.enforce_rate_limits}
                 className={switchClass}
-                onCheckedChange={(value) => onUpdate({ enforceRateLimits: value })}
+                onCheckedChange={(value) => onUpdate({ enforce_rate_limits: value })}
               />
             </SettingRow>
           </div>
@@ -146,16 +146,16 @@ export default function NetworkTab({ settings, onUpdate }: NetworkTabProps) {
               title="Outbound Proxy"
               badge={
                 <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                  {settings.outboundProxyEnabled ? 'Active' : 'Inactive'}
+                  {settings.outbound_proxy_enabled ? 'Active' : 'Inactive'}
                 </span>
               }
               description="Applies to all provider and OAuth requests when no per-account proxy is set."
             >
               <Switch
                 aria-label={ariaLabels.outboundProxy}
-                checked={settings.outboundProxyEnabled}
+                checked={settings.outbound_proxy_enabled}
                 className={switchClass}
-                onCheckedChange={(value) => onUpdate({ outboundProxyEnabled: value })}
+                onCheckedChange={(value) => onUpdate({ outbound_proxy_enabled: value })}
               />
             </SettingRow>
           </div>
@@ -183,10 +183,10 @@ export default function NetworkTab({ settings, onUpdate }: NetworkTabProps) {
           <div className="divide-y divide-border">
             <SettingRow title="Enable request detail recording">
               <Switch
-                aria-label={ariaLabels.requestDetailRecording}
-                checked={settings.requestDetailRecording}
+                aria-label={ariaLabels.request_detail_recording}
+                checked={settings.request_detail_recording}
                 className={switchClass}
-                onCheckedChange={(value) => onUpdate({ requestDetailRecording: value })}
+                onCheckedChange={(value) => onUpdate({ request_detail_recording: value })}
               />
             </SettingRow>
           </div>

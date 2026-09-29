@@ -9,5 +9,5 @@ export type KeyResources = {
   store: (payload?: CreateKeyDto) => Promise<AxiosItemResponse<ApiKey>>
   toggleStatus: (id: string, disabled: boolean) => Promise<AxiosItemResponse<{ id: string }>>
   remove: (id: string) => Promise<AxiosDeleteResponse>
-  reveal: (id: string) => Promise<AxiosItemResponse<{ id: string; fullKey: string }>>
+  reveal: (id: string) => Promise<AxiosItemResponse<{ id: string; full_key: string }>>
 }

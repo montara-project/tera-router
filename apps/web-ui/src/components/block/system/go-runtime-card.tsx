@@ -22,21 +22,21 @@ interface GoRuntimeCardProps {
 
 export default function GoRuntimeCard({ runtime, process }: GoRuntimeCardProps) {
   const items = [
-    { label: 'Heap Alloc', value: formatMb(runtime.heapAllocMb) },
-    { label: 'Heap Sys', value: formatMb(runtime.heapSysMb) },
-    { label: 'Heap In-Use', value: formatMb(runtime.heapInUseMb) },
-    { label: 'Heap Idle', value: formatMb(runtime.heapIdleMb) },
-    { label: 'GC Cycles', value: formatCount(runtime.gcCycles) },
+    { label: 'Heap Alloc', value: formatMb(runtime.heap_alloc_mb) },
+    { label: 'Heap Sys', value: formatMb(runtime.heap_sys_mb) },
+    { label: 'Heap In-Use', value: formatMb(runtime.heap_in_use_mb) },
+    { label: 'Heap Idle', value: formatMb(runtime.heap_idle_mb) },
+    { label: 'GC Cycles', value: formatCount(runtime.gc_cycles) },
     {
       label: 'GC Pause (total)',
-      value: `${runtime.gcPauseTotalMs.toLocaleString('en-US', {
+      value: `${runtime.gc_pause_total_ms.toLocaleString('en-US', {
         minimumFractionDigits: 1,
         maximumFractionDigits: 1,
       })} ms`,
     },
-    { label: 'GC Pause (last)', value: `${runtime.gcPauseLastMs.toFixed(2)} ms` },
-    { label: 'Network Conns', value: process.networkConnections },
-    { label: 'Process FDs', value: process.openFds },
+    { label: 'GC Pause (last)', value: `${runtime.gc_pause_last_ms.toFixed(2)} ms` },
+    { label: 'Network Conns', value: process.network_connections },
+    { label: 'Process FDs', value: process.open_fds },
     { label: 'Process Threads', value: process.threads },
   ]
 

@@ -161,7 +161,7 @@ function GuardrailsContent({ overview }: { overview: GuardrailsOverview }) {
 
   const toggleDetectors = useMutation({
     mutationFn: (checked: boolean) =>
-      services.guardrails.updateSettings({ externalDetectors: checked }),
+      services.guardrails.updateSettings({ external_detectors: checked }),
     onSuccess: async () => {
       await invalidate()
       toast.success('External detector settings saved')
@@ -224,7 +224,7 @@ function GuardrailsContent({ overview }: { overview: GuardrailsOverview }) {
             <div className="space-y-4">
               {tab === 'global' && (
                 <ExternalDetectorsCard
-                  checked={overview.externalDetectors}
+                  checked={overview.external_detectors}
                   onCheckedChange={(checked) => toggleDetectors.mutate(checked)}
                 />
               )}

@@ -27,7 +27,7 @@ func poolView(p models.ProxyPool) fiber.Map {
 		"mode":       p.Mode,
 		"label":      p.Label,
 		"status":     p.Status,
-		"testedAt":   p.LastTestedAt,
+		"tested_at":  p.LastTestedAt,
 		"created_at": p.CreatedAt,
 	}
 }

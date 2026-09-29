@@ -383,7 +383,7 @@ function ProxyPoolRow({ pool, selected, onToggle }: ProxyPoolRowProps) {
         <div className="flex flex-wrap items-center gap-3">
           <code className="truncate font-mono text-xs text-muted-foreground">{pool.url}</code>
           <span className="text-muted-foreground whitespace-nowrap text-xs">
-            tested {formatTestedAgo(pool.testedAt)}
+            tested {formatTestedAgo(pool.tested_at)}
           </span>
           {pool.mode && (
             <span className="text-muted-foreground whitespace-nowrap text-xs">{pool.mode}</span>
