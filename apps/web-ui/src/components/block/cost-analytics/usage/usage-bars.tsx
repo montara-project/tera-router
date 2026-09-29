@@ -25,7 +25,7 @@ export function QualityBar({ quality }: { quality: UsageTelemetryOverview['quali
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-foreground">Accounting quality</p>
             <p className="text-muted-foreground text-xs">
-              {quality.notes} audit notes · expand for provenance
+              {quality.notes} unpriced provider/model pairs · expand for provenance
             </p>
           </div>
 
@@ -49,12 +49,11 @@ export function QualityBar({ quality }: { quality: UsageTelemetryOverview['quali
           <div className="border-t border-amber-600/20 px-4 py-3">
             <ul className="text-muted-foreground space-y-1.5 text-xs">
               <li>
-                · 36 requests carry estimated pricing (pricing est.) instead of recorded cost.
+                · {quality.unpricedRequests} of the requests in this window ran on a model without a
+                pricing override, so their spend is not counted.
               </li>
-              <li>
-                · 7 requests were attributed via usage estimates and may drift from provider bills.
-              </li>
-              <li>· Terminal requests without a pricing key are excluded from spend totals.</li>
+              <li>· {quality.unpricedModels} provider/model pairs have no pricing override.</li>
+              <li>· Spend totals are only complete for the priced share of the window.</li>
             </ul>
           </div>
         ) : null}

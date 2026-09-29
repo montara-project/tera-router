@@ -70,6 +70,10 @@ export default function UsageRecentRequests({ rows }: RecentRequestsProps) {
                       <Badge variant="success" appearance="light" size="sm">
                         Success
                       </Badge>
+                    ) : row.status === 'failed' ? (
+                      <Badge variant="destructive" appearance="light" size="sm">
+                        Failed
+                      </Badge>
                     ) : (
                       <Badge variant="secondary" size="sm">
                         Cancelled

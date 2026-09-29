@@ -11,7 +11,9 @@ const telemetry = (range?: Models.UsageRange) =>
     queryKey: [USAGE_QUERY_KEY, 'telemetry', range ?? '30d'],
     queryFn: async () => {
       const res = await services.usage.telemetry(range)
-      return res.data
+      // The page consumes the telemetry payload directly, so unwrap the
+      // {data, metadata} envelope here.
+      return res.data.data
     },
   })
 

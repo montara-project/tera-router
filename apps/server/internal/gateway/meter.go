@@ -7,6 +7,7 @@ import (
 
 	"tera-router/server/internal/core"
 	"tera-router/server/internal/lib/apperr"
+	"tera-router/server/internal/lib/cost"
 	"tera-router/server/internal/models"
 )
 
@@ -26,30 +27,16 @@ type pricingRates struct {
 	CacheWriteMicros int64
 }
 
-// costMicros computes the cost of a usage event in micros of USD.
-//
-// Rates are micros of USD per *million* tokens, so each bucket is
-// `tokens * microsPerMillion / 1_000_000`. The division happens once at the end
-// so no per-bucket precision is lost to truncation.
-//
-// Standard input tokens are the prompt total minus the tokens served from and
-// written to a provider-side cache, because those are billed at their own
-// rates. A negative remainder (an upstream reporting more cached tokens than
-// prompt tokens) is clamped to zero rather than credited.
+// costMicros computes the cost of a usage event in micros of USD through the
+// shared cost package, so the gateway's charge and the usage dashboard's
+// re-derived figures cannot drift apart.
 func costMicros(rates pricingRates, u core.Usage) int64 {
-	standardInput := u.PromptTokens - u.CachedTokens - u.CacheWriteTokens
-	if standardInput < 0 {
-		standardInput = 0
-	}
-
-	weighted := int64(standardInput)*rates.InputMicros +
-		int64(u.CachedTokens)*rates.CacheReadMicros +
-		int64(u.CacheWriteTokens)*rates.CacheWriteMicros +
-		int64(u.CompletionTokens)*rates.OutputMicros
-	if weighted <= 0 {
-		return 0
-	}
-	return weighted / 1_000_000
+	return cost.Micros(cost.Rates{
+		InputMicros:      rates.InputMicros,
+		OutputMicros:     rates.OutputMicros,
+		CacheReadMicros:  rates.CacheReadMicros,
+		CacheWriteMicros: rates.CacheWriteMicros,
+	}, int64(u.PromptTokens), int64(u.CachedTokens), int64(u.CacheWriteTokens), int64(u.CompletionTokens))
 }
 
 // ratesFor resolves the pricing override for a provider/model pair. A missing
@@ -123,7 +110,9 @@ func (s *Server) recordUsage(rec usageRecord) {
 		CreatedAt:        time.Now(),
 	}
 
+	s.metering.Add(1)
 	go func() {
+		defer s.metering.Done()
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if err := s.app.Repos.Usage.Insert(ctx, model); err != nil {

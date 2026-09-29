@@ -10,7 +10,9 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-func routes(r *fiber.App, app *app.Application) {
+// routes registers every HTTP route and returns the inference gateway so the
+// caller can drain its pending accounting on shutdown.
+func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	h := handlers.New(app)
 
 	r.Get("/", func(c fiber.Ctx) error {
@@ -35,7 +37,7 @@ func routes(r *fiber.App, app *app.Application) {
 	// authenticates with API keys, not the dashboard's JWT, and is registered
 	// before the dashboard's authenticated /v1 group so RequireAuth never
 	// intercepts it.
-	gateway.Register(r, app)
+	gw := gateway.Register(r, app)
 
 	// Versioned dashboard API. Auth endpoints are public; everything else
 	// requires the Bearer JWT issued by /v1/auth/sign-in.
@@ -120,6 +122,7 @@ func routes(r *fiber.App, app *app.Application) {
 	protected.Get("/usage", h.Usage.Summary)
 	protected.Get("/usage/models", h.Usage.Models)
 	protected.Get("/usage/insights", h.Usage.Insights)
+	protected.Get("/usage/telemetry", h.Usage.Telemetry)
 
 	// Quota dashboard
 	protected.Get("/quota", h.Quota.Index)
@@ -171,4 +174,6 @@ func routes(r *fiber.App, app *app.Application) {
 	protected.Get("/system/stats", h.System.Stats)
 
 	protected.Get("/media", h.Media.Index)
+
+	return gw
 }

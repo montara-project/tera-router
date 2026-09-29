@@ -75,7 +75,7 @@ func serve(app *app.Application) error {
 	server.Use(static.New("./public"))
 
 	// Initial Routes
-	routes(server, app) // Create channel to listen for interrupt signals
+	gw := routes(server, app) // Create channel to listen for interrupt signals
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 
@@ -97,6 +97,10 @@ func serve(app *app.Application) error {
 	if err := server.Shutdown(); err != nil {
 		app.Logger.Error("failed to stop server", "error", err)
 	}
+
+	// Requests already answered may still be metering asynchronously; wait for
+	// those writes so an exit cannot drop the accounting for served traffic.
+	gw.Drain()
 
 	return nil
 }

@@ -56,7 +56,8 @@ func newGatewayApp(t *testing.T) (*fiber.App, *app.Application) {
 			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 		},
 	})
-	Register(fiberApp, application)
+	srv := Register(fiberApp, application)
+	t.Cleanup(srv.Drain)
 	return fiberApp, application
 }
 

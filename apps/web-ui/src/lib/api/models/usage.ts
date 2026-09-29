@@ -76,7 +76,7 @@ export type UsageModelAccountingRow = {
 
 export type UsageTerminalRequestRow = {
   id: string
-  status: 'success' | 'cancelled'
+  status: 'success' | 'failed' | 'cancelled'
   usage: 'provider' | 'estimate' | 'none'
   model: string
   provider: string
@@ -109,7 +109,15 @@ export type UsageTelemetryOverview = {
     ttftMs: number
     tokensPerRequest: number
   }
-  quality: { requestsCoverage: number; tokensCoverage: number; notes: number }
+  quality: {
+    requestsCoverage: number
+    tokensCoverage: number
+    notes: number
+    /** Requests whose model has no pricing override, so spend excludes them */
+    unpricedRequests: number
+    /** Provider/model pairs in the window with no pricing override */
+    unpricedModels: number
+  }
   optimization: {
     savedLabel: string
     tokensSaved: number

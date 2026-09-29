@@ -47,7 +47,11 @@ func newTestServer(t *testing.T) (*Server, *app.Application) {
 		Secrets:  secrets,
 		Services: services.New(),
 	}
-	return New(application), application
+	srv := New(application)
+	// Metering writes run asynchronously; wait for them before the test's
+	// temporary directory is removed, or the cleanup races the write.
+	t.Cleanup(srv.Drain)
+	return srv, application
 }
 
 // exec runs a raw statement against the test database.

@@ -12,6 +12,7 @@ package gateway
 
 import (
 	"log/slog"
+	"sync"
 	"time"
 
 	"tera-router/server/internal/app"
@@ -88,6 +89,10 @@ type Server struct {
 	// for its whole life, including the stream writer phase that runs after the
 	// handler returns.
 	inflight chan struct{}
+	// metering counts the asynchronous usage writes that have not reached the
+	// database yet, so a shutdown (or a test teardown) can wait for the
+	// accounting of already-served requests instead of racing it.
+	metering sync.WaitGroup
 }
 
 // New builds the gateway server over the application container. The codec
@@ -105,6 +110,11 @@ func New(a *app.Application) *Server {
 		inflight:  make(chan struct{}, defaultMaxConcurrent),
 	}
 }
+
+// Drain waits for the in-flight metering writes to reach the database. The
+// server calls it during shutdown so a process exit cannot drop the accounting
+// of requests it already answered.
+func (s *Server) Drain() { s.metering.Wait() }
 
 // acquire reserves an in-flight slot, reporting false when the gateway is at
 // capacity. The returned release func must be called exactly once.
@@ -130,7 +140,10 @@ func (s *Server) acquire() (func(), bool) {
 //
 // `/responses` is registered at the root as well as under /v1 because
 // Responses-native clients (Codex) address it either way.
-func Register(r *fiber.App, a *app.Application) {
+//
+// It returns the server so the caller can Drain pending metering writes during
+// shutdown.
+func Register(r *fiber.App, a *app.Application) *Server {
 	s := New(a)
 
 	r.Post("/v1/chat/completions", s.authMiddleware, s.handleOpenAIChat)
@@ -138,6 +151,7 @@ func Register(r *fiber.App, a *app.Application) {
 	r.Post("/v1/messages/count_tokens", s.authMiddleware, s.handleAnthropicCountTokens)
 	r.Post("/v1/responses", s.authMiddleware, s.handleOpenAIResponses)
 	r.Post("/responses", s.authMiddleware, s.handleOpenAIResponses)
+	return s
 }
 
 // GatewayRoutes lists the inference endpoints. It is exported so the server

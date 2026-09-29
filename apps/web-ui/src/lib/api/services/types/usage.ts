@@ -1,4 +1,4 @@
-import type { ApiItemResponse, AxiosItemResponse, AxiosListResponse } from '@/types/api'
+import type { AxiosItemResponse, AxiosListResponse } from '@/types/api'
 
 import type { Models } from '../../models'
 
@@ -12,5 +12,7 @@ export type UsageResources = {
   summary: (range?: Models.UsageRange) => Promise<AxiosItemResponse<Models.UsageSummary>>
   models: (range?: Models.UsageRange) => Promise<AxiosListResponse<Models.UsageByModel>>
   insights: (range?: Models.UsageRange) => Promise<AxiosItemResponse<UsageInsights>>
-  telemetry: (range?: Models.UsageRange) => Promise<ApiItemResponse<Models.UsageTelemetryOverview>>
+  telemetry: (
+    range?: Models.UsageRange
+  ) => Promise<AxiosItemResponse<Models.UsageTelemetryOverview>>
 }

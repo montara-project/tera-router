@@ -80,6 +80,7 @@ func (s *Server) streamChat(
 		account:  conn.at.AccountID,
 		start:    time.Now(),
 		ttft:     conn.ttft,
+		setTTFT:  conn.setTTFT,
 	}
 	if conn.raw != nil {
 		writer.raw = conn.raw
@@ -89,7 +90,11 @@ func (s *Server) streamChat(
 		writer.chunks = conn.chunks
 	}
 
+	// The stream writer runs on its own goroutine after the handler returns,
+	// so Drain must wait for it: the writer is what records the stream's usage.
+	s.metering.Add(1)
 	return c.SendStreamWriter(func(w *bufio.Writer) {
+		defer s.metering.Done()
 		writer.run(ctx, w)
 	})
 }
@@ -97,10 +102,11 @@ func (s *Server) streamChat(
 // streamConn is the result of a successful connect: either a raw body for the
 // passthrough path or a canonical chunk channel for the rendered path.
 type streamConn struct {
-	at     attempt
-	raw    io.ReadCloser
-	chunks <-chan core.StreamChunk
-	ttft   func() time.Duration
+	at      attempt
+	raw     io.ReadCloser
+	chunks  <-chan core.StreamChunk
+	ttft    func() time.Duration
+	setTTFT func(time.Duration)
 }
 
 // connectStream walks the attempt list until a stream connects, applying the
@@ -153,12 +159,13 @@ func (s *Server) connectOne(
 
 		var ttftMu sync.Mutex
 		var ttft time.Duration
+		recordTTFT := func(elapsed time.Duration) {
+			ttftMu.Lock()
+			ttft = elapsed
+			ttftMu.Unlock()
+		}
 		cfg := core.StreamConfig{
-			OnFirstChunk: func(elapsed time.Duration) {
-				ttftMu.Lock()
-				ttft = elapsed
-				ttftMu.Unlock()
-			},
+			OnFirstChunk: recordTTFT,
 		}
 		firstChunk := func() time.Duration {
 			ttftMu.Lock()
@@ -176,7 +183,7 @@ func (s *Server) connectOne(
 			var body io.ReadCloser
 			body, _, err = direct.StreamRaw(ctx, attemptReq, at.Creds)
 			if err == nil {
-				conn = streamConn{at: at, raw: body, ttft: firstChunk}
+				conn = streamConn{at: at, raw: body, ttft: firstChunk, setTTFT: recordTTFT}
 			}
 		} else {
 			var chunks <-chan core.StreamChunk
@@ -239,6 +246,11 @@ type streamWriter struct {
 	start time.Time
 	ttft  func() time.Duration
 
+	// setTTFT records the first-chunk time on the passthrough path, which
+	// never sees canonical chunks. It is nil on the rendered path, where the
+	// connector's OnFirstChunk callback already fills ttft.
+	setTTFT func(time.Duration)
+
 	// direct marks the raw-passthrough path.
 	direct  bool
 	raw     io.ReadCloser
@@ -282,12 +294,21 @@ func (sw *streamWriter) runDirect(ctx context.Context, w *bufio.Writer) {
 	reader := io.TeeReader(sw.raw, sw.capture)
 
 	buf := make([]byte, 32*1024)
+	firstByte := true
 	for {
 		if ctx.Err() != nil {
 			return
 		}
 		n, err := reader.Read(buf)
 		if n > 0 {
+			// The passthrough path never parses chunks, so time-to-first-token
+			// is measured from the first byte the upstream produced.
+			if firstByte {
+				firstByte = false
+				if sw.setTTFT != nil {
+					sw.setTTFT(time.Since(sw.start))
+				}
+			}
 			if !sw.writeRaw(w, buf[:n]) {
 				// The client is gone: closing the body below aborts the
 				// upstream request so no quota is burned for nobody.
