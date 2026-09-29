@@ -58,7 +58,7 @@ func (h *usageHandler) buildTelemetry(ctx context.Context, from time.Time) (dtos
 	if err != nil {
 		return dtos.UsageTelemetry{}, err
 	}
-	names, err := h.providerNames(ctx)
+	names, kinds, err := h.providerMeta(ctx)
 	if err != nil {
 		return dtos.UsageTelemetry{}, err
 	}
@@ -132,10 +132,10 @@ func (h *usageHandler) buildTelemetry(ctx context.Context, from time.Time) (dtos
 		DistributionProv: len(byProvider),
 		Trend:            trendPoints(daily),
 		TrendBusiest:     busiestDay(daily),
-		Distribution:     distribution(byProvider, traffic.Requests, totalTokens),
-		ProviderRows:     providerRows(byProvider, rates, names),
-		ModelRows:        modelRows(byModel, rates),
-		RecentRequests:   requestRows(recent, rates, time.Now()),
+		Distribution:     distribution(byProvider, traffic.Requests, totalTokens, kinds),
+		ProviderRows:     providerRows(byProvider, rates, names, kinds),
+		ModelRows:        modelRows(byModel, rates, kinds),
+		RecentRequests:   requestRows(recent, rates, time.Now(), kinds),
 	}
 	return out, nil
 }
@@ -150,28 +150,31 @@ func totalCost(groups []repositories.UsageGroup) int64 {
 	return total
 }
 
-// providerNames maps a provider slug to the display name the dashboard uses:
-// the catalog name for built-in providers, the operator-supplied name for
-// custom ones, and the slug itself when the provider is unknown (a deleted or
-// renamed registration whose historical rows remain).
-func (h *usageHandler) providerNames(ctx context.Context) (map[string]string, error) {
-	names := map[string]string{}
+// providerMeta maps a provider slug to the display name and api kind the
+// dashboard uses: catalog metadata for built-in providers, the
+// operator-supplied fields for custom ones, and nothing when the provider is
+// unknown (a deleted or renamed registration whose historical rows remain).
+func (h *usageHandler) providerMeta(ctx context.Context) (names, kinds map[string]string, err error) {
+	names = map[string]string{}
+	kinds = map[string]string{}
 	for _, spec := range catalog.All() {
 		names[spec.Slug] = spec.Name
+		kinds[spec.Slug] = spec.Dialect
 	}
 
 	custom, err := h.app.Repos.Providers.List(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	for _, p := range custom {
 		names[p.Slug] = p.Name
+		kinds[p.Slug] = p.APIKind
 	}
-	return names, nil
+	return names, kinds, nil
 }
 
 // providerRows builds the provider accounting table.
-func providerRows(groups []repositories.UsageGroup, rates map[string]models.PricingOverride, names map[string]string) []dtos.UsageTelemetryProviderRow {
+func providerRows(groups []repositories.UsageGroup, rates map[string]models.PricingOverride, names, kinds map[string]string) []dtos.UsageTelemetryProviderRow {
 	out := make([]dtos.UsageTelemetryProviderRow, 0, len(groups))
 	for _, g := range groups {
 		priced := 0
@@ -182,6 +185,7 @@ func providerRows(groups []repositories.UsageGroup, rates map[string]models.Pric
 			ID:               "pa-" + g.Provider,
 			Provider:         providerDisplayName(names, g.Provider),
 			Slug:             g.Provider,
+			APIKind:          kinds[g.Provider],
 			Requests:         g.Requests,
 			Failed:           g.Failed,
 			SuccessPct:       percent(g.Requests-g.Failed, g.Requests),
@@ -205,7 +209,7 @@ func providerRows(groups []repositories.UsageGroup, rates map[string]models.Pric
 // modelRows builds the model accounting table. CostMicros stays null for a
 // model without a pricing override so the table renders "Unpriced" instead of
 // claiming the requests were free.
-func modelRows(groups []repositories.UsageGroup, rates map[string]models.PricingOverride) []dtos.UsageTelemetryModelRow {
+func modelRows(groups []repositories.UsageGroup, rates map[string]models.PricingOverride, kinds map[string]string) []dtos.UsageTelemetryModelRow {
 	out := make([]dtos.UsageTelemetryModelRow, 0, len(groups))
 	for _, g := range groups {
 		override, priced := rates[pricingKey(g.Provider, g.Model)]
@@ -213,6 +217,7 @@ func modelRows(groups []repositories.UsageGroup, rates map[string]models.Pricing
 			ID:              g.Provider + "/" + g.Model,
 			Model:           g.Model,
 			Provider:        g.Provider,
+			APIKind:         kinds[g.Provider],
 			Requests:        g.Requests,
 			SuccessPct:      percent(g.Requests-g.Failed, g.Requests),
 			InputTokens:     standardInput(g),
@@ -259,12 +264,13 @@ func dollars(micros int64) string {
 }
 
 // distribution builds the provider distribution slices.
-func distribution(groups []repositories.UsageGroup, totalRequests, totalTokens int64) []dtos.UsageTelemetryProvider {
+func distribution(groups []repositories.UsageGroup, totalRequests, totalTokens int64, kinds map[string]string) []dtos.UsageTelemetryProvider {
 	out := make([]dtos.UsageTelemetryProvider, 0, len(groups))
 	for _, g := range groups {
 		tokens := g.PromptTokens + g.CompletionTokens
 		out = append(out, dtos.UsageTelemetryProvider{
 			Provider:     g.Provider,
+			APIKind:      kinds[g.Provider],
 			Requests:     g.Requests,
 			RequestShare: percent(g.Requests, totalRequests),
 			TokenShare:   percent(tokens, totalTokens),
@@ -319,7 +325,7 @@ func dayLabel(day string) string {
 // attempt produced no tokens and therefore no billable usage, so its cost is
 // reported as null with an explanatory note rather than as a free request; the
 // same applies to a successful request on a model with no pricing override.
-func requestRows(records []models.UsageRecord, rates map[string]models.PricingOverride, now time.Time) []dtos.UsageTelemetryRequestRow {
+func requestRows(records []models.UsageRecord, rates map[string]models.PricingOverride, now time.Time, kinds map[string]string) []dtos.UsageTelemetryRequestRow {
 	out := make([]dtos.UsageTelemetryRequestRow, 0, len(records))
 	for _, u := range records {
 		row := dtos.UsageTelemetryRequestRow{
@@ -328,6 +334,7 @@ func requestRows(records []models.UsageRecord, rates map[string]models.PricingOv
 			Usage:           "none",
 			Model:           u.Model,
 			Provider:        u.Provider,
+			APIKind:         kinds[u.Provider],
 			InputTokens:     standardInputRecord(u),
 			InputCacheRead:  int64(u.CachedTokens),
 			InputCacheWrite: int64(u.CacheWriteTokens),

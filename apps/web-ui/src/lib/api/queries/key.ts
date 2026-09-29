@@ -91,6 +91,14 @@ const toggleStatus = () => {
   })
 }
 
+const reveal = () =>
+  mutationOptions({
+    mutationFn: async (id: string) => {
+      const res = await services.keys.reveal(id)
+      return res.data
+    },
+  })
+
 export const keyQueries = {
   list,
   get,
@@ -98,4 +106,5 @@ export const keyQueries = {
   update,
   delete: del,
   toggleStatus,
+  reveal,
 } as const

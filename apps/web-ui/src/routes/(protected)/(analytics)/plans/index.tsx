@@ -1,5 +1,5 @@
 import { IconPlus, IconShieldCheck } from '@tabler/icons-react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { toast } from 'sonner'
 
@@ -9,8 +9,8 @@ import PlansStats from '@/components/block/plans/plans-stats'
 import { Button } from '@/components/ui/button'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
-import { PLAN_QUERY_KEY, planQueries } from '@/lib/api/queries/plan'
-import { services } from '@/lib/api/services'
+import { toastAxiosError } from '@/lib/api/axios-error'
+import { queries } from '@/lib/api/queries'
 
 export const Route = createFileRoute('/(protected)/(analytics)/plans/')({
   component: RouteComponent,
@@ -34,19 +34,22 @@ function RouteSkeleton() {
 }
 
 function RouteComponent() {
-  const queryClient = useQueryClient()
-
-  const { data } = useQuery(planQueries.list())
+  const { data } = useQuery(queries.plans.list())
   const plans = data?.data ?? []
+
+  const createMutation = useMutation(queries.plans.create())
 
   if (!data) {
     return <RouteSkeleton />
   }
 
   const handleNewPlan = async () => {
-    await services.plans.store()
-    toast.success('Plan created')
-    await queryClient.invalidateQueries({ queryKey: [PLAN_QUERY_KEY] })
+    try {
+      await createMutation.mutateAsync()
+      toast.success('Plan created')
+    } catch (error) {
+      toastAxiosError(error as Error)
+    }
   }
 
   return (
@@ -56,7 +59,7 @@ function RouteComponent() {
       toolbar={
         <Button
           className="bg-amber-600 text-white hover:bg-amber-500 dark:bg-amber-800 dark:text-amber-200 dark:hover:bg-amber-700"
-          onClick={() => handleNewPlan().catch(() => toast.error('Failed to create plan'))}
+          onClick={() => handleNewPlan()}
         >
           <IconPlus />
           <span>New plan</span>

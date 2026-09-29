@@ -14,6 +14,8 @@ export type Provider = {
   connected: boolean
   /** false renders the "unofficial" badge */
   official?: boolean
+  /** upstream wire format: openai, anthropic, openai_responses */
+  api_kind?: string
   accounts?: number
   capabilities: ProviderCapability[]
 }

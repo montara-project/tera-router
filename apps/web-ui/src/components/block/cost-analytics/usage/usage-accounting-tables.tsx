@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 
 import type { UsageModelAccountingRow, UsageProviderAccountingRow } from '@/lib/api/models/usage'
 
-import { Icons } from '@/components/block/common/icons'
+import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -12,12 +12,8 @@ import { Input } from '@/components/ui/input'
 
 import { fmtCompact, fmtLatency, fmtMoney } from './format'
 
-function AvatarCell() {
-  return (
-    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white ring-1 ring-border">
-      <Icons.chatgpt className="h-4 w-4" />
-    </span>
-  )
+function AvatarCell({ slug, apiKind }: { slug: string; apiKind?: string }) {
+  return <ProviderAvatar slug={slug} apiKind={apiKind} size="sm" />
 }
 
 const PROVIDER_COLUMNS =
@@ -36,7 +32,7 @@ export function ProviderAccountingTable({ rows }: { rows: UsageProviderAccountin
         </p>
 
         <div className="mt-4 overflow-x-auto">
-          <div className="min-w-[860px]">
+          <div className="min-w-215">
             <div className={`${PROVIDER_COLUMNS} border-b border-border pb-3`}>
               {[
                 'Provider',
@@ -60,7 +56,7 @@ export function ProviderAccountingTable({ rows }: { rows: UsageProviderAccountin
               {rows.map((row) => (
                 <div key={row.id} className={`${PROVIDER_COLUMNS} gap-4 py-4`}>
                   <div className="flex items-center gap-3">
-                    <AvatarCell />
+                    <AvatarCell slug={row.slug} apiKind={row.api_kind} />
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-foreground">
                         {row.provider}
@@ -185,7 +181,7 @@ export function ModelAccountingTable({ rows }: { rows: UsageModelAccountingRow[]
         </div>
 
         <div className="mt-4 overflow-x-auto">
-          <div className="min-w-[860px]">
+          <div className="min-w-215">
             <div className={`${MODEL_COLUMNS} border-b border-border pb-3`}>
               {['Provider / model', 'Requests', 'Tokens', 'Cost', 'Latency', 'Pricing'].map(
                 (label) => (
@@ -204,7 +200,7 @@ export function ModelAccountingTable({ rows }: { rows: UsageModelAccountingRow[]
               {visible.map((row) => (
                 <div key={row.id} className={`${MODEL_COLUMNS} gap-4 py-4`}>
                   <div className="flex items-center gap-3">
-                    <AvatarCell />
+                    <AvatarCell slug={row.provider} apiKind={row.api_kind} />
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-foreground">{row.model}</p>
                       <p className="text-muted-foreground truncate font-mono text-[10px] uppercase">

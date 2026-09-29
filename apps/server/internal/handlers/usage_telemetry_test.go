@@ -76,7 +76,7 @@ func TestModelRowsNullCostWhenUnpriced(t *testing.T) {
 		},
 	}
 
-	rows := modelRows(groups, rates)
+	rows := modelRows(groups, rates, nil)
 	if len(rows) != 2 {
 		t.Fatalf("rows = %d, want 2", len(rows))
 	}
@@ -115,7 +115,7 @@ func TestRequestRowsCostNullForFailedAndUnpriced(t *testing.T) {
 	}
 	rates := map[string]models.PricingOverride{pricingKey("openai", "priced"): {InputMicros: 1}}
 
-	rows := requestRows(records, rates, time.Now())
+	rows := requestRows(records, rates, time.Now(), nil)
 	if len(rows) != 3 {
 		t.Fatalf("rows = %d, want 3", len(rows))
 	}
@@ -153,7 +153,7 @@ func TestProviderRowsUseDisplayNameAndCoverage(t *testing.T) {
 	rates := map[string]models.PricingOverride{pricingKey("custom-openai", "m"): {InputMicros: 1}}
 	names := map[string]string{"custom-openai": "Custom (OpenAI-compatible)"}
 
-	rows := providerRows(groups, rates, names)
+	rows := providerRows(groups, rates, names, nil)
 	if len(rows) != 1 {
 		t.Fatalf("rows = %d, want 1", len(rows))
 	}
@@ -184,7 +184,7 @@ func TestDistributionSharesAndOrdering(t *testing.T) {
 		{Provider: "big", Requests: 3, PromptTokens: 90},
 	}
 
-	out := distribution(groups, 4, 100)
+	out := distribution(groups, 4, 100, nil)
 	if out[0].Provider != "big" {
 		t.Fatalf("ordering = %s first, want big", out[0].Provider)
 	}

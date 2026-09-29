@@ -100,7 +100,10 @@ type UsageTelemetryTrendPoint struct {
 
 // UsageTelemetryProvider is one slice of the provider distribution.
 type UsageTelemetryProvider struct {
-	Provider     string  `json:"provider"`
+	Provider string `json:"provider"`
+	// APIKind is the upstream wire format (openai, anthropic, openai_responses)
+	// the web UI uses for brand icons; empty for unknown providers.
+	APIKind      string  `json:"api_kind,omitempty"`
 	Requests     int64   `json:"requests"`
 	RequestShare float64 `json:"requestShare"`
 	TokenShare   float64 `json:"tokenShare"`
@@ -111,6 +114,7 @@ type UsageTelemetryProviderRow struct {
 	ID               string  `json:"id"`
 	Provider         string  `json:"provider"`
 	Slug             string  `json:"slug"`
+	APIKind          string  `json:"api_kind,omitempty"`
 	Requests         int64   `json:"requests"`
 	Failed           int64   `json:"failed"`
 	SuccessPct       float64 `json:"successPct"`
@@ -138,6 +142,7 @@ type UsageTelemetryModelRow struct {
 	ID              string  `json:"id"`
 	Model           string  `json:"model"`
 	Provider        string  `json:"provider"`
+	APIKind         string  `json:"api_kind,omitempty"`
 	Requests        int64   `json:"requests"`
 	SuccessPct      float64 `json:"successPct"`
 	InputTokens     int64   `json:"inputTokens"`
@@ -167,6 +172,7 @@ type UsageTelemetryRequestRow struct {
 	Usage           string  `json:"usage"`
 	Model           string  `json:"model"`
 	Provider        string  `json:"provider"`
+	APIKind         string  `json:"api_kind,omitempty"`
 	InputTokens     int64   `json:"inputTokens"`
 	InputCacheRead  int64   `json:"inputCacheRead"`
 	InputCacheWrite int64   `json:"inputCacheWrite"`

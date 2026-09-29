@@ -1,5 +1,5 @@
 import { IconChevronDown, IconShieldCheck, IconTrash } from '@tabler/icons-react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
@@ -22,9 +22,8 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
-import { throwAxiosError } from '@/lib/api/axios-error'
-import { GUARDRAILS_QUERY_KEY, guardrailsQueries } from '@/lib/api/queries/guardrails'
-import { services } from '@/lib/api/services'
+import { toastAxiosError } from '@/lib/api/axios-error'
+import { queries } from '@/lib/api/queries'
 
 const PRIMARY_BUTTON_CLASS =
   'bg-emerald-600 text-white hover:bg-emerald-600/90 dark:bg-emerald-600 dark:hover:bg-emerald-600/90'
@@ -53,14 +52,13 @@ type EffectiveDetector = {
 }
 
 export default function KeyGuardrailsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
-  const queryClient = useQueryClient()
   const [dialog, setDialog] = useState<{ policy: GuardrailPolicy; mode: 'create' | 'edit' } | null>(
     null
   )
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [mergedOpen, setMergedOpen] = useState(false)
 
-  const overviewQuery = useQuery(guardrailsQueries.overview())
+  const overviewQuery = useQuery(queries.guardrails.overview())
   const policies = useMemo(() => overviewQuery.data?.data.policies ?? [], [overviewQuery.data])
 
   // Key-scoped policies target the key id, which is unambiguous; a name could
@@ -92,70 +90,55 @@ export default function KeyGuardrailsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
     [apiKey.id, apiKey.name]
   )
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: [GUARDRAILS_QUERY_KEY] })
+  const createMutation = useMutation(queries.guardrails.create())
+  const updateMutation = useMutation(queries.guardrails.update())
+  const deleteMutation = useMutation(queries.guardrails.delete())
 
-  const saveMutation = useMutation({
-    mutationFn: async (policy: GuardrailPolicy) => {
-      const payload = {
-        name: policy.name,
-        scope: policy.scope,
-        target: policy.target,
-        protections: policy.protections,
-        enabled: policy.enabled,
-        config: policy.config,
-      }
-      try {
-        if (policy.id === 'draft') return await services.guardrails.store(payload)
-        return await services.guardrails.update(policy.id, payload)
-      } catch (error) {
-        throwAxiosError(error as Error)
-      }
-    },
-    onSuccess: async (_data, policy) => {
-      await invalidate()
-      setDialog(null)
-      toast.success(policy.id === 'draft' ? 'Key override created' : 'Key override saved')
-    },
-    onError: (error) => toast.error(error instanceof Error ? error.message : 'An error occurred'),
+  const toPolicyDto = (policy: GuardrailPolicy) => ({
+    name: policy.name,
+    scope: policy.scope,
+    target: policy.target,
+    protections: policy.protections,
+    enabled: policy.enabled,
+    config: policy.config,
   })
 
-  const toggleMutation = useMutation({
-    mutationFn: async (policy: GuardrailPolicy) => {
-      try {
-        await services.guardrails.update(policy.id, {
-          name: policy.name,
-          scope: policy.scope,
-          target: policy.target,
-          protections: policy.protections,
-          enabled: !policy.enabled,
-          config: policy.config,
-        })
-      } catch (error) {
-        throwAxiosError(error as Error)
-      }
-    },
-    onSuccess: async () => {
-      await invalidate()
-      toast.success('Key override updated')
-    },
-    onError: (error) => toast.error(error instanceof Error ? error.message : 'An error occurred'),
-  })
+  const handleSave = (policy: GuardrailPolicy) => {
+    const isDraft = policy.id === 'draft'
+    const options = {
+      onSuccess: () => {
+        setDialog(null)
+        toast.success(isDraft ? 'Key override created' : 'Key override saved')
+      },
+      onError: toastAxiosError,
+    }
 
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      try {
-        await services.guardrails.remove(id)
-      } catch (error) {
-        throwAxiosError(error as Error)
+    if (isDraft) {
+      createMutation.mutate(toPolicyDto(policy), options)
+    } else {
+      updateMutation.mutate({ id: policy.id, reqBody: toPolicyDto(policy) }, options)
+    }
+  }
+
+  const handleToggle = (policy: GuardrailPolicy) => {
+    updateMutation.mutate(
+      { id: policy.id, reqBody: toPolicyDto({ ...policy, enabled: !policy.enabled }) },
+      {
+        onSuccess: () => toast.success('Key override updated'),
+        onError: toastAxiosError,
       }
-    },
-    onSuccess: async () => {
-      await invalidate()
-      setDeleteId(null)
-      toast.success('Key override deleted')
-    },
-    onError: (error) => toast.error(error instanceof Error ? error.message : 'An error occurred'),
-  })
+    )
+  }
+
+  const handleDelete = (id: string) => {
+    deleteMutation.mutate(id, {
+      onSuccess: () => {
+        setDeleteId(null)
+        toast.success('Key override deleted')
+      },
+      onError: toastAxiosError,
+    })
+  }
 
   if (overviewQuery.isLoading) {
     return (
@@ -235,8 +218,8 @@ export default function KeyGuardrailsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
                 aria-label={`Toggle ${policy.name}`}
                 checked={policy.enabled}
                 className="data-[state=checked]:bg-amber-600"
-                disabled={toggleMutation.isPending}
-                onCheckedChange={() => toggleMutation.mutate(policy)}
+                disabled={updateMutation.isPending}
+                onCheckedChange={() => handleToggle(policy)}
               />
               <Button
                 className={PRIMARY_BUTTON_CLASS}
@@ -335,7 +318,7 @@ export default function KeyGuardrailsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
         mode={dialog?.mode ?? 'create'}
         policy={dialog?.policy ?? null}
         onOpenChange={(open) => !open && setDialog(null)}
-        onSave={(updated) => saveMutation.mutate(updated)}
+        onSave={handleSave}
       />
 
       <SimpleAlertDialog
@@ -344,7 +327,7 @@ export default function KeyGuardrailsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
         open={deleteId !== null}
         title="Delete this key override?"
         variant="destructive"
-        onConfirm={() => deleteId && deleteMutation.mutate(deleteId)}
+        onConfirm={() => deleteId && handleDelete(deleteId)}
         onOpenChange={(open) => !open && setDeleteId(null)}
       />
     </div>

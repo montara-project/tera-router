@@ -9,7 +9,7 @@ import type { Models } from '@/lib/api/models'
 import IconBadge from '@/components/block/common/icon-badge'
 import SectionCard from '@/components/block/common/section-card'
 import CapabilityChips, { CAPABILITIES } from '@/components/block/providers/capability-chips'
-import CreateProviderDialog from '@/components/block/providers/create-provider-dialog'
+import { AddCustomProviderForm } from '@/components/block/providers/form'
 import ProviderGrid from '@/components/block/providers/provider-grid'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -205,7 +205,7 @@ function RouteComponent() {
         </div>
       </SectionCard>
 
-      <CreateProviderDialog open={createOpen} onOpenChange={setCreateOpen} />
+      <AddCustomProviderForm open={createOpen} onOpenChange={setCreateOpen} />
     </>
   )
 }

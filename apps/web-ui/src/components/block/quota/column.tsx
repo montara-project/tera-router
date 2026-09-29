@@ -1,6 +1,6 @@
 import type { ColumnDef } from '@tanstack/react-table'
 
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import { EyeOff, Power, Trash2 } from 'lucide-react'
 import React, { useMemo, useState } from 'react'
 import { toast } from 'sonner'
@@ -12,9 +12,8 @@ import { features } from '@/components/block/common/react-table'
 import SimpleAlertDialog from '@/components/block/common/simple-alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { throwAxiosError } from '@/lib/api/axios-error'
-import { QUOTA_QUERY_KEY } from '@/lib/api/queries/quota'
-import { services } from '@/lib/api/services'
+import { toastAxiosError } from '@/lib/api/axios-error'
+import { queries } from '@/lib/api/queries'
 
 import { formatCompactNumber, formatCost } from './quota-formatters'
 
@@ -175,54 +174,25 @@ interface ActionCellProps {
 function ActionCell({ record }: ActionCellProps) {
   const [openDelete, setOpenDelete] = useState(false)
 
-  const queryClient = useQueryClient()
-
-  const invalidateAll = () => queryClient.invalidateQueries({ queryKey: [QUOTA_QUERY_KEY] })
-
-  const toggleMutation = useMutation({
-    mutationFn: async () => {
-      try {
-        await services.quota.toggleStatus(record.id)
-      } catch (error) {
-        throwAxiosError(error as Error)
-      }
-    },
-    onSuccess: () => {
-      toast.success(`Account ${record.status === 'active' ? 'paused' : 'activated'}`)
-      return invalidateAll()
-    },
-  })
-
-  const deleteMutation = useMutation({
-    mutationFn: async () => {
-      try {
-        await services.quota.remove(record.id)
-      } catch (error) {
-        throwAxiosError(error as Error)
-      }
-    },
-    onSuccess: () => {
-      toast.success('Account deleted')
-      setOpenDelete(false)
-      return invalidateAll()
-    },
-  })
+  const toggleMutation = useMutation(queries.quota.toggleStatus())
+  const deleteMutation = useMutation(queries.quota.delete())
 
   const handleToggle = async () => {
     try {
-      await toggleMutation.mutateAsync()
+      await toggleMutation.mutateAsync(record.id)
+      toast.success(`Account ${record.status === 'active' ? 'paused' : 'activated'}`)
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'An error occurred'
-      toast.error(message)
+      toastAxiosError(error as Error)
     }
   }
 
   const handleDelete = async () => {
     try {
-      await deleteMutation.mutateAsync()
+      await deleteMutation.mutateAsync(record.id)
+      toast.success('Account deleted')
+      setOpenDelete(false)
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'An error occurred'
-      toast.error(message)
+      toastAxiosError(error as Error)
     }
   }
 

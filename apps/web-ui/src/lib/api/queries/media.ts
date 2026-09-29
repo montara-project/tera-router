@@ -4,9 +4,13 @@ import { services } from '../services'
 
 export const MEDIA_QUERY_KEY = 'media'
 
+export const LIST_MEDIA_QUERY_KEY = () => {
+  return [MEDIA_QUERY_KEY, 'list']
+}
+
 const list = () =>
   queryOptions({
-    queryKey: [MEDIA_QUERY_KEY],
+    queryKey: LIST_MEDIA_QUERY_KEY(),
     queryFn: async () => {
       const res = await services.media.list()
       return res.data

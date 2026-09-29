@@ -18,8 +18,8 @@ import type { Models } from '@/lib/api/models'
 
 import SectionCard from '@/components/block/common/section-card'
 import SimpleAlertDialog from '@/components/block/common/simple-alert-dialog'
-import SimpleAlertScrollableDialogForm from '@/components/block/common/simple-alert-scrollable-dialog-form'
 import { fmtLatency } from '@/components/block/cost-analytics/usage/format'
+import { AddCustomProviderApiKeyForm } from '@/components/block/providers/form-provider-api-key'
 import { Badge, BadgeDot } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -32,14 +32,13 @@ import {
   CardToolbar,
 } from '@/components/ui/card'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ACCOUNT_QUERY_KEY, accountQueries } from '@/lib/api/queries/account'
-import { CHAIN_QUERY_KEY, chainQueries } from '@/lib/api/queries/chain'
-import { PROVIDER_QUERY_KEY, providerQueries } from '@/lib/api/queries/provider'
-import { USAGE_QUERY_KEY, usageQueries } from '@/lib/api/queries/usage'
+import { queries } from '@/lib/api/queries'
+import { ACCOUNT_QUERY_KEY } from '@/lib/api/queries/account'
+import { CHAIN_QUERY_KEY } from '@/lib/api/queries/chain'
+import { CUSTOM_PROVIDER_QUERY_KEY, PROVIDER_QUERY_KEY } from '@/lib/api/queries/provider'
+import { USAGE_QUERY_KEY } from '@/lib/api/queries/usage'
 import { services } from '@/lib/api/services'
 
 export const Route = createFileRoute('/(protected)/(connection)/providers/$providerId')({
@@ -84,18 +83,20 @@ function CustomProviderDetailRoute() {
   const [accountOpen, setAccountOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteAccountId, setDeleteAccountId] = useState<string | null>(null)
-  const [accountLabel, setAccountLabel] = useState('')
-  const [apiKey, setApiKey] = useState('')
-  const [accountPriority, setAccountPriority] = useState('100')
   const [accountPage, setAccountPage] = useState(1)
   const [testingId, setTestingId] = useState<string | null>(null)
   const [testingAll, setTestingAll] = useState(false)
 
-  const providerQuery = useQuery(providerQueries.customGet(providerId))
+  const providerQuery = useQuery(queries.providers.customGet(providerId))
   const provider = providerQuery.data
-  const accountQuery = useQuery(accountQueries.list({ offset: 0, limit: 100 }))
-  const chainsQuery = useQuery(chainQueries.list({ offset: 0, limit: 100 }))
-  const usageQuery = useQuery(usageQueries.telemetry('30d'))
+  const accountQuery = useQuery(queries.accounts.list({ offset: 0, limit: 100 }))
+  const chainsQuery = useQuery(queries.chains.list({ offset: 0, limit: 100 }))
+  const usageQuery = useQuery(queries.usage.telemetry('30d'))
+
+  const deleteProviderMutation = useMutation(queries.providers.customDelete())
+  const toggleProviderMutation = useMutation(queries.providers.customUpdate(providerId))
+  const testAccountMutation = useMutation(queries.accounts.test())
+  const deleteAccountMutation = useMutation(queries.accounts.delete())
 
   const accounts = useMemo(
     () => (accountQuery.data?.data ?? []).filter((account) => account.provider === provider?.slug),
@@ -118,70 +119,55 @@ function CustomProviderDetailRoute() {
   const invalidate = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: [PROVIDER_QUERY_KEY] }),
-      queryClient.invalidateQueries({ queryKey: ['custom-providers'] }),
+      queryClient.invalidateQueries({ queryKey: [CUSTOM_PROVIDER_QUERY_KEY] }),
       queryClient.invalidateQueries({ queryKey: [ACCOUNT_QUERY_KEY] }),
       queryClient.invalidateQueries({ queryKey: [CHAIN_QUERY_KEY] }),
       queryClient.invalidateQueries({ queryKey: [USAGE_QUERY_KEY] }),
     ])
   }
 
-  const addAccount = useMutation({
-    mutationFn: () =>
-      services.accounts.store({
-        provider: provider!.slug,
-        label: accountLabel.trim() || 'API key',
-        auth_kind: 'api_key',
-        api_key: apiKey.trim(),
-        priority: Number(accountPriority) || 100,
-      }),
-    onSuccess: async () => {
-      await invalidate()
-      toast.success('API key added')
-      setAccountOpen(false)
-      setAccountLabel('')
-      setApiKey('')
-      setAccountPriority('100')
-    },
-    onError: () => toast.error('Failed to add API key'),
-  })
+  const handleDeleteProvider = () => {
+    deleteProviderMutation.mutate(providerId, {
+      onSuccess: async () => {
+        await invalidate()
+        toast.success('Provider deleted')
+        await navigate({ to: '/providers' })
+      },
+      onError: () => toast.error('Failed to delete provider'),
+    })
+  }
 
-  const deleteProvider = useMutation({
-    mutationFn: () => services.providers.customDelete(providerId),
-    onSuccess: async () => {
-      await invalidate()
-      toast.success('Provider deleted')
-      await navigate({ to: '/providers' })
-    },
-    onError: () => toast.error('Failed to delete provider'),
-  })
-
-  const toggleProvider = useMutation({
-    mutationFn: (enabled: boolean) =>
-      services.providers.customUpdate(providerId, {
-        name: provider!.name,
-        slug: provider!.slug,
-        base_url: provider!.base_url,
-        api_kind: provider!.api_kind,
-        pricing: parseJSON(provider!.pricing),
-        metadata: parseJSON(provider!.metadata),
-        priority: provider!.priority,
+  const handleToggleProvider = (enabled: boolean) => {
+    if (!provider) return
+    toggleProviderMutation.mutate(
+      {
+        name: provider.name,
+        slug: provider.slug,
+        base_url: provider.base_url,
+        api_kind: provider.api_kind,
+        pricing: parseJSON(provider.pricing),
+        metadata: parseJSON(provider.metadata),
+        priority: provider.priority,
         enabled,
-      }),
-    onSuccess: async () => {
-      await invalidate()
-      toast.success(provider?.enabled ? 'Provider disabled' : 'Provider enabled')
-    },
-    onError: () => toast.error('Failed to update provider'),
-  })
+      },
+      {
+        onSuccess: async () => {
+          await invalidate()
+          toast.success(provider.enabled ? 'Provider disabled' : 'Provider enabled')
+        },
+        onError: () => toast.error('Failed to update provider'),
+      }
+    )
+  }
 
   const testAccount = async (id: string) => {
     setTestingId(id)
     try {
-      const result = await services.accounts.test(id)
-      toast[result.data.data.ok ? 'success' : 'error'](
-        result.data.data.ok
-          ? `Connection successful · ${result.data.data.latency_ms} ms`
-          : result.data.data.detail || 'Connection test failed'
+      const result = await testAccountMutation.mutateAsync(id)
+      toast[result.data.ok ? 'success' : 'error'](
+        result.data.ok
+          ? `Connection successful · ${result.data.latency_ms} ms`
+          : result.data.detail || 'Connection test failed'
       )
     } catch {
       toast.error('Connection test failed')
@@ -192,7 +178,7 @@ function CustomProviderDetailRoute() {
 
   const removeAccount = async (id: string) => {
     try {
-      await services.accounts.remove(id)
+      await deleteAccountMutation.mutateAsync(id)
       await invalidate()
       toast.success('Account removed')
       setDeleteAccountId(null)
@@ -287,8 +273,8 @@ function CustomProviderDetailRoute() {
               </Button>
               <Button
                 variant="outline"
-                onClick={() => toggleProvider.mutate(!provider.enabled)}
-                disabled={toggleProvider.isPending}
+                onClick={() => handleToggleProvider(!provider.enabled)}
+                disabled={toggleProviderMutation.isPending}
               >
                 <IconSettings />
                 {provider.enabled ? 'Disable' : 'Enable'}
@@ -496,51 +482,11 @@ function CustomProviderDetailRoute() {
         </div>
       </SectionCard>
 
-      <SimpleAlertScrollableDialogForm
+      <AddCustomProviderApiKeyForm
         open={accountOpen}
         onOpenChange={setAccountOpen}
-        title="Add API key"
-        description={`Add a credential for ${provider.name}. The key is encrypted before storage.`}
-        onSubmit={(event) => {
-          event.preventDefault()
-          addAccount.mutate()
-        }}
-        confirmText="Add API key"
-        loading={addAccount.isPending}
-        disabled={!apiKey.trim()}
-        size="md"
-      >
-        <div className="space-y-1.5">
-          <Label htmlFor="account-label">Label</Label>
-          <Input
-            id="account-label"
-            value={accountLabel}
-            placeholder="e.g. Production key"
-            onChange={(event) => setAccountLabel(event.target.value)}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="account-key">API key</Label>
-          <Input
-            id="account-key"
-            type="password"
-            autoComplete="new-password"
-            value={apiKey}
-            placeholder="sk-…"
-            onChange={(event) => setApiKey(event.target.value)}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="account-priority">Priority</Label>
-          <Input
-            id="account-priority"
-            type="number"
-            value={accountPriority}
-            onChange={(event) => setAccountPriority(event.target.value)}
-          />
-          <p className="text-xs text-muted-foreground">Lower priority numbers are tried first.</p>
-        </div>
-      </SimpleAlertScrollableDialogForm>
+        provider={provider}
+      />
 
       <SimpleAlertDialog
         open={deleteOpen}
@@ -548,7 +494,7 @@ function CustomProviderDetailRoute() {
         title="Delete custom provider?"
         description={`Delete ${provider.name}? This removes the provider configuration. Remove its accounts first if they are still in use.`}
         confirmText="Delete provider"
-        onConfirm={() => deleteProvider.mutate()}
+        onConfirm={handleDeleteProvider}
         variant="destructive"
       />
       <SimpleAlertDialog

@@ -2,7 +2,7 @@ import { IconServer2 } from '@tabler/icons-react'
 
 import type { UsageTelemetryOverview } from '@/lib/api/models/usage'
 
-import { Icons } from '@/components/block/common/icons'
+import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
 import { Card, CardContent } from '@/components/ui/card'
 
 interface DistributionCardProps {
@@ -36,9 +36,7 @@ export default function UsageDistributionCard({ telemetry }: DistributionCardPro
         <div className="mt-5 space-y-4">
           {distribution.map((entry) => (
             <div key={entry.provider} className="flex items-center gap-3">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white ring-1 ring-border">
-                <Icons.chatgpt className="h-4 w-4" />
-              </span>
+              <ProviderAvatar slug={entry.provider} apiKind={entry.api_kind} size="sm" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-foreground">{entry.provider}</p>
                 <p className="text-muted-foreground text-xs">{entry.requests} requests</p>

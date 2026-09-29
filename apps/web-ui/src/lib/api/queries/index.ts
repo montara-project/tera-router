@@ -12,6 +12,7 @@ import { quotaQueries } from './quota'
 import { settingsQueries } from './settings'
 import { skillQueries } from './skill'
 import { systemQueries } from './system'
+import { usageQueries } from './usage'
 
 export const queries = {
   accounts: accountQueries,
@@ -28,4 +29,5 @@ export const queries = {
   settings: settingsQueries,
   skills: skillQueries,
   system: systemQueries,
+  usage: usageQueries,
 } as const

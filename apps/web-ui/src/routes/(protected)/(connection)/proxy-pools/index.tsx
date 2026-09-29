@@ -8,7 +8,7 @@ import {
   IconTrash,
   IconUpload,
 } from '@tabler/icons-react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { ChevronDown } from 'lucide-react'
 import { useState } from 'react'
@@ -32,9 +32,8 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
-import { throwAxiosError } from '@/lib/api/axios-error'
-import { PROXY_POOL_QUERY_KEY, proxyPoolQueries } from '@/lib/api/queries/proxy-pool'
-import { services } from '@/lib/api/services'
+import { toastAxiosError } from '@/lib/api/axios-error'
+import { queries } from '@/lib/api/queries'
 import { formatTimeAgo } from '@/lib/date'
 import { cn } from '@/lib/utils'
 
@@ -53,18 +52,18 @@ function RouteSkeleton() {
 }
 
 function RouteComponent() {
-  const queryClient = useQueryClient()
   const [selected, setSelected] = useState<Record<string, boolean>>({})
   const [addOpen, setAddOpen] = useState(false)
 
-  const { data } = useQuery(proxyPoolQueries.list())
+  const { data } = useQuery(queries.proxyPools.list())
   const pools = data?.data ?? []
+
+  const createMutation = useMutation(queries.proxyPools.create())
+  const healthCheckMutation = useMutation(queries.proxyPools.healthCheck())
 
   const allSelected = pools.length > 0 && pools.every((pool) => selected[pool.id])
   const someSelected = pools.some((pool) => selected[pool.id])
   const activeCount = pools.filter((pool) => pool.status === 'active').length
-
-  const refresh = () => queryClient.invalidateQueries({ queryKey: [PROXY_POOL_QUERY_KEY] })
 
   const toggleAll = (checked: boolean) => {
     const next: Record<string, boolean> = {}
@@ -94,15 +93,13 @@ function RouteComponent() {
     mode?: string
     label?: string
   }) => {
-    await services.proxyPools.store(payload)
+    await createMutation.mutateAsync(payload)
     toast.success('Proxy pool created')
-    await refresh()
   }
 
   const handleHealthCheck = async () => {
-    const result = await services.proxyPools.healthCheck()
-    toast.success(`${result.data.data.tested} pools tested`)
-    await refresh()
+    const result = await healthCheckMutation.mutateAsync()
+    toast.success(`${result.data.tested} pools tested`)
   }
 
   if (!data) {
@@ -162,8 +159,8 @@ function RouteComponent() {
           </div>
           <CardToolbar>
             <Button
-              disabled={pools.length === 0}
-              onClick={() => handleHealthCheck().catch(() => toast.error('Health check failed'))}
+              disabled={pools.length === 0 || healthCheckMutation.isPending}
+              onClick={() => handleHealthCheck().catch(toastAxiosError)}
               size="sm"
               variant="outline"
             >
@@ -292,54 +289,25 @@ interface ProxyPoolRowProps {
 function ProxyPoolRow({ pool, selected, onToggle }: ProxyPoolRowProps) {
   const [openDelete, setOpenDelete] = useState(false)
 
-  const queryClient = useQueryClient()
-
-  const refresh = () => queryClient.invalidateQueries({ queryKey: [PROXY_POOL_QUERY_KEY] })
-
-  const testMutation = useMutation({
-    mutationFn: async () => {
-      try {
-        await services.proxyPools.test(pool.id)
-      } catch (error) {
-        throwAxiosError(error as Error)
-      }
-    },
-    onSuccess: () => {
-      toast.success(`Pool ${pool.name} is healthy`)
-      return refresh()
-    },
-  })
-
-  const deleteMutation = useMutation({
-    mutationFn: async () => {
-      try {
-        await services.proxyPools.remove(pool.id)
-      } catch (error) {
-        throwAxiosError(error as Error)
-      }
-    },
-    onSuccess: () => {
-      toast.success('Proxy pool deleted')
-      setOpenDelete(false)
-      return refresh()
-    },
-  })
+  const testMutation = useMutation(queries.proxyPools.test())
+  const deleteMutation = useMutation(queries.proxyPools.delete())
 
   const handleTest = async () => {
     try {
-      await testMutation.mutateAsync()
+      await testMutation.mutateAsync(pool.id)
+      toast.success(`Pool ${pool.name} is healthy`)
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'An error occurred'
-      toast.error(message)
+      toastAxiosError(error as Error)
     }
   }
 
   const handleDelete = async () => {
     try {
-      await deleteMutation.mutateAsync()
+      await deleteMutation.mutateAsync(pool.id)
+      toast.success('Proxy pool deleted')
+      setOpenDelete(false)
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'An error occurred'
-      toast.error(message)
+      toastAxiosError(error as Error)
     }
   }
 

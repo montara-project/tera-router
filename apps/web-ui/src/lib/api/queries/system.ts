@@ -4,9 +4,13 @@ import { services } from '../services'
 
 export const SYSTEM_QUERY_KEY = 'system'
 
+export const STATS_SYSTEM_QUERY_KEY = () => {
+  return [SYSTEM_QUERY_KEY, 'stats']
+}
+
 const stats = () =>
   queryOptions({
-    queryKey: [SYSTEM_QUERY_KEY, 'stats'],
+    queryKey: STATS_SYSTEM_QUERY_KEY(),
     queryFn: async () => {
       const res = await services.system.stats()
       return res.data

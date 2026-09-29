@@ -63,3 +63,14 @@ export function skillUrl(slug: string): string {
   const origin = typeof window === 'undefined' ? '' : window.location.origin
   return `${origin}/skills/${slug}/SKILL.md`
 }
+
+export const DIALECT_OPTIONS = [
+  {
+    value: 'custom-openai',
+    label: 'OpenAI-compatible',
+  },
+  {
+    value: 'custom-anthropic',
+    label: 'Anthropic-compatible',
+  },
+]

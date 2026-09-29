@@ -29,6 +29,7 @@ export type UsageProviderAccountingRow = {
   id: string
   provider: string
   slug: string
+  api_kind?: string
   requests: number
   failed: number
   successPct: number
@@ -50,6 +51,7 @@ export type UsageProviderAccountingRow = {
 }
 
 export type UsageModelAccountingRow = {
+  api_kind?: string
   id: string
   model: string
   provider: string
@@ -80,6 +82,7 @@ export type UsageTerminalRequestRow = {
   usage: 'provider' | 'estimate' | 'none'
   model: string
   provider: string
+  api_kind?: string
   inputTokens: number
   inputCacheRead: number
   inputCacheWrite: number
@@ -134,7 +137,13 @@ export type UsageTelemetryOverview = {
   }
   trend: { day: string; requests: number; tokens: number; costMicros: number; failures: number }[]
   trendBusiest: string
-  distribution: { provider: string; requests: number; requestShare: number; tokenShare: number }[]
+  distribution: {
+    provider: string
+    api_kind?: string
+    requests: number
+    requestShare: number
+    tokenShare: number
+  }[]
   distributionTotalRequests: number
   distributionActiveProviders: number
   providerAccounting: UsageProviderAccountingRow[]

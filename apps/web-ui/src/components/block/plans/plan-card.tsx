@@ -8,7 +8,7 @@ import {
   IconTrash,
   IconWallet,
 } from '@tabler/icons-react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import React, { useState } from 'react'
 import { toast } from 'sonner'
 
@@ -26,9 +26,8 @@ import {
   CardTitle,
   CardToolbar,
 } from '@/components/ui/card'
-import { throwAxiosError } from '@/lib/api/axios-error'
-import { PLAN_QUERY_KEY } from '@/lib/api/queries/plan'
-import { services } from '@/lib/api/services'
+import { toastAxiosError } from '@/lib/api/axios-error'
+import { queries } from '@/lib/api/queries'
 
 function formatLimit(value: number | null, prefix = '') {
   if (value === null) return 'Unlimited'
@@ -43,29 +42,15 @@ interface PlanCardProps {
 export default function PlanCard({ plan }: PlanCardProps) {
   const [openDelete, setOpenDelete] = useState(false)
 
-  const queryClient = useQueryClient()
-
-  const deleteMutation = useMutation({
-    mutationFn: async () => {
-      try {
-        await services.plans.remove(plan.id)
-      } catch (error) {
-        throwAxiosError(error as Error)
-      }
-    },
-    onSuccess: () => {
-      toast.success('Plan deleted')
-      setOpenDelete(false)
-      return queryClient.invalidateQueries({ queryKey: [PLAN_QUERY_KEY] })
-    },
-  })
+  const deleteMutation = useMutation(queries.plans.delete())
 
   const handleDelete = async () => {
     try {
-      await deleteMutation.mutateAsync()
+      await deleteMutation.mutateAsync(plan.id)
+      toast.success('Plan deleted')
+      setOpenDelete(false)
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'An error occurred'
-      toast.error(message)
+      toastAxiosError(error as Error)
     }
   }
 

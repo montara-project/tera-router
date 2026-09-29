@@ -109,6 +109,7 @@ func (h *providersHandler) Index(c fiber.Ctx) error {
 			Capabilities: spec.Capabilities,
 			Official:     spec.Official,
 			Notice:       spec.Notice,
+			APIKind:      spec.Dialect,
 		}
 		if view.Connected {
 			overview.Connected = append(overview.Connected, view)
@@ -131,6 +132,7 @@ func (h *providersHandler) Index(c fiber.Ctx) error {
 			Accounts:     counts[c.Slug],
 			Capabilities: []string{"chat"},
 			Official:     true,
+			APIKind:      c.APIKind,
 		})
 	}
 	return dtos.OK(c, overview)

@@ -3,8 +3,8 @@ import { useState } from 'react'
 
 import type { UsageProviderAccountingRow } from '@/lib/api/models/usage'
 
-import { Icons } from '@/components/block/common/icons'
 import { fmtLatency, fmtMoney } from '@/components/block/cost-analytics/usage/format'
+import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 
@@ -41,9 +41,7 @@ export default function OverviewProviderMix({ rows }: OverviewProviderMixProps) 
             return (
               <div key={row.id}>
                 <div className="flex items-center gap-3">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white ring-1 ring-border">
-                    <Icons.chatgpt className="h-4 w-4" />
-                  </span>
+                  <ProviderAvatar slug={row.slug} apiKind={row.api_kind} size="sm" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-foreground">{row.provider}</p>
                     <p className="text-muted-foreground truncate text-xs">

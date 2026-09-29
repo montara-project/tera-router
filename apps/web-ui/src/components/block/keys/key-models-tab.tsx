@@ -1,5 +1,5 @@
 import { IconArrowRight, IconCpu } from '@tabler/icons-react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
@@ -19,17 +19,14 @@ import {
 } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { throwAxiosError } from '@/lib/api/axios-error'
-import { KEY_QUERY_KEY } from '@/lib/api/queries/key'
-import { planQueries } from '@/lib/api/queries/plan'
-import { services } from '@/lib/api/services'
+import { toastAxiosError } from '@/lib/api/axios-error'
+import { queries } from '@/lib/api/queries'
 
 export default function KeyModelsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
-  const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState('')
 
-  const plansQuery = useQuery(planQueries.list())
+  const plansQuery = useQuery(queries.plans.list())
   const plan = plansQuery.data?.data.find((item) => item.id === apiKey.plan_id) ?? null
 
   // A dashboard deploy can briefly outrun the API; treat a missing field as
@@ -42,25 +39,26 @@ export default function KeyModelsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
     setOpen(true)
   }
 
-  const saveMutation = useMutation({
-    mutationFn: async (patterns: string[]) => {
-      try {
-        await services.keys.update(apiKey.id, { allowed_models: patterns })
-      } catch (error) {
-        throwAxiosError(error as Error)
+  const saveMutation = useMutation(queries.keys.update(apiKey.id))
+
+  const handleSave = (patterns: string[]) => {
+    saveMutation.mutate(
+      { allowed_models: patterns },
+      {
+        onSuccess: () => {
+          setOpen(false)
+          toast.success(
+            patterns.length === 0 ? 'Model restriction cleared' : 'Model allowlist saved'
+          )
+        },
+        onError: toastAxiosError,
       }
-    },
-    onSuccess: async (_data, patterns) => {
-      await queryClient.invalidateQueries({ queryKey: [KEY_QUERY_KEY] })
-      setOpen(false)
-      toast.success(patterns.length === 0 ? 'Model restriction cleared' : 'Model allowlist saved')
-    },
-    onError: (error) => toast.error(error instanceof Error ? error.message : 'An error occurred'),
-  })
+    )
+  }
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    saveMutation.mutate(parsePatterns(draft))
+    handleSave(parsePatterns(draft))
   }
 
   return (
@@ -172,7 +170,7 @@ export default function KeyModelsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
             className="text-destructive hover:text-destructive"
             type="button"
             variant="outline"
-            onClick={() => saveMutation.mutate([])}
+            onClick={() => handleSave([])}
           >
             Clear restriction
           </Button>

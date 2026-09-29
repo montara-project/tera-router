@@ -9,50 +9,11 @@ import { Link } from '@tanstack/react-router'
 
 import type { Models } from '@/lib/api/models'
 
-import { Icons } from '@/components/block/common/icons'
+import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
 import { Badge, BadgeDot } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { cn } from '@/lib/utils'
-
-type Brand = {
-  icon?: React.ComponentType<React.SVGProps<SVGSVGElement>>
-  letter?: string
-  tileClassName?: string
-}
-
-function getBrand(slug: string): Brand {
-  if (slug === 'mimo-free') {
-    return { letter: 'm', tileClassName: 'bg-orange-500 text-white' }
-  }
-  if (slug.includes('openai')) {
-    return { icon: Icons.chatgpt }
-  }
-  if (slug.includes('anthropic') || slug === 'claude') {
-    return { icon: Icons.claude }
-  }
-
-  return { letter: slug.charAt(0).toUpperCase() }
-}
-
-function ProviderAvatar({ slug }: { slug: string }) {
-  const brand = getBrand(slug)
-
-  return (
-    <span
-      className={cn(
-        'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-zinc-900 ring-1 ring-border',
-        brand.tileClassName
-      )}
-    >
-      {brand.icon ? (
-        <brand.icon className="h-5 w-5" />
-      ) : (
-        <span className="text-sm font-bold">{brand.letter}</span>
-      )}
-    </span>
-  )
-}
 
 function EmptyState({ variant }: { variant: 'connected' | 'available' }) {
   const isConnected = variant === 'connected'
@@ -135,7 +96,7 @@ export default function ProviderGrid({
               </Badge>
             ) : null}
 
-            <ProviderAvatar slug={provider.slug} />
+            <ProviderAvatar slug={provider.slug} apiKind={provider.api_kind} />
 
             <div className="mt-3 min-w-0 space-y-0.5">
               <p className="truncate text-sm font-semibold text-foreground">{provider.name}</p>

@@ -61,6 +61,10 @@ type ProviderView struct {
 	Capabilities []string `json:"capabilities"`
 	Official     bool     `json:"official,omitempty"`
 	Notice       string   `json:"notice,omitempty"`
+	// APIKind is the upstream wire format (openai, anthropic, openai_responses)
+	// — the catalog dialect for built-ins, the operator-set kind for custom
+	// providers. Empty when the provider is not routable.
+	APIKind string `json:"api_kind,omitempty"`
 }
 
 // ProviderOverview is the providers page payload: catalog providers split by

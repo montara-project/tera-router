@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -10,35 +10,32 @@ import SectionCard from '@/components/block/common/section-card'
 import CreateSkillCard from '@/components/block/traffic/skills/create-skill-card'
 import CustomSkillsCard from '@/components/block/traffic/skills/custom-skills-card'
 import ReferenceSkillsCard from '@/components/block/traffic/skills/reference-skills-card'
-import { SKILL_QUERY_KEY, skillQueries } from '@/lib/api/queries/skill'
-import { services } from '@/lib/api/services'
+import { queries } from '@/lib/api/queries'
 
 export const Route = createFileRoute('/(protected)/(traffic)/skills/')({
   component: RouteComponent,
 })
 
 function RouteComponent() {
-  const queryClient = useQueryClient()
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
-  const { data, isFetching, isLoading } = useQuery(skillQueries.list())
+  const { data, isFetching, isLoading } = useQuery(queries.skills.list())
   const skills = data?.data ?? []
 
-  const refresh = () => queryClient.invalidateQueries({ queryKey: [SKILL_QUERY_KEY] })
+  const createMutation = useMutation(queries.skills.create())
+  const deleteMutation = useMutation(queries.skills.delete())
 
   const handleCreate = async (payload: CreateSkillDto) => {
-    await services.skills.store(payload)
+    await createMutation.mutateAsync(payload)
     toast.success('Skill created')
-    await refresh()
   }
 
   const handleDelete = async (skill: Models.Skill) => {
     setDeletingId(skill.id)
 
     try {
-      await services.skills.remove(skill.id)
+      await deleteMutation.mutateAsync(skill.id)
       toast.success('Skill deleted')
-      await refresh()
     } finally {
       setDeletingId(null)
     }

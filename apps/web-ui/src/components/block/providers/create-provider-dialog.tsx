@@ -1,5 +1,5 @@
 import { IconPlus } from '@tabler/icons-react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
@@ -22,8 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { PROVIDER_QUERY_KEY } from '@/lib/api/queries/provider'
-import { services } from '@/lib/api/services'
+import { queries } from '@/lib/api/queries'
 
 const AMBER_BUTTON_CLASS =
   'bg-amber-600 text-white hover:bg-amber-500/90 dark:bg-amber-600 dark:hover:bg-amber-500/90'
@@ -34,12 +33,12 @@ interface CreateProviderDialogProps {
 }
 
 export default function CreateProviderDialog({ open, onOpenChange }: CreateProviderDialogProps) {
-  const queryClient = useQueryClient()
   const [name, setName] = useState('')
   const [dialect, setDialect] = useState('openai')
   const [baseUrl, setBaseUrl] = useState('')
   const [alias, setAlias] = useState('')
-  const [submitting, setSubmitting] = useState(false)
+
+  const createMutation = useMutation(queries.providers.customCreate())
 
   const canSubmit = name.trim().length > 0 && baseUrl.trim().length > 0
 
@@ -55,7 +54,7 @@ export default function CreateProviderDialog({ open, onOpenChange }: CreateProvi
     const trimmedBaseUrl = baseUrl.trim()
     const trimmedAlias = alias.trim()
 
-    if (!trimmedName || !trimmedBaseUrl || submitting) return
+    if (!trimmedName || !trimmedBaseUrl || createMutation.isPending) return
 
     if (trimmedAlias && !/^[a-zA-Z0-9-]{1,32}$/.test(trimmedAlias)) {
       toast.error('Alias may only contain letters, digits, and hyphens (max 32)')
@@ -67,7 +66,6 @@ export default function CreateProviderDialog({ open, onOpenChange }: CreateProvi
       return
     }
 
-    setSubmitting(true)
     try {
       const payload: CustomProviderDto = {
         name: trimmedName,
@@ -77,15 +75,12 @@ export default function CreateProviderDialog({ open, onOpenChange }: CreateProvi
       }
       if (trimmedAlias) payload.slug = trimmedAlias
 
-      await services.providers.customStore(payload)
-      await queryClient.invalidateQueries({ queryKey: [PROVIDER_QUERY_KEY] })
+      await createMutation.mutateAsync(payload)
       toast.success('Custom provider created')
       reset()
       onOpenChange(false)
     } catch {
       toast.error('Failed to create custom provider')
-    } finally {
-      setSubmitting(false)
     }
   }
 
@@ -161,11 +156,11 @@ export default function CreateProviderDialog({ open, onOpenChange }: CreateProvi
           </Button>
           <Button
             className={AMBER_BUTTON_CLASS}
-            disabled={!canSubmit || submitting}
+            disabled={!canSubmit || createMutation.isPending}
             onClick={handleCreate}
           >
             <IconPlus />
-            <span>{submitting ? 'Creating…' : 'Create provider'}</span>
+            <span>{createMutation.isPending ? 'Creating…' : 'Create provider'}</span>
           </Button>
         </DialogFooter>
       </DialogContent>

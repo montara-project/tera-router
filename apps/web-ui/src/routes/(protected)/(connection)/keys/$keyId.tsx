@@ -11,7 +11,7 @@ import {
   IconShield,
   IconStack2,
 } from '@tabler/icons-react'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useParams } from '@tanstack/react-router'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -25,8 +25,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 import { axiosErrorMessage } from '@/lib/api/axios-error'
-import { keyQueries } from '@/lib/api/queries/key'
-import { services } from '@/lib/api/services'
+import { queries } from '@/lib/api/queries'
 import { formatDate } from '@/lib/date'
 import { cn } from '@/lib/utils'
 
@@ -66,8 +65,10 @@ function KeyDetailRoute() {
   const [revealed, setRevealed] = useState<string | null>(null)
   const { copied, copy } = useCopyToClipboard()
 
-  const keyQuery = useQuery(keyQueries.get(keyId))
+  const keyQuery = useQuery(queries.keys.get(keyId))
   const key = keyQuery.data
+
+  const revealMutation = useMutation(queries.keys.reveal())
 
   // The masked preview is all GET returns, so copying the real credential goes
   // through the audit-logged reveal endpoint first.
@@ -75,8 +76,8 @@ function KeyDetailRoute() {
     let value = revealed
     if (!value) {
       try {
-        const res = await services.keys.reveal(keyId)
-        value = res.data.data.full_key
+        const res = await revealMutation.mutateAsync(keyId)
+        value = res.data.full_key
         setRevealed(value)
       } catch (error) {
         toast.error(axiosErrorMessage(error as Error))
@@ -92,8 +93,8 @@ function KeyDetailRoute() {
       return
     }
     try {
-      const res = await services.keys.reveal(keyId)
-      setRevealed(res.data.data.full_key)
+      const res = await revealMutation.mutateAsync(keyId)
+      setRevealed(res.data.full_key)
     } catch (error) {
       toast.error(axiosErrorMessage(error as Error))
     }

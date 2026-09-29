@@ -6,7 +6,7 @@ import {
   IconPalette,
   IconRoute,
 } from '@tabler/icons-react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { toast } from 'sonner'
 
@@ -21,8 +21,7 @@ import SystemTab from '@/components/block/settings/system-tab'
 import TokenSavingTab from '@/components/block/settings/token-saving-tab'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { SETTINGS_QUERY_KEY, settingsQueries } from '@/lib/api/queries/settings'
-import { services } from '@/lib/api/services'
+import { queries } from '@/lib/api/queries'
 
 export const Route = createFileRoute('/(protected)/(analytics)/settings/')({
   component: RouteComponent,
@@ -54,20 +53,19 @@ function RouteSkeleton() {
 }
 
 function RouteComponent() {
-  const queryClient = useQueryClient()
-
-  const { data } = useQuery(settingsQueries.get())
+  const { data } = useQuery(queries.settings.get())
   const settings = data?.data
+
+  const updateMutation = useMutation(queries.settings.update())
 
   if (!settings) {
     return <RouteSkeleton />
   }
 
   const handleUpdate = (patch: Partial<AppSettings>) => {
-    services.settings
-      .update(patch)
-      .then(() => queryClient.invalidateQueries({ queryKey: [SETTINGS_QUERY_KEY] }))
-      .catch(() => toast.error('Failed to update settings'))
+    updateMutation.mutate(patch, {
+      onError: () => toast.error('Failed to update settings'),
+    })
   }
 
   return (

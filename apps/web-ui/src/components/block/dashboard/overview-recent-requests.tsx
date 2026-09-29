@@ -4,8 +4,8 @@ import { useState } from 'react'
 
 import type { UsageTerminalRequestRow } from '@/lib/api/models/usage'
 
-import { Icons } from '@/components/block/common/icons'
 import { fmtCompact } from '@/components/block/cost-analytics/usage/format'
+import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -53,7 +53,7 @@ export default function OverviewRecentRequests({ rows }: OverviewRecentRequestsP
         </div>
 
         <div className="mt-4 overflow-x-auto">
-          <div className="min-w-[760px]">
+          <div className="min-w-190">
             <div className={`${COLUMNS} border-b border-border pb-3`}>
               {['Status', 'Provider / Model', 'Tokens', 'Cost', 'Latency', 'Time'].map((label) => (
                 <p
@@ -84,9 +84,7 @@ export default function OverviewRecentRequests({ rows }: OverviewRecentRequestsP
                     </div>
 
                     <div className="flex items-center gap-3">
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white ring-1 ring-border">
-                        <Icons.chatgpt className="h-4 w-4" />
-                      </span>
+                      <ProviderAvatar slug={row.provider} apiKind={row.api_kind} size="sm" />
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold text-foreground">
                           {row.model}
