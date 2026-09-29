@@ -20,6 +20,10 @@ const (
 // When the limit is reached the limiter returns apperr.ErrTooManyRequests so
 // the global error handler renders the standard response envelope.
 //
+// skipPaths, when non-nil, exempts paths that apply their own limiter — the
+// inference gateway bounds in-flight concurrency rather than request count,
+// because coding agents legitimately burst from a single address.
+//
 // exemptLoopback skips the limiter for 127.0.0.1 and is meant for development
 // only, where every request legitimately arrives from loopback. It must stay
 // off in production: c.IP() reports the direct TCP peer (the server configures
@@ -27,9 +31,12 @@ const (
 // means a same-host reverse proxy would make every request look like loopback
 // and silently disable the limiter. Operators behind a proxy should configure
 // ProxyHeader/TrustProxyConfig so the real client IP is used instead.
-func RateLimit(exemptLoopback bool) fiber.Handler {
+func RateLimit(exemptLoopback bool, skipPaths func(string) bool) fiber.Handler {
 	return limiter.New(limiter.Config{
 		Next: func(c fiber.Ctx) bool {
+			if skipPaths != nil && skipPaths(c.Path()) {
+				return true
+			}
 			return exemptLoopback && c.IP() == "127.0.0.1"
 		},
 		Max:        rateLimitMax,

@@ -32,6 +32,10 @@ type CatalogProvider struct {
 	Capabilities []string `json:"capabilities"`
 	// BaseURL is the default upstream endpoint for API-key providers.
 	BaseURL string `json:"base_url,omitempty"`
+	// Dialect is the upstream wire format the gateway speaks to this
+	// provider (openai, anthropic, openai_responses). Empty means the
+	// provider is not routable yet.
+	Dialect string `json:"dialect,omitempty"`
 	// AuthKind is the default authentication mechanism
 	// (api_key, oauth, none).
 	AuthKind string `json:"auth_kind"`

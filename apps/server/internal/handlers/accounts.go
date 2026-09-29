@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"tera-router/server/internal/app"
+	"tera-router/server/internal/catalog"
 	"tera-router/server/internal/dtos"
 	"tera-router/server/internal/lib"
 	"tera-router/server/internal/lib/apperr"
@@ -364,7 +365,7 @@ func (h *accountsHandler) Test(c fiber.Ctx) error {
 // probe resolves the endpoint from the provider catalog (overridable via
 // account metadata) and asks the upstream service to verify the credential.
 func (h *accountsHandler) probe(ctx context.Context, providerSlug, metadataRaw, apiKey string) (dtos.TestResult, error) {
-	spec, ok := CatalogLookup(providerSlug)
+	spec, ok := catalog.Lookup(providerSlug)
 	if !ok {
 		return dtos.TestResult{OK: true, Detail: "no probe available for provider"}, nil
 	}

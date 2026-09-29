@@ -47,6 +47,20 @@ func (r *PricingRepository) upsertExec(ctx context.Context, p models.PricingOver
 	return err
 }
 
+// Get returns the pricing override for one (provider, model) pair. A miss
+// surfaces as apperr.ErrNotFound; the gateway treats that as "no override"
+// and charges zero.
+func (r *PricingRepository) Get(ctx context.Context, provider, model string) (models.PricingOverride, error) {
+	return r.getExec(ctx, provider, model)
+}
+
+func (r *PricingRepository) getExec(ctx context.Context, provider, model string) (models.PricingOverride, error) {
+	row := r.queryRowContext(ctx, r.DB,
+		`SELECT`+pricingColumns+` FROM model_pricing_overrides WHERE provider = $1 AND model = $2`,
+		provider, model)
+	return scanPricing(row)
+}
+
 // List returns overrides ordered by provider/model, optionally narrowed to one
 // provider.
 func (r *PricingRepository) List(ctx context.Context, provider string) ([]models.PricingOverride, error) {

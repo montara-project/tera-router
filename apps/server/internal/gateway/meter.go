@@ -1,0 +1,195 @@
+package gateway
+
+import (
+	"context"
+	"errors"
+	"time"
+
+	"tera-router/server/internal/core"
+	"tera-router/server/internal/lib/apperr"
+	"tera-router/server/internal/models"
+)
+
+// Cost accounting.
+//
+// Pricing overrides are stored as micros of USD per million tokens, so a rate
+// of 2_500_000 means $2.50 per million tokens. Cost is accumulated in micros
+// (millionths of a dollar) as an integer to avoid floating-point drift in
+// budget accounting. A model with no override costs zero, which is the correct
+// default for self-hosted and free-tier endpoints.
+
+// pricingRates is one model's per-million-token rates in micros.
+type pricingRates struct {
+	InputMicros      int64
+	OutputMicros     int64
+	CacheReadMicros  int64
+	CacheWriteMicros int64
+}
+
+// costMicros computes the cost of a usage event in micros of USD.
+//
+// Rates are micros of USD per *million* tokens, so each bucket is
+// `tokens * microsPerMillion / 1_000_000`. The division happens once at the end
+// so no per-bucket precision is lost to truncation.
+//
+// Standard input tokens are the prompt total minus the tokens served from and
+// written to a provider-side cache, because those are billed at their own
+// rates. A negative remainder (an upstream reporting more cached tokens than
+// prompt tokens) is clamped to zero rather than credited.
+func costMicros(rates pricingRates, u core.Usage) int64 {
+	standardInput := u.PromptTokens - u.CachedTokens - u.CacheWriteTokens
+	if standardInput < 0 {
+		standardInput = 0
+	}
+
+	weighted := int64(standardInput)*rates.InputMicros +
+		int64(u.CachedTokens)*rates.CacheReadMicros +
+		int64(u.CacheWriteTokens)*rates.CacheWriteMicros +
+		int64(u.CompletionTokens)*rates.OutputMicros
+	if weighted <= 0 {
+		return 0
+	}
+	return weighted / 1_000_000
+}
+
+// ratesFor resolves the pricing override for a provider/model pair. A missing
+// override yields zero rates, not an error: an unpriced model is free.
+func (s *Server) ratesFor(ctx context.Context, provider, model string) pricingRates {
+	override, err := s.app.Repos.Pricing.Get(ctx, provider, model)
+	if err != nil {
+		if !isNotFound(err) {
+			s.log.Warn("gateway pricing lookup failed", "provider", provider, "model", model, "error", err)
+		}
+		return pricingRates{}
+	}
+	return pricingRates{
+		InputMicros:      override.InputMicros,
+		OutputMicros:     override.OutputMicros,
+		CacheReadMicros:  override.CacheReadMicros,
+		CacheWriteMicros: override.CacheWriteMicros,
+	}
+}
+
+// isNotFound reports whether an error is the repositories' typed not-found.
+func isNotFound(err error) bool {
+	return errors.Is(err, apperr.ErrNotFound)
+}
+
+// usageRecord is the gateway's per-request metering event.
+type usageRecord struct {
+	APIKeyID string
+	// AccountID is empty for synthetic (account-less) attempts.
+	AccountID string
+	Provider  string
+	Model     string
+	Client    string
+	ClientIP  string
+
+	Usage core.Usage
+	// CostMicros is computed by the caller from the resolved rates.
+	CostMicros int64
+	Latency    time.Duration
+	TTFT       time.Duration
+
+	Failed       bool
+	ErrorKind    string
+	ErrorStatus  int
+	ErrorMessage string
+}
+
+// recordUsage persists a metering row asynchronously. The write runs on a
+// background context with its own timeout so a client disconnecting mid-stream
+// cannot cancel the accounting for work the upstream already performed.
+func (s *Server) recordUsage(rec usageRecord) {
+	model := models.UsageRecord{
+		APIKeyID:         optionalID(rec.APIKeyID),
+		AccountID:        optionalID(rec.AccountID),
+		Provider:         rec.Provider,
+		Model:            rec.Model,
+		Client:           rec.Client,
+		ClientIP:         rec.ClientIP,
+		PromptTokens:     rec.Usage.PromptTokens,
+		CompletionTokens: rec.Usage.CompletionTokens,
+		CachedTokens:     rec.Usage.CachedTokens,
+		CacheWriteTokens: rec.Usage.CacheWriteTokens,
+		ReasoningTokens:  rec.Usage.ReasoningTokens,
+		CostMicros:       rec.CostMicros,
+		LatencyMS:        int(rec.Latency.Milliseconds()),
+		TTFTMS:           int(rec.TTFT.Milliseconds()),
+		Failed:           rec.Failed,
+		ErrorKind:        rec.ErrorKind,
+		ErrorStatus:      rec.ErrorStatus,
+		ErrorMessage:     sanitizeErrorMessage(rec.ErrorMessage),
+		CreatedAt:        time.Now(),
+	}
+
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := s.app.Repos.Usage.Insert(ctx, model); err != nil {
+			s.log.Error("gateway record usage failed",
+				"provider", model.Provider, "model", model.Model, "error", err)
+		}
+	}()
+}
+
+// recordFailure persists a failed attempt so the dashboard's recent-requests
+// feed shows the real cause instead of a silent gap. Tokens and cost are zero:
+// no usage was produced.
+func (s *Server) recordFailure(meta requestMeta, at attempt, pe *core.ProviderError, latency time.Duration) {
+	s.recordUsage(usageRecord{
+		APIKeyID:     meta.APIKeyID,
+		AccountID:    at.AccountID,
+		Provider:     at.Target.Provider,
+		Model:        at.Target.Model,
+		Client:       meta.Client,
+		ClientIP:     meta.ClientIP,
+		Latency:      latency,
+		Failed:       true,
+		ErrorKind:    string(pe.Kind),
+		ErrorStatus:  pe.StatusCode,
+		ErrorMessage: pe.Message,
+	})
+}
+
+// optionalID converts an id into the nullable form the usage table stores;
+// the empty string becomes NULL so synthetic attempts and unattributed rows
+// are distinguishable from real ids.
+func optionalID(id string) *string {
+	if id == "" {
+		return nil
+	}
+	return &id
+}
+
+// mergeUsage overlays the non-zero fields of a later usage event onto the
+// accumulated one. Upstreams split accounting across events (Anthropic reports
+// input tokens at message start and output tokens at message end), so the last
+// non-zero value for each field wins.
+//
+// TotalTokens is only taken from the event when the upstream states it;
+// otherwise it is recomputed, so a stream that reports prompt and completion
+// tokens in separate events still totals correctly.
+func mergeUsage(acc, next core.Usage) core.Usage {
+	if next.PromptTokens != 0 {
+		acc.PromptTokens = next.PromptTokens
+	}
+	if next.CompletionTokens != 0 {
+		acc.CompletionTokens = next.CompletionTokens
+	}
+	if next.CachedTokens != 0 {
+		acc.CachedTokens = next.CachedTokens
+	}
+	if next.CacheWriteTokens != 0 {
+		acc.CacheWriteTokens = next.CacheWriteTokens
+	}
+	if next.ReasoningTokens != 0 {
+		acc.ReasoningTokens = next.ReasoningTokens
+	}
+	if next.TotalTokens != 0 {
+		acc.TotalTokens = next.TotalTokens
+	} else {
+		acc.TotalTokens = acc.PromptTokens + acc.CompletionTokens
+	}
+	return acc
+}

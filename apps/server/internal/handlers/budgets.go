@@ -8,6 +8,7 @@ import (
 	"tera-router/server/internal/dtos"
 	"tera-router/server/internal/lib"
 	"tera-router/server/internal/lib/apperr"
+	"tera-router/server/internal/lib/period"
 	"tera-router/server/internal/models"
 
 	"github.com/gofiber/fiber/v3"
@@ -16,26 +17,6 @@ import (
 
 type budgetsHandler struct {
 	app *app.Application
-}
-
-// periodWindow resolves the current period bucket and window start for a
-// budget period (daily/weekly/monthly), ported from IDRouter's budget engine.
-func periodWindow(period string, now time.Time) (bucket string, from time.Time) {
-	switch period {
-	case "daily":
-		start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-		return start.Format("2006-01-02"), start
-	case "weekly":
-		weekday := int(now.Weekday())
-		if weekday == 0 {
-			weekday = 7
-		}
-		start := time.Date(now.Year(), now.Month(), now.Day()-weekday+1, 0, 0, 0, 0, now.Location())
-		return start.Format("2006-01-02"), start
-	default: // monthly
-		start := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
-		return start.Format("2006-01"), start
-	}
 }
 
 // budgetFromRequest builds a new budget from a create request.
@@ -119,14 +100,14 @@ func (h *budgetsHandler) Status(c fiber.Ctx) error {
 
 	out := make([]dtos.BudgetStatus, 0, len(budgets))
 	for _, b := range budgets {
-		if bucket, _ := periodWindow(b.Period, time.Now()); b.PeriodBucket != bucket {
+		if bucket, _ := period.Window(b.Period, time.Now()); b.PeriodBucket != bucket {
 			b = resetAllocations(b, bucket)
 			if err := h.app.Repos.Budgets.Update(c.Context(), b); err != nil {
 				return err
 			}
 		}
 
-		_, from := periodWindow(b.Period, time.Now())
+		_, from := period.Window(b.Period, time.Now())
 		spent, err := h.app.Repos.Usage.Summary(c.Context(), from)
 		if err != nil {
 			return err
@@ -158,7 +139,7 @@ func (h *budgetsHandler) Store(c fiber.Ctx) error {
 
 	budget := budgetFromRequest(req)
 	budget.ID = uuid.NewString()
-	bucket, _ := periodWindow(budget.Period, time.Now())
+	bucket, _ := period.Window(budget.Period, time.Now())
 	budget = resetAllocations(budget, bucket)
 
 	if err := h.app.Repos.Budgets.Insert(c.Context(), budget); err != nil {
@@ -185,7 +166,7 @@ func (h *budgetsHandler) Update(c fiber.Ctx) error {
 		return err
 	}
 	applyBudgetPatch(&budget, req)
-	bucket, _ := periodWindow(budget.Period, time.Now())
+	bucket, _ := period.Window(budget.Period, time.Now())
 	budget = resetAllocations(budget, bucket)
 
 	if err := h.app.Repos.Budgets.Update(c.Context(), budget); err != nil {

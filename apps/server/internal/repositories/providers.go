@@ -39,6 +39,16 @@ func (r *ProviderRepository) insertExec(ctx context.Context, p models.CustomProv
 	return err
 }
 
+// GetBySlug resolves one custom provider by its unique slug.
+func (r *ProviderRepository) GetBySlug(ctx context.Context, slug string) (models.CustomProvider, error) {
+	return r.getBySlugExec(ctx, slug)
+}
+
+func (r *ProviderRepository) getBySlugExec(ctx context.Context, slug string) (models.CustomProvider, error) {
+	row := r.queryRowContext(ctx, r.DB, `SELECT`+providerColumns+` FROM custom_providers WHERE slug = $1`, slug)
+	return scanProvider(row)
+}
+
 // List returns every custom provider, newest first.
 func (r *ProviderRepository) List(ctx context.Context) ([]models.CustomProvider, error) {
 	return r.listExec(ctx)

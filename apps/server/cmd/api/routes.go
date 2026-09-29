@@ -2,6 +2,7 @@ package main
 
 import (
 	"tera-router/server/internal/app"
+	"tera-router/server/internal/gateway"
 	"tera-router/server/internal/handlers"
 	"tera-router/server/internal/middlewares"
 
@@ -28,6 +29,13 @@ func routes(r *fiber.App, app *app.Application) {
 	}
 
 	r.Get("/health", h.Health.Check)
+
+	// Inference gateway: /v1/chat/completions, /v1/messages,
+	// /v1/messages/count_tokens, /v1/responses (+ root /responses). It
+	// authenticates with API keys, not the dashboard's JWT, and is registered
+	// before the dashboard's authenticated /v1 group so RequireAuth never
+	// intercepts it.
+	gateway.Register(r, app)
 
 	// Versioned dashboard API. Auth endpoints are public; everything else
 	// requires the Bearer JWT issued by /v1/auth/sign-in.

@@ -113,6 +113,26 @@ func (r *ChainRepository) attachStepsExec(ctx context.Context, ex Executor, chai
 	return chains, nil
 }
 
+// GetByName resolves one chain by its unique name with its steps attached.
+// The gateway routes `chain:<name>` and bare chain-name requests through it.
+func (r *ChainRepository) GetByName(ctx context.Context, name string) (models.Chain, error) {
+	return r.getByNameExec(ctx, name)
+}
+
+func (r *ChainRepository) getByNameExec(ctx context.Context, name string) (models.Chain, error) {
+	row := r.queryRowContext(ctx, r.DB, `SELECT`+chainColumns+` FROM chains WHERE name = $1`, name)
+	c, err := scanChain(row)
+	if err != nil {
+		return models.Chain{}, err
+	}
+
+	attached, err := r.attachStepsExec(ctx, r.DB, []models.Chain{c})
+	if err != nil {
+		return models.Chain{}, err
+	}
+	return attached[0], nil
+}
+
 // Get returns one chain by id with its steps attached.
 func (r *ChainRepository) Get(ctx context.Context, id string) (models.Chain, error) {
 	return r.getExec(ctx, id)

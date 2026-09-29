@@ -10,6 +10,7 @@ import (
 
 	"tera-router/server/internal/app"
 	"tera-router/server/internal/config"
+	"tera-router/server/internal/gateway"
 	"tera-router/server/internal/middlewares"
 
 	sentryfiber "github.com/gofiber/contrib/v3/sentry"
@@ -33,7 +34,9 @@ func serve(app *app.Application) error {
 
 	// Fiber Configuration
 	server := fiber.New(fiber.Config{
-		BodyLimit:    2 * 1024 * 1024, // 2MB
+		// 32 MiB: agent conversations (long tool-call histories, inline
+		// base64 screenshots) routinely exceed the dashboard's 2 MiB.
+		BodyLimit:    32 * 1024 * 1024,
 		IdleTimeout:  time.Minute,
 		ReadTimeout:  20 * time.Second,
 		WriteTimeout: 3 * time.Minute,
@@ -46,19 +49,28 @@ func serve(app *app.Application) error {
 	server.Use(logger.New())
 	server.Use(helmet.New())
 	server.Use(requestid.New())
-	server.Use(compress.New())
+	// Compress must never touch inference traffic: buffering an SSE body
+	// defeats streaming, and the encoder would delay every chunk.
+	server.Use(compress.New(compress.Config{
+		Next: func(c fiber.Ctx) bool { return gateway.IsGatewayPath(c.Path()) },
+	}))
 	server.Use(sentryHandler)
 
 	// CORS
 	server.Use(cors.New(cors.Config{
 		AllowOrigins: strings.Split(app.Config.App.CORSAllowedOrigins, ","),
 		AllowMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowHeaders: []string{"Origin", "Content-Type", "Accept", "Authorization"},
+		AllowHeaders: []string{"Origin", "Content-Type", "Accept", "Authorization", "x-api-key", "anthropic-version"},
 		MaxAge:       3600,
 	}))
 
-	// Rate Limit
-	server.Use(middlewares.RateLimit(app.Config.App.Env == config.EnvDevelopment))
+	// Rate Limit: the dashboard is throttled per client IP. Inference traffic
+	// is exempt — coding agents legitimately burst from one address, and the
+	// gateway applies its own in-flight concurrency limit instead.
+	server.Use(middlewares.RateLimit(
+		app.Config.App.Env == config.EnvDevelopment,
+		gateway.IsGatewayPath,
+	))
 
 	server.Use(static.New("./public"))
 

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 
 	"tera-router/server/internal/app"
+	"tera-router/server/internal/catalog"
 	"tera-router/server/internal/dtos"
 	"tera-router/server/internal/lib"
 	"tera-router/server/internal/lib/apperr"
@@ -98,7 +99,7 @@ func (h *providersHandler) Index(c fiber.Ctx) error {
 		Available: []dtos.ProviderView{},
 	}
 
-	for _, spec := range Catalog() {
+	for _, spec := range catalog.All() {
 		view := dtos.ProviderView{
 			ID:           "prov-" + spec.Slug,
 			Name:         spec.Name,
@@ -119,7 +120,7 @@ func (h *providersHandler) Index(c fiber.Ctx) error {
 	// Custom providers with a slug outside the catalog render as their own
 	// connected entries; catalog slugs are already covered above.
 	for _, c := range customs {
-		if _, ok := CatalogLookup(c.Slug); ok {
+		if _, ok := catalog.Lookup(c.Slug); ok {
 			continue
 		}
 		overview.Connected = append(overview.Connected, dtos.ProviderView{

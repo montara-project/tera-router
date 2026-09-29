@@ -104,6 +104,35 @@ func (r *AccountRepository) listExec(ctx context.Context, offset, limit int) ([]
 	return accounts, total, errtrace.Wrap(rows.Err())
 }
 
+// ListUsable returns every account of a provider that can serve traffic:
+// enabled (not disabled) and not awaiting re-authentication, ordered by
+// priority then creation time. The gateway uses it to plan routing attempts.
+func (r *AccountRepository) ListUsable(ctx context.Context, provider string) ([]models.Account, error) {
+	return r.listUsableExec(ctx, provider)
+}
+
+func (r *AccountRepository) listUsableExec(ctx context.Context, provider string) ([]models.Account, error) {
+	rows, err := r.queryContext(ctx, r.DB, `
+		SELECT`+accountColumns+`
+		FROM accounts
+		WHERE provider = $1 AND disabled = false AND needs_reconnect = false
+		ORDER BY priority ASC, created_at ASC`, provider)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	accounts := []models.Account{}
+	for rows.Next() {
+		a, err := scanAccount(rows)
+		if err != nil {
+			return nil, err
+		}
+		accounts = append(accounts, a)
+	}
+	return accounts, errtrace.Wrap(rows.Err())
+}
+
 // Get returns one account by id.
 func (r *AccountRepository) Get(ctx context.Context, id string) (models.Account, error) {
 	return r.getExec(ctx, id)

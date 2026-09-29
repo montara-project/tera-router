@@ -52,6 +52,26 @@ func (r *AliasRepository) upsertExec(ctx context.Context, ex Executor, a models.
 	return nil
 }
 
+// GetByName resolves one alias pool by its unique name, targets attached.
+// A miss surfaces as apperr.ErrNotFound.
+func (r *AliasRepository) GetByName(ctx context.Context, name string) (models.ModelAlias, error) {
+	return r.getByNameExec(ctx, name)
+}
+
+func (r *AliasRepository) getByNameExec(ctx context.Context, name string) (models.ModelAlias, error) {
+	row := r.queryRowContext(ctx, r.DB, `SELECT `+aliasColumns+` FROM model_aliases WHERE name = $1`, name)
+	var a models.ModelAlias
+	if err := row.Scan(&a.ID, &a.Name, &a.ContextWindow, &a.Active, &a.CreatedAt, &a.UpdatedAt); err != nil {
+		return models.ModelAlias{}, translateNotFound(err)
+	}
+
+	attached, err := r.attachTargetsExec(ctx, r.DB, []models.ModelAlias{a})
+	if err != nil {
+		return models.ModelAlias{}, err
+	}
+	return attached[0], nil
+}
+
 // List returns every alias with its targets attached, newest first.
 func (r *AliasRepository) List(ctx context.Context) ([]models.ModelAlias, error) {
 	return r.listExec(ctx)

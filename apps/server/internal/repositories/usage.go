@@ -34,6 +34,38 @@ func (r *UsageRepository) insertExec(ctx context.Context, u models.UsageRecord) 
 	return err
 }
 
+// UsageSpend totals spend and tokens over a window, optionally narrowed to a
+// single API key. It is the gateway's budget-guard read.
+type UsageSpend struct {
+	CostMicros       int64 `json:"cost_micros"`
+	PromptTokens     int64 `json:"prompt_tokens"`
+	CompletionTokens int64 `json:"completion_tokens"`
+}
+
+// SumSince totals spend and tokens for usage created at or after from. When
+// apiKeyID is non-nil the sum is restricted to that key (the api_key budget
+// scope); nil means every key (the tenant scope).
+func (r *UsageRepository) SumSince(ctx context.Context, apiKeyID *string, from time.Time) (UsageSpend, error) {
+	return r.sumSinceExec(ctx, apiKeyID, from)
+}
+
+func (r *UsageRepository) sumSinceExec(ctx context.Context, apiKeyID *string, from time.Time) (UsageSpend, error) {
+	query := `
+		SELECT COALESCE(SUM(cost_micros), 0),
+		       COALESCE(SUM(prompt_tokens), 0), COALESCE(SUM(completion_tokens), 0)
+		FROM usage_records WHERE created_at >= $1`
+	args := []any{from}
+	if apiKeyID != nil {
+		query += ` AND api_key_id = $2`
+		args = append(args, *apiKeyID)
+	}
+
+	var s UsageSpend
+	err := r.queryRowContext(ctx, r.DB, query, args...).
+		Scan(&s.CostMicros, &s.PromptTokens, &s.CompletionTokens)
+	return s, errtrace.Wrap(err)
+}
+
 // UsageSummary totals spend and tokens over a window.
 type UsageSummary struct {
 	Requests         int64 `json:"requests"`
