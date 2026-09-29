@@ -52,7 +52,7 @@ func (h *proxyPoolsHandler) Store(c fiber.Ctx) error {
 	}
 
 	pool := models.ProxyPool{ID: uuid.NewString(), Name: req.Name, URL: req.URL, Mode: req.Mode, Label: req.Label, Status: "active"}
-	if err := h.app.Repos.ProxyPools.Create(c.Context(), pool); err != nil {
+	if err := h.app.Repos.ProxyPools.Insert(c.Context(), pool); err != nil {
 		return err
 	}
 	auditRecord(c.Context(), h.app, actorFrom(c), "proxy_pool.create", pool.ID, map[string]string{"url": pool.URL})
@@ -65,7 +65,7 @@ func (h *proxyPoolsHandler) Get(c fiber.Ctx) error {
 		return apperr.ErrBadRequest
 	}
 
-	pool, err := h.app.Repos.ProxyPools.FindByID(c.Context(), id.String())
+	pool, err := h.app.Repos.ProxyPools.Get(c.Context(), id.String())
 	if err != nil {
 		return err
 	}
@@ -89,7 +89,7 @@ func (h *proxyPoolsHandler) Update(c fiber.Ctx) error {
 	}
 	auditRecord(c.Context(), h.app, actorFrom(c), "proxy_pool.update", pool.ID, nil)
 
-	updated, err := h.app.Repos.ProxyPools.FindByID(c.Context(), pool.ID)
+	updated, err := h.app.Repos.ProxyPools.Get(c.Context(), pool.ID)
 	if err != nil {
 		return err
 	}
@@ -117,7 +117,7 @@ func (h *proxyPoolsHandler) Test(c fiber.Ctx) error {
 		return apperr.ErrBadRequest
 	}
 
-	pool, err := h.app.Repos.ProxyPools.FindByID(c.Context(), id.String())
+	pool, err := h.app.Repos.ProxyPools.Get(c.Context(), id.String())
 	if err != nil {
 		return err
 	}
@@ -153,5 +153,5 @@ func (h *proxyPoolsHandler) testPool(ctx context.Context, pool models.ProxyPool)
 	if err := h.app.Repos.ProxyPools.UpdateTestedAt(ctx, pool.ID, time.Now(), status); err != nil {
 		return models.ProxyPool{}, err
 	}
-	return h.app.Repos.ProxyPools.FindByID(ctx, pool.ID)
+	return h.app.Repos.ProxyPools.Get(ctx, pool.ID)
 }

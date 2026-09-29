@@ -2,33 +2,45 @@ package repositories
 
 import (
 	"context"
-	"database/sql"
 
 	"tera-router/server/internal/models"
+
+	"braces.dev/errtrace"
 )
 
+// SkillRepository manages reusable prompt skills.
 type SkillRepository struct {
-	db *sql.DB
+	BaseRepository
 }
 
 const skillColumns = `id, name, description, prompt, created_at, updated_at`
 
-func scanSkill(row interface{ Scan(...any) error }) (models.Skill, error) {
+func scanSkill(row rowScanner) (models.Skill, error) {
 	var s models.Skill
 	err := row.Scan(&s.ID, &s.Name, &s.Description, &s.Prompt, &s.CreatedAt, &s.UpdatedAt)
 	return s, translateNotFound(err)
 }
 
-func (r *SkillRepository) Create(ctx context.Context, s models.Skill) error {
-	_, err := r.db.ExecContext(ctx, `
+// Insert persists a new skill.
+func (r *SkillRepository) Insert(ctx context.Context, s models.Skill) error {
+	return r.insertExec(ctx, r.DB, s)
+}
+
+func (r *SkillRepository) insertExec(ctx context.Context, ex Executor, s models.Skill) error {
+	_, err := r.execContext(ctx, ex, `
 		INSERT INTO skills (id, name, description, prompt) VALUES ($1, $2, $3, $4)`,
 		s.ID, s.Name, s.Description, s.Prompt,
 	)
 	return err
 }
 
+// List returns every skill, newest first.
 func (r *SkillRepository) List(ctx context.Context) ([]models.Skill, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT `+skillColumns+` FROM skills ORDER BY created_at DESC`)
+	return r.listExec(ctx, r.DB)
+}
+
+func (r *SkillRepository) listExec(ctx context.Context, ex Executor) ([]models.Skill, error) {
+	rows, err := r.queryContext(ctx, ex, `SELECT `+skillColumns+` FROM skills ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -42,11 +54,26 @@ func (r *SkillRepository) List(ctx context.Context) ([]models.Skill, error) {
 		}
 		skills = append(skills, s)
 	}
-	return skills, rows.Err()
+	return skills, errtrace.Wrap(rows.Err())
 }
 
+// Get returns one skill by id.
+func (r *SkillRepository) Get(ctx context.Context, id string) (models.Skill, error) {
+	return r.getExec(ctx, r.DB, id)
+}
+
+func (r *SkillRepository) getExec(ctx context.Context, ex Executor, id string) (models.Skill, error) {
+	row := r.queryRowContext(ctx, ex, `SELECT `+skillColumns+` FROM skills WHERE id = $1`, id)
+	return scanSkill(row)
+}
+
+// Update rewrites a skill.
 func (r *SkillRepository) Update(ctx context.Context, s models.Skill) error {
-	res, err := r.db.ExecContext(ctx, `
+	return r.updateExec(ctx, r.DB, s)
+}
+
+func (r *SkillRepository) updateExec(ctx context.Context, ex Executor, s models.Skill) error {
+	res, err := r.execContext(ctx, ex, `
 		UPDATE skills SET name = $2, description = $3, prompt = $4, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now') WHERE id = $1`,
 		s.ID, s.Name, s.Description, s.Prompt,
 	)
@@ -56,8 +83,13 @@ func (r *SkillRepository) Update(ctx context.Context, s models.Skill) error {
 	return requireAffected(res, "skill")
 }
 
+// Delete removes one skill.
 func (r *SkillRepository) Delete(ctx context.Context, id string) error {
-	res, err := r.db.ExecContext(ctx, `DELETE FROM skills WHERE id = $1`, id)
+	return r.deleteExec(ctx, r.DB, id)
+}
+
+func (r *SkillRepository) deleteExec(ctx context.Context, ex Executor, id string) error {
+	res, err := r.execContext(ctx, ex, `DELETE FROM skills WHERE id = $1`, id)
 	if err != nil {
 		return err
 	}

@@ -31,6 +31,9 @@ func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: loggerLevel,
 	}))
+	// Packages that log through the slog default logger (repositories emit
+	// their debug queries that way) must see the same level and format.
+	slog.SetDefault(logger)
 
 	app := assemble(cfg, logger)
 

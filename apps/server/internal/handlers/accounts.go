@@ -179,12 +179,12 @@ func (h *accountsHandler) Store(c fiber.Ctx) error {
 	}
 
 	if account.KeyHash != "" {
-		if _, err := h.app.Repos.Accounts.FindByKeyHash(c.Context(), account.KeyHash); err == nil {
+		if _, err := h.app.Repos.Accounts.GetByKeyHash(c.Context(), account.KeyHash); err == nil {
 			return apperr.New(apperr.KindConflict, "an account with this key already exists")
 		}
 	}
 
-	if err := h.app.Repos.Accounts.Create(c.Context(), account); err != nil {
+	if err := h.app.Repos.Accounts.Insert(c.Context(), account); err != nil {
 		return err
 	}
 	auditRecord(c.Context(), h.app, actorFrom(c), "account.create", account.ID, map[string]string{"provider": account.Provider, "label": account.Label})
@@ -221,7 +221,7 @@ func (h *accountsHandler) Bulk(c fiber.Ctx) error {
 		accounts = append(accounts, account)
 	}
 
-	if err := h.app.Repos.Accounts.BulkCreate(c.Context(), accounts); err != nil {
+	if err := h.app.Repos.Accounts.BulkInsert(c.Context(), accounts); err != nil {
 		return err
 	}
 	auditRecord(c.Context(), h.app, actorFrom(c), "account.bulk_create", fmt.Sprintf("%d accounts", len(accounts)), map[string]int{"count": len(accounts)})
@@ -247,7 +247,7 @@ func (h *accountsHandler) Get(c fiber.Ctx) error {
 		return apperr.ErrBadRequest
 	}
 
-	account, err := h.app.Repos.Accounts.FindByID(c.Context(), id.String())
+	account, err := h.app.Repos.Accounts.Get(c.Context(), id.String())
 	if err != nil {
 		return err
 	}
@@ -267,7 +267,7 @@ func (h *accountsHandler) Update(c fiber.Ctx) error {
 		return err
 	}
 
-	account, err := h.app.Repos.Accounts.FindByID(c.Context(), id.String())
+	account, err := h.app.Repos.Accounts.Get(c.Context(), id.String())
 	if err != nil {
 		return err
 	}
@@ -325,7 +325,7 @@ func (h *accountsHandler) Test(c fiber.Ctx) error {
 		return apperr.ErrBadRequest
 	}
 
-	account, err := h.app.Repos.Accounts.FindByID(c.Context(), id.String())
+	account, err := h.app.Repos.Accounts.Get(c.Context(), id.String())
 	if err != nil {
 		return err
 	}
@@ -391,7 +391,7 @@ func (h *accountsHandler) Reveal(c fiber.Ctx) error {
 		return apperr.ErrBadRequest
 	}
 
-	account, err := h.app.Repos.Accounts.FindByID(c.Context(), id.String())
+	account, err := h.app.Repos.Accounts.Get(c.Context(), id.String())
 	if err != nil {
 		return err
 	}
@@ -416,7 +416,7 @@ func (h *accountsHandler) Quota(c fiber.Ctx) error {
 		return apperr.ErrBadRequest
 	}
 
-	if _, err := h.app.Repos.Accounts.FindByID(c.Context(), id.String()); err != nil {
+	if _, err := h.app.Repos.Accounts.Get(c.Context(), id.String()); err != nil {
 		return err
 	}
 	return dtos.OK(c, fiber.Map{
@@ -433,7 +433,7 @@ func (h *accountsHandler) QuotaReset(c fiber.Ctx) error {
 		return apperr.ErrBadRequest
 	}
 
-	if _, err := h.app.Repos.Accounts.FindByID(c.Context(), id.String()); err != nil {
+	if _, err := h.app.Repos.Accounts.Get(c.Context(), id.String()); err != nil {
 		return err
 	}
 	auditRecord(c.Context(), h.app, actorFrom(c), "account.quota_reset", id.String(), nil)

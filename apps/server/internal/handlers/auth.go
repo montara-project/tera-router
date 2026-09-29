@@ -52,7 +52,7 @@ func (h *authHandler) SignIn(c fiber.Ctx) error {
 
 // signIn verifies the credentials and issues a new token pair.
 func (h *authHandler) signIn(ctx context.Context, email, plainPassword string) (Session, error) {
-	user, err := h.app.Repos.Users.FindByEmail(ctx, email)
+	user, err := h.app.Repos.Users.GetByEmail(ctx, email)
 	if err != nil {
 		if errors.Is(err, apperr.ErrNotFound) {
 			return Session{}, ErrBadCredentials
@@ -80,7 +80,7 @@ func (h *authHandler) Refresh(c fiber.Ctx) error {
 	}
 
 	ctx := c.Context()
-	stored, err := h.app.Repos.Refresh.FindValid(ctx, token.Hash(req.RefreshToken))
+	stored, err := h.app.Repos.Refresh.GetValid(ctx, token.Hash(req.RefreshToken))
 	if err != nil {
 		if errors.Is(err, apperr.ErrNotFound) {
 			return apperr.ErrUnauthorized
@@ -88,7 +88,7 @@ func (h *authHandler) Refresh(c fiber.Ctx) error {
 		return err
 	}
 
-	user, err := h.app.Repos.Users.FindByID(ctx, stored.UserID)
+	user, err := h.app.Repos.Users.Get(ctx, stored.UserID)
 	if err != nil {
 		return err
 	}
@@ -114,7 +114,7 @@ func (h *authHandler) Me(c fiber.Ctx) error {
 		return err
 	}
 
-	user, err := h.app.Repos.Users.FindByID(c.Context(), uid.String())
+	user, err := h.app.Repos.Users.Get(c.Context(), uid.String())
 	if err != nil {
 		return err
 	}
@@ -174,7 +174,7 @@ func (h *authHandler) issueSession(ctx context.Context, user models.User) (Sessi
 		TokenHash: refreshHash,
 		ExpiresAt: now.Add(refreshTTL),
 	}
-	if err := h.app.Repos.Refresh.Create(ctx, rt); err != nil {
+	if err := h.app.Repos.Refresh.Insert(ctx, rt); err != nil {
 		return Session{}, err
 	}
 

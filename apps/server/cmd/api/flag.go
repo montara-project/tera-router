@@ -3,10 +3,18 @@ package main
 import (
 	"flag"
 	"log"
+	"os"
 
 	"tera-router/server/internal/config"
 	"tera-router/server/internal/database"
 )
+
+// debugFromEnv is the default for the -debug flag, so DEBUG=true enables
+// query logging in deployments that configure through the environment.
+func debugFromEnv() bool {
+	v := os.Getenv("DEBUG")
+	return v == "true" || v == "1"
+}
 
 func parseFlag(cfg *config.Config) {
 	var machineID uint
@@ -14,7 +22,7 @@ func parseFlag(cfg *config.Config) {
 	// App
 	flag.UintVar(&machineID, "machine-id", 0, "Machine ID")
 	flag.StringVar(&cfg.App.Env, "env", "development", "Environment")
-	flag.BoolVar(&cfg.App.Debug, "debug", false, "Debug mode")
+	flag.BoolVar(&cfg.App.Debug, "debug", debugFromEnv(), "Debug mode (also enabled by DEBUG=true)")
 	flag.IntVar(&cfg.App.Port, "port", 8080, "Port")
 	flag.StringVar(&cfg.App.Name, "app-name", "tera-router-server", "App Name")
 	flag.StringVar(&cfg.App.Secret, "app-secret", "", "App Secret")

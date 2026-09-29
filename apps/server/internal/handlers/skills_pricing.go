@@ -39,7 +39,7 @@ func (h *skillsHandler) Store(c fiber.Ctx) error {
 	}
 
 	skill := models.Skill{ID: uuid.NewString(), Name: req.Name, Description: description, Prompt: req.Prompt}
-	if err := h.app.Repos.Skills.Create(c.Context(), skill); err != nil {
+	if err := h.app.Repos.Skills.Insert(c.Context(), skill); err != nil {
 		return err
 	}
 	auditRecord(c.Context(), h.app, actorFrom(c), "skill.create", skill.ID, map[string]string{"name": skill.Name})

@@ -137,7 +137,7 @@ func (h *quotaHandler) Update(c fiber.Ctx) error {
 		return apperr.ErrBadRequest
 	}
 
-	account, err := h.app.Repos.Accounts.FindByID(c.Context(), id.String())
+	account, err := h.app.Repos.Accounts.Get(c.Context(), id.String())
 	if err != nil {
 		return err
 	}

@@ -93,13 +93,13 @@ func (h *keysHandler) Store(c fiber.Ctx) error {
 		Secret:     toModelsSealed(sealed),
 	}
 	if req.PlanID != "" {
-		if _, err := h.app.Repos.Plans.FindByID(c.Context(), req.PlanID); err != nil {
+		if _, err := h.app.Repos.Plans.Get(c.Context(), req.PlanID); err != nil {
 			return fmt.Errorf("plan %s: %w", req.PlanID, err)
 		}
 		key.PlanID = &req.PlanID
 	}
 
-	if err := h.app.Repos.APIKeys.Create(c.Context(), key); err != nil {
+	if err := h.app.Repos.APIKeys.Insert(c.Context(), key); err != nil {
 		return err
 	}
 
@@ -122,7 +122,7 @@ func (h *keysHandler) Get(c fiber.Ctx) error {
 		return apperr.ErrBadRequest
 	}
 
-	key, err := h.app.Repos.APIKeys.FindByID(c.Context(), id.String())
+	key, err := h.app.Repos.APIKeys.Get(c.Context(), id.String())
 	if err != nil {
 		return err
 	}
@@ -147,7 +147,7 @@ func (h *keysHandler) Update(c fiber.Ctx) error {
 		return err
 	}
 
-	key, err := h.app.Repos.APIKeys.FindByID(c.Context(), id.String())
+	key, err := h.app.Repos.APIKeys.Get(c.Context(), id.String())
 	if err != nil {
 		return err
 	}
@@ -158,7 +158,7 @@ func (h *keysHandler) Update(c fiber.Ctx) error {
 		if *req.PlanID == "" {
 			key.PlanID = nil
 		} else {
-			if _, err := h.app.Repos.Plans.FindByID(c.Context(), *req.PlanID); err != nil {
+			if _, err := h.app.Repos.Plans.Get(c.Context(), *req.PlanID); err != nil {
 				return fmt.Errorf("plan %s: %w", *req.PlanID, err)
 			}
 			key.PlanID = req.PlanID
@@ -203,7 +203,7 @@ func (h *keysHandler) Reveal(c fiber.Ctx) error {
 		return apperr.ErrBadRequest
 	}
 
-	key, err := h.app.Repos.APIKeys.FindByID(c.Context(), id.String())
+	key, err := h.app.Repos.APIKeys.Get(c.Context(), id.String())
 	if err != nil {
 		return err
 	}

@@ -2,14 +2,17 @@ package repositories
 
 import (
 	"context"
-	"database/sql"
 	"time"
 
 	"tera-router/server/internal/models"
+
+	"braces.dev/errtrace"
 )
 
+// APIKeyRepository manages inbound API keys. Only hashes and the
+// envelope-encrypted copy are stored; the plaintext is never persisted.
 type APIKeyRepository struct {
-	db *sql.DB
+	BaseRepository
 }
 
 // APIKeyWithPlan is a key joined with its bound plan for listing.
@@ -19,8 +22,26 @@ type APIKeyWithPlan struct {
 	PlanNote *string
 }
 
-func (r *APIKeyRepository) Create(ctx context.Context, k models.APIKey) error {
-	_, err := r.db.ExecContext(ctx, `
+const apiKeyColumns = `
+	id, user_id, plan_id, name, key_hash, lookup_hash, display, scopes, disabled, last_used_at,
+	secret_wrapped_dek, secret_ciphertext, created_at, updated_at`
+
+func scanAPIKey(row rowScanner) (models.APIKey, error) {
+	var k models.APIKey
+	err := row.Scan(
+		&k.ID, &k.UserID, &k.PlanID, &k.Name, &k.KeyHash, &k.LookupHash, &k.Display, &k.Scopes, &k.Disabled,
+		&k.LastUsedAt, &k.Secret.WrappedDEK, &k.Secret.Ciphertext, &k.CreatedAt, &k.UpdatedAt,
+	)
+	return k, translateNotFound(err)
+}
+
+// Insert persists a new API key.
+func (r *APIKeyRepository) Insert(ctx context.Context, k models.APIKey) error {
+	return r.insertExec(ctx, r.DB, k)
+}
+
+func (r *APIKeyRepository) insertExec(ctx context.Context, ex Executor, k models.APIKey) error {
+	_, err := r.execContext(ctx, ex, `
 		INSERT INTO api_keys (id, user_id, plan_id, name, key_hash, lookup_hash, display, scopes, disabled, secret_wrapped_dek, secret_ciphertext)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
 		k.ID, k.UserID, k.PlanID, k.Name, k.KeyHash, k.LookupHash, k.Display, k.Scopes, k.Disabled,
@@ -29,8 +50,14 @@ func (r *APIKeyRepository) Create(ctx context.Context, k models.APIKey) error {
 	return err
 }
 
+// List returns a page of keys joined with their plan, newest-first, plus the
+// unpaged total.
 func (r *APIKeyRepository) List(ctx context.Context, offset, limit int) ([]APIKeyWithPlan, int, error) {
-	rows, err := r.db.QueryContext(ctx, `
+	return r.listExec(ctx, r.DB, offset, limit)
+}
+
+func (r *APIKeyRepository) listExec(ctx context.Context, ex Executor, offset, limit int) ([]APIKeyWithPlan, int, error) {
+	rows, err := r.queryContext(ctx, ex, `
 		SELECT k.id, k.user_id, k.plan_id, k.name, k.display, k.scopes, k.disabled, k.last_used_at,
 		       k.secret_wrapped_dek, k.secret_ciphertext, k.created_at, k.updated_at,
 		       p.name, p.description,
@@ -56,44 +83,44 @@ func (r *APIKeyRepository) List(ctx context.Context, offset, limit int) ([]APIKe
 			&k.Secret.WrappedDEK, &k.Secret.Ciphertext, &k.CreatedAt, &k.UpdatedAt,
 			&k.PlanName, &k.PlanNote, &totalRows,
 		); err != nil {
-			return nil, 0, err
+			return nil, 0, errtrace.Wrap(err)
 		}
 		total = totalRows
 		keys = append(keys, k)
 	}
-	return keys, total, rows.Err()
+	return keys, total, errtrace.Wrap(rows.Err())
 }
 
-func (r *APIKeyRepository) FindByID(ctx context.Context, id string) (models.APIKey, error) {
-	row := r.db.QueryRowContext(ctx, `
-		SELECT id, user_id, plan_id, name, key_hash, lookup_hash, display, scopes, disabled, last_used_at,
-		       secret_wrapped_dek, secret_ciphertext, created_at, updated_at
-		FROM api_keys WHERE id = $1`, id)
-
-	var k models.APIKey
-	err := row.Scan(
-		&k.ID, &k.UserID, &k.PlanID, &k.Name, &k.KeyHash, &k.LookupHash, &k.Display, &k.Scopes, &k.Disabled,
-		&k.LastUsedAt, &k.Secret.WrappedDEK, &k.Secret.Ciphertext, &k.CreatedAt, &k.UpdatedAt,
-	)
-	return k, translateNotFound(err)
+// Get returns one key by id.
+func (r *APIKeyRepository) Get(ctx context.Context, id string) (models.APIKey, error) {
+	return r.getExec(ctx, r.DB, id)
 }
 
-func (r *APIKeyRepository) FindByLookup(ctx context.Context, lookup string) (models.APIKey, error) {
-	row := r.db.QueryRowContext(ctx, `
-		SELECT id, user_id, plan_id, name, key_hash, lookup_hash, display, scopes, disabled, last_used_at,
-		       secret_wrapped_dek, secret_ciphertext, created_at, updated_at
-		FROM api_keys WHERE lookup_hash = $1`, lookup)
-
-	var k models.APIKey
-	err := row.Scan(
-		&k.ID, &k.UserID, &k.PlanID, &k.Name, &k.KeyHash, &k.LookupHash, &k.Display, &k.Scopes, &k.Disabled,
-		&k.LastUsedAt, &k.Secret.WrappedDEK, &k.Secret.Ciphertext, &k.CreatedAt, &k.UpdatedAt,
-	)
-	return k, translateNotFound(err)
+func (r *APIKeyRepository) getExec(ctx context.Context, ex Executor, id string) (models.APIKey, error) {
+	row := r.queryRowContext(ctx, ex,
+		`SELECT`+apiKeyColumns+` FROM api_keys WHERE id = $1`, id)
+	return scanAPIKey(row)
 }
 
+// GetByLookup resolves a key by its fast sha-256 lookup index, ahead of the
+// expensive argon2 verification.
+func (r *APIKeyRepository) GetByLookup(ctx context.Context, lookup string) (models.APIKey, error) {
+	return r.getByLookupExec(ctx, r.DB, lookup)
+}
+
+func (r *APIKeyRepository) getByLookupExec(ctx context.Context, ex Executor, lookup string) (models.APIKey, error) {
+	row := r.queryRowContext(ctx, ex,
+		`SELECT`+apiKeyColumns+` FROM api_keys WHERE lookup_hash = $1`, lookup)
+	return scanAPIKey(row)
+}
+
+// Update rewrites a key's mutable fields.
 func (r *APIKeyRepository) Update(ctx context.Context, k models.APIKey) error {
-	_, err := r.db.ExecContext(ctx, `
+	return r.updateExec(ctx, r.DB, k)
+}
+
+func (r *APIKeyRepository) updateExec(ctx context.Context, ex Executor, k models.APIKey) error {
+	_, err := r.execContext(ctx, ex, `
 		UPDATE api_keys
 		SET name = $2, plan_id = $3, scopes = $4, disabled = $5, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now')
 		WHERE id = $1`,
@@ -102,14 +129,24 @@ func (r *APIKeyRepository) Update(ctx context.Context, k models.APIKey) error {
 	return err
 }
 
+// TouchLastUsed stamps the last-used timestamp of a key.
 func (r *APIKeyRepository) TouchLastUsed(ctx context.Context, id string, at time.Time) error {
-	_, err := r.db.ExecContext(ctx,
+	return r.touchLastUsedExec(ctx, r.DB, id, at)
+}
+
+func (r *APIKeyRepository) touchLastUsedExec(ctx context.Context, ex Executor, id string, at time.Time) error {
+	_, err := r.execContext(ctx, ex,
 		`UPDATE api_keys SET last_used_at = $2 WHERE id = $1`, id, at)
 	return err
 }
 
+// Delete removes one key.
 func (r *APIKeyRepository) Delete(ctx context.Context, id string) error {
-	res, err := r.db.ExecContext(ctx, `DELETE FROM api_keys WHERE id = $1`, id)
+	return r.deleteExec(ctx, r.DB, id)
+}
+
+func (r *APIKeyRepository) deleteExec(ctx context.Context, ex Executor, id string) error {
+	res, err := r.execContext(ctx, ex, `DELETE FROM api_keys WHERE id = $1`, id)
 	if err != nil {
 		return err
 	}
@@ -118,7 +155,11 @@ func (r *APIKeyRepository) Delete(ctx context.Context, id string) error {
 
 // CountByPlan returns how many keys are bound to each plan id.
 func (r *APIKeyRepository) CountByPlan(ctx context.Context) (map[string]int, error) {
-	rows, err := r.db.QueryContext(ctx,
+	return r.countByPlanExec(ctx, r.DB)
+}
+
+func (r *APIKeyRepository) countByPlanExec(ctx context.Context, ex Executor) (map[string]int, error) {
+	rows, err := r.queryContext(ctx, ex,
 		`SELECT plan_id, count(*) FROM api_keys WHERE plan_id IS NOT NULL GROUP BY plan_id`)
 	if err != nil {
 		return nil, err
@@ -130,9 +171,9 @@ func (r *APIKeyRepository) CountByPlan(ctx context.Context) (map[string]int, err
 		var id string
 		var n int
 		if err := rows.Scan(&id, &n); err != nil {
-			return nil, err
+			return nil, errtrace.Wrap(err)
 		}
 		counts[id] = n
 	}
-	return counts, rows.Err()
+	return counts, errtrace.Wrap(rows.Err())
 }

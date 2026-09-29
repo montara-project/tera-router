@@ -2,25 +2,29 @@ package repositories
 
 import (
 	"context"
-	"database/sql"
 
 	"tera-router/server/internal/models"
+
+	"braces.dev/errtrace"
 )
 
 // AliasRepository manages model alias pools. Writes replace the whole pool
 // (PUT semantics from IDRouter): name, targets, and active flag together.
 type AliasRepository struct {
-	db *sql.DB
+	BaseRepository
 }
 
-func (r *AliasRepository) Upsert(ctx context.Context, a models.ModelAlias) error {
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
+const aliasColumns = `id, name, context_window, active, created_at, updated_at`
 
-	if _, err := tx.ExecContext(ctx, `
+// Upsert writes an alias and replaces its target list in one transaction.
+func (r *AliasRepository) Upsert(ctx context.Context, a models.ModelAlias) error {
+	return withTx(ctx, r.DB, func(tx Executor) error {
+		return r.upsertExec(ctx, tx, a)
+	})
+}
+
+func (r *AliasRepository) upsertExec(ctx context.Context, ex Executor, a models.ModelAlias) error {
+	if _, err := r.execContext(ctx, ex, `
 		INSERT INTO model_aliases (id, name, context_window, active)
 		VALUES ($1, $2, $3, $4)
 		ON CONFLICT (name) DO UPDATE
@@ -30,14 +34,14 @@ func (r *AliasRepository) Upsert(ctx context.Context, a models.ModelAlias) error
 		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `
+	if _, err := r.execContext(ctx, ex, `
 		DELETE FROM alias_targets
 		WHERE alias_id = (SELECT id FROM model_aliases WHERE name = $1)`, a.Name); err != nil {
 		return err
 	}
 
 	for _, t := range a.Targets {
-		if _, err := tx.ExecContext(ctx, `
+		if _, err := r.execContext(ctx, ex, `
 			INSERT INTO alias_targets (id, alias_id, position, provider, model, active)
 			VALUES ($1, (SELECT id FROM model_aliases WHERE name = $2), $3, $4, $5, $6)`,
 			t.ID, a.Name, t.Position, t.Provider, t.Model, t.Active,
@@ -45,12 +49,17 @@ func (r *AliasRepository) Upsert(ctx context.Context, a models.ModelAlias) error
 			return err
 		}
 	}
-	return tx.Commit()
+	return nil
 }
 
+// List returns every alias with its targets attached, newest first.
 func (r *AliasRepository) List(ctx context.Context) ([]models.ModelAlias, error) {
-	rows, err := r.db.QueryContext(ctx, `
-		SELECT id, name, context_window, active, created_at, updated_at
+	return r.listExec(ctx, r.DB)
+}
+
+func (r *AliasRepository) listExec(ctx context.Context, ex Executor) ([]models.ModelAlias, error) {
+	rows, err := r.queryContext(ctx, ex, `
+		SELECT `+aliasColumns+`
 		FROM model_aliases ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, err
@@ -61,18 +70,18 @@ func (r *AliasRepository) List(ctx context.Context) ([]models.ModelAlias, error)
 	for rows.Next() {
 		var a models.ModelAlias
 		if err := rows.Scan(&a.ID, &a.Name, &a.ContextWindow, &a.Active, &a.CreatedAt, &a.UpdatedAt); err != nil {
-			return nil, err
+			return nil, errtrace.Wrap(err)
 		}
 		aliases = append(aliases, a)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, errtrace.Wrap(err)
 	}
-	return r.attachTargets(ctx, aliases)
+	return r.attachTargetsExec(ctx, ex, aliases)
 }
 
-func (r *AliasRepository) attachTargets(ctx context.Context, aliases []models.ModelAlias) ([]models.ModelAlias, error) {
-	rows, err := r.db.QueryContext(ctx, `
+func (r *AliasRepository) attachTargetsExec(ctx context.Context, ex Executor, aliases []models.ModelAlias) ([]models.ModelAlias, error) {
+	rows, err := r.queryContext(ctx, ex, `
 		SELECT id, alias_id, position, provider, model, active
 		FROM alias_targets ORDER BY alias_id, position`)
 	if err != nil {
@@ -84,12 +93,12 @@ func (r *AliasRepository) attachTargets(ctx context.Context, aliases []models.Mo
 	for rows.Next() {
 		var t models.AliasTarget
 		if err := rows.Scan(&t.ID, &t.AliasID, &t.Position, &t.Provider, &t.Model, &t.Active); err != nil {
-			return nil, err
+			return nil, errtrace.Wrap(err)
 		}
 		byAlias[t.AliasID] = append(byAlias[t.AliasID], t)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, errtrace.Wrap(err)
 	}
 
 	for i := range aliases {
@@ -101,8 +110,13 @@ func (r *AliasRepository) attachTargets(ctx context.Context, aliases []models.Mo
 	return aliases, nil
 }
 
+// Delete removes one alias pool by name; targets cascade.
 func (r *AliasRepository) Delete(ctx context.Context, name string) error {
-	res, err := r.db.ExecContext(ctx, `DELETE FROM model_aliases WHERE name = $1`, name)
+	return r.deleteExec(ctx, r.DB, name)
+}
+
+func (r *AliasRepository) deleteExec(ctx context.Context, ex Executor, name string) error {
+	res, err := r.execContext(ctx, ex, `DELETE FROM model_aliases WHERE name = $1`, name)
 	if err != nil {
 		return err
 	}

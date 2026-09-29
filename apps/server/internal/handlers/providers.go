@@ -145,7 +145,7 @@ func (h *providersHandler) CustomStore(c fiber.Ctx) error {
 
 	provider := customProviderFrom(req)
 	provider.ID = uuid.NewString()
-	if err := h.app.Repos.Providers.Create(c.Context(), provider); err != nil {
+	if err := h.app.Repos.Providers.Insert(c.Context(), provider); err != nil {
 		return err
 	}
 	auditRecord(c.Context(), h.app, actorFrom(c), "custom_provider.create", provider.ID, map[string]string{"slug": provider.Slug})
@@ -170,7 +170,7 @@ func (h *providersHandler) CustomUpdate(c fiber.Ctx) error {
 	}
 	auditRecord(c.Context(), h.app, actorFrom(c), "custom_provider.update", provider.ID, nil)
 
-	updated, err := h.app.Repos.Providers.FindByID(c.Context(), provider.ID)
+	updated, err := h.app.Repos.Providers.Get(c.Context(), provider.ID)
 	if err != nil {
 		return err
 	}

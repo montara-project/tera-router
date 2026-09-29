@@ -3,184 +3,52 @@ package repositories
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"log/slog"
-	"time"
 
 	"tera-router/server/internal/config"
 
 	"braces.dev/errtrace"
-	"github.com/google/uuid"
 	"github.com/maxrichie5/go-sqlfmt/sqlfmt"
 )
 
+// BaseRepository is embedded by every repository. It carries the shared
+// connection pool and the debug config, and funnels every statement through
+// the helpers below so that debug logging cannot be bypassed by a repository
+// calling the driver directly.
 type BaseRepository struct {
-	DB        *sql.DB
-	TableName string
-	Config    *config.ConfigApp
-	// SoftDelete marks tables that carry a "deleted_at" column, so row counts
-	// can exclude soft-deleted rows.
-	SoftDelete bool
+	DB     *sql.DB
+	Config *config.ConfigApp
 }
 
-func (r BaseRepository) debugQuery(query string) {
+// debugQuery logs the pretty-printed SQL and its bind arguments when debug
+// mode is enabled (--debug / DEBUG=true). Every execution helper calls it, so
+// enabling debug traces the whole SQL surface of the process.
+func (r BaseRepository) debugQuery(query string, args ...any) {
 	if r.Config == nil || !r.Config.Debug {
 		return
 	}
-	slog.Debug("query", "sql", sqlfmt.PrettyFormat(query))
+	slog.Debug("query", "sql", sqlfmt.PrettyFormat(query), "args", args)
 }
 
-// tableName validates the configured table name. The exec helpers build SQL
-// from TableName, so an empty value would produce an invalid query
-// (FROM "") — fail with an explicit error instead.
-func (r BaseRepository) tableName() (string, error) {
-	if r.TableName == "" {
-		return "", errtrace.New("repository table name is not configured")
-	}
-
-	return r.TableName, nil
+// execContext runs a write statement against ex — the pool or an open
+// transaction — after logging it.
+func (r BaseRepository) execContext(ctx context.Context, ex Executor, query string, args ...any) (sql.Result, error) {
+	r.debugQuery(query, args...)
+	res, err := ex.ExecContext(ctx, query, args...)
+	return res, errtrace.Wrap(err)
 }
 
-func (r BaseRepository) countExec(exc Executor) (int64, error) {
-	tableName, err := r.tableName()
-	if err != nil {
-		return 0, err
-	}
-
-	query := fmt.Sprintf(`
-		SELECT COUNT(*)
-		FROM "%s";
-	`, tableName)
-
-	if r.SoftDelete {
-		query = fmt.Sprintf(`
-		SELECT COUNT(*)
-		FROM "%s"
-		WHERE "deleted_at" IS NULL;
-		`, tableName)
-	}
-
-	r.debugQuery(query)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	row := exc.QueryRowContext(ctx, query)
-	if row == nil {
-		return 0, errtrace.New("error scanning row: no next row")
-	}
-
-	var count int64
-	if err := row.Scan(&count); err != nil {
-		return 0, errtrace.Errorf("error scanning row: %w", err)
-	}
-
-	return count, nil
+// queryContext runs a read statement against ex after logging it.
+func (r BaseRepository) queryContext(ctx context.Context, ex Executor, query string, args ...any) (*sql.Rows, error) {
+	r.debugQuery(query, args...)
+	rows, err := ex.QueryContext(ctx, query, args...)
+	return rows, errtrace.Wrap(err)
 }
 
-func (r BaseRepository) deleteExec(exc Executor, id uuid.UUID) error {
-	tableName, err := r.tableName()
-	if err != nil {
-		return err
-	}
-
-	query := fmt.Sprintf(`
-		DELETE FROM "%s"
-		WHERE "id" = $1;
-	`, tableName)
-
-	r.debugQuery(query)
-
-	args := []any{id}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	result, err := exc.ExecContext(ctx, query, args...)
-	if err != nil {
-		return errtrace.Wrap(err)
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-
-	if rowsAffected == 0 {
-		return ErrRecordNotFound
-	}
-
-	return nil
-}
-
-func (r BaseRepository) softDeleteExec(exc Executor, id uuid.UUID) error {
-	tableName, err := r.tableName()
-	if err != nil {
-		return err
-	}
-
-	query := fmt.Sprintf(`
-		UPDATE "%s"
-		SET "deleted_at" = strftime('%%Y-%%m-%%d %%H:%%M:%%f+00:00', 'now')
-		WHERE "id" = $1;
-	`, tableName)
-
-	r.debugQuery(query)
-
-	args := []any{id}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	result, err := exc.ExecContext(ctx, query, args...)
-	if err != nil {
-		return errtrace.Wrap(err)
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-
-	if rowsAffected == 0 {
-		return ErrRecordNotFound
-	}
-
-	return nil
-}
-
-func (r BaseRepository) restoreExec(exc Executor, id uuid.UUID) error {
-	tableName, err := r.tableName()
-	if err != nil {
-		return err
-	}
-
-	query := fmt.Sprintf(`
-		UPDATE "%s"
-		SET "deleted_at" = NULL
-		WHERE "id" = $1;
-	`, tableName)
-
-	r.debugQuery(query)
-
-	args := []any{id}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	result, err := exc.ExecContext(ctx, query, args...)
-	if err != nil {
-		return errtrace.Wrap(err)
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-
-	if rowsAffected == 0 {
-		return ErrRecordNotFound
-	}
-
-	return nil
+// queryRowContext runs a single-row read against ex after logging it. A miss
+// surfaces at Scan as sql.ErrNoRows, which translateNotFound maps onto
+// apperr.ErrNotFound.
+func (r BaseRepository) queryRowContext(ctx context.Context, ex Executor, query string, args ...any) *sql.Row {
+	r.debugQuery(query, args...)
+	return ex.QueryRowContext(ctx, query, args...)
 }

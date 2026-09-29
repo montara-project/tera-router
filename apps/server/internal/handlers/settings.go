@@ -63,7 +63,7 @@ func (h *settingsHandler) Update(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	if err := h.app.Repos.Settings.Put(c.Context(), settingsKey, string(raw)); err != nil {
+	if err := h.app.Repos.Settings.Upsert(c.Context(), settingsKey, string(raw)); err != nil {
 		return err
 	}
 	auditRecord(c.Context(), h.app, actorFrom(c), "settings.update", settingsKey, req)

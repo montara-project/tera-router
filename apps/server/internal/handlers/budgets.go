@@ -142,7 +142,7 @@ func (h *budgetsHandler) Store(c fiber.Ctx) error {
 	bucket, _ := periodWindow(budget.Period, time.Now())
 	budget = resetAllocations(budget, bucket)
 
-	if err := h.app.Repos.Budgets.Create(c.Context(), budget); err != nil {
+	if err := h.app.Repos.Budgets.Insert(c.Context(), budget); err != nil {
 		return err
 	}
 	auditRecord(c.Context(), h.app, actorFrom(c), "budget.create", budget.ID, map[string]string{"scope": string(budget.ScopeKind)})

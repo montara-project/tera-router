@@ -122,7 +122,7 @@ func (h *guardrailsHandler) Store(c fiber.Ctx) error {
 
 	policy := policyFromRequest(req)
 	policy.ID = uuid.NewString()
-	if err := h.app.Repos.Guardrails.Create(c.Context(), policy); err != nil {
+	if err := h.app.Repos.Guardrails.Insert(c.Context(), policy); err != nil {
 		return err
 	}
 	auditRecord(c.Context(), h.app, actorFrom(c), "guardrail.policy.create", policy.ID,
@@ -178,7 +178,7 @@ func (h *guardrailsHandler) UpdateSettings(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	if err := h.app.Repos.Settings.Put(c.Context(), guardrailsSettingsKey, string(raw)); err != nil {
+	if err := h.app.Repos.Settings.Upsert(c.Context(), guardrailsSettingsKey, string(raw)); err != nil {
 		return err
 	}
 	auditRecord(c.Context(), h.app, actorFrom(c), "guardrail.settings.update", guardrailsSettingsKey, settings)

@@ -100,7 +100,7 @@ func (h *plansHandler) Store(c fiber.Ctx) error {
 	plan := planFromRequest(req)
 	plan.ID = uuid.NewString()
 	plan.Name = orDefault(req.Name, "Plan")
-	if err := h.app.Repos.Plans.Create(c.Context(), plan); err != nil {
+	if err := h.app.Repos.Plans.Insert(c.Context(), plan); err != nil {
 		return err
 	}
 	auditRecord(c.Context(), h.app, actorFrom(c), "plan.create", plan.ID, map[string]string{"name": plan.Name})
@@ -113,7 +113,7 @@ func (h *plansHandler) Get(c fiber.Ctx) error {
 		return apperr.ErrBadRequest
 	}
 
-	plan, err := h.app.Repos.Plans.FindByID(c.Context(), id.String())
+	plan, err := h.app.Repos.Plans.Get(c.Context(), id.String())
 	if err != nil {
 		return err
 	}
@@ -139,7 +139,7 @@ func (h *plansHandler) Update(c fiber.Ctx) error {
 	}
 	auditRecord(c.Context(), h.app, actorFrom(c), "plan.update", plan.ID, nil)
 
-	updated, err := h.app.Repos.Plans.FindByID(c.Context(), plan.ID)
+	updated, err := h.app.Repos.Plans.Get(c.Context(), plan.ID)
 	if err != nil {
 		return err
 	}
@@ -166,7 +166,7 @@ func (h *plansHandler) Keys(c fiber.Ctx) error {
 		return apperr.ErrBadRequest
 	}
 
-	if _, err := h.app.Repos.Plans.FindByID(c.Context(), id.String()); err != nil {
+	if _, err := h.app.Repos.Plans.Get(c.Context(), id.String()); err != nil {
 		return err
 	}
 

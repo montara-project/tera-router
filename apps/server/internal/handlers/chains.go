@@ -60,12 +60,12 @@ func (h *chainsHandler) Store(c fiber.Ctx) error {
 		chain.Steps[i].Position = i + 1
 	}
 
-	if err := h.app.Repos.Chains.Create(c.Context(), chain); err != nil {
+	if err := h.app.Repos.Chains.Insert(c.Context(), chain); err != nil {
 		return err
 	}
 	auditRecord(c.Context(), h.app, actorFrom(c), "chain.create", chain.ID, map[string]string{"name": chain.Name})
 
-	created, err := h.app.Repos.Chains.FindByID(c.Context(), chain.ID)
+	created, err := h.app.Repos.Chains.Get(c.Context(), chain.ID)
 	if err != nil {
 		return err
 	}
@@ -78,7 +78,7 @@ func (h *chainsHandler) Get(c fiber.Ctx) error {
 		return apperr.ErrBadRequest
 	}
 
-	chain, err := h.app.Repos.Chains.FindByID(c.Context(), id.String())
+	chain, err := h.app.Repos.Chains.Get(c.Context(), id.String())
 	if err != nil {
 		return err
 	}
@@ -109,7 +109,7 @@ func (h *chainsHandler) Update(c fiber.Ctx) error {
 	}
 	auditRecord(c.Context(), h.app, actorFrom(c), "chain.update", chain.ID, nil)
 
-	updated, err := h.app.Repos.Chains.FindByID(c.Context(), chain.ID)
+	updated, err := h.app.Repos.Chains.Get(c.Context(), chain.ID)
 	if err != nil {
 		return err
 	}
@@ -136,7 +136,7 @@ func (h *chainsHandler) Usage(c fiber.Ctx) error {
 		return apperr.ErrBadRequest
 	}
 
-	chain, err := h.app.Repos.Chains.FindByID(c.Context(), id.String())
+	chain, err := h.app.Repos.Chains.Get(c.Context(), id.String())
 	if err != nil {
 		return err
 	}
