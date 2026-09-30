@@ -135,11 +135,7 @@ type AddCustomProviderFormProps = {
   }
 }
 
-export function AddCustomProviderForm({
-  open,
-  onOpenChange,
-  preset,
-}: AddCustomProviderFormProps) {
+export function AddCustomProviderForm({ open, onOpenChange, preset }: AddCustomProviderFormProps) {
   const mutation = useMutation(queries.providers.customCreate())
 
   return (

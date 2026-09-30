@@ -27,7 +27,10 @@ function getInitials(name: string) {
   if (parts.length === 0) {
     return 'U'
   }
-  return parts.slice(0, 2).map((part) => part.charAt(0).toUpperCase()).join('')
+  return parts
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join('')
 }
 
 export default function NavUser({ user }: NavUserProps) {

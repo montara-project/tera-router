@@ -55,18 +55,14 @@ export default function ChainFormDialog({ open, onOpenChange, chain }: ChainForm
       <DialogContent className="max-w-2xl p-0">
         <div className="border-border border-b px-6 pt-5 pb-4">
           <div className="flex items-start gap-3">
-            <IconBadge
-              icon={IconStack2}
-              className={CHAIN_BADGE_CLASS}
-              iconClassName="size-5"
-            />
+            <IconBadge icon={IconStack2} className={CHAIN_BADGE_CLASS} iconClassName="size-5" />
             <div className="min-w-0">
               <DialogTitle className="text-base">
                 {editing ? 'Edit Chain' : 'Create Chain'}
               </DialogTitle>
               <DialogDescription>
-                Ordered provider/model steps the router walks through when the primary target
-                cannot serve a request.
+                Ordered provider/model steps the router walks through when the primary target cannot
+                serve a request.
               </DialogDescription>
             </div>
           </div>
@@ -301,9 +297,7 @@ function ChainForm({ chain, onOpenChange }: ChainFormProps) {
             <p className="text-muted-foreground text-xs font-semibold uppercase tracking-wide">
               Terminal fallback <span className="normal-case">(optional)</span>
             </p>
-            <span className="text-muted-foreground text-xs">
-              serves only when every step fails
-            </span>
+            <span className="text-muted-foreground text-xs">serves only when every step fails</span>
           </div>
           <div className="border-border flex items-center gap-2 rounded-lg border px-3 py-2">
             <form.AppField name="fallback_provider">

@@ -117,9 +117,9 @@ function RouteComponent() {
   const [search, setSearch] = useState('')
   const [capability, setCapability] = useState('all')
   const [createOpen, setCreateOpen] = useState(false)
-  const [createPreset, setCreatePreset] = useState<
-    { slug: string; api_kind: string } | undefined
-  >(undefined)
+  const [createPreset, setCreatePreset] = useState<{ slug: string; api_kind: string } | undefined>(
+    undefined
+  )
 
   const { data } = useQuery(providerQueries.list())
   const overview = data?.data
