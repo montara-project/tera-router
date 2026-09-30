@@ -27,6 +27,10 @@ concurrency:
 
 jobs:
   react-doctor:
+    # Release merges only bump versions and changelogs — nothing to scan.
+    # `contains` is case-insensitive, so 'Release' also matches 'release' and
+    # covers 'Release Prepare' (it is a substring of it).
+    if: "${{ github.event_name == 'pull_request' || !(contains(github.event.head_commit.message, 'chore: release') || contains(github.event.head_commit.message, 'Release') || contains(github.event.head_commit.message, 'Release Prepare')) }}"
     runs-on: ubuntu-latest
     steps:
       # fetch-depth: 0 gives React Doctor the full git history it needs to find the merge base with the target branch. Without it a shallow checkout has no merge base, so PR runs can't compare against the base and fall back to reporting every issue in the changed files (pre-existing ones included) instead of only the ones the PR introduced.
