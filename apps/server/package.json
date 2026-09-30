@@ -1,6 +1,6 @@
 {
   "name": "@tera/server",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Tera Router server",
   "scripts": {
     "dev": "make run",
