@@ -1,0 +1,44 @@
+---
+title: Plans, Budgets & Pricing
+description: Template batas per key, budget dengan hard cutoff, dan harga model.
+---
+
+## Plans — template batas
+
+Plan adalah kumpulan batas yang bisa diikat ke banyak key sekaligus:
+
+- `budget_spend` — batas biaya (USD) per periode.
+- `budget_tokens` — batas token per periode.
+- `period` — `daily`, `weekly`, atau `monthly`.
+- `alert_at_percent` — persen pemakaian untuk alert.
+- `hard_cutoff` — apakah batas benar-benar memblokir atau hanya mengingatkan.
+- `allowed_models` — allowlist model untuk semua key di plan ini.
+- `rpm`, `tpm`, `concurrent` — tersimpan di skema; belum ditegakkan gateway saat ini.
+
+Plan *Default* dibuat otomatis saat seeding. Kelola dari halaman **Plans**.
+
+## Budgets — pemantauan per scope
+
+Budget bekerja di tiga scope: `tenant` (global), `api_key`, dan `account`. Gateway menegakkan scope tenant dan api_key; budget dengan `hard_cutoff` yang terlampaui menjawab `402` — sisanya hanya alert.
+
+```bash
+curl -X POST http://localhost:8080/v1/budgets \
+  -H "Authorization: Bearer <jwt-dashboard>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "scope_kind": "api_key",
+    "scope_id": "<id-key>",
+    "budget_spend": 25,
+    "period": "monthly",
+    "alert_pct": 80,
+    "hard_cutoff": true
+  }'
+```
+
+Pemakaian berjalan dilihat lewat `GET /v1/budgets/status` atau halaman **Quota Tracker** — termasuk persentase spend dan token terhadap batas. Budget yang sedang libur kerja bisa dijeda lewat **Quota Tracker** tanpa dihapus.
+
+## Harga model
+
+Biaya dihitung dari tabel harga per juta token: input, output, cache read, dan cache write. Harga bawaan diambil dari snapshot provider (`GET /v1/providers/rates`), dan bisa ditimpa per model lewat *pricing overrides* (halaman **Plans** atau API `model-pricing-overrides`).
+
+Model yang tidak punya harga dihitung nol — kalau angka spend di **Usage** terasa terlalu kecil, cek dulu apakah model yang dipakai sudah punya harga.

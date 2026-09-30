@@ -1,0 +1,24 @@
+---
+title: Skills & Media
+description: Potongan prompt yang bisa dipakai ulang, reference skills untuk agent, dan katalog media.
+---
+
+## Skills
+
+Skill adalah potongan prompt yang dikelola dari dashboard dan bisa dipanggil ulang — cara rapi memusatkan instruksi yang berulang (gaya jawaban, aturan proyek, format keluaran) tanpa menyebar di banyak klien.
+
+Kelola dari halaman **Skills**: nama, deskripsi, dan isi prompt. Endpoint API-nya sederhana — `GET /v1/skills`, `POST /v1/skills`, `DELETE /v1/skills/:id`.
+
+## Reference skills
+
+Selain skill buatanmu, halaman **Skills** menampilkan *reference skills*: panduan siap-pakai yang menjelaskan ke sebuah agent cara memakai Tera Router — endpoint mana yang dipanggil, autentikasi seperti apa, format body seperti apa.
+
+Cara pakainya: klik **Copy** pada skill yang diinginkan, lalu tempel URL-nya ke agent (Claude Code, Cursor, dll). Agent akan membaca panduan itu dan tahu cara bicara dengan router-mu.
+
+## Media catalog
+
+Halaman **Media** adalah katalog provider untuk kebutuhan non-teks: embeddings, text-to-speech, speech-to-text, dan image. Katalognya statis dari server (`GET /v1/media`) — dipakai untuk melihat provider mana yang menyediakan kemampuan tertentu (OpenRouter, NVIDIA NIM, vLLM, Gemini, Copilot, OpenAI, Mistral, Together, Fireworks, dan lainnya).
+
+<Callout type="warn" title="Gateway saat ini melayani teks">
+  Endpoint inference yang aktif di gateway baru chat, messages, dan responses. Endpoint gambar/audio/embedding belum tersedia di gateway — katalog Media adalah peta jalan penyedia yang didukung.
+</Callout>

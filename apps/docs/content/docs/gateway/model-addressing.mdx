@@ -1,0 +1,94 @@
+---
+title: Model & Routing
+description: Empat cara menulis field model — provider/model, alias, chain, dan suffix reasoning.
+---
+
+Field `model` di Tera Router lebih ekspresif daripada API biasa. Router membacanya dengan urutan prioritas tetap:
+
+| Urutan | Bentuk                 | Contoh                     | Arti                                     |
+| ------ | ---------------------- | -------------------------- | ---------------------------------------- |
+| 1      | `chain:<nama>`         | `chain:heavy-coding`       | Jalankan rantai routing bernama itu      |
+| 2      | Nama alias             | `fast`                     | Pakai alias pool yang cocok              |
+| 3      | `provider/model`       | `anthropic/claude-sonnet-4`| Target eksplisit ke satu provider        |
+| 4      | Nama polos             | `heavy-coding`             | Cari chain bernama itu, lalu alias       |
+
+`provider/model` hanya valid kalau `provider` adalah slug dari katalog bawaan atau custom provider yang aktif.
+
+## Alias pool
+
+Alias memetakan satu nama pendek ke beberapa target `provider/model` yang dicoba berurutan. Kelola lewat halaman **Chains → alias** atau API:
+
+```bash
+curl -X PUT http://localhost:8080/v1/models/alias \
+  -H "Authorization: Bearer <jwt-dashboard>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "fast",
+    "context_window": 128000,
+    "active": true,
+    "targets": [
+      { "provider": "groq", "model": "llama-3.3-70b", "active": true },
+      { "provider": "openai", "model": "gpt-4o-mini", "active": true }
+    ]
+  }'
+```
+
+Setelah itu, `model: "fast"` di gateway berarti "coba Groq dulu, kalau gagal OpenAI".
+
+## Chain
+
+Chain mengatur langkah routing yang lebih kaya — strategi per-chain, langkah berurutan, dan fallback penutup:
+
+```bash
+curl -X POST http://localhost:8080/v1/chains \
+  -H "Authorization: Bearer <jwt-dashboard>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "heavy-coding",
+    "strategy": "priority",
+    "fallback_provider": "openrouter",
+    "fallback_model": "anthropic/claude-sonnet-4",
+    "enabled": true,
+    "steps": [
+      { "provider": "claude", "model": "claude-sonnet-4" },
+      { "provider": "glm", "model": "glm-4.6" }
+    ]
+  }'
+```
+
+Strategi yang tersedia:
+
+- `priority` — ikuti urutan langkah; pindah ke langkah berikutnya saat langkah aktif gagal.
+- `round-robin` — putar antar langkah untuk membagi beban.
+- `load-balanced` — sebar request merata.
+
+Panggil dengan `model: "chain:heavy-coding"` (atau polos `heavy-coding`, karena nama chain dicari lebih dulu di bentuk ke-4).
+
+## Suffix reasoning
+
+Tambahkan tingkat penalaran dalam kurung di akhir nama model — router yang menerjemahkannya ke parameter reasoning tujuan:
+
+```json
+{ "model": "openai/gpt-4o-mini(high)" }
+{ "model": "anthropic/claude-sonnet-4(8192)" }
+```
+
+| Level     | Token budget |
+| --------- | ------------ |
+| `none`    | 0            |
+| `minimal` | 512          |
+| `low`     | 1.024        |
+| `medium`  | 8.192        |
+| `high`    | 24.576       |
+| `xhigh`   | 32.768       |
+| `max`     | 128.000      |
+
+Tulis angka langsung (misal `(8192)`) untuk budget eksplisit.
+
+## Kombinasi dengan allowlist key
+
+Pattern allowlist pada key/plan mendukung wildcard `*` di akhir, dan mencocokkan semua bentuk nama: model polos, `provider/model`, nama alias, maupun `chain:<nama>`. Contoh `anthropic/*` mengizinkan semua model Anthropic; `chain:*` mengizinkan semua chain.
+
+<Callout type="warn" title="Allowlist saling memotong">
+  Model yang diizinkan adalah irisan antara allowlist key dan allowlist plan-nya. Key tidak bisa melonggarkan batasan plan.
+</Callout>

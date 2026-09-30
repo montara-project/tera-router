@@ -1,22 +1,90 @@
 ---
-title: Introduction
-description: Getting started with Tera Router monorepo.
+title: Pengenalan
+description: Satu base URL dan satu API key untuk semua model — format OpenAI, Anthropic, dan Responses API sekaligus.
 ---
 
-## Welcome
+## Tera Router itu apa?
 
-Tera Router is a monorepo managed with pnpm workspaces.
+Tera Router adalah LLM gateway yang kamu jalankan sendiri. Arahkan SDK, `curl`, atau coding agent favoritmu ke satu base URL, dan router yang meneruskan setiap request ke provider yang sudah kamu hubungkan — lengkap dengan fallback, cooldown, pembatasan biaya, dan pencatatan usage.
 
-| App      | Stack                  | Port |
-| -------- | ---------------------- | ---- |
-| `web-ui` | Vite + TanStack Router | 5173 |
-| `server` | GoFiber                | 3000 |
-| `docs`   | Fumadocs (Next.js)     | 3001 |
+- **Kompatibel dengan tiga dialek** — `POST /v1/chat/completions` (OpenAI), `POST /v1/messages` (Anthropic), dan `POST /v1/responses` (OpenAI Responses). Klien yang sudah ada tidak perlu diubah.
+- **Routing yang bisa diatur** — rantai provider dengan strategi `priority`, `round-robin`, atau `load-balanced`, plus fallback otomatis saat satu akun gagal atau kena rate limit.
+- **Kontrol biaya** — plan dan budget per key, per akun, atau global, dengan alert dan hard cutoff.
+- **Guardrails** — deteksi PII, prompt injection, topik, toksisitas, dan bias sebelum request keluar.
+- **Dashboard** — kelola semua di atas dari UI: API key, akun provider, chains, guardrails, usage, sampai log console.
 
-## Commands
+## Tiga langkah ke request pertama
+
+1. **Jalankan server** — `make run` di `apps/server`, gateway siap di `http://localhost:8080`.
+2. **Buat API key** — masuk ke dashboard di `http://localhost:5173`, buka **API Keys**, buat key berawalan `sk_tr_`.
+3. **Panggil** — pakai key itu di header `Authorization`:
 
 ```bash
-pnpm install        # install all dependencies
-pnpm dev            # run all apps in parallel
-pnpm --filter @tera/web-ui dev   # single app
+curl http://localhost:8080/v1/chat/completions \
+  -H "Authorization: Bearer sk_tr_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      { "role": "user", "content": "Halo, dunia!" }
+    ]
+  }'
 ```
+
+## Panggil dari kode
+
+Semua SDK yang bicara format OpenAI tinggal diganti base URL-nya:
+
+```ts title="OpenAI SDK"
+import OpenAI from 'openai'
+
+const client = new OpenAI({
+  apiKey: 'sk_tr_...',
+  baseURL: 'http://localhost:8080/v1',
+})
+
+const res = await client.chat.completions.create({
+  model: 'anthropic/claude-sonnet-4',
+  messages: [{ role: 'user', content: 'Halo, dunia!' }],
+})
+```
+
+```ts title="Anthropic SDK"
+import Anthropic from '@anthropic-ai/sdk'
+
+const client = new Anthropic({
+  apiKey: 'sk_tr_...',
+  baseURL: 'http://localhost:8080',
+})
+
+const res = await client.messages.create({
+  model: 'openai/gpt-4o-mini',
+  max_tokens: 1024,
+  messages: [{ role: 'user', content: 'Halo, dunia!' }],
+})
+```
+
+Perhatikan: dengan Tera Router, model Anthropic bisa dipanggil lewat SDK OpenAI dan sebaliknya — router yang menerjemahkan dialeknya.
+
+## Langkah selanjutnya
+
+<Cards>
+  <Card href="/docs/getting-started/installation" title="Instalasi">
+    Setup server dan dashboard dari nol.
+  </Card>
+  <Card href="/docs/gateway" title="Gateway API">
+    Autentikasi, endpoint, dan format request.
+  </Card>
+  <Card href="/docs/gateway/model-addressing" title="Model & routing">
+    `provider/model`, alias pool, dan `chain:`.
+  </Card>
+  <Card href="/docs/concepts/guardrails" title="Guardrails">
+    Filter PII, injection, dan topik terlarang.
+  </Card>
+  <Card href="/docs/api-reference/dashboard-api" title="API Reference">
+    Semua endpoint REST dashboard.
+  </Card>
+  <Card href="/docs/configuration" title="Konfigurasi">
+    Environment variables dan target `make`.
+  </Card>
+</Cards>

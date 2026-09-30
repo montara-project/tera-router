@@ -1,0 +1,61 @@
+---
+title: API Keys
+description: Format key `sk_tr_`, cara membuat, membatasi model, dan mengelolanya.
+---
+
+## Format dan penyimpanan
+
+Key berawalan `sk_tr_` diikuti data acak yang dienkode base64url. Yang disimpan di database hanya hash (argon2id) — plaintext ditampilkan **satu kali** saat pembuatan, lalu tidak pernah lagi (kecuali lewat fitur reveal yang memakai enkripsi amplop).
+
+## Membuat key
+
+Lewat dashboard (**API Keys → Create**) atau API:
+
+```bash
+curl -X POST http://localhost:8080/v1/keys \
+  -H "Authorization: Bearer <jwt-dashboard>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "claude-code-laptop",
+    "plan_id": "00000000-0000-0000-0000-000000000010",
+    "allowed_models": ["anthropic/*", "chain:*"]
+  }'
+```
+
+Responsnya memuat `full_key` — simpan sekarang:
+
+```json
+{
+  "data": {
+    "id": "…",
+    "name": "claude-code-laptop",
+    "status": "active",
+    "key_preview": "sk_tr_abcd…wxyz",
+    "full_key": "sk_tr_…",
+    "message": "Key created"
+  }
+}
+```
+
+## Membatasi model
+
+`allowed_models` menerima pattern dengan wildcard `*` di akhir, dan mencocokkan semua bentuk nama model — polos, `provider/model`, alias, maupun `chain:<nama>`:
+
+| Pattern          | Mengizinkan                          |
+| ---------------- | ------------------------------------ |
+| `anthropic/*`    | Semua model Anthropic                |
+| `openai/gpt-4o*` | Semua varian `gpt-4o`                |
+| `chain:*`        | Semua chain                          |
+| `fast`           | Alias bernama `fast` saja            |
+
+Kalau key diikat ke plan, model yang diizinkan adalah **irisan** allowlist key dan plan. Key tidak pernah bisa melonggarkan batasan plan.
+
+## Siklus hidup
+
+- **Disable** — key dinonaktifkan langsung menolak request dengan `401`; cache verifikasi (5 menit) tidak berlaku untuk key yang dimatikan.
+- **Reveal** — `POST /v1/keys/:id/reveal` mengembalikan plaintext. Tiap reveal tercatat di audit log.
+- **last used** — pemakaian pertama tiap key dicatat `last_used_at`, terlihat di daftar key.
+
+<Callout type="info" title="Satu key per perangkat">
+  Kebiasaan yang disarankan: satu key per aplikasi/perangkat. Kalau laptop hilang, cukup nonaktifkan satu key tanpa mengganggu yang lain.
+</Callout>

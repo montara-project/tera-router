@@ -1,0 +1,66 @@
+---
+title: Error & Resilience
+description: Format error per dialek, tabel status code, dan bagaimana router mencoba lagi sebelum menyerah.
+---
+
+## Format error
+
+Error mengikuti envelope dialek endpoint yang kamu panggil.
+
+**OpenAI** — `/v1/chat/completions` dan `/v1/responses`:
+
+```json
+{
+  "error": {
+    "message": "model not allowed for this key",
+    "type": "invalid_request_error"
+  }
+}
+```
+
+**Anthropic** — `/v1/messages`:
+
+```json
+{
+  "type": "error",
+  "error": {
+    "type": "authentication_error",
+    "message": "invalid api key"
+  }
+}
+```
+
+## Status code
+
+| Status | Arti                                                                            |
+| ------ | ------------------------------------------------------------------------------- |
+| `400`  | Model tidak dikenal atau konteks melebihi kapasitas                              |
+| `401`  | API key tidak ada, salah, atau dinonaktifkan                                     |
+| `402`  | Budget habis (hanya budget dengan *hard cutoff* yang memblokir)                  |
+| `403`  | Model tidak diizinkan oleh allowlist key/plan atau guardrail memblokir           |
+| `429`  | Rate limit atau kapasitas penuh                                                  |
+| `503`  | Semua target gagal / sedang cooldown / server di kapasitas maksimum              |
+| `504`  | Upstream tidak menjawab sebelum deadline                                         |
+
+## Retry yang dilakukan router
+
+Sebelum error sampai ke kamu, router sudah berusaha menolong:
+
+- Maksimal **10 percobaan** per request, menyapu langkah chain/alias/akun cadangan.
+- **2 retry di akun yang sama** untuk gangguan sementara, dengan jeda 500 ms lalu 1 detik.
+- **Cooldown akun 30 detik** setelah `429` dari upstream (menghormati `Retry-After` kalau ada), dan **5 menit** setelah kegagalan autentikasi.
+
+Artinya: error yang sampai ke klien biasanya sudah melewati semua target yang tersedia.
+
+## Kapasitas
+
+- Gateway memakai batas konkurensi global **100 request in-flight** — di atas itu dijawab `503`, bukan diantrekan tanpa batas.
+- Dashboard API punya rate limit **100 request/menit per IP** (gateway tidak terkena).
+
+## Menangani error di klien
+
+Strategi yang disarankan untuk coding agent dan SDK:
+
+1. `401`/`403` — jangan di-retry; periksa key dan allowlist model.
+2. `402` — hentikan atau pindah key; router memang sengaja memblokir.
+3. `429`/`503`/`504` — aman di-retry dengan backoff; router sudah mencoba target lain dulu.

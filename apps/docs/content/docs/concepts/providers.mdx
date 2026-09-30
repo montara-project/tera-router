@@ -1,0 +1,46 @@
+---
+title: Providers & Accounts
+description: Katalog provider bawaan, menambah akun, prioritas, dan custom provider.
+---
+
+## Provider vs akun
+
+- **Provider** adalah jenis upstream (OpenAI, Anthropic, GLM, ...) dengan dialek dan base URL bawaan.
+- **Account** adalah kredensial konkret milikmu di provider itu — satu provider bisa punya banyak akun.
+
+## Katalog bawaan
+
+| Dialek               | Provider                                                                                    |
+| -------------------- | ------------------------------------------------------------------------------------------- |
+| OpenAI-compatible    | `openai`, `deepseek`, `xai`, `glm-cn`, `mistral`, `groq`, `cohere`, `perplexity`, `openrouter`, `nvidia`, `azure`, `vllm`, `ollama`, `cline` |
+| Anthropic-compatible | `anthropic`, `claude` (Claude Code, OAuth), `glm`, `kimi`, `minimax`                        |
+| Responses            | `codex` (OAuth, backend ChatGPT)                                                            |
+| Tanpa kredensial     | `ollama-local` (localhost:11434)                                                            |
+| OAuth-only           | `gemini`, `vertex`, `github` (Copilot), `cursor`, `kiro`, `qoder`, `kilocode`               |
+
+Kredensial akun disimpan terenkripsi (enkripsi amplop dengan kunci turunan dari `APP_SECRET`).
+
+## Menambah akun
+
+Lewat dashboard (**Providers → pilih provider → Connect**) atau API. Selalu uji dulu sebelum disimpan:
+
+```bash
+curl -X POST http://localhost:8080/v1/validate-key \
+  -H "Authorization: Bearer <jwt-dashboard>" \
+  -H "Content-Type: application/json" \
+  -d '{ "provider": "openai", "auth_kind": "api_key", "api_key": "sk-..." }'
+```
+
+Field penting saat membuat akun:
+
+- `auth_kind` — `api_key`, `oauth`, atau `none`.
+- `priority` — urutan pemakaian saat satu provider punya banyak akun.
+- `proxy_pool_id` — ikat akun ke proxy pool untuk kontrol IP keluar.
+- `metadata.base_url` — timpa base URL bawaan (berguna untuk endpoint kompatibel sendiri).
+- `metadata.headers` — header tambahan per akun.
+
+Tiap akun punya uji koneksi (`POST /v1/accounts/:id/test`) dan pembacaan kuota (`GET /v1/accounts/:id/quota`) dari dashboard.
+
+## Custom provider
+
+Punya endpoint OpenAI/Anthropic/Responses-compatible sendiri? Daftarkan sebagai custom provider (halaman **Providers → Custom**) dengan memilih `api_kind`-nya, lalu tambahkan akun seperti biasa. Slug-nya langsung bisa dipakai di `model: "provider-saya/model"`.
