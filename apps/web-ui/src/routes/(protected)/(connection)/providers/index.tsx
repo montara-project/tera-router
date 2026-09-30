@@ -107,10 +107,19 @@ function ProvidersCard({
   )
 }
 
+/** Catalog cards whose Connect opens the custom-provider form pre-prefilled. */
+const CUSTOM_CONNECT_PRESETS: Record<string, { slug: string; api_kind: string }> = {
+  'custom-openai': { slug: 'custom-openai', api_kind: 'openai' },
+  'custom-anthropic': { slug: 'custom-anthropic', api_kind: 'anthropic' },
+}
+
 function RouteComponent() {
   const [search, setSearch] = useState('')
   const [capability, setCapability] = useState('all')
   const [createOpen, setCreateOpen] = useState(false)
+  const [createPreset, setCreatePreset] = useState<
+    { slug: string; api_kind: string } | undefined
+  >(undefined)
 
   const { data } = useQuery(providerQueries.list())
   const overview = data?.data
@@ -148,11 +157,18 @@ function RouteComponent() {
   }
 
   const handleNewProvider = () => {
+    setCreatePreset(undefined)
     setCreateOpen(true)
   }
 
   const handleConnect = (provider: Models.Provider) => {
-    toast.info(`Connect flow for ${provider.name} is not wired to the backend yet`)
+    const preset = CUSTOM_CONNECT_PRESETS[provider.slug]
+    if (!preset) {
+      toast.info(`Connect flow for ${provider.name} is not wired to the backend yet`)
+      return
+    }
+    setCreatePreset(preset)
+    setCreateOpen(true)
   }
 
   return (
@@ -205,7 +221,7 @@ function RouteComponent() {
         </div>
       </SectionCard>
 
-      <AddCustomProviderForm open={createOpen} onOpenChange={setCreateOpen} />
+      <AddCustomProviderForm open={createOpen} onOpenChange={setCreateOpen} preset={createPreset} />
     </>
   )
 }

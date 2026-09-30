@@ -128,9 +128,18 @@ function AbstractForm({
 type AddCustomProviderFormProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** Prefilled fields for guided connects, e.g. the catalog's custom-openai / custom-anthropic cards. */
+  preset?: {
+    slug?: string
+    api_kind?: string
+  }
 }
 
-export function AddCustomProviderForm({ open, onOpenChange }: AddCustomProviderFormProps) {
+export function AddCustomProviderForm({
+  open,
+  onOpenChange,
+  preset,
+}: AddCustomProviderFormProps) {
   const mutation = useMutation(queries.providers.customCreate())
 
   return (
@@ -139,9 +148,9 @@ export function AddCustomProviderForm({ open, onOpenChange }: AddCustomProviderF
       onOpenChange={onOpenChange}
       defaultValues={{
         name: '',
-        api_kind: 'openai',
+        api_kind: preset?.api_kind ?? 'openai',
         base_url: '',
-        slug: '',
+        slug: preset?.slug ?? '',
       }}
       schema={CustomProviderSchema}
       mutation={mutation}
