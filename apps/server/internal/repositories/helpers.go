@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"tera-router/server/internal/lib/apperr"
 )
@@ -15,6 +16,17 @@ import (
 func translateNotFound(err error) error {
 	if errors.Is(err, sql.ErrNoRows) {
 		return apperr.ErrNotFound
+	}
+	return err
+}
+
+// translateUnique maps a SQLite UNIQUE-constraint violation onto a typed 409
+// carrying a human message (e.g. "chain name already exists"); any other
+// error passes through unchanged. The driver surfaces the violation as a
+// plain-text error, so the constraint family is matched by message.
+func translateUnique(err error, message string) error {
+	if err != nil && strings.Contains(err.Error(), "UNIQUE constraint failed") {
+		return apperr.New(apperr.KindConflict, "%s", message)
 	}
 	return err
 }
