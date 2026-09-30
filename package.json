@@ -22,6 +22,7 @@
     "clean": "pnpm -r clean",
     "doctor": "npx react-doctor@latest",
     "update:monorepo": "pnpx npm-check-updates -i --deep --doctorInstall pnpm",
+    "update:packages": "changeset",
     "prepare": "husky"
   },
   "devDependencies": {
