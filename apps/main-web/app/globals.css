@@ -20,8 +20,8 @@
   --accent: #16a34a;
   --accent-soft: #15803d;
   --on-accent: #ffffff;
-  --code: #0b1020;
-  --code-line: #1e293b;
+  --code: #191919; /* docs home terminal card — same in both themes */
+  --code-line: hsla(0, 0%, 40%, 20%);
   --sheen: rgba(255, 255, 255, 0.9);
   --grad-1: #166534;
   --grad-2: #15803d;
@@ -52,6 +52,14 @@
   --grad-1: #34d399; /* emerald-400 */
   --grad-2: #2dd4bf; /* teal-400 */
   --grad-3: #5eead4; /* teal-300 */
+}
+
+/* The terminal renders with the dark card palette in both themes, so the
+   tokens its text sits on are pinned to their dark values here. */
+.terminal-island {
+  --sheen: rgba(255, 255, 255, 0.05);
+  --accent-soft: #34d399; /* emerald-400 */
+  --faint: #8c8c8c;
 }
 
 @theme inline {
