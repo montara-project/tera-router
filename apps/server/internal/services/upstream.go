@@ -209,7 +209,7 @@ func (s *UpstreamService) ListModels(ctx context.Context, endpoint string, anthr
 
 	var payload struct {
 		Data []struct {
-			ID      string                 `json:"id"`
+			ID      string                     `json:"id"`
 			Pricing map[string]json.RawMessage `json:"pricing"`
 		} `json:"data"`
 	}

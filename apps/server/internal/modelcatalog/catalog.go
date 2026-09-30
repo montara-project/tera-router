@@ -66,13 +66,12 @@ type StateUpdate struct {
 	State string
 }
 
-// SettingsKey returns the settings kv key for a provider slug.
+// SettingsKey returns the settings kv key for a provider slug. The format is
+// shared with the provider-delete cascade, which removes the key in the same
+// transaction that deletes the provider.
 func SettingsKey(providerSlug string) string {
-	return SettingsKeyPrefix + providerSlug
+	return repositories.ProviderModelsSettingsKey(providerSlug)
 }
-
-// SettingsKeyPrefix is prepended to the provider slug for the settings key.
-const SettingsKeyPrefix = "provider_models_"
 
 // Store persists a freshly fetched upstream id list as the provider's
 // catalog, reconciling it with the previous one the way IDrouter's merge

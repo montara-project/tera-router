@@ -16,14 +16,14 @@ func TestUsdPerTokenToMicros(t *testing.T) {
 		want int64
 		ok   bool
 	}{
-		{`"0.0000025"`, 2_500_000, true},  // $2.50 / M tokens (string)
-		{`0.00001`, 10_000_000, true},     // $10 / M tokens (number)
-		{`"0"`, 0, true},                  // genuinely free
-		{`"0.000000125"`, 125_000, true},  // cache-read scale
-		{`"free"`, 0, false},              // non-numeric string
-		{`"-1"`, 0, false},                // negative is not a price
-		{`null`, 0, false},                // absent value
-		{`"1e-6"`, 1_000_000, true},       // scientific notation
+		{`"0.0000025"`, 2_500_000, true}, // $2.50 / M tokens (string)
+		{`0.00001`, 10_000_000, true},    // $10 / M tokens (number)
+		{`"0"`, 0, true},                 // genuinely free
+		{`"0.000000125"`, 125_000, true}, // cache-read scale
+		{`"free"`, 0, false},             // non-numeric string
+		{`"-1"`, 0, false},               // negative is not a price
+		{`null`, 0, false},               // absent value
+		{`"1e-6"`, 1_000_000, true},      // scientific notation
 	}
 	for _, tc := range cases {
 		got, ok := usdPerTokenToMicros(mustRaw(t, tc.raw))

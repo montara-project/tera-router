@@ -76,3 +76,13 @@ func requireAffected(res sql.Result, what string) error {
 	}
 	return nil
 }
+
+// execAffected runs a statement and returns how many rows it changed. Cascades
+// use it to report what a delete removed.
+func (r BaseRepository) execAffected(ctx context.Context, ex Executor, query string, args ...any) (int64, error) {
+	res, err := r.execContext(ctx, ex, query, args...)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}

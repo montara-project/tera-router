@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -226,17 +227,36 @@ func (h *providersHandler) CustomUpdate(c fiber.Ctx) error {
 	return dtos.OK(c, updated)
 }
 
+// CustomDelete removes a custom provider and everything scoped to it: its
+// accounts (API keys), stored model catalog, and per-model pricing and
+// capability overrides. Usage history is kept.
 func (h *providersHandler) CustomDelete(c fiber.Ctx) error {
 	id, err := lib.ContextParamUUID(c, "id")
 	if err != nil {
 		return apperr.ErrBadRequest
 	}
 
-	if err := h.app.Repos.Providers.Delete(c.Context(), id.String()); err != nil {
+	result, err := h.app.Repos.Providers.Delete(c.Context(), id.String())
+	if err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "custom_provider.delete", id.String(), nil)
-	return dtos.Deleted(c, "Provider deleted")
+	auditRecord(c.Context(), h.app, actorFrom(c), "custom_provider.delete", id.String(),
+		map[string]any{"slug": result.Slug, "accounts_deleted": result.Accounts})
+
+	message := "Provider deleted"
+	if result.Accounts > 0 {
+		message = fmt.Sprintf("Provider deleted with %d %s", result.Accounts,
+			pluralize(result.Accounts, "API key", "API keys"))
+	}
+	return dtos.Deleted(c, message)
+}
+
+// pluralize picks the singular or plural form for n.
+func pluralize(n int64, singular, plural string) string {
+	if n == 1 {
+		return singular
+	}
+	return plural
 }
 
 // CustomModels returns the provider's stored model catalog with each model's

@@ -149,12 +149,12 @@ function CustomProviderDetailRoute() {
 
   const handleDeleteProvider = () => {
     deleteProviderMutation.mutate(providerId, {
-      onSuccess: async () => {
+      onSuccess: async (result) => {
         // The detail query for the deleted id refetches into a "not found"
         // retry loop (default retry backoff) — drop it before invalidating so
         // it can't delay navigation or flash the error card.
         queryClient.removeQueries({ queryKey: GET_CUSTOM_PROVIDER_QUERY_KEY(providerId) })
-        toast.success('Provider deleted')
+        toast.success(result.message || 'Provider deleted')
         setDeleteOpen(false)
         await navigate({ to: '/providers' })
         await invalidate()
@@ -540,7 +540,7 @@ function CustomProviderDetailRoute() {
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         title="Delete custom provider?"
-        description={`Delete ${provider.name}? This removes the provider configuration. Remove its accounts first if they are still in use.`}
+        description={`Delete ${provider.name}? This permanently removes the provider, its ${accountCount} ${accountCount === 1 ? 'API key' : 'API keys'}, stored model catalog, and pricing overrides. Usage history is kept.`}
         confirmText="Delete provider"
         onConfirm={handleDeleteProvider}
         variant="destructive"
