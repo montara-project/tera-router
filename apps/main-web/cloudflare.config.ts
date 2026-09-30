@@ -11,5 +11,14 @@ export default defineConfig({
       ASSETS: bindings.assets(),
       IMAGES: bindings.images(),
     },
+    cache: {
+      enabled: true,
+    },
+    observability: {
+      enabled: true,
+    },
+    workersDev: false,
+    previewUrls: false,
+    domains: ['terarouter.xyz'],
   }),
 })
