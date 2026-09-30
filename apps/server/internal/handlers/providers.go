@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"cmp"
+	"context"
 	"encoding/json"
 	"errors"
+	"strconv"
 	"strings"
 
 	"tera-router/server/internal/app"
@@ -13,6 +15,7 @@ import (
 	"tera-router/server/internal/lib/apperr"
 	"tera-router/server/internal/modelcatalog"
 	"tera-router/server/internal/models"
+	"tera-router/server/internal/services"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -283,6 +286,8 @@ func (h *providersHandler) CustomModels(c fiber.Ctx) error {
 // upstream model-list endpoint, authenticated with its highest-priority
 // usable credential (POST /v1/custom-providers/:id/models/sync), and merges
 // it into the stored catalog. Disabled models stay disabled across syncs.
+// Models whose upstream advertises pricing get a pricing override created —
+// that is what keeps the usage page from showing "Unpriced" for them.
 func (h *providersHandler) CustomModelsSync(c fiber.Ctx) error {
 	id, err := lib.ContextParamUUID(c, "id")
 	if err != nil {
@@ -323,15 +328,65 @@ func (h *providersHandler) CustomModelsSync(c fiber.Ctx) error {
 
 	anthropic := provider.APIKind == "anthropic"
 	endpoint := upstreamModelsEndpoint(provider.BaseURL, anthropic)
-	modelIDs, err := h.app.Services.Upstream.ListModels(c.Context(), endpoint, anthropic, apiKey)
+	upstream, err := h.app.Services.Upstream.ListModels(c.Context(), endpoint, anthropic, apiKey)
 	if err != nil {
 		return apperr.New(apperr.KindUnprocessable, "%s", err.Error())
 	}
-	cat, err := modelcatalog.Store(c.Context(), h.app.Repos.Settings, provider.Slug, modelIDs)
+
+	ids := make([]string, 0, len(upstream))
+	for _, m := range upstream {
+		ids = append(ids, m.ID)
+	}
+	cat, err := modelcatalog.Store(c.Context(), h.app.Repos.Settings, provider.Slug, ids)
 	if err != nil {
 		return err
 	}
-	return dtos.OK(c, fiber.Map{"models": cat.Models, "fetched_at": cat.FetchedAt})
+
+	priced, err := h.importUpstreamPricing(c.Context(), provider.Slug, upstream)
+	if err != nil {
+		return err
+	}
+	if priced > 0 {
+		auditRecord(c.Context(), h.app, actorFrom(c), "pricing.import_upstream", provider.Slug, map[string]string{"count": strconv.Itoa(priced)})
+	}
+	return dtos.OK(c, fiber.Map{"models": cat.Models, "fetched_at": cat.FetchedAt, "priced": priced})
+}
+
+// importUpstreamPricing creates pricing overrides for synced models whose
+// upstream advertises rates. Existing overrides are never touched — the
+// operator's price (or an earlier sync's) wins; delete the override in the
+// dashboard to re-import from the upstream. Returns how many were created.
+func (h *providersHandler) importUpstreamPricing(ctx context.Context, providerSlug string, upstream []services.UpstreamModel) (int, error) {
+	existing, err := h.app.Repos.Pricing.List(ctx, providerSlug)
+	if err != nil {
+		return 0, err
+	}
+	have := make(map[string]bool, len(existing))
+	for _, o := range existing {
+		have[o.Model] = true
+	}
+
+	imported := 0
+	for _, m := range upstream {
+		if m.Pricing == nil || have[m.ID] {
+			continue
+		}
+		override := models.PricingOverride{
+			ID:               uuid.NewString(),
+			Provider:         providerSlug,
+			Model:            m.ID,
+			InputMicros:      m.Pricing.InputMicros,
+			OutputMicros:     m.Pricing.OutputMicros,
+			CacheReadMicros:  m.Pricing.CacheReadMicros,
+			CacheWriteMicros: m.Pricing.CacheWriteMicros,
+		}
+		if err := h.app.Repos.Pricing.Upsert(ctx, override); err != nil {
+			return imported, err
+		}
+		have[m.ID] = true
+		imported++
+	}
+	return imported, nil
 }
 
 // CustomModelsUpdate applies per-model active/disabled changes

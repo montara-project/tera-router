@@ -26,6 +26,8 @@ export type ProviderModel = {
 export type UpstreamModels = {
   models: ProviderModel[]
   fetched_at?: string | null
+  /** how many models got a pricing override imported during this sync */
+  priced?: number
 }
 
 /** One ordered candidate within a model alias pool. */

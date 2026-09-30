@@ -30,6 +30,7 @@ import { Route as protectedsafetyGuardrailsIndexRouteImport } from './routes/(pr
 import { Route as protectedsafetyProviderHealthIndexRouteImport } from './routes/(protected)/(safety)/provider-health/index'
 import { Route as protectedtrafficChainsIndexRouteImport } from './routes/(protected)/(traffic)/chains/index'
 import { Route as protectedtrafficEndpointsIndexRouteImport } from './routes/(protected)/(traffic)/endpoints/index'
+import { Route as protectedtrafficModelAliasIndexRouteImport } from './routes/(protected)/(traffic)/model-alias/index'
 import { Route as protectedtrafficSkillsIndexRouteImport } from './routes/(protected)/(traffic)/skills/index'
 
 const protectedRouteRoute = protectedRouteRouteImport.update({
@@ -153,6 +154,12 @@ const protectedtrafficEndpointsIndexRoute =
     path: '/endpoints/',
     getParentRoute: () => protectedRouteRoute,
   } as any)
+const protectedtrafficModelAliasIndexRoute =
+  protectedtrafficModelAliasIndexRouteImport.update({
+    id: '/(traffic)/model-alias/',
+    path: '/model-alias/',
+    getParentRoute: () => protectedRouteRoute,
+  } as any)
 const protectedtrafficSkillsIndexRoute =
   protectedtrafficSkillsIndexRouteImport.update({
     id: '/(traffic)/skills/',
@@ -181,6 +188,7 @@ export interface FileRoutesByFullPath {
   '/provider-health/': typeof protectedsafetyProviderHealthIndexRoute
   '/chains/': typeof protectedtrafficChainsIndexRoute
   '/endpoints/': typeof protectedtrafficEndpointsIndexRoute
+  '/model-alias/': typeof protectedtrafficModelAliasIndexRoute
   '/skills/': typeof protectedtrafficSkillsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -204,6 +212,7 @@ export interface FileRoutesByTo {
   '/provider-health': typeof protectedsafetyProviderHealthIndexRoute
   '/chains': typeof protectedtrafficChainsIndexRoute
   '/endpoints': typeof protectedtrafficEndpointsIndexRoute
+  '/model-alias': typeof protectedtrafficModelAliasIndexRoute
   '/skills': typeof protectedtrafficSkillsIndexRoute
 }
 export interface FileRoutesById {
@@ -229,6 +238,7 @@ export interface FileRoutesById {
   '/(protected)/(safety)/provider-health/': typeof protectedsafetyProviderHealthIndexRoute
   '/(protected)/(traffic)/chains/': typeof protectedtrafficChainsIndexRoute
   '/(protected)/(traffic)/endpoints/': typeof protectedtrafficEndpointsIndexRoute
+  '/(protected)/(traffic)/model-alias/': typeof protectedtrafficModelAliasIndexRoute
   '/(protected)/(traffic)/skills/': typeof protectedtrafficSkillsIndexRoute
 }
 export interface FileRouteTypes {
@@ -254,6 +264,7 @@ export interface FileRouteTypes {
     | '/provider-health/'
     | '/chains/'
     | '/endpoints/'
+    | '/model-alias/'
     | '/skills/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -277,6 +288,7 @@ export interface FileRouteTypes {
     | '/provider-health'
     | '/chains'
     | '/endpoints'
+    | '/model-alias'
     | '/skills'
   id:
     | '__root__'
@@ -301,6 +313,7 @@ export interface FileRouteTypes {
     | '/(protected)/(safety)/provider-health/'
     | '/(protected)/(traffic)/chains/'
     | '/(protected)/(traffic)/endpoints/'
+    | '/(protected)/(traffic)/model-alias/'
     | '/(protected)/(traffic)/skills/'
   fileRoutesById: FileRoutesById
 }
@@ -459,6 +472,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof protectedtrafficEndpointsIndexRouteImport
       parentRoute: typeof protectedRouteRoute
     }
+    '/(protected)/(traffic)/model-alias/': {
+      id: '/(protected)/(traffic)/model-alias/'
+      path: '/model-alias'
+      fullPath: '/model-alias/'
+      preLoaderRoute: typeof protectedtrafficModelAliasIndexRouteImport
+      parentRoute: typeof protectedRouteRoute
+    }
     '/(protected)/(traffic)/skills/': {
       id: '/(protected)/(traffic)/skills/'
       path: '/skills'
@@ -488,6 +508,7 @@ interface protectedRouteRouteChildren {
   protectedsafetyProviderHealthIndexRoute: typeof protectedsafetyProviderHealthIndexRoute
   protectedtrafficChainsIndexRoute: typeof protectedtrafficChainsIndexRoute
   protectedtrafficEndpointsIndexRoute: typeof protectedtrafficEndpointsIndexRoute
+  protectedtrafficModelAliasIndexRoute: typeof protectedtrafficModelAliasIndexRoute
   protectedtrafficSkillsIndexRoute: typeof protectedtrafficSkillsIndexRoute
 }
 
@@ -514,6 +535,7 @@ const protectedRouteRouteChildren: protectedRouteRouteChildren = {
     protectedsafetyProviderHealthIndexRoute,
   protectedtrafficChainsIndexRoute: protectedtrafficChainsIndexRoute,
   protectedtrafficEndpointsIndexRoute: protectedtrafficEndpointsIndexRoute,
+  protectedtrafficModelAliasIndexRoute: protectedtrafficModelAliasIndexRoute,
   protectedtrafficSkillsIndexRoute: protectedtrafficSkillsIndexRoute,
 }
 

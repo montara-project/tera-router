@@ -46,10 +46,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { queries } from '@/lib/api/queries'
 import { ACCOUNT_QUERY_KEY } from '@/lib/api/queries/account'
 import { CHAIN_QUERY_KEY } from '@/lib/api/queries/chain'
-import {
-  CUSTOM_PROVIDER_QUERY_KEY,
-  PROVIDER_QUERY_KEY,
-} from '@/lib/api/queries/provider'
+import { CUSTOM_PROVIDER_QUERY_KEY, PROVIDER_QUERY_KEY } from '@/lib/api/queries/provider'
 import { USAGE_QUERY_KEY } from '@/lib/api/queries/usage'
 import { services } from '@/lib/api/services'
 
@@ -227,7 +224,11 @@ function CustomProviderDetailRoute() {
   const syncCatalog = async () => {
     try {
       const result = await syncModelsMutation.mutateAsync()
-      toast.success(`Synced ${result.data.models.length} models from upstream`)
+      const priced = result.data.priced
+      toast.success(
+        `Synced ${result.data.models.length} models from upstream` +
+          (priced ? ` · ${priced} priced` : '')
+      )
     } catch (err) {
       const detail = (err as AxiosError<{ message?: string }>).response?.data?.message
       toast.error(detail || 'Failed to sync models from upstream')
@@ -586,7 +587,9 @@ function ModelsPanel({
   observedLoading: boolean
   syncing: boolean
   onSync: () => void
-  onUpdate: (body: { models: { id: string; state: Models.ProviderModelState }[] }) => Promise<unknown>
+  onUpdate: (body: {
+    models: { id: string; state: Models.ProviderModelState }[]
+  }) => Promise<unknown>
 }) {
   const [subTab, setSubTab] = useState('catalog')
   const enabledCount = catalog?.models.filter((m) => m.state === 'active').length ?? 0
@@ -627,7 +630,9 @@ function ModelsCatalog({
   loading: boolean
   syncing: boolean
   onSync: () => void
-  onUpdate: (body: { models: { id: string; state: Models.ProviderModelState }[] }) => Promise<unknown>
+  onUpdate: (body: {
+    models: { id: string; state: Models.ProviderModelState }[]
+  }) => Promise<unknown>
 }) {
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<string[]>([])
