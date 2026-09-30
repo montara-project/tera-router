@@ -1,7 +1,7 @@
 import { createEnv } from '@t3-oss/env-core'
 import { z } from 'zod'
 
-export const env = createEnv({
+const parsed = createEnv({
   /*
    * Serverside Environment variables, not available on the client.
    * Will throw if you access these variables on the client.
@@ -19,7 +19,7 @@ export const env = createEnv({
   client: {
     // No client-side env vars needed for this app
     // VITE prefix is to use in browser
-    VITE_API_URL: z.url(),
+    VITE_API_URL: z.url().or(z.literal('')).optional(),
     VITE_APP_NAME: z.string(),
   },
   /*
@@ -36,3 +36,11 @@ export const env = createEnv({
     BETTER_AUTH_SECRET: import.meta.env.BETTER_AUTH_SECRET,
   },
 })
+
+// The shipped image serves this bundle from tera-server itself, so UI and API
+// share an origin — an empty VITE_API_URL means "same as the page origin",
+// keeping the image domain-agnostic. Set it only for a split-origin setup.
+export const env = {
+  ...parsed,
+  VITE_API_URL: parsed.VITE_API_URL || window.location.origin,
+}
