@@ -4,6 +4,8 @@ import Link from 'next/link'
 
 import { i18n } from '@/lib/i18n'
 
+import { dictionaries } from './dictionaries'
+
 export function generateStaticParams() {
   return i18n.languages.map((lang) => ({ lang }))
 }
@@ -30,11 +32,11 @@ function Icon({ children, className = 'size-5' }: IconProps) {
   )
 }
 
-const DOCS_LINKS = [
+// Card titles and descriptions come from dictionaries.cards and must stay in
+// the same order as these slugs.
+const DOC_SECTIONS = [
   {
-    href: '/docs/getting-started/installation',
-    title: 'Memulai',
-    description: 'Jalankan server dan dashboard secara lokal dalam hitungan menit.',
+    slug: '/getting-started/installation',
     icon: (
       <>
         <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
@@ -43,9 +45,7 @@ const DOCS_LINKS = [
     ),
   },
   {
-    href: '/docs/gateway',
-    title: 'Gateway API',
-    description: 'Tiga dialek sekaligus — OpenAI, Anthropic, dan Responses API.',
+    slug: '/gateway',
     icon: (
       <>
         <path d="M8 3 4 7l4 4" />
@@ -56,9 +56,7 @@ const DOCS_LINKS = [
     ),
   },
   {
-    href: '/docs/gateway/model-addressing',
-    title: 'Model & Routing',
-    description: 'Alias pool, chain dengan fallback, dan suffix reasoning.',
+    slug: '/gateway/model-addressing',
     icon: (
       <>
         <path d="M6 3v12" />
@@ -69,17 +67,13 @@ const DOCS_LINKS = [
     ),
   },
   {
-    href: '/docs/concepts/guardrails',
-    title: 'Guardrails',
-    description: 'PII, prompt injection, topik, toksisitas, dan bias — berlapis.',
+    slug: '/concepts/guardrails',
     icon: (
       <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1 1 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
     ),
   },
   {
-    href: '/docs/api-reference/dashboard-api',
-    title: 'API Reference',
-    description: 'Semua endpoint REST dashboard untuk otomasi dan integrasi.',
+    slug: '/api-reference/dashboard-api',
     icon: (
       <>
         <path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5c0 1.1.9 2 2 2h1" />
@@ -88,9 +82,7 @@ const DOCS_LINKS = [
     ),
   },
   {
-    href: '/docs/configuration',
-    title: 'Konfigurasi',
-    description: 'Environment variables, target make, dan batas bawaan.',
+    slug: '/configuration',
     icon: (
       <>
         <path d="M21 4h-7" />
@@ -107,13 +99,14 @@ const DOCS_LINKS = [
   },
 ]
 
-const STATS = [
-  { value: '3', label: 'dialek API' },
-  { value: '20+', label: 'provider siap pakai' },
-  { value: '∞', label: 'fallback target' },
-]
+export default async function HomePage({ params }: { params: Promise<{ lang: string }> }) {
+  const { lang } = await params
+  const langs: string[] = i18n.languages
+  const copy =
+    dictionaries[(langs.includes(lang) ? lang : i18n.defaultLanguage) as keyof typeof dictionaries]
+  // The default locale is served from unprefixed URLs.
+  const docsBase = lang === i18n.defaultLanguage ? '/docs' : `/${lang}/docs`
 
-export default function HomePage() {
   return (
     <main className="relative min-h-svh overflow-hidden bg-fd-background text-fd-foreground">
       {/* ambient background */}
@@ -157,9 +150,9 @@ export default function HomePage() {
           </a>
           <Link
             className="bg-fd-primary text-fd-primary-foreground rounded-lg px-4 py-2 text-sm font-medium whitespace-nowrap transition-opacity hover:opacity-90"
-            href="/docs"
+            href={docsBase}
           >
-            Buka dokumentasi
+            {copy.navCta}
           </Link>
         </nav>
       </header>
@@ -169,35 +162,34 @@ export default function HomePage() {
         <div>
           <p className="text-fd-muted-foreground inline-flex items-center gap-2 rounded-full border border-fd-border bg-fd-card px-3 py-1 text-xs font-medium">
             <span className="size-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400" />
-            Self-hosted LLM gateway
+            {copy.badge}
           </p>
           <h1 className="mt-5 text-4xl font-bold tracking-tight text-balance sm:text-5xl">
-            Satu base URL untuk{' '}
+            {copy.heroTitle.before}{' '}
             <span className="bg-gradient-to-r from-emerald-600 to-teal-500 dark:from-emerald-400 dark:to-teal-300 bg-clip-text text-transparent">
-              semua model
+              {copy.heroTitle.accent}
             </span>
             .
           </h1>
           <p className="text-fd-muted-foreground mt-5 max-w-xl text-lg leading-relaxed">
-            Arahkan SDK, <code className="font-mono">curl</code>, atau coding agent favoritmu ke
-            satu pintu. Router yang mengurus provider, fallback, biaya, dan guardrails.
+            {copy.heroDescription}
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Link
               className="bg-fd-primary text-fd-primary-foreground rounded-lg px-5 py-2.5 text-sm font-medium transition-opacity hover:opacity-90"
-              href="/docs"
+              href={docsBase}
             >
-              Mulai cepat
+              {copy.primaryCta}
             </Link>
             <Link
               className="hover:bg-fd-card rounded-lg border border-fd-border px-5 py-2.5 text-sm font-medium transition-colors"
-              href="/docs/gateway"
+              href={`${docsBase}/gateway`}
             >
-              Lihat Gateway API
+              {copy.secondaryCta}
             </Link>
           </div>
           <dl className="text-fd-muted-foreground mt-10 flex flex-wrap gap-8">
-            {STATS.map((stat) => (
+            {copy.stats.map((stat) => (
               <div className="flex flex-col" key={stat.label}>
                 <dt className="order-2 text-xs">{stat.label}</dt>
                 <dd className="text-fd-foreground order-1 text-2xl font-semibold">{stat.value}</dd>
@@ -240,7 +232,7 @@ export default function HomePage() {
               </span>
               ,{'\n'}
               <span className="text-fd-muted-foreground">
-                {'      "messages": [{ "role": "user", "content": "Halo!" }],'}
+                {`      "messages": [{ "role": "user", "content": "${copy.terminalUserMessage}" }],`}
               </span>
               {'\n'}
               {'  '}
@@ -258,23 +250,21 @@ export default function HomePage() {
 
       {/* docs links */}
       <section className="relative z-10 mx-auto w-full max-w-6xl px-6 pb-24">
-        <h2 className="text-2xl font-semibold tracking-tight">Jelajahi dokumentasi</h2>
-        <p className="text-fd-muted-foreground mt-2">
-          Dari nol sampai request pertama, lalu semua yang ada di antaranya.
-        </p>
+        <h2 className="text-2xl font-semibold tracking-tight">{copy.exploreTitle}</h2>
+        <p className="text-fd-muted-foreground mt-2">{copy.exploreSubtitle}</p>
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {DOCS_LINKS.map((doc) => (
+          {DOC_SECTIONS.map((section, i) => (
             <Link
               className="group border-fd-border hover:border-fd-primary/60 bg-fd-card/50 rounded-xl border p-5 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-black/5 motion-reduce:transition-none"
-              href={doc.href}
-              key={doc.href}
+              href={docsBase + section.slug}
+              key={section.slug}
             >
               <span className="bg-fd-muted text-fd-foreground inline-flex rounded-lg p-2.5 transition-colors group-hover:bg-emerald-500/10 group-hover:text-emerald-600 dark:group-hover:text-emerald-400">
-                <Icon>{doc.icon}</Icon>
+                <Icon>{section.icon}</Icon>
               </span>
-              <h3 className="mt-4 font-medium">{doc.title}</h3>
+              <h3 className="mt-4 font-medium">{copy.cards[i]?.title}</h3>
               <p className="text-fd-muted-foreground mt-1 text-sm leading-relaxed">
-                {doc.description}
+                {copy.cards[i]?.description}
               </p>
             </Link>
           ))}
@@ -284,9 +274,9 @@ export default function HomePage() {
       {/* footer */}
       <footer className="border-fd-border text-fd-muted-foreground relative z-10 border-t">
         <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-8 text-sm">
-          <p>Selamat mengarahkan semua model ke satu pintu.</p>
-          <Link className="hover:text-fd-foreground transition-colors" href="/docs">
-            Buka dokumentasi →
+          <p>{copy.footerText}</p>
+          <Link className="hover:text-fd-foreground transition-colors" href={docsBase}>
+            {copy.footerCta}
           </Link>
         </div>
       </footer>
