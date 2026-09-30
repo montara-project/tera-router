@@ -55,9 +55,12 @@ function AbstractForm({
       }
 
       try {
+        // The server composes the slug itself as custom-<api_kind>-<alias>
+        // (customProviderSlug) and falls back to slugify(name) when the alias
+        // is empty — sending a prefixed slug here would double the marker.
         await mutation.mutateAsync({
           ...value,
-          slug: `${value.api_kind}-${trimmedAlias || undefined}`,
+          slug: trimmedAlias || undefined,
           base_url: trimmedBaseUrl,
         })
       } catch (error) {
@@ -154,6 +157,13 @@ export function EditCustomProviderForm({
 }: EditCustomProviderFormProps) {
   const mutation = useMutation(queries.providers.customUpdate(record.id))
 
+  // record.slug carries the server-side custom-<kind>- marker — show only the
+  // editable alias segment; the server re-derives the marker on save.
+  const slugMarker = `custom-${record.api_kind}-`
+  const aliasSlug = record.slug.startsWith(slugMarker)
+    ? record.slug.slice(slugMarker.length)
+    : record.slug
+
   return (
     <AbstractForm
       open={open}
@@ -162,7 +172,7 @@ export function EditCustomProviderForm({
         name: record.name,
         api_kind: record.api_kind,
         base_url: record.base_url,
-        slug: record.slug,
+        slug: aliasSlug,
       }}
       schema={CustomProviderSchema}
       mutation={mutation}

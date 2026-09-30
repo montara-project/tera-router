@@ -1,13 +1,18 @@
 import { useQueryState } from 'nuqs'
 
-export function usePaginationQuery() {
+interface UsePaginationQueryProps {
+  offset?: number
+  limit?: number
+}
+
+export function usePaginationQuery({ offset, limit }: UsePaginationQueryProps = {}) {
   const [queryPage] = useQueryState('page')
   const [queryPageSize] = useQueryState('pageSize')
 
-  const pageIndex = queryPage ? parseInt(queryPage) : 0
-  const pageSize = queryPageSize ? parseInt(queryPageSize) : 10
+  const pageIndex = queryPage ? parseInt(queryPage) : (offset ?? 0)
+  const pageSize = queryPageSize ? parseInt(queryPageSize) : (limit ?? 10)
 
-  const offset = pageIndex * pageSize
+  const calculatedOffset = pageIndex * pageSize
 
-  return { offset, limit: pageSize, pageIndex }
+  return { offset: offset ?? calculatedOffset, limit: limit ?? pageSize, pageIndex }
 }

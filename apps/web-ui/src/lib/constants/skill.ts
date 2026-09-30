@@ -66,11 +66,11 @@ export function skillUrl(slug: string): string {
 
 export const DIALECT_OPTIONS = [
   {
-    value: 'custom-openai',
+    value: 'openai',
     label: 'OpenAI-compatible',
   },
   {
-    value: 'custom-anthropic',
+    value: 'anthropic',
     label: 'Anthropic-compatible',
   },
 ]

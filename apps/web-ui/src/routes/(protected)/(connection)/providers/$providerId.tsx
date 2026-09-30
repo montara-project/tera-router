@@ -18,6 +18,7 @@ import {
 } from '@tabler/icons-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate, useParams } from '@tanstack/react-router'
+import { useQueryState } from 'nuqs'
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
@@ -43,10 +44,15 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { usePaginationQuery } from '@/hooks/use-pagination-query'
 import { queries } from '@/lib/api/queries'
 import { ACCOUNT_QUERY_KEY } from '@/lib/api/queries/account'
 import { CHAIN_QUERY_KEY } from '@/lib/api/queries/chain'
-import { CUSTOM_PROVIDER_QUERY_KEY, PROVIDER_QUERY_KEY } from '@/lib/api/queries/provider'
+import {
+  CUSTOM_PROVIDER_QUERY_KEY,
+  GET_CUSTOM_PROVIDER_QUERY_KEY,
+  PROVIDER_QUERY_KEY,
+} from '@/lib/api/queries/provider'
 import { USAGE_QUERY_KEY } from '@/lib/api/queries/usage'
 import { services } from '@/lib/api/services'
 
@@ -55,7 +61,7 @@ export const Route = createFileRoute('/(protected)/(connection)/providers/$provi
 })
 
 const PAGE_SIZE = 5
-const CATALOG_PAGE_SIZE = 10
+const CATALOG_PAGE_SIZE = 15
 const AMBER_BUTTON_CLASS =
   'bg-amber-600 text-white hover:bg-amber-500/90 dark:bg-amber-600 dark:hover:bg-amber-500/90'
 const EMERALD_BUTTON_CLASS =
@@ -143,9 +149,14 @@ function CustomProviderDetailRoute() {
   const handleDeleteProvider = () => {
     deleteProviderMutation.mutate(providerId, {
       onSuccess: async () => {
-        await invalidate()
+        // The detail query for the deleted id refetches into a "not found"
+        // retry loop (default retry backoff) — drop it before invalidating so
+        // it can't delay navigation or flash the error card.
+        queryClient.removeQueries({ queryKey: GET_CUSTOM_PROVIDER_QUERY_KEY(providerId) })
         toast.success('Provider deleted')
+        setDeleteOpen(false)
         await navigate({ to: '/providers' })
+        await invalidate()
       },
       onError: () => toast.error('Failed to delete provider'),
     })
@@ -593,29 +604,27 @@ function ModelsPanel({
   // debounced query param, and a new search resets the page.
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
-  const [page, setPage] = useState(1)
   const [selected, setSelected] = useState<string[]>([])
+
+  const { offset, limit, pageIndex } = usePaginationQuery({ limit: CATALOG_PAGE_SIZE })
+  const [, setQueryPage] = useQueryState('page')
 
   useEffect(() => {
     const timer = setTimeout(() => {
       setSearch(searchInput)
-      setPage(1)
+      setQueryPage(null)
       setSelected([])
     }, 300)
     return () => clearTimeout(timer)
-  }, [searchInput])
+  }, [searchInput, setQueryPage])
 
   const catalogQuery = useQuery(
-    queries.providers.customModels(providerId, {
-      search,
-      offset: (page - 1) * CATALOG_PAGE_SIZE,
-      limit: CATALOG_PAGE_SIZE,
-    })
+    queries.providers.customModels(providerId, { search, offset, limit })
   )
   const catalog = catalogQuery.data?.data ?? null
 
   const changePage = (next: number) => {
-    setPage(next)
+    setQueryPage(String(next))
     setSelected([])
   }
 
@@ -632,7 +641,7 @@ function ModelsPanel({
           loading={catalogQuery.isLoading}
           searchValue={searchInput}
           onSearchChange={setSearchInput}
-          page={page}
+          pageIndex={pageIndex}
           onPageChange={changePage}
           selected={selected}
           onSelectedChange={setSelected}
@@ -654,7 +663,7 @@ function ModelsCatalog({
   loading,
   searchValue,
   onSearchChange,
-  page,
+  pageIndex,
   onPageChange,
   selected,
   onSelectedChange,
@@ -667,7 +676,7 @@ function ModelsCatalog({
   loading: boolean
   searchValue: string
   onSearchChange: (value: string) => void
-  page: number
+  pageIndex: number
   onPageChange: (page: number) => void
   selected: string[]
   onSelectedChange: (ids: string[]) => void
@@ -833,19 +842,19 @@ function ModelsCatalog({
                 <Button
                   variant="ghost"
                   size="sm"
-                  disabled={page <= 1}
-                  onClick={() => onPageChange(Math.max(1, page - 1))}
+                  disabled={pageIndex === 0}
+                  onClick={() => onPageChange(Math.max(0, pageIndex - 1))}
                 >
                   Previous
                 </Button>
                 <span className="text-xs tabular-nums text-muted-foreground">
-                  {page} / {pages}
+                  {pageIndex + 1} / {pages}
                 </span>
                 <Button
                   variant="ghost"
                   size="sm"
-                  disabled={page >= pages}
-                  onClick={() => onPageChange(Math.min(pages, page + 1))}
+                  disabled={pageIndex >= pages - 1}
+                  onClick={() => onPageChange(Math.min(pages - 1, pageIndex + 1))}
                 >
                   Next
                 </Button>
