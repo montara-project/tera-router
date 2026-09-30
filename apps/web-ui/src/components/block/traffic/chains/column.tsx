@@ -138,7 +138,10 @@ function ActionCell({ record, onEdit }: ActionCellProps) {
 
   return (
     <React.Fragment>
-      <RowColumnAction onEdit={onEdit ? () => onEdit(record) : undefined} onDelete={() => setOpenDelete(true)} />
+      <RowColumnAction
+        onEdit={onEdit ? () => onEdit(record) : undefined}
+        onDelete={() => setOpenDelete(true)}
+      />
 
       <SimpleAlertDialog
         title="Do you want to delete this chain?"

@@ -249,9 +249,7 @@ function ChainForm({ chain, onOpenChange }: ChainFormProps) {
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() =>
-                    form.pushFieldValue('steps', { provider: '', model: '' })
-                  }
+                  onClick={() => form.pushFieldValue('steps', { provider: '', model: '' })}
                 >
                   <IconPlus /> Add step
                 </Button>
