@@ -33,7 +33,7 @@ func serve(app *app.Application) error {
 	})
 
 	// Fiber Configuration
-	server := fiber.New(fiber.Config{
+	fiberConfig := fiber.Config{
 		// 32 MiB: agent conversations (long tool-call histories, inline
 		// base64 screenshots) routinely exceed the dashboard's 2 MiB.
 		BodyLimit:    32 * 1024 * 1024,
@@ -42,7 +42,24 @@ func serve(app *app.Application) error {
 		WriteTimeout: 3 * time.Minute,
 		TrustProxy:   true,
 		ErrorHandler: middlewares.ErrorHandler,
-	})
+	}
+
+	// Behind a reverse proxy, X-Forwarded-For carries the client IP. Only
+	// requests whose direct peer is in the allowlist get the header honored —
+	// EnableIPValidation walks the chain right-to-left past trusted hops and
+	// returns the first untrusted address, so spoofed left-side entries cannot
+	// forge the client IP.
+	if proxies := app.Config.App.TrustedProxies; proxies != "" {
+		for _, p := range strings.Split(proxies, ",") {
+			if p = strings.TrimSpace(p); p != "" {
+				fiberConfig.TrustProxyConfig.Proxies = append(fiberConfig.TrustProxyConfig.Proxies, p)
+			}
+		}
+		fiberConfig.ProxyHeader = fiber.HeaderXForwardedFor
+		fiberConfig.EnableIPValidation = true
+	}
+
+	server := fiber.New(fiberConfig)
 
 	// Middleware
 	server.Use(recover.New())

@@ -27,11 +27,10 @@ const (
 //
 // exemptLoopback skips the limiter for 127.0.0.1 and is meant for development
 // only, where every request legitimately arrives from loopback. It must stay
-// off in production: c.IP() reports the direct TCP peer (the server configures
-// TrustProxy without a ProxyHeader, so forwarded headers are ignored), which
-// means a same-host reverse proxy would make every request look like loopback
-// and silently disable the limiter. Operators behind a proxy should configure
-// ProxyHeader/TrustProxyConfig so the real client IP is used instead.
+// off in production: unless --trusted-proxies is set, c.IP() reports the direct
+// TCP peer and forwarded headers are ignored — a same-host reverse proxy would
+// make every request look like the proxy's address. Operators behind a proxy
+// should pass --trusted-proxies so the real client IP is used instead.
 //
 // exemptIPs is a comma-separated list of client IPs (e.g. internal health
 // checks or an uptime monitor) that skip the limiter outright. Beware that

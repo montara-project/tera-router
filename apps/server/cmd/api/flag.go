@@ -28,6 +28,7 @@ func parseFlag(cfg *config.Config) {
 	flag.StringVar(&cfg.App.Secret, "app-secret", "", "App Secret")
 	flag.StringVar(&cfg.App.CORSAllowedOrigins, "cors-allowed-origins", "*", "CORS Allowed Origins")
 	flag.StringVar(&cfg.App.RateLimitExemptIPs, "rate-limit-exempt-ips", "", "Comma-separated client IPs exempt from the rate limiter")
+	flag.StringVar(&cfg.App.TrustedProxies, "trusted-proxies", "", "Comma-separated IPs/CIDRs trusted to supply X-Forwarded-For (e.g. the reverse proxy's address)")
 
 	// Database
 	flag.StringVar(&cfg.Database.Path, "database-path", database.DefaultPath, "SQLite database file path")

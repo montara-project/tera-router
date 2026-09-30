@@ -22,6 +22,9 @@ type ConfigApp struct {
 	// RateLimitExemptIPs is a comma-separated list of client IPs that skip the
 	// dashboard rate limiter entirely.
 	RateLimitExemptIPs string
+	// TrustedProxies is a comma-separated list of proxy IPs/CIDRs whose
+	// X-Forwarded-For header is honored when resolving the client IP.
+	TrustedProxies string
 }
 
 type ConfigDatabase struct {
