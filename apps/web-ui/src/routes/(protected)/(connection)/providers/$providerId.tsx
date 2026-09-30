@@ -1,5 +1,3 @@
-import type { AxiosError } from 'axios'
-
 import {
   IconApps,
   IconArrowLeft,
@@ -46,6 +44,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useDebounce } from '@/hooks/use-debounce'
 import { usePaginationQuery } from '@/hooks/use-pagination-query'
+import { toastAxiosError } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
 import { ACCOUNT_QUERY_KEY } from '@/lib/api/queries/account'
 import { CHAIN_QUERY_KEY } from '@/lib/api/queries/chain'
@@ -56,6 +55,7 @@ import {
 } from '@/lib/api/queries/provider'
 import { USAGE_QUERY_KEY } from '@/lib/api/queries/usage'
 import { services } from '@/lib/api/services'
+import { EMERALD_BUTTON_CLASS } from '@/lib/constants/ui'
 
 export const Route = createFileRoute('/(protected)/(connection)/providers/$providerId')({
   component: CustomProviderDetailRoute,
@@ -65,8 +65,6 @@ const PAGE_SIZE = 5
 const CATALOG_PAGE_SIZE = 15
 const AMBER_BUTTON_CLASS =
   'bg-amber-600 text-white hover:bg-amber-500/90 dark:bg-amber-600 dark:hover:bg-amber-500/90'
-const EMERALD_BUTTON_CLASS =
-  'bg-emerald-600 text-white hover:bg-emerald-500/90 dark:bg-emerald-600 dark:hover:bg-emerald-500/90'
 
 function DetailSkeleton() {
   return (
@@ -241,9 +239,8 @@ function CustomProviderDetailRoute() {
         `Synced ${result.data.models.length} models from upstream` +
           (priced ? ` · ${priced} priced` : '')
       )
-    } catch (err) {
-      const detail = (err as AxiosError<{ message?: string }>).response?.data?.message
-      toast.error(detail || 'Failed to sync models from upstream')
+    } catch (error) {
+      toastAxiosError(error)
     }
   }
 
@@ -401,19 +398,11 @@ function CustomProviderDetailRoute() {
                   ) : (
                     <div className="overflow-x-auto">
                       <div className="min-w-[700px]">
-                        <div className="flex items-center justify-between border-b border-border px-5 py-2.5">
+                        <div className="border-b border-border px-5 py-2.5">
                           <p className="text-xs text-muted-foreground">
                             {accounts.length} connected{' '}
                             {accounts.length === 1 ? 'account' : 'accounts'}
                           </p>
-                          <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <input
-                              type="checkbox"
-                              className="accent-emerald-600"
-                              onChange={() => undefined}
-                            />
-                            Select page
-                          </label>
                         </div>
                         <div className="grid grid-cols-[1.5fr_1fr_0.8fr_1fr_1fr] gap-4 border-b border-border px-5 py-3 text-xs text-muted-foreground">
                           <span>Account</span>

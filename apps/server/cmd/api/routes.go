@@ -15,12 +15,6 @@ import (
 func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	h := handlers.New(app)
 
-	r.Get("/", func(c fiber.Ctx) error {
-		return c.JSON(fiber.Map{
-			"message": "Hello, World!",
-		})
-	})
-
 	if app.Config.App.Debug {
 		r.Get("/get-error", func(c fiber.Ctx) error {
 			sentry.CaptureMessage("It works!")
@@ -81,7 +75,7 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 
 	protected.Get("/models/alias", h.Chains.AliasIndex)
 	protected.Put("/models/alias", h.Chains.AliasPut)
-	protected.Delete("/models/alias", h.Chains.AliasDelete)
+	protected.Delete("/models/alias/:name", h.Chains.AliasDelete)
 
 	// Providers & accounts
 	protected.Get("/providers", h.Providers.Index)

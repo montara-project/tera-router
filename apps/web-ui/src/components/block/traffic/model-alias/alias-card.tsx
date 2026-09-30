@@ -14,10 +14,8 @@ import { useAppForm } from '@/hooks/form'
 import { toastAxiosError } from '@/lib/api/axios-error'
 import { AliasTargetSchema } from '@/lib/api/dtos/alias/schema'
 import { queries } from '@/lib/api/queries'
+import { EMERALD_BUTTON_CLASS } from '@/lib/constants/ui'
 import { requiredString } from '@/lib/validation'
-
-const EMERALD_BUTTON_CLASS =
-  'bg-emerald-600 text-white hover:bg-emerald-500/90 dark:bg-emerald-600 dark:hover:bg-emerald-500/90'
 
 const CONTEXT_WINDOW_OPTIONS = [
   { value: 0, label: 'Default (unlimited)' },

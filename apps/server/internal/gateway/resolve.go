@@ -242,7 +242,7 @@ func (s *Server) aliasResult(ctx context.Context, name string) (resolveResult, b
 	if len(out) == 0 {
 		return resolveResult{}, false
 	}
-	return resolveResult{Targets: out, EchoModel: name, Strategy: "priority"}, true
+	return resolveResult{Targets: out, EchoModel: name, Strategy: strategyPriority}, true
 }
 
 // chainResult resolves a chain by name. A missing, disabled, or stepless chain

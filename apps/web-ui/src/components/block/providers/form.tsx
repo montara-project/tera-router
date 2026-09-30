@@ -60,7 +60,7 @@ function AbstractForm({
         // set; omit the field so the server can slugify the name otherwise.
         await mutation.mutateAsync({
           ...value,
-          slug: trimmedAlias,
+          slug: trimmedAlias ?? undefined,
           base_url: trimmedBaseUrl,
         })
       } catch (error) {
@@ -112,10 +112,15 @@ function AbstractForm({
         )}
       />
 
-      <form.AppField
-        name="slug"
-        children={(field) => <field.TextField label="Alias / prefix" placeholder="e.g. kei-ai" />}
-      />
+      {/* Slug is immutable after create — accounts and chain steps reference
+          the provider by slug, so PATCH ignores it. Only offer the alias
+          field on create. */}
+      {!isEdit ? (
+        <form.AppField
+          name="slug"
+          children={(field) => <field.TextField label="Alias / prefix" placeholder="e.g. kei-ai" />}
+        />
+      ) : null}
     </SimpleAlertScrollableDialogForm>
   )
 }
@@ -157,13 +162,6 @@ export function EditCustomProviderForm({
 }: EditCustomProviderFormProps) {
   const mutation = useMutation(queries.providers.customUpdate(record.id))
 
-  // record.slug carries the server-side custom-<kind>- marker — show only the
-  // editable alias segment; the server re-derives the marker on save.
-  const slugMarker = `custom-${record.api_kind}-`
-  const aliasSlug = record.slug.startsWith(slugMarker)
-    ? record.slug.slice(slugMarker.length)
-    : record.slug
-
   return (
     <AbstractForm
       open={open}
@@ -172,7 +170,7 @@ export function EditCustomProviderForm({
         name: record.name,
         api_kind: record.api_kind,
         base_url: record.base_url,
-        slug: aliasSlug,
+        slug: record.slug,
       }}
       schema={CustomProviderSchema}
       mutation={mutation}

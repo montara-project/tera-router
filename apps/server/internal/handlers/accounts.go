@@ -394,6 +394,11 @@ func (h *accountsHandler) probe(ctx context.Context, providerSlug, metadataRaw, 
 func upstreamModelsEndpoint(baseURL string, anthropic bool) string {
 	base := strings.TrimSuffix(baseURL, "/")
 	if anthropic {
+		// Anthropic base URLs typically already carry /v1 — appending the full
+		// path again would produce /v1/v1/models.
+		if strings.HasSuffix(base, "/v1") {
+			return base + "/models"
+		}
 		return base + "/v1/models"
 	}
 	if strings.HasSuffix(base, "/v1") || strings.HasSuffix(base, "/openai/v1") {

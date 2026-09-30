@@ -129,7 +129,9 @@ func (s *Server) connectStream(
 
 		conn, err := s.connectOne(ctx, at, req, clientDialect, meta)
 		if err == nil {
-			s.combo.NoteSuccess(at.Target.Provider, at.Target.Model)
+			if s.combo != nil {
+				s.combo.NoteSuccess(at.Target.Provider, at.Target.Model)
+			}
 			return conn, nil
 		}
 		lastErr = err
@@ -137,7 +139,7 @@ func (s *Server) connectStream(
 		// Feed the auto-combo engine's self-healing: a fallbackable failure
 		// counts against the provider, a request-shaped one does not.
 		pe := core.AsProviderError(err)
-		if pe.Fallbackable() {
+		if pe.Fallbackable() && s.combo != nil {
 			s.combo.ExcludeAfterFailure(at.Target.Provider, at.Target.Model)
 		}
 		if !pe.Fallbackable() {

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"cmp"
+	"errors"
 	"time"
 
 	"tera-router/server/internal/app"
@@ -251,23 +252,21 @@ func (h *chainsHandler) AliasPut(c fiber.Ctx) error {
 	}
 	auditRecord(c.Context(), h.app, actorFrom(c), "alias.put", alias.Name, map[string]int{"targets": len(alias.Targets)})
 
-	all, err := h.app.Repos.Aliases.List(c.Context())
+	existing, err := h.app.Repos.Aliases.GetByName(c.Context(), alias.Name)
 	if err != nil {
+		if errors.Is(err, apperr.ErrNotFound) {
+			return dtos.OK(c, alias)
+		}
 		return err
 	}
-	for _, existing := range all {
-		if existing.Name == alias.Name {
-			return dtos.OK(c, existing)
-		}
-	}
-	return dtos.OK(c, alias)
+	return dtos.OK(c, existing)
 }
 
 // AliasDelete removes an alias pool by name.
 func (h *chainsHandler) AliasDelete(c fiber.Ctx) error {
-	name := c.Query("name")
+	name := c.Params("name")
 	if name == "" {
-		return apperr.New(apperr.KindBadRequest, "name query parameter is required")
+		return apperr.ErrBadRequest
 	}
 
 	if err := h.app.Repos.Aliases.Delete(c.Context(), name); err != nil {

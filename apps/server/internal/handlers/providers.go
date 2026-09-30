@@ -55,13 +55,15 @@ func customProviderFrom(d dtos.CustomProvider) models.CustomProvider {
 		Slug:     slugify(cmp.Or(d.Slug, d.Name)),
 		BaseURL:  d.BaseURL,
 		APIKind:  cmp.Or(d.APIKind, "openai"),
-		Priority: d.Priority,
 		Pricing:  encodeJSON(d.Pricing),
 		Metadata: encodeJSON(d.Metadata),
 		Enabled:  true,
 	}
 	if d.Enabled != nil {
 		p.Enabled = *d.Enabled
+	}
+	if d.Priority != nil {
+		p.Priority = *d.Priority
 	}
 	return p
 }
@@ -76,9 +78,8 @@ func applyCustomProviderPatch(p *models.CustomProvider, d dtos.CustomProvider) {
 	if d.APIKind != "" {
 		p.APIKind = d.APIKind
 	}
-	if d.Slug != "" {
-		p.Slug = slugify(d.Slug)
-	}
+	// Slug is immutable: accounts and chain steps reference the provider by
+	// slug, so renaming it here would orphan them.
 	if d.BaseURL != "" {
 		p.BaseURL = d.BaseURL
 	}
@@ -88,8 +89,8 @@ func applyCustomProviderPatch(p *models.CustomProvider, d dtos.CustomProvider) {
 	if d.Metadata != nil {
 		p.Metadata = encodeJSON(d.Metadata)
 	}
-	if d.Priority != 0 {
-		p.Priority = d.Priority
+	if d.Priority != nil {
+		p.Priority = *d.Priority
 	}
 	if d.Enabled != nil {
 		p.Enabled = *d.Enabled

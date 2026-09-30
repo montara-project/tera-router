@@ -12,13 +12,11 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { queries } from '@/lib/api/queries'
+import { EMERALD_BUTTON_CLASS } from '@/lib/constants/ui'
 
 export const Route = createFileRoute('/(protected)/(traffic)/model-alias/')({
   component: ModelAliasRoute,
 })
-
-const EMERALD_BUTTON_CLASS =
-  'bg-emerald-600 text-white hover:bg-emerald-500/90 dark:bg-emerald-600 dark:hover:bg-emerald-500/90'
 
 function blankAlias(): Models.ModelAlias {
   return {

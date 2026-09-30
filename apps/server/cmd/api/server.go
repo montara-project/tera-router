@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path"
 	"strings"
 	"syscall"
 	"time"
@@ -100,10 +101,14 @@ func serve(app *app.Application) error {
 	// file that doesn't exist. A wildcard route registered last only runs when
 	// no real route matched, so API paths keep their JSON 404 instead.
 	spaFallback := func(c fiber.Ctx) error {
-		path := c.Path()
-		if strings.HasPrefix(path, "/v1") ||
-			strings.HasPrefix(path, "/responses") ||
-			gateway.IsGatewayPath(path) {
+		p := c.Path()
+		if p == "/health" ||
+			strings.HasPrefix(p, "/v1") ||
+			strings.HasPrefix(p, "/responses") ||
+			gateway.IsGatewayPath(p) ||
+			// Asset-looking paths (…/x.js, /favicon.ico) are misses, not SPA
+			// routes — answer 404 rather than HTML.
+			strings.Contains(path.Base(p), ".") {
 			return fiber.ErrNotFound
 		}
 		return c.SendFile("./public/index.html")
@@ -118,9 +123,9 @@ func serve(app *app.Application) error {
 	// Start server in a goroutine
 	go func() {
 		app.Logger.Info("server started on port", "port", app.Config.App.Port)
-		listerPort := fmt.Sprintf(":%d", app.Config.App.Port)
+		listenAddr := fmt.Sprintf(":%d", app.Config.App.Port)
 
-		if err := server.Listen(listerPort); err != nil {
+		if err := server.Listen(listenAddr); err != nil {
 			app.Logger.Error("failed to start server", "error", err)
 		}
 	}()
