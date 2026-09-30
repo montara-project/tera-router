@@ -18,12 +18,12 @@ Chain menentukan siapa dicoba berikutnya. Contoh `heavy-coding`: Claude dulu, GL
 
 ## Retry dan cooldown
 
-| Peristiwa                       | Tindakan router                                     |
-| ------------------------------- | --------------------------------------------------- |
+| Peristiwa                          | Tindakan router                                         |
+| ---------------------------------- | ------------------------------------------------------- |
 | Gangguan sementara (5xx, jaringan) | Retry di akun yang sama, maksimal 2x (jeda 500 ms, 1 s) |
-| `429` dari upstream             | Cooldown akun 30 detik, hormati `Retry-After`       |
-| Autentikasi upstream gagal      | Cooldown akun 5 menit                               |
-| Semua target habis              | `503` ke klien                                      |
+| `429` dari upstream                | Cooldown akun 30 detik, hormati `Retry-After`           |
+| Autentikasi upstream gagal         | Cooldown akun 5 menit                                   |
+| Semua target habis                 | `503` ke klien                                          |
 
 Total maksimal **10 percobaan** per request. Cooldown membuat akun yang bermasalah diistirahatkan, bukan dibanjiri lagi — statusnya terlihat di halaman **Provider Health**.
 
@@ -36,5 +36,6 @@ Gateway membatasi request in-flight secara global (100). Saat penuh, request bar
 Setiap request tercatat: provider dan model yang benar-benar melayani, key, akun, jenis klien (terdeteksi dari User-Agent — Claude Code, Cursor, Codex, Cline, Copilot, Aider, dll), token per kategori, biaya, cache hit, latensi, dan TTFT. Semua itu yang kamu lihat di halaman **Usage**.
 
 <Callout type="idea" title="Latensi pertama token">
-  TTFT (time-to-first-token) terukur per request — bandingkan provider lewat halaman **Usage** sebelum memutuskan urutan chain.
+  TTFT (time-to-first-token) terukur per request — bandingkan provider lewat halaman **Usage**
+  sebelum memutuskan urutan chain.
 </Callout>

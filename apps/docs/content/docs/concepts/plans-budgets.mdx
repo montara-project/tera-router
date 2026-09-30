@@ -15,7 +15,7 @@ Plan adalah kumpulan batas yang bisa diikat ke banyak key sekaligus:
 - `allowed_models` — allowlist model untuk semua key di plan ini.
 - `rpm`, `tpm`, `concurrent` — tersimpan di skema; belum ditegakkan gateway saat ini.
 
-Plan *Default* dibuat otomatis saat seeding. Kelola dari halaman **Plans**.
+Plan _Default_ dibuat otomatis saat seeding. Kelola dari halaman **Plans**.
 
 ## Budgets — pemantauan per scope
 
@@ -39,6 +39,6 @@ Pemakaian berjalan dilihat lewat `GET /v1/budgets/status` atau halaman **Quota T
 
 ## Harga model
 
-Biaya dihitung dari tabel harga per juta token: input, output, cache read, dan cache write. Harga bawaan diambil dari snapshot provider (`GET /v1/providers/rates`), dan bisa ditimpa per model lewat *pricing overrides* (halaman **Plans** atau API `model-pricing-overrides`).
+Biaya dihitung dari tabel harga per juta token: input, output, cache read, dan cache write. Harga bawaan diambil dari snapshot provider (`GET /v1/providers/rates`), dan bisa ditimpa per model lewat _pricing overrides_ (halaman **Plans** atau API `model-pricing-overrides`).
 
 Model yang tidak punya harga dihitung nol — kalau angka spend di **Usage** terasa terlalu kecil, cek dulu apakah model yang dipakai sudah punya harga.

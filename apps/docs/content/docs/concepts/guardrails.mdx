@@ -7,19 +7,19 @@ Guardrails memeriksa request (dan opsional respons) sebelum/menjelang keluar ke 
 
 ## Berlapis dan paling spesifik menang
 
-Kebijakan bisa dipasang di lima scope — `global`, `provider`, `model`, `chain`, dan `key`. Untuk satu request, router menentukan kebijakan efektif per detektor dengan aturan *paling spesifik menang*: kebijakan di scope `key` mengalahkan `chain`, yang mengalahkan `model`, dst.
+Kebijakan bisa dipasang di lima scope — `global`, `provider`, `model`, `chain`, dan `key`. Untuk satu request, router menentukan kebijakan efektif per detektor dengan aturan _paling spesifik menang_: kebijakan di scope `key` mengalahkan `chain`, yang mengalahkan `model`, dst.
 
 Konsekuensinya: guardrail global tidak bisa dimatikan dari key — key hanya bisa memperketat, tidak melonggarkan lapisan di atasnya.
 
 ## Detektor
 
-| Detektor   | Apa yang diperiksa                                                                                    |
-| ---------- | ----------------------------------------------------------------------------------------------------- |
-| `pii`      | Email, IP, nomor telepon, kartu kredit, IBAN, dan identitas Indonesia (NIK, NPWP, paspor) — dengan strategi masking |
-| `injection`| Pola prompt injection, bertingkat                                                                      |
-| `topics`   | Daftar topik yang diizinkan atau diblokir (mode allow/block)                                           |
-| `toxicity` | Konten kasar/berbahaya dengan ambang skor                                                             |
-| `bias`     | Bias dengan ambang skor                                                                               |
+| Detektor    | Apa yang diperiksa                                                                                                  |
+| ----------- | ------------------------------------------------------------------------------------------------------------------- |
+| `pii`       | Email, IP, nomor telepon, kartu kredit, IBAN, dan identitas Indonesia (NIK, NPWP, paspor) — dengan strategi masking |
+| `injection` | Pola prompt injection, bertingkat                                                                                   |
+| `topics`    | Daftar topik yang diizinkan atau diblokir (mode allow/block)                                                        |
+| `toxicity`  | Konten kasar/berbahaya dengan ambang skor                                                                           |
+| `bias`      | Bias dengan ambang skor                                                                                             |
 
 Setiap detektor punya `enabled` dan `action`:
 

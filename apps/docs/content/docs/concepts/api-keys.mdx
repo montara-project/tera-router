@@ -41,12 +41,12 @@ Responsnya memuat `full_key` — simpan sekarang:
 
 `allowed_models` menerima pattern dengan wildcard `*` di akhir, dan mencocokkan semua bentuk nama model — polos, `provider/model`, alias, maupun `chain:<nama>`:
 
-| Pattern          | Mengizinkan                          |
-| ---------------- | ------------------------------------ |
-| `anthropic/*`    | Semua model Anthropic                |
-| `openai/gpt-4o*` | Semua varian `gpt-4o`                |
-| `chain:*`        | Semua chain                          |
-| `fast`           | Alias bernama `fast` saja            |
+| Pattern          | Mengizinkan               |
+| ---------------- | ------------------------- |
+| `anthropic/*`    | Semua model Anthropic     |
+| `openai/gpt-4o*` | Semua varian `gpt-4o`     |
+| `chain:*`        | Semua chain               |
+| `fast`           | Alias bernama `fast` saja |
 
 Kalau key diikat ke plan, model yang diizinkan adalah **irisan** allowlist key dan plan. Key tidak pernah bisa melonggarkan batasan plan.
 
@@ -57,5 +57,6 @@ Kalau key diikat ke plan, model yang diizinkan adalah **irisan** allowlist key d
 - **last used** — pemakaian pertama tiap key dicatat `last_used_at`, terlihat di daftar key.
 
 <Callout type="info" title="Satu key per perangkat">
-  Kebiasaan yang disarankan: satu key per aplikasi/perangkat. Kalau laptop hilang, cukup nonaktifkan satu key tanpa mengganggu yang lain.
+  Kebiasaan yang disarankan: satu key per aplikasi/perangkat. Kalau laptop hilang, cukup nonaktifkan
+  satu key tanpa mengganggu yang lain.
 </Callout>

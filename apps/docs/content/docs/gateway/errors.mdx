@@ -32,15 +32,15 @@ Error mengikuti envelope dialek endpoint yang kamu panggil.
 
 ## Status code
 
-| Status | Arti                                                                            |
-| ------ | ------------------------------------------------------------------------------- |
-| `400`  | Model tidak dikenal atau konteks melebihi kapasitas                              |
-| `401`  | API key tidak ada, salah, atau dinonaktifkan                                     |
-| `402`  | Budget habis (hanya budget dengan *hard cutoff* yang memblokir)                  |
-| `403`  | Model tidak diizinkan oleh allowlist key/plan atau guardrail memblokir           |
-| `429`  | Rate limit atau kapasitas penuh                                                  |
-| `503`  | Semua target gagal / sedang cooldown / server di kapasitas maksimum              |
-| `504`  | Upstream tidak menjawab sebelum deadline                                         |
+| Status | Arti                                                                   |
+| ------ | ---------------------------------------------------------------------- |
+| `400`  | Model tidak dikenal atau konteks melebihi kapasitas                    |
+| `401`  | API key tidak ada, salah, atau dinonaktifkan                           |
+| `402`  | Budget habis (hanya budget dengan _hard cutoff_ yang memblokir)        |
+| `403`  | Model tidak diizinkan oleh allowlist key/plan atau guardrail memblokir |
+| `429`  | Rate limit atau kapasitas penuh                                        |
+| `503`  | Semua target gagal / sedang cooldown / server di kapasitas maksimum    |
+| `504`  | Upstream tidak menjawab sebelum deadline                               |
 
 ## Retry yang dilakukan router
 

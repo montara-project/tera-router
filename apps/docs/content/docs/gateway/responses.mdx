@@ -5,10 +5,10 @@ description: Endpoint kompatibel OpenAI Responses — POST /v1/responses dan POS
 
 Tera Router menyediakan dua jalur untuk dialek Responses API:
 
-| Endpoint            | Keterangan                                                     |
-| ------------------- | -------------------------------------------------------------- |
-| `POST /v1/responses`| Jalur utama, sejajar dengan endpoint `/v1` lainnya              |
-| `POST /responses`   | Alias di root, untuk klien Responses-native seperti Codex CLI   |
+| Endpoint             | Keterangan                                                    |
+| -------------------- | ------------------------------------------------------------- |
+| `POST /v1/responses` | Jalur utama, sejajar dengan endpoint `/v1` lainnya            |
+| `POST /responses`    | Alias di root, untuk klien Responses-native seperti Codex CLI |
 
 ## Request
 
@@ -40,5 +40,6 @@ export OPENAI_API_KEY=sk_tr_...
 Atau lebih praktis lagi: buka halaman **CLI Tools** di dashboard dan pakai konfigurasi satu klik yang sudah mengarah ke instansmu.
 
 <Callout type="info" title="Provider codex adalah OAuth">
-  Model di bawah provider `codex` memakai akun ChatGPT/Codex (OAuth) yang dihubungkan lewat halaman **Providers**, bukan API key biasa.
+  Model di bawah provider `codex` memakai akun ChatGPT/Codex (OAuth) yang dihubungkan lewat halaman
+  **Providers**, bukan API key biasa.
 </Callout>

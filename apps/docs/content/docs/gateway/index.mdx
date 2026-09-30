@@ -7,13 +7,13 @@ description: Base URL, autentikasi, dan kompatibilitas dialek untuk semua endpoi
 
 Gateway melayani tiga dialek API sekaligus, semua di bawah `/v1`:
 
-| Endpoint                        | Dialek            | Dipakai oleh                                  |
-| ------------------------------- | ----------------- | --------------------------------------------- |
-| `POST /v1/chat/completions`     | OpenAI Chat       | SDK OpenAI, kebanyakan tool dan framework     |
-| `POST /v1/messages`             | Anthropic Messages| SDK Anthropic, Claude Code                    |
-| `POST /v1/messages/count_tokens`| Anthropic         | Estimasi token (dihitung lokal)               |
-| `POST /v1/responses`            | OpenAI Responses  | Klien Responses API                           |
-| `POST /responses`               | OpenAI Responses  | Alias di root, untuk klien seperti Codex      |
+| Endpoint                         | Dialek             | Dipakai oleh                              |
+| -------------------------------- | ------------------ | ----------------------------------------- |
+| `POST /v1/chat/completions`      | OpenAI Chat        | SDK OpenAI, kebanyakan tool dan framework |
+| `POST /v1/messages`              | Anthropic Messages | SDK Anthropic, Claude Code                |
+| `POST /v1/messages/count_tokens` | Anthropic          | Estimasi token (dihitung lokal)           |
+| `POST /v1/responses`             | OpenAI Responses   | Klien Responses API                       |
+| `POST /responses`                | OpenAI Responses   | Alias di root, untuk klien seperti Codex  |
 
 Request body-nya persis format aslinya — tidak ada field custom yang wajib. Router hanya peduli pada cara kamu menulis `model` (lihat [Model & routing](/docs/gateway/model-addressing)).
 
@@ -57,12 +57,13 @@ Berguna untuk memastikan chain/alias/fallback jatuh ke target yang kamu duga.
 
 Keduanya hidup di port yang sama, tapi auth-nya berbeda:
 
-|                | Gateway (`/v1/chat/...`)        | Dashboard API (`/v1/keys`, `/v1/usage`, ...) |
-| -------------- | ------------------------------- | -------------------------------------------- |
-| Kredensial     | API key `sk_tr_`                | JWT dari `POST /v1/auth/sign-in`             |
-| Dipakai oleh   | Aplikasi dan coding agent       | Dashboard UI dan skrip admin                 |
-| Referensi      | Bagian [Gateway API](/docs/gateway) | [API Reference](/docs/api-reference/dashboard-api) |
+|              | Gateway (`/v1/chat/...`)            | Dashboard API (`/v1/keys`, `/v1/usage`, ...)       |
+| ------------ | ----------------------------------- | -------------------------------------------------- |
+| Kredensial   | API key `sk_tr_`                    | JWT dari `POST /v1/auth/sign-in`                   |
+| Dipakai oleh | Aplikasi dan coding agent           | Dashboard UI dan skrip admin                       |
+| Referensi    | Bagian [Gateway API](/docs/gateway) | [API Reference](/docs/api-reference/dashboard-api) |
 
 <Callout type="warn" title="Jangan tertukar">
-  JWT dashboard tidak bisa dipakai di gateway, dan API key `sk_tr_` tidak bisa dipakai di dashboard API.
+  JWT dashboard tidak bisa dipakai di gateway, dan API key `sk_tr_` tidak bisa dipakai di dashboard
+  API.
 </Callout>

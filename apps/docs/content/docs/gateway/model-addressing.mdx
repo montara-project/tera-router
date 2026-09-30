@@ -5,12 +5,12 @@ description: Empat cara menulis field model — provider/model, alias, chain, da
 
 Field `model` di Tera Router lebih ekspresif daripada API biasa. Router membacanya dengan urutan prioritas tetap:
 
-| Urutan | Bentuk                 | Contoh                     | Arti                                     |
-| ------ | ---------------------- | -------------------------- | ---------------------------------------- |
-| 1      | `chain:<nama>`         | `chain:heavy-coding`       | Jalankan rantai routing bernama itu      |
-| 2      | Nama alias             | `fast`                     | Pakai alias pool yang cocok              |
-| 3      | `provider/model`       | `anthropic/claude-sonnet-4`| Target eksplisit ke satu provider        |
-| 4      | Nama polos             | `heavy-coding`             | Cari chain bernama itu, lalu alias       |
+| Urutan | Bentuk           | Contoh                      | Arti                                |
+| ------ | ---------------- | --------------------------- | ----------------------------------- |
+| 1      | `chain:<nama>`   | `chain:heavy-coding`        | Jalankan rantai routing bernama itu |
+| 2      | Nama alias       | `fast`                      | Pakai alias pool yang cocok         |
+| 3      | `provider/model` | `anthropic/claude-sonnet-4` | Target eksplisit ke satu provider   |
+| 4      | Nama polos       | `heavy-coding`              | Cari chain bernama itu, lalu alias  |
 
 `provider/model` hanya valid kalau `provider` adalah slug dari katalog bawaan atau custom provider yang aktif.
 
@@ -90,5 +90,6 @@ Tulis angka langsung (misal `(8192)`) untuk budget eksplisit.
 Pattern allowlist pada key/plan mendukung wildcard `*` di akhir, dan mencocokkan semua bentuk nama: model polos, `provider/model`, nama alias, maupun `chain:<nama>`. Contoh `anthropic/*` mengizinkan semua model Anthropic; `chain:*` mengizinkan semua chain.
 
 <Callout type="warn" title="Allowlist saling memotong">
-  Model yang diizinkan adalah irisan antara allowlist key dan allowlist plan-nya. Key tidak bisa melonggarkan batasan plan.
+  Model yang diizinkan adalah irisan antara allowlist key dan allowlist plan-nya. Key tidak bisa
+  melonggarkan batasan plan.
 </Callout>

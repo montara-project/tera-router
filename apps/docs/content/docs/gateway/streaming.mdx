@@ -26,10 +26,10 @@ Ini menjaga koneksi tetap hidup melalui load balancer atau proxy yang suka memut
 
 ## Deadline
 
-| Batas                          | Nilai    |
-| ------------------------------ | -------- |
-| Request unary (non-streaming)  | 90 detik |
-| Stream (total durasi)          | 3 menit  |
+| Batas                          | Nilai                 |
+| ------------------------------ | --------------------- |
+| Request unary (non-streaming)  | 90 detik              |
+| Stream (total durasi)          | 3 menit               |
 | Stall stream (timeout koneksi) | diatur lewat Settings |
 
 Stream yang melewati deadline diakhiri rapi sesuai dialeknya. Untuk deadline yang lebih panjang, sesuaikan `request_timeout` dan `stream_stall_timeout` di halaman **Settings**.

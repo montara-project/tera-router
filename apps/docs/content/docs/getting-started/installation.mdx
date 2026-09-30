@@ -28,11 +28,12 @@ make run
 Server akan:
 
 1. Menjalankan migrasi SQLite (`MIGRATE_ON_BOOT`, aktif secara default).
-2. Menyeed data awal — role, user admin dari `ADMIN_EMAIL`/`ADMIN_PASSWORD`, plan *Default*.
+2. Menyeed data awal — role, user admin dari `ADMIN_EMAIL`/`ADMIN_PASSWORD`, plan _Default_.
 3. Membuka gateway dan dashboard API di `PORT` (default `8080`).
 
 <Callout type="info" title="Mode development">
-  Dengan `ENV=development`, server otomatis menyiapkan key contoh "Dev". Minta plaintext-nya lewat `make seed/dev` — plaintext hanya dicetak sekali.
+  Dengan `ENV=development`, server otomatis menyiapkan key contoh "Dev". Minta plaintext-nya lewat
+  `make seed/dev` — plaintext hanya dicetak sekali.
 </Callout>
 
 ## Jalankan dashboard
@@ -50,11 +51,11 @@ Buka `http://localhost:5173`, lalu masuk dengan `ADMIN_EMAIL` dan `ADMIN_PASSWOR
 
 ## Port dan layanan
 
-| Layanan       | URL                        | Keterangan                          |
-| ------------- | -------------------------- | ----------------------------------- |
-| API server    | `http://localhost:8080`    | Gateway (`/v1/*`) + dashboard API   |
-| Dashboard UI  | `http://localhost:5173`    | Vite dev server (`apps/web-ui`)     |
-| Docs          | `http://localhost:3001`    | Situs ini (`apps/docs`)             |
+| Layanan      | URL                     | Keterangan                        |
+| ------------ | ----------------------- | --------------------------------- |
+| API server   | `http://localhost:8080` | Gateway (`/v1/*`) + dashboard API |
+| Dashboard UI | `http://localhost:5173` | Vite dev server (`apps/web-ui`)   |
+| Docs         | `http://localhost:3001` | Situs ini (`apps/docs`)           |
 
 ## Seeding key pertama (tanpa dashboard)
 
