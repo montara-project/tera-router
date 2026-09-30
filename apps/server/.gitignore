@@ -1,3 +1,6 @@
 .tera-server
 bin/
 .env
+terarouter.db
+terarouter.db-shm
+terarouter.db-wal

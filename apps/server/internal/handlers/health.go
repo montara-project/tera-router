@@ -3,18 +3,18 @@ package handlers
 import (
 	"tera-router/server/internal/app"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 type healthHandler struct {
 	app *app.Application
 }
 
-func (h *healthHandler) Check(c *fiber.Ctx) error {
+func (h *healthHandler) Check(c fiber.Ctx) error {
 	v := fiber.Map{
-		"machineID": h.app.Config.App.MachineID,
-		"status":    "ok",
-		"systemInfo": map[string]interface{}{
+		"machine_id": h.app.Config.App.MachineID,
+		"status":     "ok",
+		"system_info": map[string]interface{}{
 			"debug": h.app.Config.App.Debug,
 		},
 	}

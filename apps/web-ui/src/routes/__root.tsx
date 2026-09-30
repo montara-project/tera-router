@@ -5,6 +5,7 @@ import { ReactQueryDevtoolsPanel } from '@tanstack/react-query-devtools'
 import { createRootRouteWithContext, Outlet } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 
+import { Toaster } from '@/components/ui/sonner'
 import DecorationProvider from '@/lib/providers/decoration'
 
 /**
@@ -21,6 +22,7 @@ const RootLayout = () => (
   <DecorationProvider>
     {/* outlet = react children */}
     <Outlet />
+    <Toaster position="bottom-right" richColors closeButton />
 
     {/* declare devtools panel */}
     {import.meta.env.DEV && (

@@ -1,7 +1,7 @@
 import type { ColumnDef } from '@tanstack/react-table'
 
 import { IconStack2 } from '@tabler/icons-react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import pluralize from 'pluralize'
 import React, { useMemo, useState } from 'react'
@@ -12,10 +12,8 @@ import type { BaseColumnProps } from '@/types/column'
 
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { usePaginationQuery } from '@/hooks/use-pagination-query'
-import { throwAxiosError } from '@/lib/api/axios-error'
-import { CHAIN_QUERY_KEY } from '@/lib/api/queries/chain'
-import { services } from '@/lib/api/services'
+import { toastAxiosError } from '@/lib/api/axios-error'
+import { queries } from '@/lib/api/queries'
 import { capitalizeFirstLetter } from '@/lib/string'
 import { cn } from '@/lib/utils'
 
@@ -99,32 +97,15 @@ interface ActionCellProps {
 function ActionCell({ record }: ActionCellProps) {
   const [openDelete, setOpenDelete] = useState(false)
 
-  const queryClient = useQueryClient()
-  const { offset, limit } = usePaginationQuery()
-
-  const mutation = useMutation({
-    mutationFn: async () => {
-      try {
-        await services.chains.delete(record.id)
-      } catch (error) {
-        throwAxiosError(error as Error)
-      }
-    },
-    onSuccess: () => {
-      toast.success('Chain deleted successfully')
-      queryClient.invalidateQueries({
-        queryKey: [CHAIN_QUERY_KEY, { offset, limit }],
-      })
-      setOpenDelete(false)
-    },
-  })
+  const deleteMutation = useMutation(queries.chains.delete())
 
   const handleDelete = async () => {
     try {
-      await mutation.mutateAsync()
+      await deleteMutation.mutateAsync(record.id)
+      toast.success('Chain deleted successfully')
+      setOpenDelete(false)
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'An error occurred'
-      toast.error(message)
+      toastAxiosError(error as Error)
     }
   }
 

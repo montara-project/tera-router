@@ -1,10 +1,11 @@
 import z from 'zod'
 
-import { requiredNumber } from '@/lib/validation'
+import { optionalNumber } from '@/lib/validation'
 
+/** Shared offset/limit pagination query (GET list endpoints). */
 export const PaginateSchema = z.object({
-  offset: requiredNumber('offset').optional(),
-  limit: requiredNumber('limit').optional(),
+  offset: optionalNumber('offset'),
+  limit: optionalNumber('limit'),
 })
 
 export type PaginateDto = z.infer<typeof PaginateSchema>

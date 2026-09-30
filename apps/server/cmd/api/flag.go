@@ -3,8 +3,18 @@ package main
 import (
 	"flag"
 	"log"
+	"os"
+
 	"tera-router/server/internal/config"
+	"tera-router/server/internal/database"
 )
+
+// debugFromEnv is the default for the -debug flag, so DEBUG=true enables
+// query logging in deployments that configure through the environment.
+func debugFromEnv() bool {
+	v := os.Getenv("DEBUG")
+	return v == "true" || v == "1"
+}
 
 func parseFlag(cfg *config.Config) {
 	var machineID uint
@@ -12,14 +22,16 @@ func parseFlag(cfg *config.Config) {
 	// App
 	flag.UintVar(&machineID, "machine-id", 0, "Machine ID")
 	flag.StringVar(&cfg.App.Env, "env", "development", "Environment")
-	flag.BoolVar(&cfg.App.Debug, "debug", false, "Debug mode")
+	flag.BoolVar(&cfg.App.Debug, "debug", debugFromEnv(), "Debug mode (also enabled by DEBUG=true)")
 	flag.IntVar(&cfg.App.Port, "port", 8080, "Port")
 	flag.StringVar(&cfg.App.Name, "app-name", "tera-router-server", "App Name")
 	flag.StringVar(&cfg.App.Secret, "app-secret", "", "App Secret")
 	flag.StringVar(&cfg.App.CORSAllowedOrigins, "cors-allowed-origins", "*", "CORS Allowed Origins")
 
 	// Database
-	flag.StringVar(&cfg.Database.URL, "database-url", "", "Database URL")
+	flag.StringVar(&cfg.Database.Path, "database-path", database.DefaultPath, "SQLite database file path")
+	flag.BoolVar(&cfg.Database.MigrateOnBoot, "migrate-on-boot", false, "Apply pending migrations before starting the server")
+	flag.BoolVar(&cfg.Database.SeedOnBoot, "seed-on-boot", false, "Run baseline seeders after migrating on boot")
 
 	// Sentry
 	flag.StringVar(&cfg.Sentry.Dsn, "sentry-dsn", "", "Sentry DSN")
@@ -48,5 +60,9 @@ func validateFlag(cfg *config.Config) {
 
 	if cfg.App.Secret == "" {
 		log.Fatal("flag app-secret must be provided")
+	}
+
+	if cfg.Database.Path == "" {
+		log.Fatal("flag database-path must not be empty")
 	}
 }

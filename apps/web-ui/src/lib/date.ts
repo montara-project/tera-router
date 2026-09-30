@@ -115,10 +115,52 @@ export function ms(value: string | number): Second {
 /**
  * Format date using date-fns
  * @param date - Date to format
- * @param formatStr - Format string (default: 'dd MMM yyyy')
+ * @param formatStr - Format string (default: 'dd/MM/yyyy')
  * @returns Formatted date string
  */
-export function formatDate(date: Date | string | null | undefined, formatStr?: string): string {
+export function formatDate(
+  date: Date | string | number | null | undefined,
+  formatStr?: string
+): string {
   if (!date) return '-'
-  return formatDateFn(date, formatStr || 'dd MMM yyyy')
+  return formatDateFn(date, formatStr || 'dd/MM/yyyy')
+}
+
+/**
+ * Format date with time (dd/MM/yyyy, HH:mm:ss)
+ */
+export function formatDateTime(date: Date | string | number | null | undefined): string {
+  return formatDate(date, 'dd/MM/yyyy, HH:mm:ss')
+}
+
+/**
+ * Wall-clock time only (HH:mm:ss)
+ */
+export function formatClock(date: Date | string | number): string {
+  return formatDateFn(date, 'HH:mm:ss')
+}
+
+/**
+ * Relative age, e.g. "just now", "5m ago", "3h ago", "2d ago"
+ */
+export function formatTimeAgo(date: Date | string | number): string {
+  const minutes = Math.floor((Date.now() - new Date(date).getTime()) / 60_000)
+
+  if (minutes < 1) return 'just now'
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+
+  return `${Math.floor(hours / 24)}d ago`
+}
+
+/**
+ * Duration in seconds as "Nd Nh Nm" (e.g. uptime)
+ */
+export function formatDuration(seconds: number): string {
+  const days = Math.floor(seconds / 86_400)
+  const hours = Math.floor((seconds % 86_400) / 3_600)
+  const minutes = Math.floor((seconds % 3_600) / 60)
+
+  return `${days}d ${hours}h ${minutes}m`
 }

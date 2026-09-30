@@ -7,19 +7,21 @@ FROM node:24-alpine AS web-ui
 
 WORKDIR /build
 
+# The workspace manifest and lockfile must be present before install so pnpm
+# resolves the frozen workspace graph.
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY apps/web-ui/package.json apps/web-ui/package.json
 
-RUN corepack enable && pnpm install --frozen-lockfile --filter @tera/web-ui
+RUN corepack enable && pnpm install --frozen-lockfile --filter @tera/web
 
 COPY apps/web-ui apps/web-ui
 
-RUN pnpm --filter @tera/web-ui build
+RUN pnpm --filter @tera/web build
 
 # ====================================================================================
 # Stage 2: server (Go build)
 # ====================================================================================
-FROM golang:1.25-alpine AS server
+FROM golang:1.26-alpine AS server
 
 WORKDIR /build
 
@@ -36,16 +38,27 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /build/tera-
 # ====================================================================================
 FROM alpine:3.22
 
-RUN addgroup -S tera && adduser -S tera -G tera
+# ca-certificates: outbound calls to upstream providers are HTTPS.
+# tzdata: timestamps in logs and the dashboard follow the host timezone.
+RUN apk add --no-cache ca-certificates tzdata \
+    && addgroup -S tera && adduser -S tera -G tera \
+    && mkdir -p /app/data && chown tera:tera /app/data
 
 WORKDIR /app
 
 COPY --from=server /build/tera-server ./tera-server
 COPY --from=web-ui /build/apps/web-ui/dist ./public
 
+# The migrator resolves ./migrations relative to the working directory, so the
+# SQL files must ship alongside the binary for --migrate-on-boot.
+COPY apps/server/migrations ./migrations
+
+# The SQLite file lives on a volume so it survives image upgrades.
+VOLUME ["/app/data"]
+
 USER tera
 
 EXPOSE 8080
 
 ENTRYPOINT ["./tera-server"]
-CMD ["--env=production", "--port=8080"]
+CMD ["--env=production", "--port=8080", "--database-path=/app/data/terarouter.db"]

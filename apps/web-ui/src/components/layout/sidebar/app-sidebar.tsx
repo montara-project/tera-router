@@ -44,7 +44,7 @@ export default function AppSidebar({ auth, ...props }: AppSidebarProps) {
               <Link to="/">
                 <div className="text-sidebar-primary-foreground bg-neutral-100 p-1 flex aspect-square size-8 items-center justify-center rounded-lg">
                   <img
-                    src="https://ik.imagekit.io/4atsn1s5g4/assets/tera.png"
+                    src="/static/images/tera.png"
                     alt="Tera Router"
                     width={32}
                     height={32}

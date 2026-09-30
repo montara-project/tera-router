@@ -1,0 +1,158 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Light is the default; .dark on <html> flips every semantic token. */
+:root {
+  color-scheme: light;
+
+  --canvas: #f8fafc;
+  --surface: #ffffff;
+  --raised: #f1f5f9;
+  --subtle: #f1f5f9;
+  --panel: #ffffff;
+  --line: #e2e8f0;
+  --divide: #e2e8f0;
+  --ink: #0f172a;
+  --dim: #475569;
+  --faint: #64748b;
+  --accent: #16a34a;
+  --accent-soft: #15803d;
+  --on-accent: #ffffff;
+  --code: #0b1020;
+  --code-line: #1e293b;
+  --sheen: rgba(255, 255, 255, 0.9);
+  --grid: rgba(100, 116, 139, 0.14);
+  --grad-1: #166534;
+  --grad-2: #15803d;
+  --grad-3: #16a34a;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --canvas: #020617;
+  --surface: #0e1223;
+  --raised: #141931;
+  --subtle: #070b16;
+  --panel: #070b18;
+  --line: #232b47;
+  --divide: rgba(255, 255, 255, 0.06);
+  --ink: #f8fafc;
+  --dim: #94a3b8;
+  --faint: #7c8aa0;
+  --accent: #22c55e;
+  --accent-soft: #4ade80;
+  --on-accent: #052e16;
+  --code: #0a0e1d;
+  --code-line: #232b47;
+  --sheen: rgba(255, 255, 255, 0.05);
+  --grid: rgba(148, 163, 184, 0.055);
+  --grad-1: #86efac;
+  --grad-2: #4ade80;
+  --grad-3: #22c55e;
+}
+
+@theme inline {
+  --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
+
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-raised: var(--raised);
+  --color-subtle: var(--subtle);
+  --color-panel: var(--panel);
+  --color-line: var(--line);
+  --color-divide: var(--divide);
+  --color-ink: var(--ink);
+  --color-dim: var(--dim);
+  --color-faint: var(--faint);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-on-accent: var(--on-accent);
+  --color-code: var(--code);
+  --color-code-line: var(--code-line);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: rgba(34, 197, 94, 0.25);
+}
+
+*:focus-visible {
+  outline: 2px solid var(--accent-soft);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.grid-bg {
+  background-image:
+    linear-gradient(to right, var(--grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, black 55%, transparent 100%);
+}
+
+.sheen {
+  box-shadow: inset 0 1px 0 0 var(--sheen);
+}
+
+.text-gradient {
+  background: linear-gradient(120deg, var(--grad-1) 0%, var(--grad-2) 55%, var(--grad-3) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Provider monogram: brand hue stays, but the text tone follows the theme so
+   light brand colors (xAI, Ollama) stay legible on a light background. */
+.brand-mark {
+  background: color-mix(in srgb, var(--brand) 12%, transparent);
+  color: color-mix(in srgb, var(--brand) 42%, #0f172a);
+}
+
+.dark .brand-mark {
+  background: color-mix(in srgb, var(--brand) 10%, transparent);
+  color: var(--brand);
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.rise-in {
+  animation: rise-in 0.5s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .rise-in {
+    animation: none;
+  }
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+  }
+}

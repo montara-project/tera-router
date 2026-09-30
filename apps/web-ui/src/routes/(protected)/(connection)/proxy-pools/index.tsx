@@ -1,15 +1,407 @@
+import {
+  IconEye,
+  IconPencil,
+  IconPlayerPlay,
+  IconPlus,
+  IconRefresh,
+  IconRocket,
+  IconTrash,
+  IconUpload,
+} from '@tabler/icons-react'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
+import { ChevronDown } from 'lucide-react'
+import { useState } from 'react'
+import { toast } from 'sonner'
+
+import type { Models } from '@/lib/api/models'
 
 import SectionCard from '@/components/block/common/section-card'
+import SimpleAlertDialog from '@/components/block/common/simple-alert-dialog'
+import SimpleDialog from '@/components/block/common/simple-dialog'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardToolbar } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Skeleton } from '@/components/ui/skeleton'
+import { toastAxiosError } from '@/lib/api/axios-error'
+import { queries } from '@/lib/api/queries'
+import { formatTimeAgo } from '@/lib/date'
+import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/(protected)/(connection)/proxy-pools/')({
   component: RouteComponent,
 })
 
-function RouteComponent() {
+function RouteSkeleton() {
   return (
-    <SectionCard title="Proxy Pools">
-      <div>Hello "/(protected)/(connection)/proxy-pools/"!</div>
+    <div className="bg-sidebar border border-sidebar-accent p-2 rounded-2xl">
+      <div className="rounded-lg border border-border bg-background p-4">
+        <Skeleton className="h-40 w-full rounded-lg" />
+      </div>
+    </div>
+  )
+}
+
+function RouteComponent() {
+  const [selected, setSelected] = useState<Record<string, boolean>>({})
+  const [addOpen, setAddOpen] = useState(false)
+
+  const { data } = useQuery(queries.proxyPools.list())
+  const pools = data?.data ?? []
+
+  const createMutation = useMutation(queries.proxyPools.create())
+  const healthCheckMutation = useMutation(queries.proxyPools.healthCheck())
+
+  const allSelected = pools.length > 0 && pools.every((pool) => selected[pool.id])
+  const someSelected = pools.some((pool) => selected[pool.id])
+  const activeCount = pools.filter((pool) => pool.status === 'active').length
+
+  const toggleAll = (checked: boolean) => {
+    const next: Record<string, boolean> = {}
+    if (checked) {
+      for (const pool of pools) {
+        next[pool.id] = true
+      }
+    }
+    setSelected(next)
+  }
+
+  const toggleOne = (id: string) => {
+    setSelected((previous) => ({ ...previous, [id]: !previous[id] }))
+  }
+
+  const handleDeploy = () => {
+    toast.info('Relay deployment is not wired to the backend yet')
+  }
+
+  const handleBatchImport = () => {
+    toast.info('Batch import is not wired to the backend yet')
+  }
+
+  const handleAddPool = async (payload: {
+    name: string
+    url: string
+    mode?: string
+    label?: string
+  }) => {
+    await createMutation.mutateAsync(payload)
+    toast.success('Proxy pool created')
+  }
+
+  const handleHealthCheck = async () => {
+    const result = await healthCheckMutation.mutateAsync()
+    toast.success(`${result.data.tested} pools tested`)
+  }
+
+  if (!data) {
+    return <RouteSkeleton />
+  }
+
+  return (
+    <SectionCard
+      title="Proxy Pools"
+      description="Route upstream traffic through proxy pools for resilience and geo-distribution."
+      toolbar={
+        <div className="flex flex-wrap items-center gap-2.5">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button className="bg-emerald-600 text-white hover:bg-emerald-500 dark:bg-emerald-600 dark:hover:bg-emerald-500">
+                <IconRocket />
+                <span>Deploy Relay</span>
+                <ChevronDown className="opacity-70" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleDeploy}>Cloudflare Worker</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleDeploy}>Local process</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <Button variant="secondary" onClick={handleBatchImport}>
+            <IconUpload />
+            <span>Batch Import</span>
+          </Button>
+
+          <Button
+            className="bg-cyan-600 text-white hover:bg-cyan-500 dark:bg-cyan-600 dark:hover:bg-cyan-500"
+            onClick={() => setAddOpen(true)}
+          >
+            <IconPlus />
+            <span>Add Proxy Pool</span>
+          </Button>
+        </div>
+      }
+    >
+      <Card className="bg-background">
+        <CardHeader className="h-20">
+          <div className="flex items-center gap-3">
+            <Checkbox
+              aria-label="Select all pools"
+              checked={allSelected ? true : someSelected ? 'indeterminate' : false}
+              onCheckedChange={(value) => toggleAll(value === true)}
+              size="sm"
+            />
+            <span className="text-sm">Select all</span>
+            <span className="text-muted-foreground text-sm">{pools.length} total</span>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-950/40 px-2 py-0.5 text-xs font-medium text-emerald-400 ring-1 ring-emerald-900/60 ring-inset">
+              <span className="size-1.5 rounded-full bg-emerald-500" />
+              {activeCount} active
+            </span>
+          </div>
+          <CardToolbar>
+            <Button
+              disabled={pools.length === 0 || healthCheckMutation.isPending}
+              onClick={() => handleHealthCheck().catch(toastAxiosError)}
+              size="sm"
+              variant="outline"
+            >
+              <IconRefresh />
+              <span>Health Check</span>
+            </Button>
+          </CardToolbar>
+        </CardHeader>
+
+        <CardContent className="p-0">
+          {pools.length === 0 ? (
+            <Empty className="py-14">
+              <EmptyHeader>
+                <EmptyMedia variant="icon" className="size-12 rounded-full">
+                  <IconRocket />
+                </EmptyMedia>
+                <EmptyTitle>No proxy pools yet</EmptyTitle>
+                <EmptyDescription>
+                  Add a pool to route upstream traffic through resilient exits.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          ) : (
+            <div className="divide-y divide-border">
+              {pools.map((pool) => (
+                <ProxyPoolRow
+                  key={pool.id}
+                  pool={pool}
+                  selected={Boolean(selected[pool.id])}
+                  onToggle={() => toggleOne(pool.id)}
+                />
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <AddPoolDialog open={addOpen} onOpenChange={setAddOpen} onSubmit={handleAddPool} />
     </SectionCard>
+  )
+}
+
+interface AddPoolDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onSubmit: (payload: { name: string; url: string; mode?: string; label?: string }) => Promise<void>
+}
+
+function AddPoolDialog({ open, onOpenChange, onSubmit }: AddPoolDialogProps) {
+  const [name, setName] = useState('')
+  const [url, setUrl] = useState('')
+  const [label, setLabel] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  const valid = name.trim() !== '' && url.trim() !== ''
+
+  const handleSubmit = async () => {
+    if (!valid || submitting) return
+
+    setSubmitting(true)
+    try {
+      await onSubmit({ name: name.trim(), url: url.trim(), label: label.trim() || undefined })
+      onOpenChange(false)
+      setName('')
+      setUrl('')
+      setLabel('')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <SimpleDialog
+      title="Add Proxy Pool"
+      description="Register an outbound proxy exit. The pool is tested before it is marked active."
+      open={open}
+      onOpenChange={onOpenChange}
+    >
+      <div className="space-y-4">
+        <div className="space-y-1.5">
+          <Label htmlFor="pool-name">Name</Label>
+          <Input
+            id="pool-name"
+            value={name}
+            placeholder="cloudflare-relay"
+            onChange={(event) => setName(event.target.value)}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="pool-url">URL</Label>
+          <Input
+            id="pool-url"
+            value={url}
+            placeholder="https://relay.example.workers.dev"
+            onChange={(event) => setUrl(event.target.value)}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="pool-label">Label (optional)</Label>
+          <Input
+            id="pool-label"
+            value={label}
+            placeholder="cloudflare relay"
+            onChange={(event) => setLabel(event.target.value)}
+          />
+        </div>
+        <div className="flex justify-end gap-2 pt-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button disabled={!valid || submitting} onClick={handleSubmit}>
+            {submitting ? 'Adding…' : 'Add pool'}
+          </Button>
+        </div>
+      </div>
+    </SimpleDialog>
+  )
+}
+
+interface ProxyPoolRowProps {
+  pool: Models.ProxyPool
+  selected: boolean
+  onToggle: () => void
+}
+
+function ProxyPoolRow({ pool, selected, onToggle }: ProxyPoolRowProps) {
+  const [openDelete, setOpenDelete] = useState(false)
+
+  const testMutation = useMutation(queries.proxyPools.test())
+  const deleteMutation = useMutation(queries.proxyPools.delete())
+
+  const handleTest = async () => {
+    try {
+      await testMutation.mutateAsync(pool.id)
+      toast.success(`Pool ${pool.name} is healthy`)
+    } catch (error) {
+      toastAxiosError(error as Error)
+    }
+  }
+
+  const handleDelete = async () => {
+    try {
+      await deleteMutation.mutateAsync(pool.id)
+      toast.success('Proxy pool deleted')
+      setOpenDelete(false)
+    } catch (error) {
+      toastAxiosError(error as Error)
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-4 px-5 py-4">
+      <Checkbox
+        aria-label={`Select ${pool.name}`}
+        checked={selected}
+        onCheckedChange={onToggle}
+        size="sm"
+      />
+
+      <div className="min-w-0 flex-1 space-y-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm font-semibold text-foreground">{pool.name}</span>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-950/40 px-2 py-0.5 text-xs font-medium text-emerald-400 ring-1 ring-emerald-900/60 ring-inset">
+            <span
+              className={cn(
+                'size-1.5 rounded-full',
+                pool.status === 'active' ? 'bg-emerald-500' : 'bg-zinc-500'
+              )}
+            />
+            {pool.status}
+          </span>
+          {pool.label && (
+            <span className="inline-flex items-center rounded-full bg-emerald-950/40 px-2 py-0.5 text-xs font-medium text-emerald-400 ring-1 ring-emerald-900/60 ring-inset">
+              {pool.label}
+            </span>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <code className="truncate font-mono text-xs text-muted-foreground">{pool.url}</code>
+          <span className="text-muted-foreground whitespace-nowrap text-xs">
+            tested {formatTimeAgo(pool.tested_at)}
+          </span>
+          {pool.mode && (
+            <span className="text-muted-foreground whitespace-nowrap text-xs">{pool.mode}</span>
+          )}
+        </div>
+      </div>
+
+      <div className="flex shrink-0 items-center gap-1.5">
+        <Button
+          aria-label={`View ${pool.name}`}
+          className="text-muted-foreground hover:text-foreground"
+          mode="icon"
+          onClick={() => console.log('view', pool.id)}
+          size="icon"
+          variant="outline"
+        >
+          <IconEye />
+        </Button>
+        <Button
+          aria-label={`Test ${pool.name}`}
+          className="text-muted-foreground hover:text-foreground"
+          disabled={testMutation.isPending}
+          mode="icon"
+          onClick={() => handleTest()}
+          size="icon"
+          variant="outline"
+        >
+          <IconPlayerPlay />
+        </Button>
+        <Button
+          aria-label={`Edit ${pool.name}`}
+          className="text-muted-foreground hover:text-foreground"
+          mode="icon"
+          onClick={() => console.log('edit', pool.id)}
+          size="icon"
+          variant="outline"
+        >
+          <IconPencil />
+        </Button>
+        <Button
+          aria-label={`Delete ${pool.name}`}
+          className="text-muted-foreground hover:text-foreground"
+          mode="icon"
+          onClick={() => setOpenDelete(true)}
+          size="icon"
+          variant="outline"
+        >
+          <IconTrash />
+        </Button>
+      </div>
+
+      <SimpleAlertDialog
+        confirmText="Delete"
+        description={`Proxy pool "${pool.name}" will be permanently deleted. Traffic routed through it will fail over to other pools.`}
+        onConfirm={handleDelete}
+        onOpenChange={setOpenDelete}
+        open={openDelete}
+        title="Do you want to delete this proxy pool?"
+        variant="destructive"
+      />
+    </div>
   )
 }

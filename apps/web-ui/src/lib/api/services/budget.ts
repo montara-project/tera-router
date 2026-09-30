@@ -1,0 +1,43 @@
+import { env } from '@/config/env'
+import { AUTH_STORAGE_KEYS } from '@/lib/constants/auth'
+
+import type { BudgetResources } from './types/budget'
+
+import { ClientFetchApi } from '../client-fetch'
+import { BudgetSchema } from '../dtos/budget/schema'
+import { parseDto } from '../dtos/parse'
+
+const path = '/v1/budgets'
+
+const api = new ClientFetchApi({
+  baseURL: String(env.VITE_API_URL),
+  storageKey: AUTH_STORAGE_KEYS.AUTH_STORAGE,
+}).default
+
+const resources = (): BudgetResources => {
+  return {
+    list: () => {
+      const url = path
+      return api.get(url)
+    },
+    /** spend vs limit for every budget over its current period */
+    status: () => {
+      const url = `${path}/status`
+      return api.get(url)
+    },
+    store: (payload) => {
+      const url = path
+      return api.post(url, parseDto(BudgetSchema, payload))
+    },
+    update: (id, payload) => {
+      const url = `${path}/${id}`
+      return api.patch(url, parseDto(BudgetSchema, payload))
+    },
+    remove: (id) => {
+      const url = `${path}/${id}`
+      return api.delete(url)
+    },
+  }
+}
+
+export const budgetServices = resources()

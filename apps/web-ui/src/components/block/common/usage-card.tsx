@@ -44,7 +44,7 @@ export default function UsageCard({
   const colors = tones[tone]
 
   return (
-    <Card className="p-5">
+    <Card className="p-5 bg-background">
       <div className="flex items-center gap-4">
         <span
           className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1 ${colors.background}`}

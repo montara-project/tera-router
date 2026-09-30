@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Field, FieldGroup } from '@/components/ui/field'
 import { useAppForm } from '@/hooks/form'
 import { SignInSchema } from '@/lib/api/dtos/auth/schema'
+import { signInWithEmail } from '@/lib/auth/email-auth'
 import { cn } from '@/lib/utils'
 
 export default function LoginSection({ className, ...props }: React.ComponentProps<'div'>) {
@@ -22,11 +23,11 @@ export default function LoginSection({ className, ...props }: React.ComponentPro
       onSubmit: SignInSchema,
       onChange: SignInSchema,
     },
-    onSubmit: async () => {
+    onSubmit: async ({ value }) => {
       setIsLoading(true)
 
       try {
-        // await signInWithEmail(value)
+        await signInWithEmail(value)
         navigate({ to: '/dashboard' })
       } catch (error) {
         const message = error instanceof Error ? error.message : 'An error occurred'
