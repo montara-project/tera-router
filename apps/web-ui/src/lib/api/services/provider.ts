@@ -45,10 +45,19 @@ const resources = (): ProviderResources => {
       const url = `${customPath}/${id}`
       return api.delete(url)
     },
-    /** fetches the model catalog from the provider's upstream API */
+    /** stored catalog with per-model states (the gateway's bare-name source) */
     customModels: (id) => {
       const url = `${customPath}/${id}/models`
       return api.get(url)
+    },
+    /** live-fetch the upstream /models list and merge it into the catalog */
+    customModelsSync: (id) => {
+      const url = `${customPath}/${id}/models/sync`
+      return api.post(url)
+    },
+    customModelsUpdate: (id, payload) => {
+      const url = `${customPath}/${id}/models`
+      return api.patch(url, payload)
     },
     /** provider-scoped bulk account operations (provider slug as :id) */
     accountsBulkDisable: (slug) => {

@@ -3,6 +3,7 @@ package handlers
 import (
 	"cmp"
 	"encoding/json"
+	"errors"
 	"strings"
 
 	"tera-router/server/internal/app"
@@ -254,12 +255,35 @@ func (h *providersHandler) CustomDelete(c fiber.Ctx) error {
 	return dtos.Deleted(c, "Provider deleted")
 }
 
-// CustomModels fetches the model catalog straight from the provider's
-// upstream model-list endpoint, authenticated with its highest-priority
-// usable credential (GET /v1/custom-providers/:id/models). The result is
-// persisted as the provider's stored catalog — the source the gateway uses
-// to resolve bare model ids and to advertise them on /v1/models.
+// CustomModels returns the provider's stored model catalog with each model's
+// active/disabled state (GET /v1/custom-providers/:id/models). The catalog is
+// what the gateway uses to resolve bare model ids and to advertise them on
+// /v1/models.
 func (h *providersHandler) CustomModels(c fiber.Ctx) error {
+	id, err := lib.ContextParamUUID(c, "id")
+	if err != nil {
+		return apperr.ErrBadRequest
+	}
+
+	provider, err := h.app.Repos.Providers.Get(c.Context(), id.String())
+	if err != nil {
+		return err
+	}
+	cat, err := modelcatalog.Load(c.Context(), h.app.Repos.Settings, provider.Slug)
+	if errors.Is(err, modelcatalog.ErrNoCatalog) {
+		return dtos.OK(c, fiber.Map{"models": []modelcatalog.ModelEntry{}, "fetched_at": nil})
+	}
+	if err != nil {
+		return err
+	}
+	return dtos.OK(c, fiber.Map{"models": cat.Models, "fetched_at": cat.FetchedAt})
+}
+
+// CustomModelsSync fetches the model catalog straight from the provider's
+// upstream model-list endpoint, authenticated with its highest-priority
+// usable credential (POST /v1/custom-providers/:id/models/sync), and merges
+// it into the stored catalog. Disabled models stay disabled across syncs.
+func (h *providersHandler) CustomModelsSync(c fiber.Ctx) error {
 	id, err := lib.ContextParamUUID(c, "id")
 	if err != nil {
 		return apperr.ErrBadRequest
@@ -303,10 +327,53 @@ func (h *providersHandler) CustomModels(c fiber.Ctx) error {
 	if err != nil {
 		return apperr.New(apperr.KindUnprocessable, "%s", err.Error())
 	}
-	if err := modelcatalog.Store(c.Context(), h.app.Repos.Settings, provider.Slug, modelIDs); err != nil {
+	cat, err := modelcatalog.Store(c.Context(), h.app.Repos.Settings, provider.Slug, modelIDs)
+	if err != nil {
 		return err
 	}
-	return dtos.OK(c, fiber.Map{"models": modelIDs})
+	return dtos.OK(c, fiber.Map{"models": cat.Models, "fetched_at": cat.FetchedAt})
+}
+
+// CustomModelsUpdate applies per-model active/disabled changes
+// (PATCH /v1/custom-providers/:id/models). Only models already in the stored
+// catalog can be toggled; unknown ids are a client error.
+func (h *providersHandler) CustomModelsUpdate(c fiber.Ctx) error {
+	id, err := lib.ContextParamUUID(c, "id")
+	if err != nil {
+		return apperr.ErrBadRequest
+	}
+
+	var req dtos.ProviderModelStates
+	if err := lib.ValidateRequestBody(c, &req); err != nil {
+		return err
+	}
+
+	provider, err := h.app.Repos.Providers.Get(c.Context(), id.String())
+	if err != nil {
+		return err
+	}
+
+	updates := make([]modelcatalog.StateUpdate, 0, len(req.Models))
+	for _, m := range req.Models {
+		if m.ID == "" {
+			return apperr.New(apperr.KindUnprocessable, "model id is required")
+		}
+		if m.State != modelcatalog.StateActive && m.State != modelcatalog.StateDisabled {
+			return apperr.New(apperr.KindUnprocessable, "state must be active or disabled")
+		}
+		updates = append(updates, modelcatalog.StateUpdate{ID: m.ID, State: m.State})
+	}
+
+	cat, err := modelcatalog.SetStates(c.Context(), h.app.Repos.Settings, provider.Slug, updates)
+	switch {
+	case errors.Is(err, modelcatalog.ErrNoCatalog):
+		return apperr.New(apperr.KindUnprocessable, "no stored catalog for this provider; sync from /models first")
+	case errors.Is(err, modelcatalog.ErrUnknownModel):
+		return apperr.New(apperr.KindUnprocessable, "%s", err.Error())
+	case err != nil:
+		return err
+	}
+	return dtos.OK(c, fiber.Map{"models": cat.Models, "fetched_at": cat.FetchedAt})
 }
 
 // --- Provider-scoped bulk account operations ---

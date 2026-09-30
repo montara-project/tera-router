@@ -93,7 +93,25 @@ func serve(app *app.Application) error {
 	server.Use(static.New("./public"))
 
 	// Initial Routes
-	gw := routes(server, app) // Create channel to listen for interrupt signals
+	gw := routes(server, app)
+
+	// SPA fallback: the web-ui is a client-side routed bundle — routes like
+	// /dashboard exist only in the browser, so a refresh asks the server for a
+	// file that doesn't exist. A wildcard route registered last only runs when
+	// no real route matched, so API paths keep their JSON 404 instead.
+	spaFallback := func(c fiber.Ctx) error {
+		path := c.Path()
+		if strings.HasPrefix(path, "/v1") ||
+			strings.HasPrefix(path, "/responses") ||
+			gateway.IsGatewayPath(path) {
+			return fiber.ErrNotFound
+		}
+		return c.SendFile("./public/index.html")
+	}
+	server.Get("/*", spaFallback)
+	server.Head("/*", spaFallback)
+
+	// Create channel to listen for interrupt signals
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 

@@ -171,8 +171,12 @@ func (s *Server) catalogResult(ctx context.Context, model string) (resolveResult
 		if err != nil {
 			continue // no stored catalog: nothing to match against
 		}
-		for _, id := range cat.Models {
-			if id == model {
+		for _, entry := range cat.Models {
+			// A model the operator disabled is excluded from routing.
+			if entry.State != modelcatalog.StateActive {
+				continue
+			}
+			if entry.ID == model {
 				out = append(out, target{Provider: p.Slug, Model: model})
 				break
 			}

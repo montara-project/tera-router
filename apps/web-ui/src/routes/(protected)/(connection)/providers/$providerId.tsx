@@ -4,11 +4,15 @@ import {
   IconApps,
   IconArrowLeft,
   IconCircleCheck,
+  IconCopy,
   IconDownload,
+  IconEye,
+  IconEyeOff,
   IconGitBranch,
   IconKey,
   IconPlus,
   IconRefresh,
+  IconSearch,
   IconSettings,
   IconTrash,
 } from '@tabler/icons-react'
@@ -34,13 +38,18 @@ import {
   CardTitle,
   CardToolbar,
 } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
+import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { queries } from '@/lib/api/queries'
 import { ACCOUNT_QUERY_KEY } from '@/lib/api/queries/account'
 import { CHAIN_QUERY_KEY } from '@/lib/api/queries/chain'
-import { CUSTOM_PROVIDER_QUERY_KEY, PROVIDER_QUERY_KEY } from '@/lib/api/queries/provider'
+import {
+  CUSTOM_PROVIDER_QUERY_KEY,
+  PROVIDER_QUERY_KEY,
+} from '@/lib/api/queries/provider'
 import { USAGE_QUERY_KEY } from '@/lib/api/queries/usage'
 import { services } from '@/lib/api/services'
 
@@ -51,6 +60,8 @@ export const Route = createFileRoute('/(protected)/(connection)/providers/$provi
 const PAGE_SIZE = 5
 const AMBER_BUTTON_CLASS =
   'bg-amber-600 text-white hover:bg-amber-500/90 dark:bg-amber-600 dark:hover:bg-amber-500/90'
+const EMERALD_BUTTON_CLASS =
+  'bg-emerald-600 text-white hover:bg-emerald-500/90 dark:bg-emerald-600 dark:hover:bg-emerald-500/90'
 
 function DetailSkeleton() {
   return (
@@ -89,19 +100,20 @@ function CustomProviderDetailRoute() {
   const [accountPage, setAccountPage] = useState(1)
   const [testingId, setTestingId] = useState<string | null>(null)
   const [testingAll, setTestingAll] = useState(false)
-  const [catalog, setCatalog] = useState<Models.UpstreamModels | null>(null)
 
   const providerQuery = useQuery(queries.providers.customGet(providerId))
   const provider = providerQuery.data
   const accountQuery = useQuery(queries.accounts.list({ offset: 0, limit: 100 }))
   const chainsQuery = useQuery(queries.chains.list({ offset: 0, limit: 100 }))
   const usageQuery = useQuery(queries.usage.telemetry('30d'))
+  const catalogQuery = useQuery(queries.providers.customModels(providerId))
 
   const deleteProviderMutation = useMutation(queries.providers.customDelete())
   const toggleProviderMutation = useMutation(queries.providers.customUpdate(providerId))
   const testAccountMutation = useMutation(queries.accounts.test())
   const deleteAccountMutation = useMutation(queries.accounts.delete())
-  const fetchModelsMutation = useMutation(queries.providers.customModels(providerId))
+  const syncModelsMutation = useMutation(queries.providers.customModelsSync(providerId))
+  const updateModelsMutation = useMutation(queries.providers.customModelsUpdate(providerId))
 
   const accounts = useMemo(
     () => (accountQuery.data?.data ?? []).filter((account) => account.provider === provider?.slug),
@@ -212,14 +224,13 @@ function CustomProviderDetailRoute() {
     else toast.warning(`${ok} of ${accounts.length} accounts reachable`)
   }
 
-  const fetchCatalog = async () => {
+  const syncCatalog = async () => {
     try {
-      const result = await fetchModelsMutation.mutateAsync()
-      setCatalog(result.data)
-      toast.success(`Fetched ${result.data.models.length} models from upstream`)
+      const result = await syncModelsMutation.mutateAsync()
+      toast.success(`Synced ${result.data.models.length} models from upstream`)
     } catch (err) {
       const detail = (err as AxiosError<{ message?: string }>).response?.data?.message
-      toast.error(detail || 'Failed to fetch models from upstream')
+      toast.error(detail || 'Failed to sync models from upstream')
     }
   }
 
@@ -489,11 +500,14 @@ function CustomProviderDetailRoute() {
 
             <TabsContent value="models" className="mt-4">
               <ModelsPanel
-                models={providerModels}
-                loading={usageQuery.isLoading}
-                catalog={catalog}
-                fetching={fetchModelsMutation.isPending}
-                onFetch={fetchCatalog}
+                providerSlug={provider.slug}
+                catalog={catalogQuery.data?.data ?? null}
+                loading={catalogQuery.isLoading}
+                observed={providerModels}
+                observedLoading={usageQuery.isLoading}
+                syncing={syncModelsMutation.isPending}
+                onSync={syncCatalog}
+                onUpdate={updateModelsMutation.mutateAsync}
               />
             </TabsContent>
 
@@ -556,111 +570,353 @@ function SummaryTile({
 }
 
 function ModelsPanel({
+  providerSlug,
+  catalog,
+  loading,
+  observed,
+  observedLoading,
+  syncing,
+  onSync,
+  onUpdate,
+}: {
+  providerSlug: string
+  catalog: Models.UpstreamModels | null
+  loading: boolean
+  observed: Models.UsageModelAccountingRow[]
+  observedLoading: boolean
+  syncing: boolean
+  onSync: () => void
+  onUpdate: (body: { models: { id: string; state: Models.ProviderModelState }[] }) => Promise<unknown>
+}) {
+  const [subTab, setSubTab] = useState('catalog')
+  const enabledCount = catalog?.models.filter((m) => m.state === 'active').length ?? 0
+
+  return (
+    <Tabs value={subTab} onValueChange={setSubTab}>
+      <TabsList className="w-full justify-start overflow-x-auto">
+        <TabsTrigger value="catalog">Catalog ({enabledCount})</TabsTrigger>
+        <TabsTrigger value="observed">Observed ({observed.length})</TabsTrigger>
+      </TabsList>
+      <TabsContent value="catalog" className="mt-4">
+        <ModelsCatalog
+          providerSlug={providerSlug}
+          catalog={catalog}
+          loading={loading}
+          syncing={syncing}
+          onSync={onSync}
+          onUpdate={onUpdate}
+        />
+      </TabsContent>
+      <TabsContent value="observed" className="mt-4">
+        <ObservedPanel models={observed} loading={observedLoading} />
+      </TabsContent>
+    </Tabs>
+  )
+}
+
+function ModelsCatalog({
+  providerSlug,
+  catalog,
+  loading,
+  syncing,
+  onSync,
+  onUpdate,
+}: {
+  providerSlug: string
+  catalog: Models.UpstreamModels | null
+  loading: boolean
+  syncing: boolean
+  onSync: () => void
+  onUpdate: (body: { models: { id: string; state: Models.ProviderModelState }[] }) => Promise<unknown>
+}) {
+  const [search, setSearch] = useState('')
+  const [selected, setSelected] = useState<string[]>([])
+
+  const models = useMemo(() => catalog?.models ?? [], [catalog])
+  const enabledCount = models.filter((m) => m.state === 'active').length
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return models
+    return models.filter((m) => m.id.toLowerCase().includes(q))
+  }, [models, search])
+  const selectedInFiltered = selected.filter((id) => filtered.some((m) => m.id === id))
+  const allSelected = filtered.length > 0 && selectedInFiltered.length === filtered.length
+  const someSelected = selectedInFiltered.length > 0 && !allSelected
+
+  const toggleModel = async (id: string, state: Models.ProviderModelState) => {
+    try {
+      await onUpdate({ models: [{ id, state }] })
+    } catch {
+      toast.error('Failed to update model')
+    }
+  }
+
+  const bulkToggle = async (state: Models.ProviderModelState) => {
+    if (selectedInFiltered.length === 0) return
+    const count = selectedInFiltered.length
+    try {
+      await onUpdate({ models: selectedInFiltered.map((id) => ({ id, state })) })
+      toast.success(
+        `${count} ${count === 1 ? 'model' : 'models'} ${state === 'active' ? 'enabled' : 'disabled'}`
+      )
+      setSelected([])
+    } catch {
+      toast.error('Failed to update models')
+    }
+  }
+
+  const toggleSelect = (id: string, checked: boolean) => {
+    setSelected((prev) => (checked ? [...prev, id] : prev.filter((x) => x !== id)))
+  }
+
+  return (
+    <Card className="bg-background">
+      <CardHeader className="h-20">
+        <CardHeading>
+          <CardTitle>Model catalog</CardTitle>
+          <CardDescription>
+            {catalog
+              ? `${enabledCount} of ${models.length} models enabled in this catalog. Disabled models are excluded from routing.`
+              : 'Sync from /models to import the provider model list into the catalog.'}
+          </CardDescription>
+        </CardHeading>
+        <CardToolbar>
+          <Button size="sm" className={EMERALD_BUTTON_CLASS} disabled={syncing} onClick={onSync}>
+            {syncing ? <IconRefresh className="animate-spin" /> : <IconDownload />} Sync from
+            /models
+          </Button>
+        </CardToolbar>
+      </CardHeader>
+      {loading ? (
+        <CardContent className="p-5">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {Array.from({ length: 6 }, (_, i) => (
+              <Skeleton key={i} className="h-36 rounded-xl" />
+            ))}
+          </div>
+        </CardContent>
+      ) : models.length === 0 ? (
+        <CardContent className="p-0">
+          <Empty className="border-0 py-12">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <IconApps />
+              </EmptyMedia>
+              <EmptyTitle>No catalog yet</EmptyTitle>
+              <EmptyDescription>
+                Sync from /models to import every model this provider exposes, then enable the ones
+                that should route. Enabled models become callable by their bare name.
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        </CardContent>
+      ) : (
+        <CardContent className="p-0">
+          <div className="flex flex-wrap items-center gap-3 border-b border-border px-5 py-3">
+            <div className="relative min-w-56 flex-1 md:max-w-sm">
+              <IconSearch className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by model name or ID..."
+                className="h-9 pl-9"
+              />
+            </div>
+            {selectedInFiltered.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <Button size="sm" variant="outline" onClick={() => bulkToggle('active')}>
+                  <IconCircleCheck /> Enable ({selectedInFiltered.length})
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => bulkToggle('disabled')}>
+                  <IconEyeOff /> Disable ({selectedInFiltered.length})
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setSelected([])}>
+                  Clear
+                </Button>
+              </div>
+            ) : (
+              <div className="ml-auto flex items-center gap-3">
+                <span className="text-xs text-muted-foreground">{filtered.length} shown</span>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Checkbox
+                    size="sm"
+                    checked={allSelected ? true : someSelected ? 'indeterminate' : false}
+                    onCheckedChange={(checked) =>
+                      setSelected(checked === true ? filtered.map((m) => m.id) : [])
+                    }
+                    aria-label="Select all models"
+                  />
+                  Select all
+                </div>
+              </div>
+            )}
+          </div>
+          {filtered.length === 0 ? (
+            <Empty className="border-0 py-12">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <IconSearch />
+                </EmptyMedia>
+                <EmptyTitle>No models match "{search}"</EmptyTitle>
+                <EmptyDescription>
+                  Try a shorter name or clear the search to see the full catalog.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          ) : (
+            <div className="grid gap-3 p-5 md:grid-cols-2 xl:grid-cols-3">
+              {filtered.map((model) => (
+                <ModelCard
+                  key={model.id}
+                  providerSlug={providerSlug}
+                  model={model}
+                  selected={selected.includes(model.id)}
+                  onToggleSelect={toggleSelect}
+                  onToggleState={toggleModel}
+                />
+              ))}
+            </div>
+          )}
+        </CardContent>
+      )}
+    </Card>
+  )
+}
+
+function ModelCard({
+  providerSlug,
+  model,
+  selected,
+  onToggleSelect,
+  onToggleState,
+}: {
+  providerSlug: string
+  model: Models.ProviderModel
+  selected: boolean
+  onToggleSelect: (id: string, checked: boolean) => void
+  onToggleState: (id: string, state: Models.ProviderModelState) => void
+}) {
+  const active = model.state === 'active'
+  const composite = `${providerSlug}/${model.id}`
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(model.id)
+      toast.success('Model ID copied')
+    } catch {
+      toast.error('Failed to copy model ID')
+    }
+  }
+
+  return (
+    <div
+      className={`rounded-xl border p-4 transition-colors ${active ? 'bg-background' : 'bg-muted/20'}`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Checkbox
+            size="sm"
+            checked={selected}
+            onCheckedChange={(checked) => onToggleSelect(model.id, checked === true)}
+            aria-label={`Select ${model.id}`}
+          />
+          <Badge variant={active ? 'success' : 'secondary'} appearance="light" size="sm">
+            <BadgeDot />
+            {active ? 'Enabled' : 'Disabled'}
+          </Badge>
+        </div>
+        <Badge variant="outline" size="sm">
+          llm
+        </Badge>
+      </div>
+      <p className="mt-3 truncate text-sm font-semibold" title={model.id}>
+        {model.id}
+      </p>
+      <p
+        className="mt-1.5 truncate rounded-md bg-muted/50 px-2 py-1 font-mono text-xs text-muted-foreground"
+        title={composite}
+      >
+        {composite}
+      </p>
+      <div className="mt-3 flex items-center justify-between border-t border-border/60 pt-2.5">
+        <span className={`text-xs ${active ? 'text-emerald-500' : 'text-muted-foreground'}`}>
+          {active ? 'Enabled in catalog' : 'Excluded from routing'}
+        </span>
+        <div className="flex gap-1">
+          <Button
+            size="icon"
+            variant="ghost"
+            aria-label={active ? `Disable ${model.id}` : `Enable ${model.id}`}
+            onClick={() => onToggleState(model.id, active ? 'disabled' : 'active')}
+          >
+            {active ? <IconEye /> : <IconEyeOff />}
+          </Button>
+          <Button size="icon" variant="ghost" aria-label={`Copy ${model.id}`} onClick={copy}>
+            <IconCopy />
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ObservedPanel({
   models,
   loading,
-  catalog,
-  fetching,
-  onFetch,
 }: {
   models: Models.UsageModelAccountingRow[]
   loading: boolean
-  catalog: Models.UpstreamModels | null
-  fetching: boolean
-  onFetch: () => void
 }) {
+  if (loading)
+    return (
+      <div className="space-y-2">
+        <Skeleton className="h-12 w-full" />
+        <Skeleton className="h-12 w-full" />
+      </div>
+    )
+  if (!models.length) {
+    return (
+      <Empty className="border">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <IconApps />
+          </EmptyMedia>
+          <EmptyTitle>No observed models yet</EmptyTitle>
+          <EmptyDescription>
+            Models appear here after this provider has terminal usage. The catalog tab lists every
+            model the provider exposes.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    )
+  }
   return (
-    <div className="space-y-4">
-      <Card className="bg-background">
-        <CardHeader className="h-20">
-          <CardHeading>
-            <CardTitle>Upstream catalog</CardTitle>
-            <CardDescription>
-              Fetch the full model list directly from the provider's API.
-            </CardDescription>
-          </CardHeading>
-          <CardToolbar>
-            <Button size="sm" variant="outline" disabled={fetching} onClick={onFetch}>
-              {fetching ? <IconRefresh className="animate-spin" /> : <IconDownload />} Fetch models
-            </Button>
-          </CardToolbar>
-        </CardHeader>
-        <CardContent className="p-0">
-          {fetching ? (
-            <div className="space-y-2 p-5">
-              <Skeleton className="h-8 w-full" />
-              <Skeleton className="h-8 w-full" />
-              <Skeleton className="h-8 w-full" />
-            </div>
-          ) : catalog ? (
-            catalog.models.length ? (
-              <div className="divide-y divide-border/60">
-                {catalog.models.map((model) => (
-                  <div key={model} className="px-5 py-2.5 font-mono text-sm">
-                    {model}
-                  </div>
-                ))}
+    <Card className="bg-background">
+      <CardHeader className="h-20">
+        <CardHeading>
+          <CardTitle>Observed models ({models.length})</CardTitle>
+          <CardDescription>Models seen in terminal usage for this provider.</CardDescription>
+        </CardHeading>
+      </CardHeader>
+      <CardContent className="p-0">
+        <div className="divide-y divide-border/60">
+          {models.map((model) => (
+            <div
+              key={model.id}
+              className="grid grid-cols-[1.4fr_0.8fr_0.9fr_1fr] items-center gap-4 px-5 py-3"
+            >
+              <div>
+                <p className="font-mono text-sm font-medium">{model.model}</p>
+                <p className="text-xs text-muted-foreground">{model.provider}</p>
               </div>
-            ) : (
-              <p className="px-5 py-4 text-sm text-muted-foreground">
-                The upstream returned no models.
-              </p>
-            )
-          ) : (
-            <p className="px-5 py-4 text-sm text-muted-foreground">
-              Run <span className="font-medium text-foreground">Fetch models</span> to list every
-              model this provider exposes on its upstream API.
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
-      {loading ? (
-        <div className="space-y-2">
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-12 w-full" />
-        </div>
-      ) : !models.length ? (
-        <Empty className="border">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <IconApps />
-            </EmptyMedia>
-            <EmptyTitle>No observed models yet</EmptyTitle>
-            <EmptyDescription>
-              Models appear here after this provider has terminal usage. Fetch the upstream catalog
-              above to see every model the provider exposes.
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      ) : (
-        <Card className="bg-background">
-          <CardHeader className="h-20">
-            <CardHeading>
-              <CardTitle>Observed models ({models.length})</CardTitle>
-              <CardDescription>Models seen in terminal usage for this provider.</CardDescription>
-            </CardHeading>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="divide-y divide-border/60">
-              {models.map((model) => (
-                <div
-                  key={model.id}
-                  className="grid grid-cols-[1.4fr_0.8fr_0.9fr_1fr] items-center gap-4 px-5 py-3"
-                >
-                  <div>
-                    <p className="font-mono text-sm font-medium">{model.model}</p>
-                    <p className="text-xs text-muted-foreground">{model.provider}</p>
-                  </div>
-                  <span className="text-sm tabular-nums">{model.requests} requests</span>
-                  <span className="text-sm tabular-nums">{model.successPct}% success</span>
-                  <span className="text-sm tabular-nums">{fmtLatency(model.latencyMs)} avg</span>
-                </div>
-              ))}
+              <span className="text-sm tabular-nums">{model.requests} requests</span>
+              <span className="text-sm tabular-nums">{model.successPct}% success</span>
+              <span className="text-sm tabular-nums">{fmtLatency(model.latencyMs)} avg</span>
             </div>
-          </CardContent>
-        </Card>
-      )}
-    </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 

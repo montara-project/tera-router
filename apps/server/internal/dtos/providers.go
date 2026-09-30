@@ -19,6 +19,22 @@ func (d *CustomProvider) Validate(v *validator.MapValidator) {
 	v.Field("name").Required().String()
 }
 
+// ProviderModelState sets one catalog model's state
+// (PATCH /v1/custom-providers/:id/models).
+type ProviderModelState struct {
+	ID    string `json:"id"`
+	State string `json:"state"`
+}
+
+// ProviderModelStates is the per-model active/disabled update body.
+type ProviderModelStates struct {
+	Models []ProviderModelState `json:"models"`
+}
+
+func (d *ProviderModelStates) Validate(v *validator.MapValidator) {
+	v.Field("models").Required()
+}
+
 // CatalogProvider is a built-in provider spec, ported (condensed) from
 // IDRouter's connectors catalog: the subset of metadata the dashboard needs
 // to render the providers page and validate credentials.

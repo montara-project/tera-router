@@ -14,6 +14,11 @@ export type ProviderResources = {
   ) => Promise<AxiosItemResponse<Models.CustomProvider>>
   customDelete: (id: string) => Promise<AxiosDeleteResponse>
   customModels: (id: string) => Promise<AxiosItemResponse<Models.UpstreamModels>>
+  customModelsSync: (id: string) => Promise<AxiosItemResponse<Models.UpstreamModels>>
+  customModelsUpdate: (
+    id: string,
+    payload: { models: { id: string; state: Models.ProviderModelState }[] }
+  ) => Promise<AxiosItemResponse<Models.UpstreamModels>>
   accountsBulkDisable: (slug: string) => Promise<AxiosItemResponse<{ updated: number }>>
   accountsBulkEnable: (slug: string) => Promise<AxiosItemResponse<{ updated: number }>>
   accountsBulkDeleteDisabled: (slug: string) => Promise<AxiosItemResponse<{ deleted: number }>>

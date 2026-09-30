@@ -17,7 +17,7 @@ func TestResolveTargetsBareModelFromCatalog(t *testing.T) {
 	exec(t, a, `
 		INSERT INTO settings (key, value) VALUES
 		('provider_models_custom-openai-zrouter',
-		 '{"version":1,"fetched_at":"2026-01-01T00:00:00Z","models":["deepseek-v4.1-flash","glm-5"]}')`)
+		 '{"version":2,"fetched_at":"2026-01-01T00:00:00Z","models":[{"id":"deepseek-v4.1-flash","state":"active"},{"id":"glm-5","state":"active"}]}')`)
 
 	res, err := s.resolveTargets(context.Background(), "deepseek-v4.1-flash")
 	if err != nil {
@@ -53,7 +53,7 @@ func TestResolveTargetsBareModelFallbackOrder(t *testing.T) {
 		exec(t, a, `
 			INSERT INTO settings (key, value) VALUES
 			('provider_models_`+slug+`',
-			 '{"version":1,"fetched_at":"2026-01-01T00:00:00Z","models":["glm-5"]}')`)
+			 '{"version":2,"fetched_at":"2026-01-01T00:00:00Z","models":[{"id":"glm-5","state":"active"}]}')`)
 	}
 
 	res, err := s.resolveTargets(context.Background(), "glm-5")
@@ -87,5 +87,37 @@ func TestResolveTargetsUnknownBareModelStillErrors(t *testing.T) {
 	var bad badModelError
 	if !asBadModel(err, &bad) {
 		t.Fatalf("error %T = %v, want badModelError", err, err)
+	}
+}
+
+// TestResolveTargetsSkipsDisabledModel asserts the operator's per-model
+// choice: a model set to disabled in the catalog is neither routable via the
+// bare id nor advertised — only the remaining active provider serves it.
+func TestResolveTargetsSkipsDisabledModel(t *testing.T) {
+	s, a := newTestServer(t)
+
+	exec(t, a, `
+		INSERT INTO custom_providers (id, name, slug, base_url, api_kind, enabled, priority) VALUES
+		('cp-off',   'Off',   'custom-openai-off',   'https://off.example/v1',   'openai', 1, 1),
+		('cp-alive', 'Alive', 'custom-openai-alive', 'https://alive.example/v1', 'openai', 1, 200)`)
+	exec(t, a, `
+		INSERT INTO settings (key, value) VALUES
+		('provider_models_custom-openai-off',
+		 '{"version":2,"fetched_at":"2026-01-01T00:00:00Z","models":[{"id":"glm-5","state":"disabled"}]}'),
+		('provider_models_custom-openai-alive',
+		 '{"version":2,"fetched_at":"2026-01-01T00:00:00Z","models":[{"id":"glm-5","state":"active"},{"id":"m2","state":"disabled"}]}')`)
+
+	res, err := s.resolveTargets(context.Background(), "glm-5")
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	if len(res.Targets) != 1 || res.Targets[0].Provider != "custom-openai-alive" {
+		t.Fatalf("targets = %+v, want only custom-openai-alive (off is disabled)", res.Targets)
+	}
+
+	// A model disabled everywhere resolves to nothing.
+	_, err = s.resolveTargets(context.Background(), "m2")
+	if err == nil {
+		t.Fatal("expected an error for a model disabled in every catalog")
 	}
 }

@@ -86,12 +86,14 @@ func (s *Server) handleListModels(c fiber.Ctx) error {
 		if err != nil {
 			continue // no stored catalog: nothing to advertise
 		}
-		for _, id := range cat.Models {
-			if id == "" || claimed[id] {
+		for _, entry := range cat.Models {
+			// Disabled models are excluded from the listing as well as from
+			// routing, so a client never picks a model that cannot serve.
+			if entry.State != modelcatalog.StateActive || entry.ID == "" || claimed[entry.ID] {
 				continue
 			}
-			claimed[id] = true
-			data = append(data, modelEntry{ID: id, Object: "model", OwnedBy: p.Slug})
+			claimed[entry.ID] = true
+			data = append(data, modelEntry{ID: entry.ID, Object: "model", OwnedBy: p.Slug})
 		}
 	}
 
