@@ -3,9 +3,11 @@ package gateway
 import (
 	"context"
 	"net/http"
+	"sort"
 
 	"tera-router/server/internal/autocombo"
 	"tera-router/server/internal/core"
+	"tera-router/server/internal/modelcatalog"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -22,8 +24,9 @@ type modelEntry struct {
 // a chat request. Chains are advertised as "combo" models — matching the
 // upstream convention that a combo chains multiple providers with
 // auto-fallback and is callable by its bare name — alongside the auto-combo
-// ids ("auto", "auto/<variant>"), so coding agents can discover and select
-// them from their model pickers.
+// ids ("auto", "auto/<variant>") and the bare model ids from the stored
+// custom-provider catalogs, so coding agents can discover and select them
+// from their model pickers.
 //
 // The listing is identity-level: it does not reflect the calling key's model
 // allowlist, which the per-request access check enforces anyway.
@@ -53,6 +56,43 @@ func (s *Server) handleListModels(c fiber.Ctx) error {
 	}
 	for _, id := range autocombo.ListedModels() {
 		data = append(data, modelEntry{ID: id, Object: "model", OwnedBy: "combo"})
+	}
+
+	// Bare model ids from the stored custom-provider catalogs — the outcome
+	// of the dashboard's "Fetch models" action. An id served by several
+	// providers is listed once (the resolver turns it into a cross-provider
+	// fallback chain), and an id already claimed by a chain or auto-combo
+	// keeps its claim.
+	claimed := make(map[string]bool, len(data))
+	for _, entry := range data {
+		claimed[entry.ID] = true
+	}
+	providers, err := s.app.Repos.Providers.List(ctx)
+	if err != nil {
+		s.log.Error("gateway list models: providers query failed", "error", err)
+		return s.fail(c, core.DialectOpenAI, http.StatusInternalServerError, "failed to list models")
+	}
+	sort.Slice(providers, func(i, j int) bool {
+		if providers[i].Priority != providers[j].Priority {
+			return providers[i].Priority < providers[j].Priority
+		}
+		return providers[i].Slug < providers[j].Slug
+	})
+	for _, p := range providers {
+		if !p.Enabled || p.BaseURL == "" {
+			continue
+		}
+		cat, err := modelcatalog.Load(ctx, s.app.Repos.Settings, p.Slug)
+		if err != nil {
+			continue // no stored catalog: nothing to advertise
+		}
+		for _, id := range cat.Models {
+			if id == "" || claimed[id] {
+				continue
+			}
+			claimed[id] = true
+			data = append(data, modelEntry{ID: id, Object: "model", OwnedBy: p.Slug})
+		}
 	}
 
 	return c.Status(http.StatusOK).JSON(fiber.Map{"object": "list", "data": data})

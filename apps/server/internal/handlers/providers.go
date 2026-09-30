@@ -10,6 +10,7 @@ import (
 	"tera-router/server/internal/dtos"
 	"tera-router/server/internal/lib"
 	"tera-router/server/internal/lib/apperr"
+	"tera-router/server/internal/modelcatalog"
 	"tera-router/server/internal/models"
 
 	"github.com/gofiber/fiber/v3"
@@ -255,7 +256,9 @@ func (h *providersHandler) CustomDelete(c fiber.Ctx) error {
 
 // CustomModels fetches the model catalog straight from the provider's
 // upstream model-list endpoint, authenticated with its highest-priority
-// usable credential (GET /v1/custom-providers/:id/models).
+// usable credential (GET /v1/custom-providers/:id/models). The result is
+// persisted as the provider's stored catalog — the source the gateway uses
+// to resolve bare model ids and to advertise them on /v1/models.
 func (h *providersHandler) CustomModels(c fiber.Ctx) error {
 	id, err := lib.ContextParamUUID(c, "id")
 	if err != nil {
@@ -299,6 +302,9 @@ func (h *providersHandler) CustomModels(c fiber.Ctx) error {
 	modelIDs, err := h.app.Services.Upstream.ListModels(c.Context(), endpoint, anthropic, apiKey)
 	if err != nil {
 		return apperr.New(apperr.KindUnprocessable, "%s", err.Error())
+	}
+	if err := modelcatalog.Store(c.Context(), h.app.Repos.Settings, provider.Slug, modelIDs); err != nil {
+		return err
 	}
 	return dtos.OK(c, fiber.Map{"models": modelIDs})
 }
