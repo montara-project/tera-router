@@ -12,7 +12,7 @@
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
     "postinstall": "fumadocs-mdx",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "clean": "rimraf .next node_modules .source .turbo"
   },
   "dependencies": {
