@@ -17,6 +17,9 @@ export const Route = createFileRoute('/(protected)/(traffic)/model-alias/')({
   component: ModelAliasRoute,
 })
 
+const EMERALD_BUTTON_CLASS =
+  'bg-emerald-600 text-white hover:bg-emerald-500/90 dark:bg-emerald-600 dark:hover:bg-emerald-500/90'
+
 function blankAlias(): Models.ModelAlias {
   return {
     id: '',
@@ -34,12 +37,14 @@ function ModelAliasRoute() {
   const [creating, setCreating] = useState(false)
 
   const { data, isLoading } = useQuery(queries.aliases.list())
+  const all = useMemo(() => data?.data ?? [], [data])
   const aliases = useMemo(() => {
-    const rows = data?.data ?? []
     const q = search.trim().toLowerCase()
-    if (!q) return rows
-    return rows.filter((a) => a.name.toLowerCase().includes(q))
-  }, [data, search])
+    if (!q) return all
+    return all.filter((a) => a.name.toLowerCase().includes(q))
+  }, [all, search])
+
+  const activeCount = all.filter((a) => a.active).length
 
   return (
     <SectionCard
@@ -48,22 +53,33 @@ function ModelAliasRoute() {
       toolbar={
         <Button
           size="sm"
-          className="bg-emerald-600 text-white hover:bg-emerald-500/90 dark:bg-emerald-600 dark:hover:bg-emerald-500/90"
+          className={EMERALD_BUTTON_CLASS}
           onClick={() => setCreating(true)}
+          disabled={creating}
         >
           <IconPlus /> New alias
         </Button>
       }
     >
-      <div className="space-y-4">
-        <div className="relative w-full max-w-sm">
-          <IconSearch className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search aliases by name..."
-            className="h-10 pl-9"
-          />
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative w-full max-w-sm">
+            <IconSearch className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search aliases by name..."
+              aria-label="Search aliases by name"
+              className="h-10 pl-9"
+            />
+          </div>
+          {!isLoading && all.length > 0 ? (
+            <p className="text-xs tabular-nums text-muted-foreground">
+              {search
+                ? `${aliases.length} of ${all.length} aliases`
+                : `${all.length} alias${all.length === 1 ? '' : 'es'} · ${activeCount} active`}
+            </p>
+          ) : null}
         </div>
 
         {creating ? (
@@ -71,7 +87,10 @@ function ModelAliasRoute() {
         ) : null}
 
         {isLoading ? (
-          <Skeleton className="h-40 w-full rounded-2xl" />
+          <div className="space-y-3">
+            <Skeleton className="h-52 w-full rounded-xl" />
+            <Skeleton className="h-52 w-full rounded-xl" />
+          </div>
         ) : aliases.length === 0 ? (
           <Empty className="border">
             <EmptyHeader>
@@ -87,9 +106,22 @@ function ModelAliasRoute() {
                   : 'Create an alias to give clients a stable model name backed by an ordered pool of provider targets.'}
               </EmptyDescription>
             </EmptyHeader>
+            {search ? (
+              <Button variant="outline" size="sm" onClick={() => setSearch('')}>
+                Clear search
+              </Button>
+            ) : (
+              <Button size="sm" className={EMERALD_BUTTON_CLASS} onClick={() => setCreating(true)}>
+                <IconPlus /> New alias
+              </Button>
+            )}
           </Empty>
         ) : (
-          aliases.map((alias) => <AliasCard key={alias.id} alias={alias} />)
+          <div className="space-y-3">
+            {aliases.map((alias) => (
+              <AliasCard key={alias.id} alias={alias} />
+            ))}
+          </div>
         )}
       </div>
     </SectionCard>
