@@ -1,0 +1,46 @@
+---
+title: Providers & Accounts
+description: The built-in provider catalog, adding accounts, priorities, and custom providers.
+---
+
+## Provider vs account
+
+- A **provider** is a type of upstream (OpenAI, Anthropic, GLM, ...) with a built-in dialect and base URL.
+- An **account** is your concrete credential on that provider — one provider can have many accounts.
+
+## Built-in catalog
+
+| Dialect              | Providers                                                                                                                                    |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| OpenAI-compatible    | `openai`, `deepseek`, `xai`, `glm-cn`, `mistral`, `groq`, `cohere`, `perplexity`, `openrouter`, `nvidia`, `azure`, `vllm`, `ollama`, `cline` |
+| Anthropic-compatible | `anthropic`, `claude` (Claude Code, OAuth), `glm`, `kimi`, `minimax`                                                                         |
+| Responses            | `codex` (OAuth, ChatGPT backend)                                                                                                             |
+| No credentials       | `ollama-local` (localhost:11434)                                                                                                             |
+| OAuth-only           | `gemini`, `vertex`, `github` (Copilot), `cursor`, `kiro`, `qoder`, `kilocode`                                                                |
+
+Account credentials are stored encrypted (envelope encryption with a key derived from `APP_SECRET`).
+
+## Adding an account
+
+Via the dashboard (**Providers → pick a provider → Connect**) or the API. Always test before saving:
+
+```bash
+curl -X POST http://localhost:8080/v1/validate-key \
+  -H "Authorization: Bearer <dashboard-jwt>" \
+  -H "Content-Type: application/json" \
+  -d '{ "provider": "openai", "auth_kind": "api_key", "api_key": "sk-..." }'
+```
+
+Important fields when creating an account:
+
+- `auth_kind` — `api_key`, `oauth`, or `none`.
+- `priority` — the order used when one provider has multiple accounts.
+- `proxy_pool_id` — bind the account to a proxy pool for outbound IP control.
+- `metadata.base_url` — override the built-in base URL (useful for your own compatible endpoints).
+- `metadata.headers` — extra headers per account.
+
+Every account supports a connection test (`POST /v1/accounts/:id/test`) and quota reading (`GET /v1/accounts/:id/quota`) from the dashboard.
+
+## Custom providers
+
+Have your own OpenAI/Anthropic/Responses-compatible endpoint? Register it as a custom provider (**Providers → Custom**) by picking its `api_kind`, then add accounts as usual. Its slug works immediately in `model: "my-provider/model"`.

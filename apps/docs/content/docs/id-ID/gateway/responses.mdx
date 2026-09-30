@@ -1,0 +1,45 @@
+---
+title: Responses
+description: Endpoint kompatibel OpenAI Responses — POST /v1/responses dan POST /responses.
+---
+
+Tera Router menyediakan dua jalur untuk dialek Responses API:
+
+| Endpoint             | Keterangan                                                    |
+| -------------------- | ------------------------------------------------------------- |
+| `POST /v1/responses` | Jalur utama, sejajar dengan endpoint `/v1` lainnya            |
+| `POST /responses`    | Alias di root, untuk klien Responses-native seperti Codex CLI |
+
+## Request
+
+```bash
+curl http://localhost:8080/v1/responses \
+  -H "Authorization: Bearer sk_tr_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "codex/gpt-5-codex",
+    "input": "Tulis unit test untuk fungsi parseDate"
+  }'
+```
+
+Respons mengikuti format Responses API standar, dengan header `X-TeraRouter-Provider` dan `X-TeraRouter-Model` seperti endpoint lain.
+
+## Streaming
+
+`stream: true` didukung penuh — sama seperti di [Chat Completions](/id-ID/docs/gateway/chat-completions#streaming), chunk mengalir sebagai SSE.
+
+## Dipakai oleh Codex CLI
+
+Arahkan Codex ke instans Tera Router dengan environment variable standar OpenAI:
+
+```bash
+export OPENAI_BASE_URL=http://localhost:8080/responses
+export OPENAI_API_KEY=sk_tr_...
+```
+
+Atau lebih praktis lagi: buka halaman **CLI Tools** di dashboard dan pakai konfigurasi satu klik yang sudah mengarah ke instansmu.
+
+<Callout type="info" title="Provider codex adalah OAuth">
+  Model di bawah provider `codex` memakai akun ChatGPT/Codex (OAuth) yang dihubungkan lewat halaman
+  **Providers**, bukan API key biasa.
+</Callout>

@@ -1,22 +1,90 @@
 ---
 title: Introduction
-description: Getting started with Tera Router monorepo.
+description: One base URL and one API key for every model — OpenAI, Anthropic, and Responses API dialects in one place.
 ---
 
-## Welcome
+## What is Tera Router?
 
-Tera Router is a monorepo managed with pnpm workspaces.
+Tera Router is an LLM gateway you run yourself. Point your SDK, `curl`, or favorite coding agent at a single base URL, and the router forwards each request to the providers you have connected — complete with fallbacks, cooldowns, spending limits, and usage tracking.
 
-| App      | Stack                  | Port |
-| -------- | ---------------------- | ---- |
-| `web-ui` | Vite + TanStack Router | 5173 |
-| `server` | GoFiber                | 3000 |
-| `docs`   | Fumadocs (Next.js)     | 3001 |
+- **Three dialects, fully compatible** — `POST /v1/chat/completions` (OpenAI), `POST /v1/messages` (Anthropic), and `POST /v1/responses` (OpenAI Responses). Existing clients need no changes.
+- **Routing you control** — provider chains with `priority`, `round-robin`, or `load-balanced` strategies, plus automatic failover when an account fails or gets rate limited.
+- **Cost control** — plans and budgets per key, per account, or global, with alerts and hard cutoffs.
+- **Guardrails** — PII, prompt injection, topic, toxicity, and bias detection before requests leave.
+- **Dashboard** — manage everything above from a UI: API keys, provider accounts, chains, guardrails, usage, down to the console log.
 
-## Commands
+## Three steps to your first request
+
+1. **Start the server** — `make run` in `apps/server`, gateway ready at `http://localhost:8080`.
+2. **Create an API key** — sign in to the dashboard at `http://localhost:5173`, open **API Keys**, create a key prefixed with `sk_tr_`.
+3. **Call it** — use that key in the `Authorization` header:
 
 ```bash
-pnpm install        # install all dependencies
-pnpm dev            # run all apps in parallel
-pnpm --filter @tera/web-ui dev   # single app
+curl http://localhost:8080/v1/chat/completions \
+  -H "Authorization: Bearer sk_tr_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      { "role": "user", "content": "Hello, world!" }
+    ]
+  }'
 ```
+
+## Call it from code
+
+Any SDK that speaks the OpenAI format only needs its base URL swapped:
+
+```ts title="OpenAI SDK"
+import OpenAI from 'openai'
+
+const client = new OpenAI({
+  apiKey: 'sk_tr_...',
+  baseURL: 'http://localhost:8080/v1',
+})
+
+const res = await client.chat.completions.create({
+  model: 'anthropic/claude-sonnet-4',
+  messages: [{ role: 'user', content: 'Hello, world!' }],
+})
+```
+
+```ts title="Anthropic SDK"
+import Anthropic from '@anthropic-ai/sdk'
+
+const client = new Anthropic({
+  apiKey: 'sk_tr_...',
+  baseURL: 'http://localhost:8080',
+})
+
+const res = await client.messages.create({
+  model: 'openai/gpt-4o-mini',
+  max_tokens: 1024,
+  messages: [{ role: 'user', content: 'Hello, world!' }],
+})
+```
+
+Note: with Tera Router, an Anthropic model can be called through the OpenAI SDK and vice versa — the router translates the dialects.
+
+## Next steps
+
+<Cards>
+  <Card href="/docs/getting-started/installation" title="Installation">
+    Set up the server and dashboard from scratch.
+  </Card>
+  <Card href="/docs/gateway" title="Gateway API">
+    Authentication, endpoints, and request formats.
+  </Card>
+  <Card href="/docs/gateway/model-addressing" title="Models & routing">
+    `provider/model`, alias pools, and `chain:`.
+  </Card>
+  <Card href="/docs/concepts/guardrails" title="Guardrails">
+    PII, injection, and forbidden topic filters.
+  </Card>
+  <Card href="/docs/api-reference/dashboard-api" title="API Reference">
+    Every dashboard REST endpoint.
+  </Card>
+  <Card href="/docs/configuration" title="Configuration">
+    Environment variables and `make` targets.
+  </Card>
+</Cards>

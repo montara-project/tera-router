@@ -1,0 +1,45 @@
+---
+title: Responses
+description: OpenAI Responses-compatible endpoint — POST /v1/responses and POST /responses.
+---
+
+Tera Router provides two paths for the Responses API dialect:
+
+| Endpoint             | Notes                                                         |
+| -------------------- | ------------------------------------------------------------- |
+| `POST /v1/responses` | Primary path, alongside the other `/v1` endpoints             |
+| `POST /responses`    | Root-level alias, for Responses-native clients like Codex CLI |
+
+## Request
+
+```bash
+curl http://localhost:8080/v1/responses \
+  -H "Authorization: Bearer sk_tr_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "codex/gpt-5-codex",
+    "input": "Write unit tests for the parseDate function"
+  }'
+```
+
+The response follows the standard Responses API format, with the `X-TeraRouter-Provider` and `X-TeraRouter-Model` headers like every other endpoint.
+
+## Streaming
+
+`stream: true` is fully supported — just like [Chat Completions](/docs/gateway/chat-completions#streaming), chunks stream as SSE.
+
+## Used by Codex CLI
+
+Point Codex at your Tera Router instance with the standard OpenAI environment variables:
+
+```bash
+export OPENAI_BASE_URL=http://localhost:8080/responses
+export OPENAI_API_KEY=sk_tr_...
+```
+
+Or even easier: open the **CLI Tools** page in the dashboard and use the one-click configuration that already points at your instance.
+
+<Callout type="info" title="The codex provider uses OAuth">
+  Models under the `codex` provider use ChatGPT/Codex accounts (OAuth) connected through the
+  **Providers** page, not regular API keys.
+</Callout>

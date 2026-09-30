@@ -1,0 +1,45 @@
+---
+title: Guardrails
+description: Layered policies for PII, prompt injection, topics, toxicity, and bias.
+---
+
+Guardrails inspect requests (and optionally responses) before/as they leave for the provider. Policies are managed from the **Guardrails** page.
+
+## Layered, most-specific-wins
+
+Policies can be attached at five scopes — `global`, `provider`, `model`, `chain`, and `key`. For a single request, the router resolves the effective policy per detector with a _most-specific-wins_ rule: a policy on the `key` scope beats `chain`, which beats `model`, and so on.
+
+The consequence: a global guardrail cannot be turned off from a key — keys can only tighten, never loosen the layers above them.
+
+## Detectors
+
+| Detector    | What it checks                                                                                                             |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `pii`       | Emails, IPs, phone numbers, credit cards, IBANs, and Indonesian identities (NIK, NPWP, passport) — with masking strategies |
+| `injection` | Prompt injection patterns, tiered                                                                                          |
+| `topics`    | Allowed or blocked topic lists (allow/block mode)                                                                          |
+| `toxicity`  | Rude/harmful content with score thresholds                                                                                 |
+| `bias`      | Bias with score thresholds                                                                                                 |
+
+Each detector has `enabled` and `action`:
+
+- `block` — reject the request (`403` error).
+- `warn` — forward but flag it.
+- `log` — just record it.
+
+Model output scanning is enabled per policy (`scan_output`) — useful for preventing PII leaks through responses.
+
+## Testing without risk
+
+The **Guardrails** page has an evaluation mode (`POST /v1/guardrails/evaluate`): send a sample text, see which policies would trigger and what they'd decide — without actually blocking anything.
+
+```bash
+curl -X POST http://localhost:8080/v1/guardrails/evaluate \
+  -H "Authorization: Bearer <dashboard-jwt>" \
+  -H "Content-Type: application/json" \
+  -d '{ "input": "my email is budi@example.com", "scope": "global" }'
+```
+
+## Detection credibility
+
+The built-in detectors are deterministic (regex/lexicons). There is an `external_detectors` toggle in settings to enable external detectors when available.

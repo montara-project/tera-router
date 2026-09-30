@@ -65,14 +65,9 @@ const cardHover =
 function Hero() {
   return (
     <section className="relative overflow-hidden">
-      <div aria-hidden className="grid-bg absolute inset-0" />
       <div
         aria-hidden
-        className="absolute top-[-320px] left-1/2 size-[760px] -translate-x-1/2 rounded-full bg-accent/10 blur-[140px] dark:bg-accent/10"
-      />
-      <div
-        aria-hidden
-        className="absolute top-[180px] left-[18%] size-[340px] rounded-full bg-accent/[0.07] blur-[110px] dark:bg-emerald-500/5"
+        className="absolute top-[-320px] left-1/2 size-[760px] -translate-x-1/2 rounded-full bg-accent/[0.05] blur-[140px] dark:bg-accent/[0.04]"
       />
       <div className="relative mx-auto max-w-6xl px-6 pt-20 pb-16 sm:pt-28 sm:pb-24">
         <div className="rise-in mx-auto max-w-3xl text-center">

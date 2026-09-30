@@ -1,0 +1,41 @@
+---
+title: Routing & Resilience
+description: How the router picks targets, sweeps through backups, and keeps requests going.
+---
+
+## Decision order
+
+For every request, the router:
+
+1. **Translates `model`** following the order in [Models & routing](/docs/gateway/model-addressing): `chain:<name>` → alias → `provider/model` → plain name. The result is an ordered list of targets.
+2. **Checks access** — key ∩ plan allowlist, and active budgets.
+3. **Picks an account** — the highest-priority account that isn't cooling down and isn't disabled; if the provider uses round-robin, accounts rotate.
+4. **Forwards the request** — and moves up to the next target if it fails.
+
+## Fallback chains
+
+A chain determines who gets tried next. Example `heavy-coding`: Claude first, GLM second, OpenRouter as the closing fallback. If the first step gets a `429`, the router starts a 30-second cooldown for that account and immediately continues to the second step — the client sees no error.
+
+## Retries and cooldowns
+
+| Event                          | Router action                                            |
+| ------------------------------ | -------------------------------------------------------- |
+| Transient issue (5xx, network) | Retry on the same account, up to 2x (500 ms, 1 s delays) |
+| `429` from upstream            | 30-second account cooldown, honor `Retry-After`          |
+| Upstream authentication failed | 5-minute account cooldown                                |
+| All targets exhausted          | `503` to the client                                      |
+
+At most **10 attempts** per request in total. Cooldowns rest problem accounts instead of hammering them again — their status is visible on the **Provider Health** page.
+
+## Concurrency
+
+The gateway limits in-flight requests globally (100). When full, new requests get a `503` — more honest than an ever-growing queue. The `rpm`/`tpm`/`concurrent` limits on plans are stored in the schema but not yet enforced by the gateway.
+
+## Metering
+
+Every request is recorded: the provider and model that actually served it, key, account, client type (detected from the User-Agent — Claude Code, Cursor, Codex, Cline, Copilot, Aider, etc), tokens per category, cost, cache hits, latency, and TTFT. That's exactly what you see on the **Usage** page.
+
+<Callout type="idea" title="First-token latency">
+  TTFT (time-to-first-token) is measured per request — compare providers on the **Usage** page
+  before deciding your chain order.
+</Callout>

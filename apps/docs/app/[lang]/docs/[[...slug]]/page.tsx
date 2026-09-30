@@ -3,9 +3,13 @@ import { DocsBody, DocsDescription, DocsPage, DocsTitle } from 'fumadocs-ui/layo
 import { getMDXComponents } from '@/components/mdx-components'
 import { source } from '@/lib/source'
 
-export default async function Page(props: { params: Promise<{ slug?: string[] }> }) {
+export function generateStaticParams() {
+  return source.generateParams()
+}
+
+export default async function Page(props: { params: Promise<{ slug?: string[]; lang: string }> }) {
   const params = await props.params
-  const page = source.getPage(params.slug)
+  const page = source.getPage(params.slug, params.lang)
   if (!page) {
     return <h1>Page not found</h1>
   }

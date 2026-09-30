@@ -1,0 +1,72 @@
+---
+title: Installation
+description: Run the Tera Router API server and dashboard locally.
+---
+
+## Prerequisites
+
+- Go 1.26+ (server)
+- Node.js 22+ and pnpm (dashboard & docs)
+- No other external dependencies — the database uses SQLite (the `terarouter.db` file)
+
+## Run the API server
+
+```bash
+cd apps/server
+
+# prepare a minimal .env
+cat > .env <<'EOF'
+MACHINE_ID=1
+APP_SECRET=change-to-a-long-secret
+ADMIN_EMAIL=admin@tera.local
+ADMIN_PASSWORD=admin123
+EOF
+
+make run
+```
+
+The server will:
+
+1. Run SQLite migrations (`MIGRATE_ON_BOOT`, enabled by default).
+2. Seed initial data — roles, the admin user from `ADMIN_EMAIL`/`ADMIN_PASSWORD`, the _Default_ plan.
+3. Open the gateway and dashboard API on `PORT` (default `8080`).
+
+<Callout type="info" title="Development mode">
+  With `ENV=development`, the server automatically seeds a sample "Dev" key. Get its plaintext via
+  `make seed/dev` — the plaintext is printed only once.
+</Callout>
+
+## Run the dashboard
+
+```bash
+# from the monorepo root
+pnpm install
+
+cd apps/web-ui
+cp .env.example .env   # VITE_API_URL points to http://localhost:8080
+pnpm dev
+```
+
+Open `http://localhost:5173`, then sign in with the `ADMIN_EMAIL` and `ADMIN_PASSWORD` you set earlier.
+
+## Ports and services
+
+| Service      | URL                     | Notes                             |
+| ------------ | ----------------------- | --------------------------------- |
+| API server   | `http://localhost:8080` | Gateway (`/v1/*`) + dashboard API |
+| Dashboard UI | `http://localhost:5173` | Vite dev server (`apps/web-ui`)   |
+| Docs         | `http://localhost:3001` | This site (`apps/docs`)           |
+
+## Seeding the first key (without the dashboard)
+
+```bash
+cd apps/server
+make seed/dev   # prints the sample key's plaintext, once only
+```
+
+Store the plaintext safely — only the hash lives in the database.
+
+## Next steps
+
+- [Dashboard tour](/docs/getting-started/dashboard) — get to know each page.
+- [Gateway API](/docs/gateway) — your first request through the router.

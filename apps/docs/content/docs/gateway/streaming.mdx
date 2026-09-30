@@ -1,0 +1,50 @@
+---
+title: Streaming
+description: SSE behavior across all gateway endpoints — passthrough, cross-dialect, heartbeat, and deadlines.
+---
+
+Every gateway endpoint supports `stream: true` and responds with `text/event-stream` (SSE). The chunks that flow follow the dialect format of the endpoint you called.
+
+## Two streaming paths
+
+**Passthrough** — when the client dialect and the upstream dialect match (e.g. OpenAI to OpenAI), chunks are forwarded unmodified. This is the fastest path.
+
+**Cross-dialect** — when the dialects differ (e.g. an Anthropic client calling an OpenAI model), the router re-renders the stream into the client's dialect. The client never needs to know.
+
+On both paths, the router still extracts usage data (prompt/completion/cached tokens) from the stream for metering — reading is non-destructive and never touches the chunks you receive.
+
+## Heartbeat
+
+While waiting for the first chunk from upstream, the router sends an SSE comment every 15 seconds:
+
+```
+: ping
+
+```
+
+This keeps the connection alive through load balancers or proxies that like to kill silent connections.
+
+## Deadlines
+
+| Limit                         | Value                    |
+| ----------------------------- | ------------------------ |
+| Unary request (non-streaming) | 90 seconds               |
+| Stream (total duration)       | 3 minutes                |
+| Stream stall (timeout)        | configurable in Settings |
+
+A stream that exceeds its deadline is ended cleanly in its own dialect. For longer deadlines, adjust `request_timeout` and `stream_stall_timeout` on the **Settings** page.
+
+## Example
+
+```bash
+curl -N http://localhost:8080/v1/chat/completions \
+  -H "Authorization: Bearer sk_tr_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "chain:heavy-coding",
+    "messages": [{ "role": "user", "content": "Write a haiku" }],
+    "stream": true
+  }'
+```
+
+The `-N` flag disables curl buffering so chunks appear immediately.

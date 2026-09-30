@@ -20,38 +20,46 @@
   --accent: #16a34a;
   --accent-soft: #15803d;
   --on-accent: #ffffff;
-  --code: #0b1020;
-  --code-line: #1e293b;
+  --code: #191919; /* docs home terminal card — same in both themes */
+  --code-line: hsla(0, 0%, 40%, 20%);
   --sheen: rgba(255, 255, 255, 0.9);
-  --grid: rgba(100, 116, 139, 0.14);
   --grad-1: #166534;
   --grad-2: #15803d;
   --grad-3: #16a34a;
 }
 
+/* Dark mirrors the docs home page palette (apps/docs → fumadocs neutral theme):
+   pure-neutral grays for surfaces and text, emerald/teal for accents. */
 .dark {
   color-scheme: dark;
 
-  --canvas: #020617;
-  --surface: #0e1223;
-  --raised: #141931;
-  --subtle: #070b16;
-  --panel: #070b18;
-  --line: #232b47;
-  --divide: rgba(255, 255, 255, 0.06);
-  --ink: #f8fafc;
-  --dim: #94a3b8;
-  --faint: #7c8aa0;
-  --accent: #22c55e;
-  --accent-soft: #4ade80;
+  --canvas: #121212; /* fd-background — hsl(0 0% 7%) */
+  --surface: #191919; /* fd-card — hsl(0 0% 9.8%) */
+  --raised: #212121; /* fd-muted — hsl(0 0% 12.9%) */
+  --subtle: #161616; /* band tone between canvas and surface */
+  --panel: #1e1e1e; /* fd-popover — hsl(0 0% 11.6%) */
+  --line: hsla(0, 0%, 40%, 20%); /* fd-border */
+  --divide: hsla(0, 0%, 40%, 14%);
+  --ink: #ebebeb; /* fd-foreground — hsl(0 0% 92%) */
+  --dim: hsla(0, 0%, 70%, 80%); /* fd-muted-foreground */
+  --faint: #8c8c8c; /* fd-ring — hsl(0 0% 55%) */
+  --accent: #22c55e; /* emerald-500, same as docs */
+  --accent-soft: #34d399; /* emerald-400 */
   --on-accent: #052e16;
-  --code: #0a0e1d;
-  --code-line: #232b47;
+  --code: #191919; /* docs home terminal card */
+  --code-line: hsla(0, 0%, 40%, 20%);
   --sheen: rgba(255, 255, 255, 0.05);
-  --grid: rgba(148, 163, 184, 0.055);
-  --grad-1: #86efac;
-  --grad-2: #4ade80;
-  --grad-3: #22c55e;
+  --grad-1: #34d399; /* emerald-400 */
+  --grad-2: #2dd4bf; /* teal-400 */
+  --grad-3: #5eead4; /* teal-300 */
+}
+
+/* The terminal renders with the dark card palette in both themes, so the
+   tokens its text sits on are pinned to their dark values here. */
+.terminal-island {
+  --sheen: rgba(255, 255, 255, 0.05);
+  --accent-soft: #34d399; /* emerald-400 */
+  --faint: #8c8c8c;
 }
 
 @theme inline {
@@ -95,14 +103,6 @@ body {
   outline: 2px solid var(--accent-soft);
   outline-offset: 2px;
   border-radius: 4px;
-}
-
-.grid-bg {
-  background-image:
-    linear-gradient(to right, var(--grid) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
-  background-size: 44px 44px;
-  mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, black 55%, transparent 100%);
 }
 
 .sheen {

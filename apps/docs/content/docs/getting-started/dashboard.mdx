@@ -1,0 +1,46 @@
+---
+title: Dashboard Tour
+description: Get to know every page in the Tera Router dashboard — from API Keys to Console Log.
+---
+
+The dashboard (`apps/web-ui`) is the only place you need for day-to-day router management. Every page below calls the same server REST API — if you prefer automation, everything can be called directly (see the [API Reference](/docs/api-reference/dashboard-api)).
+
+## Overview
+
+- **Dashboard** — traffic, spend, and routing performance at a glance.
+
+## Traffic
+
+- **Endpoints** — how to connect your apps: base URL + API key, plus a tunnel setup for sharing.
+- **Chains** — build model chains: sequential steps, strategies (`priority`, `round-robin`, `load-balanced`), and fallbacks.
+- **Skills** — reusable prompt snippets, plus _reference skills_ you can copy to a coding agent so it knows how to use the router.
+
+## Connections
+
+- **API Keys** — create, restrict models, disable, and reveal `sk_tr_` keys. Each key can be bound to a plan.
+- **Providers** — connect provider accounts (API key or OAuth), set priorities, test connections, and view per-account quotas.
+- **Media** — provider catalog for embeddings, TTS, STT, and image.
+- **Proxy Pools** — group outbound proxies for accounts that need specific IPs.
+
+## Safety
+
+- **Guardrails** — PII, prompt injection, topic, toxicity, and bias policies, layered from global down to per-key. Includes a dry-run mode.
+- **Provider Health** — the condition of each provider account: cooldowns, failures, and quota status.
+
+## Cost & Analytics
+
+- **Usage** — requests, tokens, cost, and latency per time range (today, 24 hours, 7 days, 30 days), broken down by model and client (Claude Code, Cursor, Codex, etc).
+- **Plans** — limit templates: spend, tokens, period, alerts, hard cutoff, and model allowlists.
+- **Quota Tracker** — usage against active budgets, pausable per item.
+- **System** — host and server process metrics.
+- **Settings** — router behavior: timeouts, round-robin provider/chain, outbound proxy, request detail recording, down to display branding.
+
+## Developer
+
+- **Console Log** — a live stream of recent server logs (500-entry ring buffer).
+- **CLI Tools** — one-click configuration for coding tools (Claude Code, Cursor, and others) pointing straight at your Tera Router instance.
+
+<Callout type="idea" title="One page, one concept">
+  If this is your first time: start with **Providers** (connect accounts), then **API Keys** (create
+  access), then **Endpoints** (connect your apps). The rest follows as needed.
+</Callout>

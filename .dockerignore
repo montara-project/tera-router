@@ -3,6 +3,7 @@ node_modules
 .git
 .github
 .next
+**/.next
 .turbo
 **/dist
 **/.source
@@ -14,6 +15,5 @@ node_modules
 # Runtime mount point for the built web UI; the web-ui sources under
 # apps/web-ui/public are build inputs and must stay in the context.
 apps/server/public
-apps/docs
 packages
 deploy

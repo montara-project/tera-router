@@ -1,0 +1,79 @@
+---
+title: Chat Completions
+description: OpenAI-compatible endpoint — POST /v1/chat/completions.
+---
+
+`POST /v1/chat/completions` accepts a body exactly like OpenAI's Chat Completions API. No custom fields — just swap `model` and the base URL.
+
+## Request
+
+```bash
+curl http://localhost:8080/v1/chat/completions \
+  -H "Authorization: Bearer sk_tr_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      { "role": "system", "content": "Be brief." },
+      { "role": "user", "content": "What is an LLM gateway?" }
+    ],
+    "stream": false
+  }'
+```
+
+The response is the standard OpenAI format, enriched with two headers:
+
+```
+X-TeraRouter-Provider: openai
+X-TeraRouter-Model: gpt-4o-mini
+```
+
+## Streaming
+
+Set `stream: true` to receive SSE — chunks follow the standard OpenAI format:
+
+```bash
+curl http://localhost:8080/v1/chat/completions \
+  -H "Authorization: Bearer sk_tr_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "glm/glm-4.6",
+    "messages": [{ "role": "user", "content": "Tell me a joke" }],
+    "stream": true
+  }'
+```
+
+SSE details (heartbeat, deadline, cross-dialect) are covered on the [Streaming](/docs/gateway/streaming) page.
+
+## Via the OpenAI SDK
+
+```ts
+import OpenAI from 'openai'
+
+const client = new OpenAI({
+  apiKey: 'sk_tr_...',
+  baseURL: 'http://localhost:8080/v1',
+})
+
+const stream = await client.chat.completions.create({
+  model: 'openai/gpt-4o-mini',
+  messages: [{ role: 'user', content: 'Hello!' }],
+  stream: true,
+})
+
+for await (const chunk of stream) {
+  process.stdout.write(chunk.choices[0]?.delta?.content ?? '')
+}
+```
+
+## Choosing a model
+
+The `model` value doesn't have to be `provider/model` — you can also use an alias pool name or `chain:<name>` to let the router pick the provider:
+
+```json
+{ "model": "fast" }
+{ "model": "chain:heavy-coding" }
+{ "model": "anthropic/claude-sonnet-4(medium)" }
+```
+
+Full explanation: [Models & routing](/docs/gateway/model-addressing).

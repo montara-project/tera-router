@@ -1,0 +1,95 @@
+---
+title: Models & Routing
+description: Four ways to write the model field — provider/model, aliases, chains, and reasoning suffixes.
+---
+
+The `model` field in Tera Router is more expressive than a typical API. The router reads it in a fixed priority order:
+
+| Order | Form             | Example                     | Meaning                                       |
+| ----- | ---------------- | --------------------------- | --------------------------------------------- |
+| 1     | `chain:<name>`   | `chain:heavy-coding`        | Run the named routing chain                   |
+| 2     | Alias name       | `fast`                      | Use the matching alias pool                   |
+| 3     | `provider/model` | `anthropic/claude-sonnet-4` | Explicit target to a single provider          |
+| 4     | Plain name       | `heavy-coding`              | Look up a chain with that name, then an alias |
+
+`provider/model` is only valid if `provider` is the slug of a built-in catalog entry or an active custom provider.
+
+## Alias pool
+
+An alias maps one short name to multiple `provider/model` targets tried in order. Manage it via the **Chains → alias** page or the API:
+
+```bash
+curl -X PUT http://localhost:8080/v1/models/alias \
+  -H "Authorization: Bearer <dashboard-jwt>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "fast",
+    "context_window": 128000,
+    "active": true,
+    "targets": [
+      { "provider": "groq", "model": "llama-3.3-70b", "active": true },
+      { "provider": "openai", "model": "gpt-4o-mini", "active": true }
+    ]
+  }'
+```
+
+After that, `model: "fast"` on the gateway means "try Groq first, OpenAI if it fails".
+
+## Chains
+
+Chains define richer routing — a per-chain strategy, sequential steps, and a closing fallback:
+
+```bash
+curl -X POST http://localhost:8080/v1/chains \
+  -H "Authorization: Bearer <dashboard-jwt>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "heavy-coding",
+    "strategy": "priority",
+    "fallback_provider": "openrouter",
+    "fallback_model": "anthropic/claude-sonnet-4",
+    "enabled": true,
+    "steps": [
+      { "provider": "claude", "model": "claude-sonnet-4" },
+      { "provider": "glm", "model": "glm-4.6" }
+    ]
+  }'
+```
+
+Available strategies:
+
+- `priority` — follow the step order; move to the next step when the active one fails.
+- `round-robin` — rotate across steps to share the load.
+- `load-balanced` — spread requests evenly.
+
+Call it with `model: "chain:heavy-coding"` (or plain `heavy-coding`, since chain names are looked up first in form 4).
+
+## Reasoning suffix
+
+Append a reasoning level in parentheses at the end of the model name — the router translates it into the target provider's reasoning parameter:
+
+```json
+{ "model": "openai/gpt-4o-mini(high)" }
+{ "model": "anthropic/claude-sonnet-4(8192)" }
+```
+
+| Level     | Token budget |
+| --------- | ------------ |
+| `none`    | 0            |
+| `minimal` | 512          |
+| `low`     | 1,024        |
+| `medium`  | 8,192        |
+| `high`    | 24,576       |
+| `xhigh`   | 32,768       |
+| `max`     | 128,000      |
+
+Write a number directly (e.g. `(8192)`) for an explicit budget.
+
+## Combining with key allowlists
+
+Allowlist patterns on keys/plans support a trailing `*` wildcard and match every name form — plain models, `provider/model`, alias names, and `chain:<name>`. For example `anthropic/*` allows all Anthropic models; `chain:*` allows all chains.
+
+<Callout type="warn" title="Allowlists intersect">
+  The allowed models are the intersection between the key's allowlist and its plan's allowlist. A
+  key can never loosen its plan's restrictions.
+</Callout>

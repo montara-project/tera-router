@@ -1,0 +1,50 @@
+---
+title: Streaming
+description: Perilaku SSE di semua endpoint gateway — passthrough, cross-dialect, heartbeat, dan deadline.
+---
+
+Semua endpoint gateway mendukung `stream: true` dan menjawab dengan `text/event-stream` (SSE). Chunk yang mengalir mengikuti format dialek endpoint yang kamu panggil.
+
+## Dua jalur streaming
+
+**Passthrough** — kalau dialek klien dan dialek upstream sama (misal OpenAI ke OpenAI), chunk diteruskan apa adanya tanpa dimodifikasi. Ini jalur tercepat.
+
+**Cross-dialect** — kalau dialect-nya beda (misal klien Anthropic memanggil model OpenAI), router merender ulang stream ke dialek klien. Klien tidak perlu tahu bedanya.
+
+Di kedua jalur, router tetap mengekstrak data usage (prompt/completion/cached tokens) dari stream untuk metering — cara bacanya aman, tidak menyentuh isi chunk yang kamu terima.
+
+## Heartbeat
+
+Sambil menunggu chunk pertama dari upstream, router mengirim komentar SSE setiap 15 detik:
+
+```
+: ping
+
+```
+
+Ini menjaga koneksi tetap hidup melalui load balancer atau proxy yang suka memutus koneksi senyap.
+
+## Deadline
+
+| Batas                          | Nilai                 |
+| ------------------------------ | --------------------- |
+| Request unary (non-streaming)  | 90 detik              |
+| Stream (total durasi)          | 3 menit               |
+| Stall stream (timeout koneksi) | diatur lewat Settings |
+
+Stream yang melewati deadline diakhiri rapi sesuai dialeknya. Untuk deadline yang lebih panjang, sesuaikan `request_timeout` dan `stream_stall_timeout` di halaman **Settings**.
+
+## Contoh
+
+```bash
+curl -N http://localhost:8080/v1/chat/completions \
+  -H "Authorization: Bearer sk_tr_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "chain:heavy-coding",
+    "messages": [{ "role": "user", "content": "Tulis haiku" }],
+    "stream": true
+  }'
+```
+
+Flag `-N` mematikan buffering curl supaya chunk tampil seketika.

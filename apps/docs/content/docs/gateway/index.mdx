@@ -1,0 +1,69 @@
+---
+title: Gateway API
+description: Base URL, authentication, and dialect compatibility for all inference endpoints.
+---
+
+## Endpoints
+
+The gateway serves three API dialects at once, all under `/v1`:
+
+| Endpoint                         | Dialect            | Used by                                  |
+| -------------------------------- | ------------------ | ---------------------------------------- |
+| `POST /v1/chat/completions`      | OpenAI Chat        | OpenAI SDK, most tools and frameworks    |
+| `POST /v1/messages`              | Anthropic Messages | Anthropic SDK, Claude Code               |
+| `POST /v1/messages/count_tokens` | Anthropic          | Token estimation (computed locally)      |
+| `POST /v1/responses`             | OpenAI Responses   | Responses API clients                    |
+| `POST /responses`                | OpenAI Responses   | Root-level alias, for clients like Codex |
+
+Request bodies are exactly the original formats — no required custom fields. The router only cares how you write `model` (see [Models & routing](/docs/gateway/model-addressing)).
+
+## Authentication
+
+Use an API key prefixed with `sk_tr_` created from the dashboard (or `POST /v1/keys`):
+
+```bash
+# option 1 — Authorization header
+curl http://localhost:8080/v1/chat/completions \
+  -H "Authorization: Bearer sk_tr_..."
+
+# option 2 — x-api-key (Anthropic style)
+curl http://localhost:8080/v1/messages \
+  -H "x-api-key: sk_tr_..."
+```
+
+A wrong, disabled, or missing key gets a `401` in the OpenAI error envelope:
+
+```json
+{
+  "error": {
+    "message": "invalid api key",
+    "type": "authentication_error"
+  }
+}
+```
+
+## Response headers
+
+Every response (unary and streaming) carries headers that tell you who ultimately served the request:
+
+```
+X-TeraRouter-Provider: anthropic
+X-TeraRouter-Model: claude-sonnet-4
+```
+
+Useful for verifying that chains/aliases/fallbacks landed on the target you expected.
+
+## Gateway vs dashboard API
+
+Both live on the same port, but their auth differs:
+
+|             | Gateway (`/v1/chat/...`)     | Dashboard API (`/v1/keys`, `/v1/usage`, ...)       |
+| ----------- | ---------------------------- | -------------------------------------------------- |
+| Credentials | API key `sk_tr_`             | JWT from `POST /v1/auth/sign-in`                   |
+| Used by     | Apps and coding agents       | Dashboard UI and admin scripts                     |
+| Reference   | [Gateway API](/docs/gateway) | [API Reference](/docs/api-reference/dashboard-api) |
+
+<Callout type="warn" title="Don't mix them up">
+  A dashboard JWT cannot be used on the gateway, and an `sk_tr_` API key cannot be used on the
+  dashboard API.
+</Callout>

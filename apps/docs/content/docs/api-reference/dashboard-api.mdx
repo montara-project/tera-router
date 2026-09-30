@@ -1,0 +1,160 @@
+---
+title: Dashboard REST API
+description: Reference for the REST endpoints that manage keys, providers, chains, guardrails, and usage.
+---
+
+All endpoints below live on the same server as the gateway (default `http://localhost:8080`) and power the dashboard UI. Great for automation and integrations.
+
+For the inference endpoints, see the [Gateway API](/docs/gateway) section.
+
+## Authentication
+
+```bash
+# sign in
+curl -X POST http://localhost:8080/v1/auth/sign-in \
+  -H "Content-Type: application/json" \
+  -d '{ "email": "admin@tera.local", "password": "..." }'
+```
+
+```json
+{
+  "data": {
+    "uid": "…",
+    "email": "admin@tera.local",
+    "access_token": "…",
+    "refresh_token": "…",
+    "expires_in": 3600
+  }
+}
+```
+
+- Access tokens last 1 hour; refresh tokens 30 days and are rotated on every renewal.
+- Send the token in the `Authorization: Bearer <access_token>` header.
+- `POST /v1/auth/sign-out` revokes all session tokens.
+
+## Response envelope
+
+| Shape            | JSON shape                                                |
+| ---------------- | --------------------------------------------------------- |
+| Single resource  | `{"data": …, "metadata": …, "message": …}`                |
+| List             | `{"data": […], "metadata": {"total", "offset", "limit"}}` |
+| Delete           | `{"message": "…"}`                                        |
+| Error            | `{"message": "…"}`                                        |
+| Validation error | `{"message": "…", "errors": {…}}` (422)                   |
+
+Pagination uses the `offset` (0-based) and `limit` (default 10, max 100) query parameters.
+
+## Endpoints
+
+### Auth
+
+| Method | Path                | Notes                     |
+| ------ | ------------------- | ------------------------- |
+| POST   | `/v1/auth/sign-in`  | Sign in, receive tokens   |
+| POST   | `/v1/auth/refresh`  | Rotate refresh token      |
+| GET    | `/v1/auth/me`       | Current user profile      |
+| POST   | `/v1/auth/sign-out` | Revoke all session tokens |
+
+### Keys
+
+| Method            | Path                  | Notes                          |
+| ----------------- | --------------------- | ------------------------------ |
+| GET / POST        | `/v1/keys`            | List / create keys             |
+| GET / PUT / PATCH | `/v1/keys/:id`        | Detail / update key            |
+| POST              | `/v1/keys/:id/reveal` | Return key plaintext (audited) |
+| DELETE            | `/v1/keys/:id`        | Delete key                     |
+
+### Plans
+
+| Method      | Path                 | Notes             |
+| ----------- | -------------------- | ----------------- |
+| GET / POST  | `/v1/plans`          | List / create     |
+| GET         | `/v1/plans/:id`      | Detail            |
+| GET         | `/v1/plans/:id/keys` | Keys on this plan |
+| PUT / PATCH | `/v1/plans/:id`      | Update            |
+| DELETE      | `/v1/plans/:id`      | Delete            |
+
+### Routing
+
+| Method             | Path                   | Notes                |
+| ------------------ | ---------------------- | -------------------- |
+| GET / POST         | `/v1/chains`           | List / create chains |
+| GET                | `/v1/chains/:id`       | Chain detail         |
+| GET                | `/v1/chains/:id/usage` | Chain usage          |
+| PUT / PATCH        | `/v1/chains/:id`       | Update chain         |
+| DELETE             | `/v1/chains/:id`       | Delete chain         |
+| GET / PUT / DELETE | `/v1/models/alias`     | Manage alias pools   |
+
+### Providers & accounts
+
+| Method                     | Path                                                    | Notes                                |
+| -------------------------- | ------------------------------------------------------- | ------------------------------------ |
+| GET                        | `/v1/providers`                                         | Connected/available provider summary |
+| GET                        | `/v1/providers/rates`                                   | Pricing snapshot                     |
+| GET / POST                 | `/v1/custom-providers`                                  | Custom providers                     |
+| PUT / PATCH / DELETE       | `/v1/custom-providers/:id`                              | Manage custom provider               |
+| POST                       | `/v1/validate-key`                                      | Test credentials before saving       |
+| GET / POST                 | `/v1/accounts`                                          | List / add accounts                  |
+| POST                       | `/v1/accounts/bulk`                                     | Add many accounts at once            |
+| GET / PUT / PATCH / DELETE | `/v1/accounts/:id`                                      | Manage account                       |
+| POST                       | `/v1/accounts/:id/test`                                 | Test account connection              |
+| POST                       | `/v1/accounts/:id/reveal`                               | Return credentials (audited)         |
+| GET                        | `/v1/accounts/:id/quota`                                | Account quota                        |
+| POST                       | `/v1/accounts/:id/quota/reset`                          | Reset account quota                  |
+| POST                       | `/v1/providers/:id/accounts/disable-all` / `enable-all` | Bulk per provider                    |
+| DELETE                     | `/v1/providers/:id/accounts/disabled` / `all`           | Bulk delete                          |
+
+### Budgets & usage
+
+| Method               | Path                                  | Notes                              |
+| -------------------- | ------------------------------------- | ---------------------------------- |
+| GET / POST           | `/v1/budgets`                         | List / create budgets              |
+| GET                  | `/v1/budgets/status`                  | Running usage per budget           |
+| PUT / PATCH / DELETE | `/v1/budgets/:id`                     | Manage budget                      |
+| GET                  | `/v1/usage?range=today\|24h\|7d\|30d` | Request/token/cost/latency summary |
+| GET                  | `/v1/usage/models`                    | Usage per model                    |
+| GET                  | `/v1/usage/insights`                  | Summary + daily trend + per model  |
+| GET                  | `/v1/usage/telemetry`                 | Full Usage page payload            |
+| GET                  | `/v1/quota`                           | Active quotas                      |
+| GET                  | `/v1/quota/overview`                  | Quota summary                      |
+| PATCH / DELETE       | `/v1/quota/:id`                       | Pause / delete quota               |
+
+### Proxy pools
+
+| Method               | Path                           | Notes               |
+| -------------------- | ------------------------------ | ------------------- |
+| GET / POST           | `/v1/proxy-pools`              | List / create pools |
+| POST                 | `/v1/proxy-pools/health-check` | Check all pools     |
+| PUT / PATCH / DELETE | `/v1/proxy-pools/:id`          | Manage pool         |
+| POST                 | `/v1/proxy-pools/:id/test`     | Test one pool       |
+
+### Overrides
+
+| Method              | Path                                        | Notes                       |
+| ------------------- | ------------------------------------------- | --------------------------- |
+| GET / POST / DELETE | `/v1/model-pricing-overrides`               | Override per-model pricing  |
+| GET / PUT           | `/v1/capability-overrides`                  | Override model capabilities |
+| DELETE              | `/v1/capability-overrides/:provider/:model` | Delete one override         |
+| POST                | `/v1/capability-overrides/reset`            | Reset all                   |
+
+### Guardrails
+
+| Method               | Path                      | Notes                     |
+| -------------------- | ------------------------- | ------------------------- |
+| GET                  | `/v1/guardrails`          | Policy summary            |
+| POST                 | `/v1/guardrails`          | Create policy             |
+| PUT                  | `/v1/guardrails/settings` | Global guardrail settings |
+| POST                 | `/v1/guardrails/evaluate` | Test policies (dry run)   |
+| PUT / PATCH / DELETE | `/v1/guardrails/:id`      | Manage policies           |
+
+### Misc
+
+| Method            | Path               | Notes                                        |
+| ----------------- | ------------------ | -------------------------------------------- |
+| GET / PUT / PATCH | `/v1/settings`     | Router settings (timeout, round-robin, etc.) |
+| GET / POST        | `/v1/skills`       | List / create skills                         |
+| DELETE            | `/v1/skills/:id`   | Delete skill                                 |
+| GET / DELETE      | `/v1/console`      | Ring buffer log (500 entries) / clear        |
+| GET               | `/v1/system/stats` | Host & process metrics                       |
+| GET               | `/v1/media`        | Media provider catalog                       |
+| GET               | `/health`          | Server health (no auth)                      |

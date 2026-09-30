@@ -1,0 +1,62 @@
+---
+title: API Keys
+description: The `sk_tr_` key format, how to create keys, restrict models, and manage them.
+---
+
+## Format and storage
+
+Keys are prefixed with `sk_tr_` followed by random base64url-encoded data. Only the hash (argon2id) is stored in the database — the plaintext is shown **once** at creation, never again (except through the reveal feature, which uses envelope encryption).
+
+## Creating a key
+
+Via the dashboard (**API Keys → Create**) or the API:
+
+```bash
+curl -X POST http://localhost:8080/v1/keys \
+  -H "Authorization: Bearer <dashboard-jwt>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "claude-code-laptop",
+    "plan_id": "00000000-0000-0000-0000-000000000010",
+    "allowed_models": ["anthropic/*", "chain:*"]
+  }'
+```
+
+The response contains `full_key` — save it now:
+
+```json
+{
+  "data": {
+    "id": "…",
+    "name": "claude-code-laptop",
+    "status": "active",
+    "key_preview": "sk_tr_abcd…wxyz",
+    "full_key": "sk_tr_…",
+    "message": "Key created"
+  }
+}
+```
+
+## Restricting models
+
+`allowed_models` accepts patterns with a trailing `*` wildcard and matches every model name form — plain, `provider/model`, aliases, and `chain:<name>`:
+
+| Pattern          | Allows                      |
+| ---------------- | --------------------------- |
+| `anthropic/*`    | All Anthropic models        |
+| `openai/gpt-4o*` | All `gpt-4o` variants       |
+| `chain:*`        | All chains                  |
+| `fast`           | Only the alias named `fast` |
+
+If the key is bound to a plan, the allowed models are the **intersection** of the key's and plan's allowlists. A key can never loosen its plan's restrictions.
+
+## Lifecycle
+
+- **Disable** — a disabled key starts rejecting requests with `401` immediately; the verification cache (5 minutes) does not apply to disabled keys.
+- **Reveal** — `POST /v1/keys/:id/reveal` returns the plaintext. Every reveal is recorded in the audit log.
+- **last used** — the first use of each key records `last_used_at`, visible in the key list.
+
+<Callout type="info" title="One key per device">
+  Recommended habit: one key per app/device. If a laptop is lost, you disable that one key without
+  touching anything else.
+</Callout>

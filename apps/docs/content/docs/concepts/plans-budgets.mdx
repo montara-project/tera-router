@@ -1,0 +1,44 @@
+---
+title: Plans, Budgets & Pricing
+description: Per-key limit templates, budgets with hard cutoffs, and model pricing.
+---
+
+## Plans — limit templates
+
+A plan is a bundle of limits that can be bound to many keys at once:
+
+- `budget_spend` — cost limit (USD) per period.
+- `budget_tokens` — token limit per period.
+- `period` — `daily`, `weekly`, or `monthly`.
+- `alert_at_percent` — usage percentage that triggers an alert.
+- `hard_cutoff` — whether the limit actually blocks or only warns.
+- `allowed_models` — model allowlist for every key on this plan.
+- `rpm`, `tpm`, `concurrent` — stored in the schema; not yet enforced by the gateway.
+
+The _Default_ plan is created automatically during seeding. Manage plans from the **Plans** page.
+
+## Budgets — per-scope monitoring
+
+Budgets operate at three scopes: `tenant` (global), `api_key`, and `account`. The gateway enforces the tenant and api_key scopes; a budget with `hard_cutoff` that is exceeded answers `402` — the rest only alert.
+
+```bash
+curl -X POST http://localhost:8080/v1/budgets \
+  -H "Authorization: Bearer <dashboard-jwt>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "scope_kind": "api_key",
+    "scope_id": "<key-id>",
+    "budget_spend": 25,
+    "period": "monthly",
+    "alert_pct": 80,
+    "hard_cutoff": true
+  }'
+```
+
+Running usage is visible via `GET /v1/budgets/status` or the **Quota Tracker** page — including spend and token percentages against the limits. A budget that's taking a break can be paused from **Quota Tracker** without being deleted.
+
+## Model pricing
+
+Cost is computed from a per-million-token price table: input, output, cache read, and cache write. Default prices come from provider snapshots (`GET /v1/providers/rates`), and can be overridden per model via _pricing overrides_ (**Plans** page or the `model-pricing-overrides` API).
+
+Models without a price are counted as zero — if the spend numbers on **Usage** feel too small, first check whether the models you use actually have prices.

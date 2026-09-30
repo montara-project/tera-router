@@ -1,0 +1,26 @@
+---
+title: Skills & Media
+description: Reusable prompt snippets, reference skills for agents, and the media catalog.
+---
+
+## Skills
+
+A skill is a prompt snippet managed from the dashboard and reusable anywhere — a tidy way to centralize repeated instructions (answer style, project rules, output formats) without scattering them across clients.
+
+Manage them from the **Skills** page: name, description, and prompt content. The API endpoints are simple — `GET /v1/skills`, `POST /v1/skills`, `DELETE /v1/skills/:id`.
+
+## Reference skills
+
+Besides your own skills, the **Skills** page shows _reference skills_: ready-made guides that explain to an agent how to use Tera Router — which endpoints to call, what authentication looks like, what request bodies to send.
+
+How to use them: click **Copy** on the skill you want, then paste its URL into your agent (Claude Code, Cursor, etc). The agent will read the guide and know how to talk to your router.
+
+## Media catalog
+
+The **Media** page is a provider catalog for non-text needs: embeddings, text-to-speech, speech-to-text, and image. The catalog is static from the server (`GET /v1/media`) — use it to see which providers offer a given capability (OpenRouter, NVIDIA NIM, vLLM, Gemini, Copilot, OpenAI, Mistral, Together, Fireworks, and more).
+
+<Callout type="warn" title="The gateway currently serves text">
+  The active inference endpoints on the gateway are chat, messages, and responses. Image/audio/
+  embedding endpoints are not available on the gateway yet — the Media catalog is a roadmap of
+  supported providers.
+</Callout>

@@ -1,0 +1,12 @@
+{
+  "title": "Gateway API",
+  "pages": [
+    "index",
+    "chat-completions",
+    "messages",
+    "responses",
+    "model-addressing",
+    "streaming",
+    "errors"
+  ]
+}

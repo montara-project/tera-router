@@ -1,0 +1,66 @@
+---
+title: Errors & Resilience
+description: Error format per dialect, the status code table, and how the router retries before giving up.
+---
+
+## Error format
+
+Errors follow the envelope of the dialect endpoint you called.
+
+**OpenAI** — `/v1/chat/completions` and `/v1/responses`:
+
+```json
+{
+  "error": {
+    "message": "model not allowed for this key",
+    "type": "invalid_request_error"
+  }
+}
+```
+
+**Anthropic** — `/v1/messages`:
+
+```json
+{
+  "type": "error",
+  "error": {
+    "type": "authentication_error",
+    "message": "invalid api key"
+  }
+}
+```
+
+## Status codes
+
+| Status | Meaning                                                            |
+| ------ | ------------------------------------------------------------------ |
+| `400`  | Unknown model or context exceeds capacity                          |
+| `401`  | API key missing, wrong, or disabled                                |
+| `402`  | Budget exhausted (only budgets with a _hard cutoff_ block)         |
+| `403`  | Model not allowed by key/plan allowlist, or a guardrail blocked it |
+| `429`  | Rate limited or at capacity                                        |
+| `503`  | All targets failed / cooling down / server at maximum capacity     |
+| `504`  | Upstream did not answer before the deadline                        |
+
+## Retries the router performs
+
+Before an error reaches you, the router has already tried to help:
+
+- Up to **10 attempts** per request, sweeping chain steps/alias targets/backup accounts.
+- **2 retries on the same account** for transient issues, with 500 ms then 1 second delays.
+- **30-second account cooldown** after a `429` from upstream (honoring `Retry-After` when present), and **5 minutes** after an authentication failure.
+
+That means: an error reaching the client has usually already exhausted every available target.
+
+## Capacity
+
+- The gateway uses a global concurrency limit of **100 in-flight requests** — beyond that it answers `503` rather than queueing without bounds.
+- The dashboard API has a rate limit of **100 requests/minute per IP** (the gateway is exempt).
+
+## Handling errors on the client
+
+Recommended strategies for coding agents and SDKs:
+
+1. `401`/`403` — don't retry; check the key and model allowlist.
+2. `402` — stop or switch keys; the router blocked it on purpose.
+3. `429`/`503`/`504` — safe to retry with backoff; the router already tried other targets first.
