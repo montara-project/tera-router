@@ -7,26 +7,8 @@ import { i18nProvider } from 'fumadocs-ui/i18n'
 import { RootProvider } from 'fumadocs-ui/provider/next'
 import { notFound } from 'next/navigation'
 
+import { getMetadata } from '@/lib/constants/meta'
 import { i18n, translations } from '@/lib/i18n'
-
-const METADATA: Record<string, Metadata> = {
-  'en-US': {
-    title: {
-      default: 'Tera Router Docs',
-      template: '%s — Tera Router',
-    },
-    description:
-      'Tera Router documentation — self-hosted LLM gateway speaking the OpenAI, Anthropic, and Responses API formats.',
-  },
-  'id-ID': {
-    title: {
-      default: 'Tera Router Docs',
-      template: '%s — Tera Router',
-    },
-    description:
-      'Dokumentasi Tera Router — self-hosted LLM gateway dengan format OpenAI, Anthropic, dan Responses API.',
-  },
-}
 
 export async function generateMetadata({
   params,
@@ -34,7 +16,7 @@ export async function generateMetadata({
   params: Promise<{ lang: string }>
 }): Promise<Metadata> {
   const { lang } = await params
-  return METADATA[lang] ?? METADATA[i18n.defaultLanguage]
+  return getMetadata(lang)
 }
 
 export default async function RootLayout({
