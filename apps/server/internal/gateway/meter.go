@@ -8,6 +8,7 @@ import (
 	"tera-router/server/internal/core"
 	"tera-router/server/internal/lib/apperr"
 	"tera-router/server/internal/lib/cost"
+	"tera-router/server/internal/lib/modelprices"
 	"tera-router/server/internal/models"
 )
 
@@ -16,8 +17,9 @@ import (
 // Pricing overrides are stored as micros of USD per million tokens, so a rate
 // of 2_500_000 means $2.50 per million tokens. Cost is accumulated in micros
 // (millionths of a dollar) as an integer to avoid floating-point drift in
-// budget accounting. A model with no override costs zero, which is the correct
-// default for self-hosted and free-tier endpoints.
+// budget accounting. A model with neither an override nor a compiled-in retail
+// rate costs zero, which is the correct default for self-hosted and free-tier
+// endpoints.
 
 // pricingRates is one model's per-million-token rates in micros.
 type pricingRates struct {
@@ -39,13 +41,25 @@ func costMicros(rates pricingRates, u core.Usage) int64 {
 	}, int64(u.PromptTokens), int64(u.CachedTokens), int64(u.CacheWriteTokens), int64(u.CompletionTokens))
 }
 
-// ratesFor resolves the pricing override for a provider/model pair. A missing
-// override yields zero rates, not an error: an unpriced model is free.
+// ratesFor resolves the pricing for a provider/model pair. Operator overrides
+// win (per-model, then the provider-level row with an empty model); the
+// compiled-in retail table backs known models so usage shows a real cost
+// without manual setup. A miss yields zero rates, not an error: an unpriced
+// model is free.
 func (s *Server) ratesFor(ctx context.Context, provider, model string) pricingRates {
 	override, err := s.app.Repos.Pricing.Get(ctx, provider, model)
 	if err != nil {
 		if !isNotFound(err) {
 			s.log.Warn("gateway pricing lookup failed", "provider", provider, "model", model, "error", err)
+		}
+		override, err = s.app.Repos.Pricing.Get(ctx, provider, "")
+	}
+	if err != nil {
+		if !isNotFound(err) {
+			s.log.Warn("gateway provider pricing lookup failed", "provider", provider, "error", err)
+		}
+		if rates, ok := modelprices.Lookup(provider, model); ok {
+			return pricingRates(rates)
 		}
 		return pricingRates{}
 	}

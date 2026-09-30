@@ -107,6 +107,58 @@ func TestModelRowsNullCostWhenUnpriced(t *testing.T) {
 	}
 }
 
+// A priced group whose recorded cost is zero (priced after the fact) is
+// re-derived from the current rates instead of reading as free.
+func TestModelRowsDeriveCostWhenRecordedZero(t *testing.T) {
+	groups := []repositories.UsageGroup{
+		{Provider: "openai", Model: "gpt-4o-mini", Requests: 1, PromptTokens: 1_000_000, CompletionTokens: 1_000_000},
+	}
+	rates := map[string]models.PricingOverride{
+		pricingKey("openai", "gpt-4o-mini"): {InputMicros: 150_000, OutputMicros: 600_000},
+	}
+
+	rows := modelRows(groups, rates, nil)
+	if rows[0].CostMicros == nil || *rows[0].CostMicros != 750_000 {
+		t.Errorf("cost = %v, want the derived 750000", rows[0].CostMicros)
+	}
+	if rows[0].PricingRates == nil {
+		t.Error("pricing rates = nil, want the formatted rates")
+	}
+}
+
+// fillFallbackRates resolves grouped models without a per-model override from
+// the provider-level row first, then the compiled-in table; unknown models
+// stay missing so they render Unpriced, and explicit overrides are untouched.
+func TestFillFallbackRates(t *testing.T) {
+	groups := []repositories.UsageGroup{
+		{Provider: "openai", Model: "gpt-4o"},
+		{Provider: "openai", Model: "gpt-4o-mini"},
+		{Provider: "acme", Model: "custom-model"},
+		{Provider: "zeta", Model: "mystery"},
+	}
+	rates := map[string]models.PricingOverride{
+		pricingKey("openai", "gpt-4o"): {InputMicros: 1},
+	}
+	providerLevel := map[string]models.PricingOverride{
+		"acme": {Provider: "acme", InputMicros: 7},
+	}
+
+	fillFallbackRates(rates, providerLevel, groups)
+
+	if r := rates[pricingKey("openai", "gpt-4o")]; r.InputMicros != 1 {
+		t.Errorf("explicit override = %+v, want it untouched", r)
+	}
+	if r, ok := rates[pricingKey("acme", "custom-model")]; !ok || r.InputMicros != 7 {
+		t.Errorf("provider-level fallback = %+v ok=%v, want the acme row", r, ok)
+	}
+	if r, ok := rates[pricingKey("openai", "gpt-4o-mini")]; !ok || r.InputMicros != 150_000 {
+		t.Errorf("builtin fallback = %+v ok=%v, want openai gpt-4o-mini rates", r, ok)
+	}
+	if _, ok := rates[pricingKey("zeta", "mystery")]; ok {
+		t.Error("unknown model must stay unpriced")
+	}
+}
+
 func TestRequestRowsCostNullForFailedAndUnpriced(t *testing.T) {
 	records := []models.UsageRecord{
 		{ID: 3, Provider: "openai", Model: "priced", PromptTokens: 100, CachedTokens: 40, CompletionTokens: 10, CostMicros: 9, LatencyMS: 250},
@@ -146,14 +198,30 @@ func TestRequestRowsCostNullForFailedAndUnpriced(t *testing.T) {
 	}
 }
 
+// A priced request recorded at zero cost is re-derived from the current rates.
+func TestRequestRowsDeriveCostWhenRecordedZero(t *testing.T) {
+	records := []models.UsageRecord{
+		{ID: 5, Provider: "openai", Model: "gpt-4o-mini", PromptTokens: 1_000_000, CompletionTokens: 1_000_000},
+	}
+	rates := map[string]models.PricingOverride{
+		pricingKey("openai", "gpt-4o-mini"): {InputMicros: 150_000, OutputMicros: 600_000},
+	}
+
+	rows := requestRows(records, rates, time.Now(), nil)
+	if rows[0].CostMicros == nil || *rows[0].CostMicros != 750_000 {
+		t.Errorf("cost = %v, want the derived 750000", rows[0].CostMicros)
+	}
+}
+
 func TestProviderRowsUseDisplayNameAndCoverage(t *testing.T) {
 	groups := []repositories.UsageGroup{
 		{Provider: "custom-openai", Model: "m", Requests: 4, Failed: 1, PromptTokens: 100, CachedTokens: 40, CostMicros: 5},
 	}
-	rates := map[string]models.PricingOverride{pricingKey("custom-openai", "m"): {InputMicros: 1}}
+	derived := map[string]int64{"custom-openai": 5}
+	priced := map[string]int64{"custom-openai": 4}
 	names := map[string]string{"custom-openai": "Custom (OpenAI-compatible)"}
 
-	rows := providerRows(groups, rates, names, nil)
+	rows := providerRows(groups, derived, priced, names, nil)
 	if len(rows) != 1 {
 		t.Fatalf("rows = %d, want 1", len(rows))
 	}
@@ -166,6 +234,26 @@ func TestProviderRowsUseDisplayNameAndCoverage(t *testing.T) {
 	}
 	if row.InputTokens != 60 {
 		t.Errorf("input = %d, want 60", row.InputTokens)
+	}
+	if row.Coverage != 100 || row.PricingEst != 4 {
+		t.Errorf("coverage = %v/%d, want 100/4", row.Coverage, row.PricingEst)
+	}
+	if row.CostMicros != 5 {
+		t.Errorf("cost = %d, want the recorded 5", row.CostMicros)
+	}
+}
+
+// A provider with no recorded cost but priced models shows the derived
+// per-model sum instead of reading as free.
+func TestProviderRowsDeriveCostWhenRecordedZero(t *testing.T) {
+	groups := []repositories.UsageGroup{
+		{Provider: "openai", Requests: 2, PromptTokens: 100, CachedTokens: 40, CostMicros: 0},
+	}
+	derived := map[string]int64{"openai": 123}
+
+	rows := providerRows(groups, derived, map[string]int64{"openai": 2}, nil, nil)
+	if rows[0].CostMicros != 123 {
+		t.Errorf("cost = %d, want the derived 123", rows[0].CostMicros)
 	}
 }
 
