@@ -1,0 +1,45 @@
+---
+title: Guardrails
+description: Kebijakan berlapis untuk PII, prompt injection, topik, toksisitas, dan bias.
+---
+
+Guardrails memeriksa request (dan opsional respons) sebelum/menjelang keluar ke provider. Kebijakan dikelola dari halaman **Guardrails**.
+
+## Berlapis dan paling spesifik menang
+
+Kebijakan bisa dipasang di lima scope — `global`, `provider`, `model`, `chain`, dan `key`. Untuk satu request, router menentukan kebijakan efektif per detektor dengan aturan _paling spesifik menang_: kebijakan di scope `key` mengalahkan `chain`, yang mengalahkan `model`, dst.
+
+Konsekuensinya: guardrail global tidak bisa dimatikan dari key — key hanya bisa memperketat, tidak melonggarkan lapisan di atasnya.
+
+## Detektor
+
+| Detektor    | Apa yang diperiksa                                                                                                  |
+| ----------- | ------------------------------------------------------------------------------------------------------------------- |
+| `pii`       | Email, IP, nomor telepon, kartu kredit, IBAN, dan identitas Indonesia (NIK, NPWP, paspor) — dengan strategi masking |
+| `injection` | Pola prompt injection, bertingkat                                                                                   |
+| `topics`    | Daftar topik yang diizinkan atau diblokir (mode allow/block)                                                        |
+| `toxicity`  | Konten kasar/berbahaya dengan ambang skor                                                                           |
+| `bias`      | Bias dengan ambang skor                                                                                             |
+
+Setiap detektor punya `enabled` dan `action`:
+
+- `block` — tolak request (error `403`).
+- `warn` — teruskan tapi tandai.
+- `log` — catat saja.
+
+Pemeriksaan keluaran model diaktifkan per kebijakan (`scan_output`) — berguna untuk mencegah PII bocor lewat respons.
+
+## Menguji tanpa risiko
+
+Halaman **Guardrails** punya mode uji (`POST /v1/guardrails/evaluate`): kirim teks contoh, lihat kebijakan mana yang terpicu dan keputusannya apa — tanpa benar-benar memblokir apa pun.
+
+```bash
+curl -X POST http://localhost:8080/v1/guardrails/evaluate \
+  -H "Authorization: Bearer <jwt-dashboard>" \
+  -H "Content-Type: application/json" \
+  -d '{ "input": "email saya budi@example.com", "scope": "global" }'
+```
+
+## Kredibilitas deteksi
+
+Detektor bawaan bersifat deterministik (regex/kamus). Ada toggle `external_detectors` di settings untuk mengaktifkan detektor eksternal bila tersedia.

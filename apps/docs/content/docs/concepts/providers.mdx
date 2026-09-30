@@ -1,46 +1,46 @@
 ---
 title: Providers & Accounts
-description: Katalog provider bawaan, menambah akun, prioritas, dan custom provider.
+description: The built-in provider catalog, adding accounts, priorities, and custom providers.
 ---
 
-## Provider vs akun
+## Provider vs account
 
-- **Provider** adalah jenis upstream (OpenAI, Anthropic, GLM, ...) dengan dialek dan base URL bawaan.
-- **Account** adalah kredensial konkret milikmu di provider itu — satu provider bisa punya banyak akun.
+- A **provider** is a type of upstream (OpenAI, Anthropic, GLM, ...) with a built-in dialect and base URL.
+- An **account** is your concrete credential on that provider — one provider can have many accounts.
 
-## Katalog bawaan
+## Built-in catalog
 
-| Dialek               | Provider                                                                                                                                     |
+| Dialect              | Providers                                                                                                                                    |
 | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
 | OpenAI-compatible    | `openai`, `deepseek`, `xai`, `glm-cn`, `mistral`, `groq`, `cohere`, `perplexity`, `openrouter`, `nvidia`, `azure`, `vllm`, `ollama`, `cline` |
 | Anthropic-compatible | `anthropic`, `claude` (Claude Code, OAuth), `glm`, `kimi`, `minimax`                                                                         |
-| Responses            | `codex` (OAuth, backend ChatGPT)                                                                                                             |
-| Tanpa kredensial     | `ollama-local` (localhost:11434)                                                                                                             |
+| Responses            | `codex` (OAuth, ChatGPT backend)                                                                                                             |
+| No credentials       | `ollama-local` (localhost:11434)                                                                                                             |
 | OAuth-only           | `gemini`, `vertex`, `github` (Copilot), `cursor`, `kiro`, `qoder`, `kilocode`                                                                |
 
-Kredensial akun disimpan terenkripsi (enkripsi amplop dengan kunci turunan dari `APP_SECRET`).
+Account credentials are stored encrypted (envelope encryption with a key derived from `APP_SECRET`).
 
-## Menambah akun
+## Adding an account
 
-Lewat dashboard (**Providers → pilih provider → Connect**) atau API. Selalu uji dulu sebelum disimpan:
+Via the dashboard (**Providers → pick a provider → Connect**) or the API. Always test before saving:
 
 ```bash
 curl -X POST http://localhost:8080/v1/validate-key \
-  -H "Authorization: Bearer <jwt-dashboard>" \
+  -H "Authorization: Bearer <dashboard-jwt>" \
   -H "Content-Type: application/json" \
   -d '{ "provider": "openai", "auth_kind": "api_key", "api_key": "sk-..." }'
 ```
 
-Field penting saat membuat akun:
+Important fields when creating an account:
 
-- `auth_kind` — `api_key`, `oauth`, atau `none`.
-- `priority` — urutan pemakaian saat satu provider punya banyak akun.
-- `proxy_pool_id` — ikat akun ke proxy pool untuk kontrol IP keluar.
-- `metadata.base_url` — timpa base URL bawaan (berguna untuk endpoint kompatibel sendiri).
-- `metadata.headers` — header tambahan per akun.
+- `auth_kind` — `api_key`, `oauth`, or `none`.
+- `priority` — the order used when one provider has multiple accounts.
+- `proxy_pool_id` — bind the account to a proxy pool for outbound IP control.
+- `metadata.base_url` — override the built-in base URL (useful for your own compatible endpoints).
+- `metadata.headers` — extra headers per account.
 
-Tiap akun punya uji koneksi (`POST /v1/accounts/:id/test`) dan pembacaan kuota (`GET /v1/accounts/:id/quota`) dari dashboard.
+Every account supports a connection test (`POST /v1/accounts/:id/test`) and quota reading (`GET /v1/accounts/:id/quota`) from the dashboard.
 
-## Custom provider
+## Custom providers
 
-Punya endpoint OpenAI/Anthropic/Responses-compatible sendiri? Daftarkan sebagai custom provider (halaman **Providers → Custom**) dengan memilih `api_kind`-nya, lalu tambahkan akun seperti biasa. Slug-nya langsung bisa dipakai di `model: "provider-saya/model"`.
+Have your own OpenAI/Anthropic/Responses-compatible endpoint? Register it as a custom provider (**Providers → Custom**) by picking its `api_kind`, then add accounts as usual. Its slug works immediately in `model: "my-provider/model"`.

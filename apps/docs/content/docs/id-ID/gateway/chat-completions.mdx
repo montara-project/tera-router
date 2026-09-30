@@ -1,9 +1,9 @@
 ---
 title: Chat Completions
-description: OpenAI-compatible endpoint — POST /v1/chat/completions.
+description: Endpoint kompatibel OpenAI — POST /v1/chat/completions.
 ---
 
-`POST /v1/chat/completions` accepts a body exactly like OpenAI's Chat Completions API. No custom fields — just swap `model` and the base URL.
+`POST /v1/chat/completions` menerima body persis seperti Chat Completions API milik OpenAI. Tidak ada field custom — cukup ganti `model` dan base URL.
 
 ## Request
 
@@ -14,14 +14,14 @@ curl http://localhost:8080/v1/chat/completions \
   -d '{
     "model": "openai/gpt-4o-mini",
     "messages": [
-      { "role": "system", "content": "Be brief." },
-      { "role": "user", "content": "What is an LLM gateway?" }
+      { "role": "system", "content": "Jawab singkat." },
+      { "role": "user", "content": "Apa itu LLM gateway?" }
     ],
     "stream": false
   }'
 ```
 
-The response is the standard OpenAI format, enriched with two headers:
+Respons yang kembali adalah format OpenAI standar, diperkaya dua header:
 
 ```
 X-TeraRouter-Provider: openai
@@ -30,7 +30,7 @@ X-TeraRouter-Model: gpt-4o-mini
 
 ## Streaming
 
-Set `stream: true` to receive SSE — chunks follow the standard OpenAI format:
+Set `stream: true` untuk menerima SSE — chunk-nya format OpenAI standar:
 
 ```bash
 curl http://localhost:8080/v1/chat/completions \
@@ -38,14 +38,14 @@ curl http://localhost:8080/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "glm/glm-4.6",
-    "messages": [{ "role": "user", "content": "Tell me a joke" }],
+    "messages": [{ "role": "user", "content": "Ceritakan lelucon" }],
     "stream": true
   }'
 ```
 
-SSE details (heartbeat, deadline, cross-dialect) are covered on the [Streaming](/docs/gateway/streaming) page.
+Detail perilaku SSE (heartbeat, deadline, cross-dialect) ada di halaman [Streaming](/id-ID/docs/gateway/streaming).
 
-## Via the OpenAI SDK
+## Via SDK OpenAI
 
 ```ts
 import OpenAI from 'openai'
@@ -57,7 +57,7 @@ const client = new OpenAI({
 
 const stream = await client.chat.completions.create({
   model: 'openai/gpt-4o-mini',
-  messages: [{ role: 'user', content: 'Hello!' }],
+  messages: [{ role: 'user', content: 'Halo!' }],
   stream: true,
 })
 
@@ -66,9 +66,9 @@ for await (const chunk of stream) {
 }
 ```
 
-## Choosing a model
+## Memilih model
 
-The `model` value doesn't have to be `provider/model` — you can also use an alias pool name or `chain:<name>` to let the router pick the provider:
+Nilai `model` tidak harus `provider/model` — kamu juga bisa memakai nama alias pool atau `chain:<nama>` supaya router yang memilih provider:
 
 ```json
 { "model": "fast" }
@@ -76,4 +76,4 @@ The `model` value doesn't have to be `provider/model` — you can also use an al
 { "model": "anthropic/claude-sonnet-4(medium)" }
 ```
 
-Full explanation: [Models & routing](/docs/gateway/model-addressing).
+Penjelasan lengkap: [Model & routing](/id-ID/docs/gateway/model-addressing).

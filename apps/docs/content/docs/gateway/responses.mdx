@@ -1,14 +1,14 @@
 ---
 title: Responses
-description: Endpoint kompatibel OpenAI Responses — POST /v1/responses dan POST /responses.
+description: OpenAI Responses-compatible endpoint — POST /v1/responses and POST /responses.
 ---
 
-Tera Router menyediakan dua jalur untuk dialek Responses API:
+Tera Router provides two paths for the Responses API dialect:
 
-| Endpoint             | Keterangan                                                    |
+| Endpoint             | Notes                                                         |
 | -------------------- | ------------------------------------------------------------- |
-| `POST /v1/responses` | Jalur utama, sejajar dengan endpoint `/v1` lainnya            |
-| `POST /responses`    | Alias di root, untuk klien Responses-native seperti Codex CLI |
+| `POST /v1/responses` | Primary path, alongside the other `/v1` endpoints             |
+| `POST /responses`    | Root-level alias, for Responses-native clients like Codex CLI |
 
 ## Request
 
@@ -18,28 +18,28 @@ curl http://localhost:8080/v1/responses \
   -H "Content-Type: application/json" \
   -d '{
     "model": "codex/gpt-5-codex",
-    "input": "Tulis unit test untuk fungsi parseDate"
+    "input": "Write unit tests for the parseDate function"
   }'
 ```
 
-Respons mengikuti format Responses API standar, dengan header `X-TeraRouter-Provider` dan `X-TeraRouter-Model` seperti endpoint lain.
+The response follows the standard Responses API format, with the `X-TeraRouter-Provider` and `X-TeraRouter-Model` headers like every other endpoint.
 
 ## Streaming
 
-`stream: true` didukung penuh — sama seperti di [Chat Completions](/docs/gateway/chat-completions#streaming), chunk mengalir sebagai SSE.
+`stream: true` is fully supported — just like [Chat Completions](/docs/gateway/chat-completions#streaming), chunks stream as SSE.
 
-## Dipakai oleh Codex CLI
+## Used by Codex CLI
 
-Arahkan Codex ke instans Tera Router dengan environment variable standar OpenAI:
+Point Codex at your Tera Router instance with the standard OpenAI environment variables:
 
 ```bash
 export OPENAI_BASE_URL=http://localhost:8080/responses
 export OPENAI_API_KEY=sk_tr_...
 ```
 
-Atau lebih praktis lagi: buka halaman **CLI Tools** di dashboard dan pakai konfigurasi satu klik yang sudah mengarah ke instansmu.
+Or even easier: open the **CLI Tools** page in the dashboard and use the one-click configuration that already points at your instance.
 
-<Callout type="info" title="Provider codex adalah OAuth">
-  Model di bawah provider `codex` memakai akun ChatGPT/Codex (OAuth) yang dihubungkan lewat halaman
-  **Providers**, bukan API key biasa.
+<Callout type="info" title="The codex provider uses OAuth">
+  Models under the `codex` provider use ChatGPT/Codex accounts (OAuth) connected through the
+  **Providers** page, not regular API keys.
 </Callout>

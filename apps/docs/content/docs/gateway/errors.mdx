@@ -1,13 +1,13 @@
 ---
-title: Error & Resilience
-description: Format error per dialek, tabel status code, dan bagaimana router mencoba lagi sebelum menyerah.
+title: Errors & Resilience
+description: Error format per dialect, the status code table, and how the router retries before giving up.
 ---
 
-## Format error
+## Error format
 
-Error mengikuti envelope dialek endpoint yang kamu panggil.
+Errors follow the envelope of the dialect endpoint you called.
 
-**OpenAI** — `/v1/chat/completions` dan `/v1/responses`:
+**OpenAI** — `/v1/chat/completions` and `/v1/responses`:
 
 ```json
 {
@@ -30,37 +30,37 @@ Error mengikuti envelope dialek endpoint yang kamu panggil.
 }
 ```
 
-## Status code
+## Status codes
 
-| Status | Arti                                                                   |
-| ------ | ---------------------------------------------------------------------- |
-| `400`  | Model tidak dikenal atau konteks melebihi kapasitas                    |
-| `401`  | API key tidak ada, salah, atau dinonaktifkan                           |
-| `402`  | Budget habis (hanya budget dengan _hard cutoff_ yang memblokir)        |
-| `403`  | Model tidak diizinkan oleh allowlist key/plan atau guardrail memblokir |
-| `429`  | Rate limit atau kapasitas penuh                                        |
-| `503`  | Semua target gagal / sedang cooldown / server di kapasitas maksimum    |
-| `504`  | Upstream tidak menjawab sebelum deadline                               |
+| Status | Meaning                                                            |
+| ------ | ------------------------------------------------------------------ |
+| `400`  | Unknown model or context exceeds capacity                          |
+| `401`  | API key missing, wrong, or disabled                                |
+| `402`  | Budget exhausted (only budgets with a _hard cutoff_ block)         |
+| `403`  | Model not allowed by key/plan allowlist, or a guardrail blocked it |
+| `429`  | Rate limited or at capacity                                        |
+| `503`  | All targets failed / cooling down / server at maximum capacity     |
+| `504`  | Upstream did not answer before the deadline                        |
 
-## Retry yang dilakukan router
+## Retries the router performs
 
-Sebelum error sampai ke kamu, router sudah berusaha menolong:
+Before an error reaches you, the router has already tried to help:
 
-- Maksimal **10 percobaan** per request, menyapu langkah chain/alias/akun cadangan.
-- **2 retry di akun yang sama** untuk gangguan sementara, dengan jeda 500 ms lalu 1 detik.
-- **Cooldown akun 30 detik** setelah `429` dari upstream (menghormati `Retry-After` kalau ada), dan **5 menit** setelah kegagalan autentikasi.
+- Up to **10 attempts** per request, sweeping chain steps/alias targets/backup accounts.
+- **2 retries on the same account** for transient issues, with 500 ms then 1 second delays.
+- **30-second account cooldown** after a `429` from upstream (honoring `Retry-After` when present), and **5 minutes** after an authentication failure.
 
-Artinya: error yang sampai ke klien biasanya sudah melewati semua target yang tersedia.
+That means: an error reaching the client has usually already exhausted every available target.
 
-## Kapasitas
+## Capacity
 
-- Gateway memakai batas konkurensi global **100 request in-flight** — di atas itu dijawab `503`, bukan diantrekan tanpa batas.
-- Dashboard API punya rate limit **100 request/menit per IP** (gateway tidak terkena).
+- The gateway uses a global concurrency limit of **100 in-flight requests** — beyond that it answers `503` rather than queueing without bounds.
+- The dashboard API has a rate limit of **100 requests/minute per IP** (the gateway is exempt).
 
-## Menangani error di klien
+## Handling errors on the client
 
-Strategi yang disarankan untuk coding agent dan SDK:
+Recommended strategies for coding agents and SDKs:
 
-1. `401`/`403` — jangan di-retry; periksa key dan allowlist model.
-2. `402` — hentikan atau pindah key; router memang sengaja memblokir.
-3. `429`/`503`/`504` — aman di-retry dengan backoff; router sudah mencoba target lain dulu.
+1. `401`/`403` — don't retry; check the key and model allowlist.
+2. `402` — stop or switch keys; the router blocked it on purpose.
+3. `429`/`503`/`504` — safe to retry with backoff; the router already tried other targets first.

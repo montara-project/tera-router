@@ -2,6 +2,12 @@ import type { ReactNode } from 'react'
 
 import Link from 'next/link'
 
+import { i18n } from '@/lib/i18n'
+
+export function generateStaticParams() {
+  return i18n.languages.map((lang) => ({ lang }))
+}
+
 type IconProps = {
   children: ReactNode
   className?: string

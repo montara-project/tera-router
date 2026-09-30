@@ -1,71 +1,71 @@
 ---
-title: Konfigurasi
-description: Environment variables, target make, dan batas bawaan server serta dashboard.
+title: Configuration
+description: Environment variables, make targets, and the built-in limits of the server and dashboard.
 ---
 
 ## Server (apps/server)
 
-Server membaca `.env` di `apps/server` saat dijalankan lewat `make run`.
+The server reads `.env` in `apps/server` when run via `make run`.
 
-| Variable               | Default              | Keterangan                                                                     |
-| ---------------------- | -------------------- | ------------------------------------------------------------------------------ |
-| `MACHINE_ID`           | — (wajib)            | ID unik mesin (angka 16-bit, tidak boleh 0)                                    |
-| `APP_SECRET`           | — (wajib)            | Menandatangani JWT dan menurunkan kunci enkripsi kredensial                    |
-| `PORT`                 | `8080`               | Port gateway + dashboard API                                                   |
-| `ENV`                  | `production`         | `development` mengaktifkan perilaku dev (seed key contoh)                      |
-| `DEBUG`                | `false`              | `true`/`1` mengaktifkan mode debug                                             |
-| `DATABASE_PATH`        | `terarouter.db`      | Lokasi file SQLite                                                             |
-| `MIGRATE_ON_BOOT`      | `true`               | Jalankan migrasi saat start                                                    |
-| `SEED_ON_BOOT`         | `true`               | Seed data awal (role, admin, plan Default)                                     |
-| `ADMIN_EMAIL`          | `admin@tera.local`   | Email admin awal                                                               |
-| `ADMIN_PASSWORD`       | `admin123` (dev)     | Password admin — wajib diset di produksi                                       |
-| `CORS_ALLOWED_ORIGINS` | `*`                  | Daftar origin dipisah koma, mis. `http://localhost:5173,http://localhost:3001` |
-| `APP_NAME`             | `tera-router-server` | Nama aplikasi                                                                  |
-| `SENTRY_DSN`           | —                    | Aktifkan error tracking bila diisi                                             |
+| Variable               | Default              | Notes                                                                           |
+| ---------------------- | -------------------- | ------------------------------------------------------------------------------- |
+| `MACHINE_ID`           | — (required)         | Unique machine ID (16-bit number, must not be 0)                                |
+| `APP_SECRET`           | — (required)         | Signs JWTs and derives the credential encryption key                            |
+| `PORT`                 | `8080`               | Port for the gateway + dashboard API                                            |
+| `ENV`                  | `production`         | `development` enables dev behavior (sample key seeding)                         |
+| `DEBUG`                | `false`              | `true`/`1` enables debug mode                                                   |
+| `DATABASE_PATH`        | `terarouter.db`      | SQLite file location                                                            |
+| `MIGRATE_ON_BOOT`      | `true`               | Run migrations on start                                                         |
+| `SEED_ON_BOOT`         | `true`               | Seed initial data (roles, admin, Default plan)                                  |
+| `ADMIN_EMAIL`          | `admin@tera.local`   | Initial admin email                                                             |
+| `ADMIN_PASSWORD`       | `admin123` (dev)     | Admin password — required in production                                         |
+| `CORS_ALLOWED_ORIGINS` | `*`                  | Comma-separated origin list, e.g. `http://localhost:5173,http://localhost:3001` |
+| `APP_NAME`             | `tera-router-server` | Application name                                                                |
+| `SENTRY_DSN`           | —                    | Enables error tracking when set                                                 |
 
-<Callout type="error" title="APP_SECRET itu kunci rumah">
-  Kredensial provider dienkripsi dengan kunci turunan dari `APP_SECRET`. Ganti secret = semua
-  kredensial tersimpan tidak terbaca lagi. Ganti hanya sebelum data ada, dan simpan baik-baik.
+<Callout type="error" title="APP_SECRET is the house key">
+  Provider credentials are encrypted with a key derived from `APP_SECRET`. Changing the secret makes
+  every stored credential unreadable. Change it only before data exists, and keep it safe.
 </Callout>
 
-## Target make (apps/server)
+## Make targets (apps/server)
 
-| Target                 | Keterangan                                       |
-| ---------------------- | ------------------------------------------------ |
-| `make run`             | Jalankan API server (baca `.env`)                |
-| `make install`         | Siapkan toolchain Go                             |
-| `make migrate/up`      | Jalankan migrasi                                 |
-| `make migrate/down`    | Rollback migrasi                                 |
-| `make migrate/refresh` | Reset database                                   |
-| `make seed`            | Seed data produksi                               |
-| `make seed/dev`        | Seed key contoh "Dev" (plaintext dicetak sekali) |
-| `make test`            | Test                                             |
-| `make vet`             | Static analysis                                  |
-| `make build/api`       | Build binary server                              |
+| Target                 | Notes                                              |
+| ---------------------- | -------------------------------------------------- |
+| `make run`             | Run the API server (reads `.env`)                  |
+| `make install`         | Set up the Go toolchain                            |
+| `make migrate/up`      | Run migrations                                     |
+| `make migrate/down`    | Roll back migrations                               |
+| `make migrate/refresh` | Reset the database                                 |
+| `make seed`            | Seed production data                               |
+| `make seed/dev`        | Seed the "Dev" sample key (plaintext printed once) |
+| `make test`            | Tests                                              |
+| `make vet`             | Static analysis                                    |
+| `make build/api`       | Build the server binary                            |
 
 ## Dashboard (apps/web-ui)
 
-| Variable             | Default                 | Keterangan        |
-| -------------------- | ----------------------- | ----------------- |
-| `VITE_API_URL`       | `http://localhost:8080` | Alamat API server |
-| `VITE_APP_NAME`      | `Tera Router`           | Nama tampilan     |
-| `BETTER_AUTH_URL`    | `http://localhost:5173` | Base URL auth     |
-| `BETTER_AUTH_SECRET` | —                       | Secret auth       |
+| Variable             | Default                 | Notes              |
+| -------------------- | ----------------------- | ------------------ |
+| `VITE_API_URL`       | `http://localhost:8080` | API server address |
+| `VITE_APP_NAME`      | `Tera Router`           | Display name       |
+| `BETTER_AUTH_URL`    | `http://localhost:5173` | Auth base URL      |
+| `BETTER_AUTH_SECRET` | —                       | Auth secret        |
 
-Dashboard berjalan di port `5173` (`pnpm dev` di `apps/web-ui`).
+The dashboard runs on port `5173` (`pnpm dev` in `apps/web-ui`).
 
-## Batas bawaan
+## Built-in limits
 
-| Batas                            | Nilai                |
-| -------------------------------- | -------------------- |
-| Ukuran body request maksimum     | 32 MiB               |
-| Read timeout server              | 20 detik             |
-| Write timeout server             | 3 menit              |
-| Deadline request unary           | 90 detik             |
-| Deadline stream                  | 3 menit              |
-| Heartbeat SSE                    | 15 detik             |
-| Konkurensi gateway (in-flight)   | 100                  |
-| Rate limit dashboard             | 100 req/menit per IP |
-| Cache verifikasi key             | 5 menit              |
-| Retry per request (maks)         | 10                   |
-| Cooldown akun (429 / auth gagal) | 30 detik / 5 menit   |
+| Limit                              | Value                  |
+| ---------------------------------- | ---------------------- |
+| Maximum request body size          | 32 MiB                 |
+| Server read timeout                | 20 seconds             |
+| Server write timeout               | 3 minutes              |
+| Unary request deadline             | 90 seconds             |
+| Stream deadline                    | 3 minutes              |
+| SSE heartbeat                      | 15 seconds             |
+| Gateway concurrency (in-flight)    | 100                    |
+| Dashboard rate limit               | 100 req/min per IP     |
+| Key verification cache             | 5 minutes              |
+| Retries per request (max)          | 10                     |
+| Account cooldown (429 / auth fail) | 30 seconds / 5 minutes |

@@ -1,40 +1,40 @@
 ---
 title: Streaming
-description: Perilaku SSE di semua endpoint gateway — passthrough, cross-dialect, heartbeat, dan deadline.
+description: SSE behavior across all gateway endpoints — passthrough, cross-dialect, heartbeat, and deadlines.
 ---
 
-Semua endpoint gateway mendukung `stream: true` dan menjawab dengan `text/event-stream` (SSE). Chunk yang mengalir mengikuti format dialek endpoint yang kamu panggil.
+Every gateway endpoint supports `stream: true` and responds with `text/event-stream` (SSE). The chunks that flow follow the dialect format of the endpoint you called.
 
-## Dua jalur streaming
+## Two streaming paths
 
-**Passthrough** — kalau dialek klien dan dialek upstream sama (misal OpenAI ke OpenAI), chunk diteruskan apa adanya tanpa dimodifikasi. Ini jalur tercepat.
+**Passthrough** — when the client dialect and the upstream dialect match (e.g. OpenAI to OpenAI), chunks are forwarded unmodified. This is the fastest path.
 
-**Cross-dialect** — kalau dialect-nya beda (misal klien Anthropic memanggil model OpenAI), router merender ulang stream ke dialek klien. Klien tidak perlu tahu bedanya.
+**Cross-dialect** — when the dialects differ (e.g. an Anthropic client calling an OpenAI model), the router re-renders the stream into the client's dialect. The client never needs to know.
 
-Di kedua jalur, router tetap mengekstrak data usage (prompt/completion/cached tokens) dari stream untuk metering — cara bacanya aman, tidak menyentuh isi chunk yang kamu terima.
+On both paths, the router still extracts usage data (prompt/completion/cached tokens) from the stream for metering — reading is non-destructive and never touches the chunks you receive.
 
 ## Heartbeat
 
-Sambil menunggu chunk pertama dari upstream, router mengirim komentar SSE setiap 15 detik:
+While waiting for the first chunk from upstream, the router sends an SSE comment every 15 seconds:
 
 ```
 : ping
 
 ```
 
-Ini menjaga koneksi tetap hidup melalui load balancer atau proxy yang suka memutus koneksi senyap.
+This keeps the connection alive through load balancers or proxies that like to kill silent connections.
 
-## Deadline
+## Deadlines
 
-| Batas                          | Nilai                 |
-| ------------------------------ | --------------------- |
-| Request unary (non-streaming)  | 90 detik              |
-| Stream (total durasi)          | 3 menit               |
-| Stall stream (timeout koneksi) | diatur lewat Settings |
+| Limit                         | Value                    |
+| ----------------------------- | ------------------------ |
+| Unary request (non-streaming) | 90 seconds               |
+| Stream (total duration)       | 3 minutes                |
+| Stream stall (timeout)        | configurable in Settings |
 
-Stream yang melewati deadline diakhiri rapi sesuai dialeknya. Untuk deadline yang lebih panjang, sesuaikan `request_timeout` dan `stream_stall_timeout` di halaman **Settings**.
+A stream that exceeds its deadline is ended cleanly in its own dialect. For longer deadlines, adjust `request_timeout` and `stream_stall_timeout` on the **Settings** page.
 
-## Contoh
+## Example
 
 ```bash
 curl -N http://localhost:8080/v1/chat/completions \
@@ -42,9 +42,9 @@ curl -N http://localhost:8080/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "chain:heavy-coding",
-    "messages": [{ "role": "user", "content": "Tulis haiku" }],
+    "messages": [{ "role": "user", "content": "Write a haiku" }],
     "stream": true
   }'
 ```
 
-Flag `-N` mematikan buffering curl supaya chunk tampil seketika.
+The `-N` flag disables curl buffering so chunks appear immediately.

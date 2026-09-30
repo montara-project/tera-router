@@ -1,0 +1,72 @@
+---
+title: Instalasi
+description: Jalankan API server dan dashboard Tera Router secara lokal.
+---
+
+## Prasyarat
+
+- Go 1.26+ (server)
+- Node.js 22+ dan pnpm (dashboard & docs)
+- Tidak ada dependensi eksternal lain — database memakai SQLite (file `terarouter.db`)
+
+## Jalankan API server
+
+```bash
+cd apps/server
+
+# siapkan .env minimal
+cat > .env <<'EOF'
+MACHINE_ID=1
+APP_SECRET=ganti-dengan-secret-panjang
+ADMIN_EMAIL=admin@tera.local
+ADMIN_PASSWORD=admin123
+EOF
+
+make run
+```
+
+Server akan:
+
+1. Menjalankan migrasi SQLite (`MIGRATE_ON_BOOT`, aktif secara default).
+2. Menyeed data awal — role, user admin dari `ADMIN_EMAIL`/`ADMIN_PASSWORD`, plan _Default_.
+3. Membuka gateway dan dashboard API di `PORT` (default `8080`).
+
+<Callout type="info" title="Mode development">
+  Dengan `ENV=development`, server otomatis menyiapkan key contoh "Dev". Minta plaintext-nya lewat
+  `make seed/dev` — plaintext hanya dicetak sekali.
+</Callout>
+
+## Jalankan dashboard
+
+```bash
+# dari root monorepo
+pnpm install
+
+cd apps/web-ui
+cp .env.example .env   # VITE_API_URL mengarah ke http://localhost:8080
+pnpm dev
+```
+
+Buka `http://localhost:5173`, lalu masuk dengan `ADMIN_EMAIL` dan `ADMIN_PASSWORD` yang tadi diset.
+
+## Port dan layanan
+
+| Layanan      | URL                     | Keterangan                        |
+| ------------ | ----------------------- | --------------------------------- |
+| API server   | `http://localhost:8080` | Gateway (`/v1/*`) + dashboard API |
+| Dashboard UI | `http://localhost:5173` | Vite dev server (`apps/web-ui`)   |
+| Docs         | `http://localhost:3001` | Situs ini (`apps/docs`)           |
+
+## Seeding key pertama (tanpa dashboard)
+
+```bash
+cd apps/server
+make seed/dev   # cetak plaintext key contoh, sekali saja
+```
+
+Simpan plaintext-nya baik-baik — yang tersimpan di database hanya hash.
+
+## Langkah berikutnya
+
+- [Tur dashboard](/id-ID/docs/getting-started/dashboard) — kenali tiap halaman.
+- [Gateway API](/id-ID/docs/gateway) — request pertamamu ke router.

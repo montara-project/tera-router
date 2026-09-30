@@ -1,23 +1,23 @@
 ---
-title: Pengenalan
-description: Satu base URL dan satu API key untuk semua model — format OpenAI, Anthropic, dan Responses API sekaligus.
+title: Introduction
+description: One base URL and one API key for every model — OpenAI, Anthropic, and Responses API dialects in one place.
 ---
 
-## Tera Router itu apa?
+## What is Tera Router?
 
-Tera Router adalah LLM gateway yang kamu jalankan sendiri. Arahkan SDK, `curl`, atau coding agent favoritmu ke satu base URL, dan router yang meneruskan setiap request ke provider yang sudah kamu hubungkan — lengkap dengan fallback, cooldown, pembatasan biaya, dan pencatatan usage.
+Tera Router is an LLM gateway you run yourself. Point your SDK, `curl`, or favorite coding agent at a single base URL, and the router forwards each request to the providers you have connected — complete with fallbacks, cooldowns, spending limits, and usage tracking.
 
-- **Kompatibel dengan tiga dialek** — `POST /v1/chat/completions` (OpenAI), `POST /v1/messages` (Anthropic), dan `POST /v1/responses` (OpenAI Responses). Klien yang sudah ada tidak perlu diubah.
-- **Routing yang bisa diatur** — rantai provider dengan strategi `priority`, `round-robin`, atau `load-balanced`, plus fallback otomatis saat satu akun gagal atau kena rate limit.
-- **Kontrol biaya** — plan dan budget per key, per akun, atau global, dengan alert dan hard cutoff.
-- **Guardrails** — deteksi PII, prompt injection, topik, toksisitas, dan bias sebelum request keluar.
-- **Dashboard** — kelola semua di atas dari UI: API key, akun provider, chains, guardrails, usage, sampai log console.
+- **Three dialects, fully compatible** — `POST /v1/chat/completions` (OpenAI), `POST /v1/messages` (Anthropic), and `POST /v1/responses` (OpenAI Responses). Existing clients need no changes.
+- **Routing you control** — provider chains with `priority`, `round-robin`, or `load-balanced` strategies, plus automatic failover when an account fails or gets rate limited.
+- **Cost control** — plans and budgets per key, per account, or global, with alerts and hard cutoffs.
+- **Guardrails** — PII, prompt injection, topic, toxicity, and bias detection before requests leave.
+- **Dashboard** — manage everything above from a UI: API keys, provider accounts, chains, guardrails, usage, down to the console log.
 
-## Tiga langkah ke request pertama
+## Three steps to your first request
 
-1. **Jalankan server** — `make run` di `apps/server`, gateway siap di `http://localhost:8080`.
-2. **Buat API key** — masuk ke dashboard di `http://localhost:5173`, buka **API Keys**, buat key berawalan `sk_tr_`.
-3. **Panggil** — pakai key itu di header `Authorization`:
+1. **Start the server** — `make run` in `apps/server`, gateway ready at `http://localhost:8080`.
+2. **Create an API key** — sign in to the dashboard at `http://localhost:5173`, open **API Keys**, create a key prefixed with `sk_tr_`.
+3. **Call it** — use that key in the `Authorization` header:
 
 ```bash
 curl http://localhost:8080/v1/chat/completions \
@@ -26,14 +26,14 @@ curl http://localhost:8080/v1/chat/completions \
   -d '{
     "model": "openai/gpt-4o-mini",
     "messages": [
-      { "role": "user", "content": "Halo, dunia!" }
+      { "role": "user", "content": "Hello, world!" }
     ]
   }'
 ```
 
-## Panggil dari kode
+## Call it from code
 
-Semua SDK yang bicara format OpenAI tinggal diganti base URL-nya:
+Any SDK that speaks the OpenAI format only needs its base URL swapped:
 
 ```ts title="OpenAI SDK"
 import OpenAI from 'openai'
@@ -45,7 +45,7 @@ const client = new OpenAI({
 
 const res = await client.chat.completions.create({
   model: 'anthropic/claude-sonnet-4',
-  messages: [{ role: 'user', content: 'Halo, dunia!' }],
+  messages: [{ role: 'user', content: 'Hello, world!' }],
 })
 ```
 
@@ -60,31 +60,31 @@ const client = new Anthropic({
 const res = await client.messages.create({
   model: 'openai/gpt-4o-mini',
   max_tokens: 1024,
-  messages: [{ role: 'user', content: 'Halo, dunia!' }],
+  messages: [{ role: 'user', content: 'Hello, world!' }],
 })
 ```
 
-Perhatikan: dengan Tera Router, model Anthropic bisa dipanggil lewat SDK OpenAI dan sebaliknya — router yang menerjemahkan dialeknya.
+Note: with Tera Router, an Anthropic model can be called through the OpenAI SDK and vice versa — the router translates the dialects.
 
-## Langkah selanjutnya
+## Next steps
 
 <Cards>
-  <Card href="/docs/getting-started/installation" title="Instalasi">
-    Setup server dan dashboard dari nol.
+  <Card href="/docs/getting-started/installation" title="Installation">
+    Set up the server and dashboard from scratch.
   </Card>
   <Card href="/docs/gateway" title="Gateway API">
-    Autentikasi, endpoint, dan format request.
+    Authentication, endpoints, and request formats.
   </Card>
-  <Card href="/docs/gateway/model-addressing" title="Model & routing">
-    `provider/model`, alias pool, dan `chain:`.
+  <Card href="/docs/gateway/model-addressing" title="Models & routing">
+    `provider/model`, alias pools, and `chain:`.
   </Card>
   <Card href="/docs/concepts/guardrails" title="Guardrails">
-    Filter PII, injection, dan topik terlarang.
+    PII, injection, and forbidden topic filters.
   </Card>
   <Card href="/docs/api-reference/dashboard-api" title="API Reference">
-    Semua endpoint REST dashboard.
+    Every dashboard REST endpoint.
   </Card>
-  <Card href="/docs/configuration" title="Konfigurasi">
-    Environment variables dan target `make`.
+  <Card href="/docs/configuration" title="Configuration">
+    Environment variables and `make` targets.
   </Card>
 </Cards>

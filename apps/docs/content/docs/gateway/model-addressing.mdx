@@ -1,26 +1,26 @@
 ---
-title: Model & Routing
-description: Empat cara menulis field model — provider/model, alias, chain, dan suffix reasoning.
+title: Models & Routing
+description: Four ways to write the model field — provider/model, aliases, chains, and reasoning suffixes.
 ---
 
-Field `model` di Tera Router lebih ekspresif daripada API biasa. Router membacanya dengan urutan prioritas tetap:
+The `model` field in Tera Router is more expressive than a typical API. The router reads it in a fixed priority order:
 
-| Urutan | Bentuk           | Contoh                      | Arti                                |
-| ------ | ---------------- | --------------------------- | ----------------------------------- |
-| 1      | `chain:<nama>`   | `chain:heavy-coding`        | Jalankan rantai routing bernama itu |
-| 2      | Nama alias       | `fast`                      | Pakai alias pool yang cocok         |
-| 3      | `provider/model` | `anthropic/claude-sonnet-4` | Target eksplisit ke satu provider   |
-| 4      | Nama polos       | `heavy-coding`              | Cari chain bernama itu, lalu alias  |
+| Order | Form             | Example                     | Meaning                                       |
+| ----- | ---------------- | --------------------------- | --------------------------------------------- |
+| 1     | `chain:<name>`   | `chain:heavy-coding`        | Run the named routing chain                   |
+| 2     | Alias name       | `fast`                      | Use the matching alias pool                   |
+| 3     | `provider/model` | `anthropic/claude-sonnet-4` | Explicit target to a single provider          |
+| 4     | Plain name       | `heavy-coding`              | Look up a chain with that name, then an alias |
 
-`provider/model` hanya valid kalau `provider` adalah slug dari katalog bawaan atau custom provider yang aktif.
+`provider/model` is only valid if `provider` is the slug of a built-in catalog entry or an active custom provider.
 
 ## Alias pool
 
-Alias memetakan satu nama pendek ke beberapa target `provider/model` yang dicoba berurutan. Kelola lewat halaman **Chains → alias** atau API:
+An alias maps one short name to multiple `provider/model` targets tried in order. Manage it via the **Chains → alias** page or the API:
 
 ```bash
 curl -X PUT http://localhost:8080/v1/models/alias \
-  -H "Authorization: Bearer <jwt-dashboard>" \
+  -H "Authorization: Bearer <dashboard-jwt>" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "fast",
@@ -33,15 +33,15 @@ curl -X PUT http://localhost:8080/v1/models/alias \
   }'
 ```
 
-Setelah itu, `model: "fast"` di gateway berarti "coba Groq dulu, kalau gagal OpenAI".
+After that, `model: "fast"` on the gateway means "try Groq first, OpenAI if it fails".
 
-## Chain
+## Chains
 
-Chain mengatur langkah routing yang lebih kaya — strategi per-chain, langkah berurutan, dan fallback penutup:
+Chains define richer routing — a per-chain strategy, sequential steps, and a closing fallback:
 
 ```bash
 curl -X POST http://localhost:8080/v1/chains \
-  -H "Authorization: Bearer <jwt-dashboard>" \
+  -H "Authorization: Bearer <dashboard-jwt>" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "heavy-coding",
@@ -56,17 +56,17 @@ curl -X POST http://localhost:8080/v1/chains \
   }'
 ```
 
-Strategi yang tersedia:
+Available strategies:
 
-- `priority` — ikuti urutan langkah; pindah ke langkah berikutnya saat langkah aktif gagal.
-- `round-robin` — putar antar langkah untuk membagi beban.
-- `load-balanced` — sebar request merata.
+- `priority` — follow the step order; move to the next step when the active one fails.
+- `round-robin` — rotate across steps to share the load.
+- `load-balanced` — spread requests evenly.
 
-Panggil dengan `model: "chain:heavy-coding"` (atau polos `heavy-coding`, karena nama chain dicari lebih dulu di bentuk ke-4).
+Call it with `model: "chain:heavy-coding"` (or plain `heavy-coding`, since chain names are looked up first in form 4).
 
-## Suffix reasoning
+## Reasoning suffix
 
-Tambahkan tingkat penalaran dalam kurung di akhir nama model — router yang menerjemahkannya ke parameter reasoning tujuan:
+Append a reasoning level in parentheses at the end of the model name — the router translates it into the target provider's reasoning parameter:
 
 ```json
 { "model": "openai/gpt-4o-mini(high)" }
@@ -77,19 +77,19 @@ Tambahkan tingkat penalaran dalam kurung di akhir nama model — router yang men
 | --------- | ------------ |
 | `none`    | 0            |
 | `minimal` | 512          |
-| `low`     | 1.024        |
-| `medium`  | 8.192        |
-| `high`    | 24.576       |
-| `xhigh`   | 32.768       |
-| `max`     | 128.000      |
+| `low`     | 1,024        |
+| `medium`  | 8,192        |
+| `high`    | 24,576       |
+| `xhigh`   | 32,768       |
+| `max`     | 128,000      |
 
-Tulis angka langsung (misal `(8192)`) untuk budget eksplisit.
+Write a number directly (e.g. `(8192)`) for an explicit budget.
 
-## Kombinasi dengan allowlist key
+## Combining with key allowlists
 
-Pattern allowlist pada key/plan mendukung wildcard `*` di akhir, dan mencocokkan semua bentuk nama: model polos, `provider/model`, nama alias, maupun `chain:<nama>`. Contoh `anthropic/*` mengizinkan semua model Anthropic; `chain:*` mengizinkan semua chain.
+Allowlist patterns on keys/plans support a trailing `*` wildcard and match every name form — plain models, `provider/model`, alias names, and `chain:<name>`. For example `anthropic/*` allows all Anthropic models; `chain:*` allows all chains.
 
-<Callout type="warn" title="Allowlist saling memotong">
-  Model yang diizinkan adalah irisan antara allowlist key dan allowlist plan-nya. Key tidak bisa
-  melonggarkan batasan plan.
+<Callout type="warn" title="Allowlists intersect">
+  The allowed models are the intersection between the key's allowlist and its plan's allowlist. A
+  key can never loosen its plan's restrictions.
 </Callout>

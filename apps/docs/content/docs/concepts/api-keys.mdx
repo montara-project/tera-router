@@ -1,19 +1,19 @@
 ---
 title: API Keys
-description: Format key `sk_tr_`, cara membuat, membatasi model, dan mengelolanya.
+description: The `sk_tr_` key format, how to create keys, restrict models, and manage them.
 ---
 
-## Format dan penyimpanan
+## Format and storage
 
-Key berawalan `sk_tr_` diikuti data acak yang dienkode base64url. Yang disimpan di database hanya hash (argon2id) — plaintext ditampilkan **satu kali** saat pembuatan, lalu tidak pernah lagi (kecuali lewat fitur reveal yang memakai enkripsi amplop).
+Keys are prefixed with `sk_tr_` followed by random base64url-encoded data. Only the hash (argon2id) is stored in the database — the plaintext is shown **once** at creation, never again (except through the reveal feature, which uses envelope encryption).
 
-## Membuat key
+## Creating a key
 
-Lewat dashboard (**API Keys → Create**) atau API:
+Via the dashboard (**API Keys → Create**) or the API:
 
 ```bash
 curl -X POST http://localhost:8080/v1/keys \
-  -H "Authorization: Bearer <jwt-dashboard>" \
+  -H "Authorization: Bearer <dashboard-jwt>" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "claude-code-laptop",
@@ -22,7 +22,7 @@ curl -X POST http://localhost:8080/v1/keys \
   }'
 ```
 
-Responsnya memuat `full_key` — simpan sekarang:
+The response contains `full_key` — save it now:
 
 ```json
 {
@@ -37,26 +37,26 @@ Responsnya memuat `full_key` — simpan sekarang:
 }
 ```
 
-## Membatasi model
+## Restricting models
 
-`allowed_models` menerima pattern dengan wildcard `*` di akhir, dan mencocokkan semua bentuk nama model — polos, `provider/model`, alias, maupun `chain:<nama>`:
+`allowed_models` accepts patterns with a trailing `*` wildcard and matches every model name form — plain, `provider/model`, aliases, and `chain:<name>`:
 
-| Pattern          | Mengizinkan               |
-| ---------------- | ------------------------- |
-| `anthropic/*`    | Semua model Anthropic     |
-| `openai/gpt-4o*` | Semua varian `gpt-4o`     |
-| `chain:*`        | Semua chain               |
-| `fast`           | Alias bernama `fast` saja |
+| Pattern          | Allows                      |
+| ---------------- | --------------------------- |
+| `anthropic/*`    | All Anthropic models        |
+| `openai/gpt-4o*` | All `gpt-4o` variants       |
+| `chain:*`        | All chains                  |
+| `fast`           | Only the alias named `fast` |
 
-Kalau key diikat ke plan, model yang diizinkan adalah **irisan** allowlist key dan plan. Key tidak pernah bisa melonggarkan batasan plan.
+If the key is bound to a plan, the allowed models are the **intersection** of the key's and plan's allowlists. A key can never loosen its plan's restrictions.
 
-## Siklus hidup
+## Lifecycle
 
-- **Disable** — key dinonaktifkan langsung menolak request dengan `401`; cache verifikasi (5 menit) tidak berlaku untuk key yang dimatikan.
-- **Reveal** — `POST /v1/keys/:id/reveal` mengembalikan plaintext. Tiap reveal tercatat di audit log.
-- **last used** — pemakaian pertama tiap key dicatat `last_used_at`, terlihat di daftar key.
+- **Disable** — a disabled key starts rejecting requests with `401` immediately; the verification cache (5 minutes) does not apply to disabled keys.
+- **Reveal** — `POST /v1/keys/:id/reveal` returns the plaintext. Every reveal is recorded in the audit log.
+- **last used** — the first use of each key records `last_used_at`, visible in the key list.
 
-<Callout type="info" title="Satu key per perangkat">
-  Kebiasaan yang disarankan: satu key per aplikasi/perangkat. Kalau laptop hilang, cukup nonaktifkan
-  satu key tanpa mengganggu yang lain.
+<Callout type="info" title="One key per device">
+  Recommended habit: one key per app/device. If a laptop is lost, you disable that one key without
+  touching anything else.
 </Callout>

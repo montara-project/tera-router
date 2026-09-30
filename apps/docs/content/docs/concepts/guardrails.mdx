@@ -1,45 +1,45 @@
 ---
 title: Guardrails
-description: Kebijakan berlapis untuk PII, prompt injection, topik, toksisitas, dan bias.
+description: Layered policies for PII, prompt injection, topics, toxicity, and bias.
 ---
 
-Guardrails memeriksa request (dan opsional respons) sebelum/menjelang keluar ke provider. Kebijakan dikelola dari halaman **Guardrails**.
+Guardrails inspect requests (and optionally responses) before/as they leave for the provider. Policies are managed from the **Guardrails** page.
 
-## Berlapis dan paling spesifik menang
+## Layered, most-specific-wins
 
-Kebijakan bisa dipasang di lima scope — `global`, `provider`, `model`, `chain`, dan `key`. Untuk satu request, router menentukan kebijakan efektif per detektor dengan aturan _paling spesifik menang_: kebijakan di scope `key` mengalahkan `chain`, yang mengalahkan `model`, dst.
+Policies can be attached at five scopes — `global`, `provider`, `model`, `chain`, and `key`. For a single request, the router resolves the effective policy per detector with a _most-specific-wins_ rule: a policy on the `key` scope beats `chain`, which beats `model`, and so on.
 
-Konsekuensinya: guardrail global tidak bisa dimatikan dari key — key hanya bisa memperketat, tidak melonggarkan lapisan di atasnya.
+The consequence: a global guardrail cannot be turned off from a key — keys can only tighten, never loosen the layers above them.
 
-## Detektor
+## Detectors
 
-| Detektor    | Apa yang diperiksa                                                                                                  |
-| ----------- | ------------------------------------------------------------------------------------------------------------------- |
-| `pii`       | Email, IP, nomor telepon, kartu kredit, IBAN, dan identitas Indonesia (NIK, NPWP, paspor) — dengan strategi masking |
-| `injection` | Pola prompt injection, bertingkat                                                                                   |
-| `topics`    | Daftar topik yang diizinkan atau diblokir (mode allow/block)                                                        |
-| `toxicity`  | Konten kasar/berbahaya dengan ambang skor                                                                           |
-| `bias`      | Bias dengan ambang skor                                                                                             |
+| Detector    | What it checks                                                                                                             |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `pii`       | Emails, IPs, phone numbers, credit cards, IBANs, and Indonesian identities (NIK, NPWP, passport) — with masking strategies |
+| `injection` | Prompt injection patterns, tiered                                                                                          |
+| `topics`    | Allowed or blocked topic lists (allow/block mode)                                                                          |
+| `toxicity`  | Rude/harmful content with score thresholds                                                                                 |
+| `bias`      | Bias with score thresholds                                                                                                 |
 
-Setiap detektor punya `enabled` dan `action`:
+Each detector has `enabled` and `action`:
 
-- `block` — tolak request (error `403`).
-- `warn` — teruskan tapi tandai.
-- `log` — catat saja.
+- `block` — reject the request (`403` error).
+- `warn` — forward but flag it.
+- `log` — just record it.
 
-Pemeriksaan keluaran model diaktifkan per kebijakan (`scan_output`) — berguna untuk mencegah PII bocor lewat respons.
+Model output scanning is enabled per policy (`scan_output`) — useful for preventing PII leaks through responses.
 
-## Menguji tanpa risiko
+## Testing without risk
 
-Halaman **Guardrails** punya mode uji (`POST /v1/guardrails/evaluate`): kirim teks contoh, lihat kebijakan mana yang terpicu dan keputusannya apa — tanpa benar-benar memblokir apa pun.
+The **Guardrails** page has an evaluation mode (`POST /v1/guardrails/evaluate`): send a sample text, see which policies would trigger and what they'd decide — without actually blocking anything.
 
 ```bash
 curl -X POST http://localhost:8080/v1/guardrails/evaluate \
-  -H "Authorization: Bearer <jwt-dashboard>" \
+  -H "Authorization: Bearer <dashboard-jwt>" \
   -H "Content-Type: application/json" \
-  -d '{ "input": "email saya budi@example.com", "scope": "global" }'
+  -d '{ "input": "my email is budi@example.com", "scope": "global" }'
 ```
 
-## Kredibilitas deteksi
+## Detection credibility
 
-Detektor bawaan bersifat deterministik (regex/kamus). Ada toggle `external_detectors` di settings untuk mengaktifkan detektor eksternal bila tersedia.
+The built-in detectors are deterministic (regex/lexicons). There is an `external_detectors` toggle in settings to enable external detectors when available.

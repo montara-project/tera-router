@@ -1,46 +1,46 @@
 ---
-title: Tur Dashboard
-description: Kenali setiap halaman di dashboard Tera Router — dari API Keys sampai Console Log.
+title: Dashboard Tour
+description: Get to know every page in the Tera Router dashboard — from API Keys to Console Log.
 ---
 
-Dashboard (`apps/web-ui`) adalah satu-satunya tempat kamu mengelola router sehari-hari. Semua halaman di bawah ini memanggil REST API server yang sama — kalau lebih suka otomasi, semuanya bisa dipanggil langsung (lihat [API Reference](/docs/api-reference/dashboard-api)).
+The dashboard (`apps/web-ui`) is the only place you need for day-to-day router management. Every page below calls the same server REST API — if you prefer automation, everything can be called directly (see the [API Reference](/docs/api-reference/dashboard-api)).
 
 ## Overview
 
-- **Dashboard** — ringkasan traffic, spend, dan performa routing dalam satu layar.
+- **Dashboard** — traffic, spend, and routing performance at a glance.
 
 ## Traffic
 
-- **Endpoints** — cara menghubungkan aplikasi: base URL + API key, plus setup tunnel untuk dibagikan.
-- **Chains** — susun rantai model: langkah berurutan, strategi (`priority`, `round-robin`, `load-balanced`), dan fallback.
-- **Skills** — potongan prompt yang bisa dipakai ulang, plus _reference skills_ yang bisa dicopy ke coding agent agar paham cara memakai router.
+- **Endpoints** — how to connect your apps: base URL + API key, plus a tunnel setup for sharing.
+- **Chains** — build model chains: sequential steps, strategies (`priority`, `round-robin`, `load-balanced`), and fallbacks.
+- **Skills** — reusable prompt snippets, plus _reference skills_ you can copy to a coding agent so it knows how to use the router.
 
 ## Connections
 
-- **API Keys** — buat, batasi model, nonaktifkan, dan reveal key `sk_tr_`. Tiap key bisa diikat ke plan.
-- **Providers** — hubungkan akun provider (API key atau OAuth), atur prioritas, uji koneksi, dan lihat kuota per akun.
-- **Media** — katalog provider untuk embeddings, TTS, STT, dan image.
-- **Proxy Pools** — kelompokkan proxy outbound untuk akun yang butuh IP tertentu.
+- **API Keys** — create, restrict models, disable, and reveal `sk_tr_` keys. Each key can be bound to a plan.
+- **Providers** — connect provider accounts (API key or OAuth), set priorities, test connections, and view per-account quotas.
+- **Media** — provider catalog for embeddings, TTS, STT, and image.
+- **Proxy Pools** — group outbound proxies for accounts that need specific IPs.
 
 ## Safety
 
-- **Guardrails** — kebijakan PII, prompt injection, topik, toksisitas, dan bias, berlapis dari global sampai per-key. Ada mode uji coba (dry run).
-- **Provider Health** — kondisi tiap akun provider: cooldown, kegagalan, dan status kuota.
+- **Guardrails** — PII, prompt injection, topic, toxicity, and bias policies, layered from global down to per-key. Includes a dry-run mode.
+- **Provider Health** — the condition of each provider account: cooldowns, failures, and quota status.
 
 ## Cost & Analytics
 
-- **Usage** — request, token, biaya, dan latensi per rentang waktu (hari ini, 24 jam, 7 hari, 30 hari), dipecah per model dan per klien (Claude Code, Cursor, Codex, dll).
-- **Plans** — template batas: spend, token, periode, alert, hard cutoff, dan allowlist model.
-- **Quota Tracker** — pemakaian terhadap budget yang aktif, bisa dijeda per item.
-- **System** — metrik host dan proses server.
-- **Settings** — perilaku router: timeout, round-robin provider/chain, proxy outbound, perekaman detail request, sampai branding tampilan.
+- **Usage** — requests, tokens, cost, and latency per time range (today, 24 hours, 7 days, 30 days), broken down by model and client (Claude Code, Cursor, Codex, etc).
+- **Plans** — limit templates: spend, tokens, period, alerts, hard cutoff, and model allowlists.
+- **Quota Tracker** — usage against active budgets, pausable per item.
+- **System** — host and server process metrics.
+- **Settings** — router behavior: timeouts, round-robin provider/chain, outbound proxy, request detail recording, down to display branding.
 
 ## Developer
 
-- **Console Log** — aliran log server terbaru (ring buffer 500 entri).
-- **CLI Tools** — konfigurasi satu klik untuk coding tools (Claude Code, Cursor, dan lainnya) yang langsung mengarah ke instans Tera Router ini.
+- **Console Log** — a live stream of recent server logs (500-entry ring buffer).
+- **CLI Tools** — one-click configuration for coding tools (Claude Code, Cursor, and others) pointing straight at your Tera Router instance.
 
-<Callout type="idea" title="Satu halaman, satu konsep">
-  Kalau baru pertama kali: mulai dari **Providers** (hubungkan akun), lalu **API Keys** (buat
-  akses), lalu **Endpoints** (sambungkan aplikasimu). Sisanya menyusul sesuai kebutuhan.
+<Callout type="idea" title="One page, one concept">
+  If this is your first time: start with **Providers** (connect accounts), then **API Keys** (create
+  access), then **Endpoints** (connect your apps). The rest follows as needed.
 </Callout>

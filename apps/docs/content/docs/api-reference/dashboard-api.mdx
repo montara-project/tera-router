@@ -1,16 +1,16 @@
 ---
 title: Dashboard REST API
-description: Referensi endpoint REST untuk mengelola key, providers, chains, guardrails, dan usage.
+description: Reference for the REST endpoints that manage keys, providers, chains, guardrails, and usage.
 ---
 
-Semua endpoint di bawah hidup di server yang sama dengan gateway (default `http://localhost:8080`) dan dipakai oleh dashboard UI. Cocok untuk otomasi dan integrasi.
+All endpoints below live on the same server as the gateway (default `http://localhost:8080`) and power the dashboard UI. Great for automation and integrations.
 
-Referensi endpoint inference ada di bagian [Gateway API](/docs/gateway).
+For the inference endpoints, see the [Gateway API](/docs/gateway) section.
 
-## Autentikasi
+## Authentication
 
 ```bash
-# masuk
+# sign in
 curl -X POST http://localhost:8080/v1/auth/sign-in \
   -H "Content-Type: application/json" \
   -d '{ "email": "admin@tera.local", "password": "..." }'
@@ -28,133 +28,133 @@ curl -X POST http://localhost:8080/v1/auth/sign-in \
 }
 ```
 
-- Access token berlaku 1 jam; refresh token 30 hari dan dirotasi tiap pembaruan.
-- Bawa token di header `Authorization: Bearer <access_token>`.
-- `POST /v1/auth/sign-out` mencabut semua token sesi.
+- Access tokens last 1 hour; refresh tokens 30 days and are rotated on every renewal.
+- Send the token in the `Authorization: Bearer <access_token>` header.
+- `POST /v1/auth/sign-out` revokes all session tokens.
 
-## Envelope respons
+## Response envelope
 
-| Bentuk         | Bentuk JSON                                               |
-| -------------- | --------------------------------------------------------- |
-| Satu resource  | `{"data": …, "metadata": …, "message": …}`                |
-| Daftar         | `{"data": […], "metadata": {"total", "offset", "limit"}}` |
-| Hapus          | `{"message": "…"}`                                        |
-| Error          | `{"message": "…"}`                                        |
-| Error validasi | `{"message": "…", "errors": {…}}` (422)                   |
+| Shape            | JSON shape                                                |
+| ---------------- | --------------------------------------------------------- |
+| Single resource  | `{"data": …, "metadata": …, "message": …}`                |
+| List             | `{"data": […], "metadata": {"total", "offset", "limit"}}` |
+| Delete           | `{"message": "…"}`                                        |
+| Error            | `{"message": "…"}`                                        |
+| Validation error | `{"message": "…", "errors": {…}}` (422)                   |
 
-Pagination memakai query `offset` (0-based) dan `limit` (default 10, maks 100).
+Pagination uses the `offset` (0-based) and `limit` (default 10, max 100) query parameters.
 
-## Endpoint
+## Endpoints
 
 ### Auth
 
-| Method | Path                | Keterangan             |
-| ------ | ------------------- | ---------------------- |
-| POST   | `/v1/auth/sign-in`  | Masuk, terima token    |
-| POST   | `/v1/auth/refresh`  | Rotasi refresh token   |
-| GET    | `/v1/auth/me`       | Profil user saat ini   |
-| POST   | `/v1/auth/sign-out` | Cabut semua token sesi |
+| Method | Path                | Notes                     |
+| ------ | ------------------- | ------------------------- |
+| POST   | `/v1/auth/sign-in`  | Sign in, receive tokens   |
+| POST   | `/v1/auth/refresh`  | Rotate refresh token      |
+| GET    | `/v1/auth/me`       | Current user profile      |
+| POST   | `/v1/auth/sign-out` | Revoke all session tokens |
 
 ### Keys
 
-| Method            | Path                  | Keterangan                          |
-| ----------------- | --------------------- | ----------------------------------- |
-| GET / POST        | `/v1/keys`            | Daftar / buat key                   |
-| GET / PUT / PATCH | `/v1/keys/:id`        | Detail / ubah key                   |
-| POST              | `/v1/keys/:id/reveal` | Kembalikan plaintext key (teraudit) |
-| DELETE            | `/v1/keys/:id`        | Hapus key                           |
+| Method            | Path                  | Notes                          |
+| ----------------- | --------------------- | ------------------------------ |
+| GET / POST        | `/v1/keys`            | List / create keys             |
+| GET / PUT / PATCH | `/v1/keys/:id`        | Detail / update key            |
+| POST              | `/v1/keys/:id/reveal` | Return key plaintext (audited) |
+| DELETE            | `/v1/keys/:id`        | Delete key                     |
 
 ### Plans
 
-| Method      | Path                 | Keterangan      |
-| ----------- | -------------------- | --------------- |
-| GET / POST  | `/v1/plans`          | Daftar / buat   |
-| GET         | `/v1/plans/:id`      | Detail          |
-| GET         | `/v1/plans/:id/keys` | Key di plan ini |
-| PUT / PATCH | `/v1/plans/:id`      | Ubah            |
-| DELETE      | `/v1/plans/:id`      | Hapus           |
+| Method      | Path                 | Notes             |
+| ----------- | -------------------- | ----------------- |
+| GET / POST  | `/v1/plans`          | List / create     |
+| GET         | `/v1/plans/:id`      | Detail            |
+| GET         | `/v1/plans/:id/keys` | Keys on this plan |
+| PUT / PATCH | `/v1/plans/:id`      | Update            |
+| DELETE      | `/v1/plans/:id`      | Delete            |
 
 ### Routing
 
-| Method             | Path                   | Keterangan          |
-| ------------------ | ---------------------- | ------------------- |
-| GET / POST         | `/v1/chains`           | Daftar / buat chain |
-| GET                | `/v1/chains/:id`       | Detail chain        |
-| GET                | `/v1/chains/:id/usage` | Pemakaian chain     |
-| PUT / PATCH        | `/v1/chains/:id`       | Ubah chain          |
-| DELETE             | `/v1/chains/:id`       | Hapus chain         |
-| GET / PUT / DELETE | `/v1/models/alias`     | Kelola alias pool   |
+| Method             | Path                   | Notes                |
+| ------------------ | ---------------------- | -------------------- |
+| GET / POST         | `/v1/chains`           | List / create chains |
+| GET                | `/v1/chains/:id`       | Chain detail         |
+| GET                | `/v1/chains/:id/usage` | Chain usage          |
+| PUT / PATCH        | `/v1/chains/:id`       | Update chain         |
+| DELETE             | `/v1/chains/:id`       | Delete chain         |
+| GET / PUT / DELETE | `/v1/models/alias`     | Manage alias pools   |
 
 ### Providers & accounts
 
-| Method                     | Path                                                    | Keterangan                            |
-| -------------------------- | ------------------------------------------------------- | ------------------------------------- |
-| GET                        | `/v1/providers`                                         | Ringkasan provider terhubung/tersedia |
-| GET                        | `/v1/providers/rates`                                   | Snapshot harga                        |
-| GET / POST                 | `/v1/custom-providers`                                  | Custom provider                       |
-| PUT / PATCH / DELETE       | `/v1/custom-providers/:id`                              | Kelola custom provider                |
-| POST                       | `/v1/validate-key`                                      | Uji kredensial sebelum disimpan       |
-| GET / POST                 | `/v1/accounts`                                          | Daftar / tambah akun                  |
-| POST                       | `/v1/accounts/bulk`                                     | Tambah banyak akun sekaligus          |
-| GET / PUT / PATCH / DELETE | `/v1/accounts/:id`                                      | Kelola akun                           |
-| POST                       | `/v1/accounts/:id/test`                                 | Uji koneksi akun                      |
-| POST                       | `/v1/accounts/:id/reveal`                               | Kembalikan kredensial (teraudit)      |
-| GET                        | `/v1/accounts/:id/quota`                                | Kuota akun                            |
-| POST                       | `/v1/accounts/:id/quota/reset`                          | Reset kuota akun                      |
-| POST                       | `/v1/providers/:id/accounts/disable-all` / `enable-all` | Massa per provider                    |
-| DELETE                     | `/v1/providers/:id/accounts/disabled` / `all`           | Hapus massa                           |
+| Method                     | Path                                                    | Notes                                |
+| -------------------------- | ------------------------------------------------------- | ------------------------------------ |
+| GET                        | `/v1/providers`                                         | Connected/available provider summary |
+| GET                        | `/v1/providers/rates`                                   | Pricing snapshot                     |
+| GET / POST                 | `/v1/custom-providers`                                  | Custom providers                     |
+| PUT / PATCH / DELETE       | `/v1/custom-providers/:id`                              | Manage custom provider               |
+| POST                       | `/v1/validate-key`                                      | Test credentials before saving       |
+| GET / POST                 | `/v1/accounts`                                          | List / add accounts                  |
+| POST                       | `/v1/accounts/bulk`                                     | Add many accounts at once            |
+| GET / PUT / PATCH / DELETE | `/v1/accounts/:id`                                      | Manage account                       |
+| POST                       | `/v1/accounts/:id/test`                                 | Test account connection              |
+| POST                       | `/v1/accounts/:id/reveal`                               | Return credentials (audited)         |
+| GET                        | `/v1/accounts/:id/quota`                                | Account quota                        |
+| POST                       | `/v1/accounts/:id/quota/reset`                          | Reset account quota                  |
+| POST                       | `/v1/providers/:id/accounts/disable-all` / `enable-all` | Bulk per provider                    |
+| DELETE                     | `/v1/providers/:id/accounts/disabled` / `all`           | Bulk delete                          |
 
 ### Budgets & usage
 
-| Method               | Path                                  | Keterangan                            |
-| -------------------- | ------------------------------------- | ------------------------------------- |
-| GET / POST           | `/v1/budgets`                         | Daftar / buat budget                  |
-| GET                  | `/v1/budgets/status`                  | Pemakaian berjalan per budget         |
-| PUT / PATCH / DELETE | `/v1/budgets/:id`                     | Kelola budget                         |
-| GET                  | `/v1/usage?range=today\|24h\|7d\|30d` | Ringkasan request/token/biaya/latensi |
-| GET                  | `/v1/usage/models`                    | Pemakaian per model                   |
-| GET                  | `/v1/usage/insights`                  | Ringkasan + tren harian + per model   |
-| GET                  | `/v1/usage/telemetry`                 | Payload penuh halaman Usage           |
-| GET                  | `/v1/quota`                           | Daftar kuota aktif                    |
-| GET                  | `/v1/quota/overview`                  | Ringkasan kuota                       |
-| PATCH / DELETE       | `/v1/quota/:id`                       | Jeda / hapus kuota                    |
+| Method               | Path                                  | Notes                              |
+| -------------------- | ------------------------------------- | ---------------------------------- |
+| GET / POST           | `/v1/budgets`                         | List / create budgets              |
+| GET                  | `/v1/budgets/status`                  | Running usage per budget           |
+| PUT / PATCH / DELETE | `/v1/budgets/:id`                     | Manage budget                      |
+| GET                  | `/v1/usage?range=today\|24h\|7d\|30d` | Request/token/cost/latency summary |
+| GET                  | `/v1/usage/models`                    | Usage per model                    |
+| GET                  | `/v1/usage/insights`                  | Summary + daily trend + per model  |
+| GET                  | `/v1/usage/telemetry`                 | Full Usage page payload            |
+| GET                  | `/v1/quota`                           | Active quotas                      |
+| GET                  | `/v1/quota/overview`                  | Quota summary                      |
+| PATCH / DELETE       | `/v1/quota/:id`                       | Pause / delete quota               |
 
 ### Proxy pools
 
-| Method               | Path                           | Keterangan          |
+| Method               | Path                           | Notes               |
 | -------------------- | ------------------------------ | ------------------- |
-| GET / POST           | `/v1/proxy-pools`              | Daftar / buat pool  |
-| POST                 | `/v1/proxy-pools/health-check` | Cek kesehatan semua |
-| PUT / PATCH / DELETE | `/v1/proxy-pools/:id`          | Kelola pool         |
-| POST                 | `/v1/proxy-pools/:id/test`     | Uji satu pool       |
+| GET / POST           | `/v1/proxy-pools`              | List / create pools |
+| POST                 | `/v1/proxy-pools/health-check` | Check all pools     |
+| PUT / PATCH / DELETE | `/v1/proxy-pools/:id`          | Manage pool         |
+| POST                 | `/v1/proxy-pools/:id/test`     | Test one pool       |
 
 ### Overrides
 
-| Method              | Path                                        | Keterangan              |
-| ------------------- | ------------------------------------------- | ----------------------- |
-| GET / POST / DELETE | `/v1/model-pricing-overrides`               | Timpa harga per model   |
-| GET / PUT           | `/v1/capability-overrides`                  | Timpa kapabilitas model |
-| DELETE              | `/v1/capability-overrides/:provider/:model` | Hapus satu override     |
-| POST                | `/v1/capability-overrides/reset`            | Reset semua             |
+| Method              | Path                                        | Notes                       |
+| ------------------- | ------------------------------------------- | --------------------------- |
+| GET / POST / DELETE | `/v1/model-pricing-overrides`               | Override per-model pricing  |
+| GET / PUT           | `/v1/capability-overrides`                  | Override model capabilities |
+| DELETE              | `/v1/capability-overrides/:provider/:model` | Delete one override         |
+| POST                | `/v1/capability-overrides/reset`            | Reset all                   |
 
 ### Guardrails
 
-| Method               | Path                      | Keterangan                |
+| Method               | Path                      | Notes                     |
 | -------------------- | ------------------------- | ------------------------- |
-| GET                  | `/v1/guardrails`          | Ringkasan kebijakan       |
-| POST                 | `/v1/guardrails`          | Buat kebijakan            |
-| PUT                  | `/v1/guardrails/settings` | Settings guardrail global |
-| POST                 | `/v1/guardrails/evaluate` | Uji kebijakan (dry run)   |
-| PUT / PATCH / DELETE | `/v1/guardrails/:id`      | Kelola kebijakan          |
+| GET                  | `/v1/guardrails`          | Policy summary            |
+| POST                 | `/v1/guardrails`          | Create policy             |
+| PUT                  | `/v1/guardrails/settings` | Global guardrail settings |
+| POST                 | `/v1/guardrails/evaluate` | Test policies (dry run)   |
+| PUT / PATCH / DELETE | `/v1/guardrails/:id`      | Manage policies           |
 
-### Lainnya
+### Misc
 
-| Method            | Path               | Keterangan                                   |
+| Method            | Path               | Notes                                        |
 | ----------------- | ------------------ | -------------------------------------------- |
-| GET / PUT / PATCH | `/v1/settings`     | Settings router (timeout, round-robin, dst.) |
-| GET / POST        | `/v1/skills`       | Daftar / buat skill                          |
-| DELETE            | `/v1/skills/:id`   | Hapus skill                                  |
-| GET / DELETE      | `/v1/console`      | Log ring buffer (500 entri) / bersihkan      |
-| GET               | `/v1/system/stats` | Metrik host & proses                         |
-| GET               | `/v1/media`        | Katalog provider media                       |
-| GET               | `/health`          | Kesehatan server (tanpa auth)                |
+| GET / PUT / PATCH | `/v1/settings`     | Router settings (timeout, round-robin, etc.) |
+| GET / POST        | `/v1/skills`       | List / create skills                         |
+| DELETE            | `/v1/skills/:id`   | Delete skill                                 |
+| GET / DELETE      | `/v1/console`      | Ring buffer log (500 entries) / clear        |
+| GET               | `/v1/system/stats` | Host & process metrics                       |
+| GET               | `/v1/media`        | Media provider catalog                       |
+| GET               | `/health`          | Server health (no auth)                      |

@@ -1,26 +1,26 @@
 ---
 title: Skills & Media
-description: Potongan prompt yang bisa dipakai ulang, reference skills untuk agent, dan katalog media.
+description: Reusable prompt snippets, reference skills for agents, and the media catalog.
 ---
 
 ## Skills
 
-Skill adalah potongan prompt yang dikelola dari dashboard dan bisa dipanggil ulang — cara rapi memusatkan instruksi yang berulang (gaya jawaban, aturan proyek, format keluaran) tanpa menyebar di banyak klien.
+A skill is a prompt snippet managed from the dashboard and reusable anywhere — a tidy way to centralize repeated instructions (answer style, project rules, output formats) without scattering them across clients.
 
-Kelola dari halaman **Skills**: nama, deskripsi, dan isi prompt. Endpoint API-nya sederhana — `GET /v1/skills`, `POST /v1/skills`, `DELETE /v1/skills/:id`.
+Manage them from the **Skills** page: name, description, and prompt content. The API endpoints are simple — `GET /v1/skills`, `POST /v1/skills`, `DELETE /v1/skills/:id`.
 
 ## Reference skills
 
-Selain skill buatanmu, halaman **Skills** menampilkan _reference skills_: panduan siap-pakai yang menjelaskan ke sebuah agent cara memakai Tera Router — endpoint mana yang dipanggil, autentikasi seperti apa, format body seperti apa.
+Besides your own skills, the **Skills** page shows _reference skills_: ready-made guides that explain to an agent how to use Tera Router — which endpoints to call, what authentication looks like, what request bodies to send.
 
-Cara pakainya: klik **Copy** pada skill yang diinginkan, lalu tempel URL-nya ke agent (Claude Code, Cursor, dll). Agent akan membaca panduan itu dan tahu cara bicara dengan router-mu.
+How to use them: click **Copy** on the skill you want, then paste its URL into your agent (Claude Code, Cursor, etc). The agent will read the guide and know how to talk to your router.
 
 ## Media catalog
 
-Halaman **Media** adalah katalog provider untuk kebutuhan non-teks: embeddings, text-to-speech, speech-to-text, dan image. Katalognya statis dari server (`GET /v1/media`) — dipakai untuk melihat provider mana yang menyediakan kemampuan tertentu (OpenRouter, NVIDIA NIM, vLLM, Gemini, Copilot, OpenAI, Mistral, Together, Fireworks, dan lainnya).
+The **Media** page is a provider catalog for non-text needs: embeddings, text-to-speech, speech-to-text, and image. The catalog is static from the server (`GET /v1/media`) — use it to see which providers offer a given capability (OpenRouter, NVIDIA NIM, vLLM, Gemini, Copilot, OpenAI, Mistral, Together, Fireworks, and more).
 
-<Callout type="warn" title="Gateway saat ini melayani teks">
-  Endpoint inference yang aktif di gateway baru chat, messages, dan responses. Endpoint
-  gambar/audio/embedding belum tersedia di gateway — katalog Media adalah peta jalan penyedia yang
-  didukung.
+<Callout type="warn" title="The gateway currently serves text">
+  The active inference endpoints on the gateway are chat, messages, and responses. Image/audio/
+  embedding endpoints are not available on the gateway yet — the Media catalog is a roadmap of
+  supported providers.
 </Callout>

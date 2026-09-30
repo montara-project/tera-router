@@ -1,0 +1,41 @@
+---
+title: Routing & Resilience
+description: Bagaimana router memilih target, menyapu cadangan, dan menjaga request tetap lolos.
+---
+
+## Urutan keputusan
+
+Untuk setiap request, router:
+
+1. **Menerjemahkan `model`** mengikuti urutan di [Model & routing](/id-ID/docs/gateway/model-addressing): `chain:<nama>` → alias → `provider/model` → nama polos. Hasilnya daftar target berurutan.
+2. **Memeriksa akses** — allowlist key ∩ plan, dan budget aktif.
+3. **Memilih akun** — akun dengan prioritas tertinggi yang tidak cooldown dan tidak dinonaktifkan; kalau provider memakai round-robin, akun diputar.
+4. **Meneruskan request** — dan naik ke target berikutnya kalau gagal.
+
+## Fallback chain
+
+Chain menentukan siapa dicoba berikutnya. Contoh `heavy-coding`: Claude dulu, GLM kedua, OpenRouter sebagai fallback penutup. Kalau langkah pertama kena `429`, router masuk cooldown 30 detik untuk akun itu dan langsung lanjut ke langkah kedua — klien tidak melihat error.
+
+## Retry dan cooldown
+
+| Peristiwa                          | Tindakan router                                         |
+| ---------------------------------- | ------------------------------------------------------- |
+| Gangguan sementara (5xx, jaringan) | Retry di akun yang sama, maksimal 2x (jeda 500 ms, 1 s) |
+| `429` dari upstream                | Cooldown akun 30 detik, hormati `Retry-After`           |
+| Autentikasi upstream gagal         | Cooldown akun 5 menit                                   |
+| Semua target habis                 | `503` ke klien                                          |
+
+Total maksimal **10 percobaan** per request. Cooldown membuat akun yang bermasalah diistirahatkan, bukan dibanjiri lagi — statusnya terlihat di halaman **Provider Health**.
+
+## Konkurensi
+
+Gateway membatasi request in-flight secara global (100). Saat penuh, request baru dijawab `503` — lebih jujur daripada antrean yang membengkak. Batas `rpm`/`tpm`/`concurrent` di plan tersimpan di skema, tapi belum ditegakkan gateway saat ini.
+
+## Metering
+
+Setiap request tercatat: provider dan model yang benar-benar melayani, key, akun, jenis klien (terdeteksi dari User-Agent — Claude Code, Cursor, Codex, Cline, Copilot, Aider, dll), token per kategori, biaya, cache hit, latensi, dan TTFT. Semua itu yang kamu lihat di halaman **Usage**.
+
+<Callout type="idea" title="Latensi pertama token">
+  TTFT (time-to-first-token) terukur per request — bandingkan provider lewat halaman **Usage**
+  sebelum memutuskan urutan chain.
+</Callout>

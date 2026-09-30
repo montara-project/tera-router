@@ -1,37 +1,37 @@
 ---
 title: Gateway API
-description: Base URL, autentikasi, dan kompatibilitas dialek untuk semua endpoint inference.
+description: Base URL, authentication, and dialect compatibility for all inference endpoints.
 ---
 
-## Endpoint
+## Endpoints
 
-Gateway melayani tiga dialek API sekaligus, semua di bawah `/v1`:
+The gateway serves three API dialects at once, all under `/v1`:
 
-| Endpoint                         | Dialek             | Dipakai oleh                              |
-| -------------------------------- | ------------------ | ----------------------------------------- |
-| `POST /v1/chat/completions`      | OpenAI Chat        | SDK OpenAI, kebanyakan tool dan framework |
-| `POST /v1/messages`              | Anthropic Messages | SDK Anthropic, Claude Code                |
-| `POST /v1/messages/count_tokens` | Anthropic          | Estimasi token (dihitung lokal)           |
-| `POST /v1/responses`             | OpenAI Responses   | Klien Responses API                       |
-| `POST /responses`                | OpenAI Responses   | Alias di root, untuk klien seperti Codex  |
+| Endpoint                         | Dialect            | Used by                                  |
+| -------------------------------- | ------------------ | ---------------------------------------- |
+| `POST /v1/chat/completions`      | OpenAI Chat        | OpenAI SDK, most tools and frameworks    |
+| `POST /v1/messages`              | Anthropic Messages | Anthropic SDK, Claude Code               |
+| `POST /v1/messages/count_tokens` | Anthropic          | Token estimation (computed locally)      |
+| `POST /v1/responses`             | OpenAI Responses   | Responses API clients                    |
+| `POST /responses`                | OpenAI Responses   | Root-level alias, for clients like Codex |
 
-Request body-nya persis format aslinya — tidak ada field custom yang wajib. Router hanya peduli pada cara kamu menulis `model` (lihat [Model & routing](/docs/gateway/model-addressing)).
+Request bodies are exactly the original formats — no required custom fields. The router only cares how you write `model` (see [Models & routing](/docs/gateway/model-addressing)).
 
-## Autentikasi
+## Authentication
 
-Pakai API key berawalan `sk_tr_` yang dibuat dari dashboard (atau `POST /v1/keys`):
+Use an API key prefixed with `sk_tr_` created from the dashboard (or `POST /v1/keys`):
 
 ```bash
-# cara 1 — Authorization header
+# option 1 — Authorization header
 curl http://localhost:8080/v1/chat/completions \
   -H "Authorization: Bearer sk_tr_..."
 
-# cara 2 — x-api-key (gaya Anthropic)
+# option 2 — x-api-key (Anthropic style)
 curl http://localhost:8080/v1/messages \
   -H "x-api-key: sk_tr_..."
 ```
 
-Key yang salah, dinonaktifkan, atau tidak ada akan dijawab `401` dalam envelope error OpenAI:
+A wrong, disabled, or missing key gets a `401` in the OpenAI error envelope:
 
 ```json
 {
@@ -42,28 +42,28 @@ Key yang salah, dinonaktifkan, atau tidak ada akan dijawab `401` dalam envelope 
 }
 ```
 
-## Header respons
+## Response headers
 
-Setiap respons (unary maupun streaming) membawa header yang memberi tahu siapa yang akhirnya melayani request:
+Every response (unary and streaming) carries headers that tell you who ultimately served the request:
 
 ```
 X-TeraRouter-Provider: anthropic
 X-TeraRouter-Model: claude-sonnet-4
 ```
 
-Berguna untuk memastikan chain/alias/fallback jatuh ke target yang kamu duga.
+Useful for verifying that chains/aliases/fallbacks landed on the target you expected.
 
 ## Gateway vs dashboard API
 
-Keduanya hidup di port yang sama, tapi auth-nya berbeda:
+Both live on the same port, but their auth differs:
 
-|              | Gateway (`/v1/chat/...`)            | Dashboard API (`/v1/keys`, `/v1/usage`, ...)       |
-| ------------ | ----------------------------------- | -------------------------------------------------- |
-| Kredensial   | API key `sk_tr_`                    | JWT dari `POST /v1/auth/sign-in`                   |
-| Dipakai oleh | Aplikasi dan coding agent           | Dashboard UI dan skrip admin                       |
-| Referensi    | Bagian [Gateway API](/docs/gateway) | [API Reference](/docs/api-reference/dashboard-api) |
+|             | Gateway (`/v1/chat/...`)     | Dashboard API (`/v1/keys`, `/v1/usage`, ...)       |
+| ----------- | ---------------------------- | -------------------------------------------------- |
+| Credentials | API key `sk_tr_`             | JWT from `POST /v1/auth/sign-in`                   |
+| Used by     | Apps and coding agents       | Dashboard UI and admin scripts                     |
+| Reference   | [Gateway API](/docs/gateway) | [API Reference](/docs/api-reference/dashboard-api) |
 
-<Callout type="warn" title="Jangan tertukar">
-  JWT dashboard tidak bisa dipakai di gateway, dan API key `sk_tr_` tidak bisa dipakai di dashboard
-  API.
+<Callout type="warn" title="Don't mix them up">
+  A dashboard JWT cannot be used on the gateway, and an `sk_tr_` API key cannot be used on the
+  dashboard API.
 </Callout>

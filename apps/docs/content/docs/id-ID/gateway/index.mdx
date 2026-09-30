@@ -1,0 +1,69 @@
+---
+title: Gateway API
+description: Base URL, autentikasi, dan kompatibilitas dialek untuk semua endpoint inference.
+---
+
+## Endpoint
+
+Gateway melayani tiga dialek API sekaligus, semua di bawah `/v1`:
+
+| Endpoint                         | Dialek             | Dipakai oleh                              |
+| -------------------------------- | ------------------ | ----------------------------------------- |
+| `POST /v1/chat/completions`      | OpenAI Chat        | SDK OpenAI, kebanyakan tool dan framework |
+| `POST /v1/messages`              | Anthropic Messages | SDK Anthropic, Claude Code                |
+| `POST /v1/messages/count_tokens` | Anthropic          | Estimasi token (dihitung lokal)           |
+| `POST /v1/responses`             | OpenAI Responses   | Klien Responses API                       |
+| `POST /responses`                | OpenAI Responses   | Alias di root, untuk klien seperti Codex  |
+
+Request body-nya persis format aslinya — tidak ada field custom yang wajib. Router hanya peduli pada cara kamu menulis `model` (lihat [Model & routing](/id-ID/docs/gateway/model-addressing)).
+
+## Autentikasi
+
+Pakai API key berawalan `sk_tr_` yang dibuat dari dashboard (atau `POST /v1/keys`):
+
+```bash
+# cara 1 — Authorization header
+curl http://localhost:8080/v1/chat/completions \
+  -H "Authorization: Bearer sk_tr_..."
+
+# cara 2 — x-api-key (gaya Anthropic)
+curl http://localhost:8080/v1/messages \
+  -H "x-api-key: sk_tr_..."
+```
+
+Key yang salah, dinonaktifkan, atau tidak ada akan dijawab `401` dalam envelope error OpenAI:
+
+```json
+{
+  "error": {
+    "message": "invalid api key",
+    "type": "authentication_error"
+  }
+}
+```
+
+## Header respons
+
+Setiap respons (unary maupun streaming) membawa header yang memberi tahu siapa yang akhirnya melayani request:
+
+```
+X-TeraRouter-Provider: anthropic
+X-TeraRouter-Model: claude-sonnet-4
+```
+
+Berguna untuk memastikan chain/alias/fallback jatuh ke target yang kamu duga.
+
+## Gateway vs dashboard API
+
+Keduanya hidup di port yang sama, tapi auth-nya berbeda:
+
+|              | Gateway (`/v1/chat/...`)                  | Dashboard API (`/v1/keys`, `/v1/usage`, ...)             |
+| ------------ | ----------------------------------------- | -------------------------------------------------------- |
+| Kredensial   | API key `sk_tr_`                          | JWT dari `POST /v1/auth/sign-in`                         |
+| Dipakai oleh | Aplikasi dan coding agent                 | Dashboard UI dan skrip admin                             |
+| Referensi    | Bagian [Gateway API](/id-ID/docs/gateway) | [API Reference](/id-ID/docs/api-reference/dashboard-api) |
+
+<Callout type="warn" title="Jangan tertukar">
+  JWT dashboard tidak bisa dipakai di gateway, dan API key `sk_tr_` tidak bisa dipakai di dashboard
+  API.
+</Callout>

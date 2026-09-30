@@ -1,23 +1,23 @@
 ---
-title: Instalasi
-description: Jalankan API server dan dashboard Tera Router secara lokal.
+title: Installation
+description: Run the Tera Router API server and dashboard locally.
 ---
 
-## Prasyarat
+## Prerequisites
 
 - Go 1.26+ (server)
-- Node.js 22+ dan pnpm (dashboard & docs)
-- Tidak ada dependensi eksternal lain — database memakai SQLite (file `terarouter.db`)
+- Node.js 22+ and pnpm (dashboard & docs)
+- No other external dependencies — the database uses SQLite (the `terarouter.db` file)
 
-## Jalankan API server
+## Run the API server
 
 ```bash
 cd apps/server
 
-# siapkan .env minimal
+# prepare a minimal .env
 cat > .env <<'EOF'
 MACHINE_ID=1
-APP_SECRET=ganti-dengan-secret-panjang
+APP_SECRET=change-to-a-long-secret
 ADMIN_EMAIL=admin@tera.local
 ADMIN_PASSWORD=admin123
 EOF
@@ -25,48 +25,48 @@ EOF
 make run
 ```
 
-Server akan:
+The server will:
 
-1. Menjalankan migrasi SQLite (`MIGRATE_ON_BOOT`, aktif secara default).
-2. Menyeed data awal — role, user admin dari `ADMIN_EMAIL`/`ADMIN_PASSWORD`, plan _Default_.
-3. Membuka gateway dan dashboard API di `PORT` (default `8080`).
+1. Run SQLite migrations (`MIGRATE_ON_BOOT`, enabled by default).
+2. Seed initial data — roles, the admin user from `ADMIN_EMAIL`/`ADMIN_PASSWORD`, the _Default_ plan.
+3. Open the gateway and dashboard API on `PORT` (default `8080`).
 
-<Callout type="info" title="Mode development">
-  Dengan `ENV=development`, server otomatis menyiapkan key contoh "Dev". Minta plaintext-nya lewat
-  `make seed/dev` — plaintext hanya dicetak sekali.
+<Callout type="info" title="Development mode">
+  With `ENV=development`, the server automatically seeds a sample "Dev" key. Get its plaintext via
+  `make seed/dev` — the plaintext is printed only once.
 </Callout>
 
-## Jalankan dashboard
+## Run the dashboard
 
 ```bash
-# dari root monorepo
+# from the monorepo root
 pnpm install
 
 cd apps/web-ui
-cp .env.example .env   # VITE_API_URL mengarah ke http://localhost:8080
+cp .env.example .env   # VITE_API_URL points to http://localhost:8080
 pnpm dev
 ```
 
-Buka `http://localhost:5173`, lalu masuk dengan `ADMIN_EMAIL` dan `ADMIN_PASSWORD` yang tadi diset.
+Open `http://localhost:5173`, then sign in with the `ADMIN_EMAIL` and `ADMIN_PASSWORD` you set earlier.
 
-## Port dan layanan
+## Ports and services
 
-| Layanan      | URL                     | Keterangan                        |
+| Service      | URL                     | Notes                             |
 | ------------ | ----------------------- | --------------------------------- |
 | API server   | `http://localhost:8080` | Gateway (`/v1/*`) + dashboard API |
 | Dashboard UI | `http://localhost:5173` | Vite dev server (`apps/web-ui`)   |
-| Docs         | `http://localhost:3001` | Situs ini (`apps/docs`)           |
+| Docs         | `http://localhost:3001` | This site (`apps/docs`)           |
 
-## Seeding key pertama (tanpa dashboard)
+## Seeding the first key (without the dashboard)
 
 ```bash
 cd apps/server
-make seed/dev   # cetak plaintext key contoh, sekali saja
+make seed/dev   # prints the sample key's plaintext, once only
 ```
 
-Simpan plaintext-nya baik-baik — yang tersimpan di database hanya hash.
+Store the plaintext safely — only the hash lives in the database.
 
-## Langkah berikutnya
+## Next steps
 
-- [Tur dashboard](/docs/getting-started/dashboard) — kenali tiap halaman.
-- [Gateway API](/docs/gateway) — request pertamamu ke router.
+- [Dashboard tour](/docs/getting-started/dashboard) — get to know each page.
+- [Gateway API](/docs/gateway) — your first request through the router.
