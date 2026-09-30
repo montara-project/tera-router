@@ -19,7 +19,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate, useParams } from '@tanstack/react-router'
 import { useQueryState } from 'nuqs'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
 import type { Models } from '@/lib/api/models'
@@ -44,6 +44,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useDebounce } from '@/hooks/use-debounce'
 import { usePaginationQuery } from '@/hooks/use-pagination-query'
 import { queries } from '@/lib/api/queries'
 import { ACCOUNT_QUERY_KEY } from '@/lib/api/queries/account'
@@ -600,23 +601,20 @@ function ModelsPanel({
   }) => Promise<unknown>
 }) {
   const [subTab, setSubTab] = useState('catalog')
-  // Catalog search and paging are server-side: the raw input feeds a
-  // debounced query param, and a new search resets the page.
+  // Catalog search and paging are server-side: the raw input is debounced
+  // before it reaches the query param, and a new search resets the page.
   const [searchInput, setSearchInput] = useState('')
-  const [search, setSearch] = useState('')
+  const search = useDebounce({ value: searchInput, delay: 300 })
   const [selected, setSelected] = useState<string[]>([])
 
   const { offset, limit, pageIndex } = usePaginationQuery({ limit: CATALOG_PAGE_SIZE })
   const [, setQueryPage] = useQueryState('page')
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearch(searchInput)
-      setQueryPage(null)
-      setSelected([])
-    }, 300)
-    return () => clearTimeout(timer)
-  }, [searchInput, setQueryPage])
+  const onSearchChange = (value: string) => {
+    setSearchInput(value)
+    setQueryPage(null)
+    setSelected([])
+  }
 
   const catalogQuery = useQuery(
     queries.providers.customModels(providerId, { search, offset, limit })
@@ -640,7 +638,7 @@ function ModelsPanel({
           catalog={catalog}
           loading={catalogQuery.isLoading}
           searchValue={searchInput}
-          onSearchChange={setSearchInput}
+          onSearchChange={onSearchChange}
           pageIndex={pageIndex}
           onPageChange={changePage}
           selected={selected}
