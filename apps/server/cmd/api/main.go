@@ -11,6 +11,7 @@ import (
 	"tera-router/server/internal/database"
 	"tera-router/server/internal/lib/sealer"
 	"tera-router/server/internal/migrator"
+	"tera-router/server/internal/oauth"
 	"tera-router/server/internal/repositories"
 	"tera-router/server/internal/seeders"
 	"tera-router/server/internal/services"
@@ -103,5 +104,6 @@ func assemble(cfg config.Config, logger *slog.Logger) *app.Application {
 		Repos:    repos,
 		Secrets:  secrets,
 		Services: services.New(),
+		OAuth:    oauth.NewManager(repos, secrets, logger),
 	}
 }

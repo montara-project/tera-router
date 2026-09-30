@@ -101,6 +101,15 @@ func (s *Server) plan(ctx context.Context, targets []target) []attempt {
 func (s *Server) credentials(ctx context.Context, acc models.Account) (core.Credentials, error) {
 	creds := core.Credentials{AccountID: acc.ID, Headers: map[string]string{}}
 
+	// OAuth accounts (claude, codex) refresh their access token just in time
+	// when it is expired or about to expire; the rotated tokens are persisted
+	// so the next dispatch reuses them. A failed refresh skips the account so
+	// the dispatcher falls back to another one.
+	acc, err := s.app.OAuth.EnsureFresh(ctx, acc)
+	if err != nil {
+		return core.Credentials{}, err
+	}
+
 	if !acc.Secret.Empty() {
 		key, err := s.app.Secrets.OpenString(toSealerSealed(acc.Secret))
 		if err != nil {

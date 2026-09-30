@@ -1,6 +1,9 @@
 package handlers
 
-import "tera-router/server/internal/app"
+import (
+	"tera-router/server/internal/app"
+	"tera-router/server/internal/oauth"
+)
 
 // Handlers aggregates every handler group for route registration.
 type Handlers struct {
@@ -22,6 +25,7 @@ type Handlers struct {
 	Console    *consoleHandler
 	System     *systemHandler
 	Media      *mediaHandler
+	OAuth      *oauthHandler
 }
 
 // New builds every handler group on top of the shared application container.
@@ -45,5 +49,9 @@ func New(app *app.Application) *Handlers {
 		Console:    &consoleHandler{app: app},
 		System:     &systemHandler{app: app},
 		Media:      &mediaHandler{app: app},
+		OAuth: &oauthHandler{
+			app:      app,
+			sessions: oauth.NewSessionStore(),
+		},
 	}
 }

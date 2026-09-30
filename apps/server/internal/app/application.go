@@ -6,6 +6,7 @@ import (
 
 	"tera-router/server/internal/config"
 	"tera-router/server/internal/lib/sealer"
+	"tera-router/server/internal/oauth"
 	"tera-router/server/internal/repositories"
 	"tera-router/server/internal/services"
 )
@@ -19,6 +20,9 @@ type Application struct {
 	Repos    *repositories.Repositories
 	Secrets  *sealer.Sealer
 	Services *services.Services
+	// OAuth refreshes expiring OAuth access tokens (claude, codex) just in
+	// time; nil in tools that never dispatch through the gateway.
+	OAuth *oauth.Manager
 }
 
 // Close releases the database pool.

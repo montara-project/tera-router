@@ -108,6 +108,14 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	protected.Delete("/providers/:id/accounts/disabled", h.Providers.AccountsBulkDeleteDisabled)
 	protected.Delete("/providers/:id/accounts/all", h.Providers.AccountsBulkDeleteAll)
 
+	// OAuth connection flows (claude, codex): start a PKCE flow against the
+	// provider's official web, then exchange the returned code for sealed
+	// tokens. Codex additionally captures its fixed loopback redirect on
+	// localhost:1455/1457 via an in-process listener.
+	protected.Get("/oauth/providers", h.OAuth.ListProviders)
+	protected.Post("/oauth/:provider/authorize", h.OAuth.Authorize)
+	protected.Post("/oauth/:provider/exchange", h.OAuth.Exchange)
+
 	// Budgets & usage
 	protected.Get("/budgets", h.Budgets.Index)
 	protected.Get("/budgets/status", h.Budgets.Status)
