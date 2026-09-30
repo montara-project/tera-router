@@ -55,12 +55,12 @@ function AbstractForm({
       }
 
       try {
-        // The server composes the slug itself as custom-<api_kind>-<alias>
-        // (customProviderSlug) and falls back to slugify(name) when the alias
-        // is empty — sending a prefixed slug here would double the marker.
+        // The custom-<api_kind>- slug marker is a UI convention — the server
+        // stores the slug verbatim. Send the composed marker when an alias is
+        // set; omit the field so the server can slugify the name otherwise.
         await mutation.mutateAsync({
           ...value,
-          slug: trimmedAlias || undefined,
+          slug: trimmedAlias,
           base_url: trimmedBaseUrl,
         })
       } catch (error) {

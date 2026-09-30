@@ -25,29 +25,10 @@ type providersHandler struct {
 	app *app.Application
 }
 
-// customProviderSlug marks a custom provider slug with its api kind, e.g.
-// "custom-openai-vllm". It is idempotent: an incoming slug that already
-// carries a custom-<kind>- marker is re-prefixed rather than stacked, so an
-// api_kind change swaps the marker instead of nesting it. The gateway never
-// parses the slug — it resolves providers by exact lookup — so the marker is
-// purely a naming convention shared by accounts, usage rows, and the web UI.
-func customProviderSlug(apiKind, slug string) string {
-	kind := strings.ToLower(strings.TrimSpace(apiKind))
-	if kind == "" {
-		kind = "openai"
-	}
-	if !strings.HasPrefix(kind, "custom-") {
-		kind = "custom-" + kind
-	}
-
-	slug = strings.ToLower(strings.TrimSpace(slug))
-	if rest, ok := strings.CutPrefix(slug, "custom-"); ok {
-		if _, tail, found := strings.Cut(rest, "-"); found {
-			slug = tail
-		}
-	}
-	return kind + "-" + slug
-}
+// The custom-<kind>- slug marker (e.g. "custom-openai-vllm") is a naming
+// convention owned by callers: the web UI composes it, API clients may omit
+// it entirely. The server stores the slug verbatim (normalized by slugify)
+// and never parses it — the gateway resolves providers by exact lookup.
 
 // slugify folds a display name into a slug segment: lowercase, non-alnum runs
 // become single dashes.
@@ -70,7 +51,7 @@ func slugify(s string) string {
 func customProviderFrom(d dtos.CustomProvider) models.CustomProvider {
 	p := models.CustomProvider{
 		Name:     d.Name,
-		Slug:     customProviderSlug(d.APIKind, cmp.Or(d.Slug, slugify(d.Name))),
+		Slug:     slugify(cmp.Or(d.Slug, d.Name)),
 		BaseURL:  d.BaseURL,
 		APIKind:  cmp.Or(d.APIKind, "openai"),
 		Priority: d.Priority,
@@ -94,8 +75,8 @@ func applyCustomProviderPatch(p *models.CustomProvider, d dtos.CustomProvider) {
 	if d.APIKind != "" {
 		p.APIKind = d.APIKind
 	}
-	if d.Slug != "" || d.APIKind != "" {
-		p.Slug = customProviderSlug(p.APIKind, cmp.Or(d.Slug, p.Slug))
+	if d.Slug != "" {
+		p.Slug = slugify(d.Slug)
 	}
 	if d.BaseURL != "" {
 		p.BaseURL = d.BaseURL
