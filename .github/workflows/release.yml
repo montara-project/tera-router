@@ -31,6 +31,7 @@ env:
 
 jobs:
   release:
+    name: Release Web UI + Server
     runs-on: ubuntu-latest
     permissions:
       contents: read
