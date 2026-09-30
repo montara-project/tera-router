@@ -1,5 +1,6 @@
 'use client'
 
+import { useQuery } from '@tanstack/react-query'
 import { Link, useLocation } from '@tanstack/react-router'
 import React, { useEffect, useState } from 'react'
 
@@ -13,6 +14,7 @@ import {
 } from '@/components/ui/breadcrumb'
 import { Separator } from '@/components/ui/separator'
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
+import { queries } from '@/lib/api/queries'
 import { capitalizeFirstLetter } from '@/lib/string'
 
 import AppSidebar from './app-sidebar'
@@ -24,6 +26,8 @@ interface SidebarLayoutProps {
 export default function SidebarLayout({ children }: SidebarLayoutProps) {
   const pathname = useLocation().pathname
   const [now, setNow] = useState(() => new Date())
+
+  const { data: meData } = useQuery(queries.auth.me())
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000)
@@ -99,7 +103,7 @@ export default function SidebarLayout({ children }: SidebarLayoutProps) {
         } as React.CSSProperties
       }
     >
-      <AppSidebar />
+      <AppSidebar user={meData?.data} />
       <SidebarInset>
         <header className="sticky bg-background top-0 z-20 flex h-16 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
           <div className="flex w-full items-center justify-between px-4">
