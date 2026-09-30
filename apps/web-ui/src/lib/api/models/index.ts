@@ -43,6 +43,7 @@ export namespace Models {
   export type Skill = import('./skill').Skill
   export type SourceCodeFilterMode = import('./settings').SourceCodeFilterMode
   export type SystemStats = import('./system').SystemStats
+  export type UpstreamModels = import('./provider-catalog').UpstreamModels
   export type UsageByModel = import('./usage').UsageByModel
   export type UsageDaily = import('./usage').UsageDaily
   export type UsageModelAccountingRow = import('./usage').UsageModelAccountingRow

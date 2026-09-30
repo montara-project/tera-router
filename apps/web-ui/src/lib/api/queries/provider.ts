@@ -95,6 +95,15 @@ const customDelete = () => {
   })
 }
 
+// Live upstream read — no cache to invalidate.
+const customModels = (id: string) =>
+  mutationOptions({
+    mutationFn: async () => {
+      const res = await services.providers.customModels(id)
+      return res.data
+    },
+  })
+
 export const providerQueries = {
   list,
   customList,
@@ -102,4 +111,5 @@ export const providerQueries = {
   customCreate,
   customUpdate,
   customDelete,
+  customModels,
 } as const

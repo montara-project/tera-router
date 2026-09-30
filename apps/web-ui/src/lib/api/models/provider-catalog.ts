@@ -13,6 +13,11 @@ export type CustomProvider = {
   updated_at: string
 }
 
+/** Matches the GET /v1/custom-providers/:id/models payload. */
+export type UpstreamModels = {
+  models: string[]
+}
+
 /** One ordered candidate within a model alias pool. */
 export type AliasTarget = {
   id: string

@@ -91,6 +91,7 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	protected.Put("/custom-providers/:id", h.Providers.CustomUpdate)
 	protected.Patch("/custom-providers/:id", h.Providers.CustomUpdate)
 	protected.Delete("/custom-providers/:id", h.Providers.CustomDelete)
+	protected.Get("/custom-providers/:id/models", h.Providers.CustomModels)
 
 	protected.Post("/validate-key", h.Accounts.ValidateKey)
 	protected.Get("/accounts", h.Accounts.Index)

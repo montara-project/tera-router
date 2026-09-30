@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"tera-router/server/internal/autocombo"
 	"tera-router/server/internal/catalog"
 	"tera-router/server/internal/core"
 	"tera-router/server/internal/lib/apperr"
@@ -55,11 +56,16 @@ func errBadModel(msg string) error { return badModelError{msg} }
 
 // resolveTargets turns an inbound model string into an ordered fallback chain.
 //
-// Four forms are supported, in priority order:
+// Five forms are supported, in priority order:
 //
 //   - "chain:<name>"    — the named routing chain's steps.
 //   - exact alias match — checked before provider/model parsing so an alias
 //     named "vendor/model" wins over the provider/model interpretation.
+//   - "auto" / "auto/<variant>" — a virtual combo built dynamically from the
+//     connected accounts by the auto-combo engine (see the autocombo
+//     package). Because this check runs before provider/model parsing and
+//     bare-name lookup, a chain or alias literally named "auto" is shadowed
+//     by the engine.
 //   - "provider/model"  — a single explicit target. Slashes beyond the first
 //     stay in the model id, so vendor-namespaced ids survive.
 //   - bare "name"       — a chain by that name, then an alias by that name.
@@ -90,6 +96,11 @@ func (s *Server) resolveTargets(ctx context.Context, model string) (resolveResul
 		return res, nil
 	}
 
+	// Auto-combo prefix: "auto" or "auto/<variant>".
+	if variant, ok := autocombo.ParsePrefix(model); ok {
+		return s.autoComboResult(ctx, model, variant)
+	}
+
 	// provider/model.
 	if provider, rest, ok := strings.Cut(model, "/"); ok && provider != "" && rest != "" {
 		if _, routable := s.providerSpec(ctx, provider); !routable {
@@ -110,6 +121,35 @@ func (s *Server) resolveTargets(ctx context.Context, model string) (resolveResul
 	}
 
 	return resolveResult{}, errBadModel("unknown model: " + model)
+}
+
+// autoComboResult builds the virtual combo for an "auto" request and wraps it
+// in a resolve result. The result carries the variant's synthetic chain name
+// ("auto" / "auto/<variant>") so access policies can allowlist the variant
+// like a chain, and the engine's exclusion of unhealthy candidates means an
+// empty build is a client-facing bad model, not a router fault.
+func (s *Server) autoComboResult(ctx context.Context, model string, variant autocombo.Variant) (resolveResult, error) {
+	if s.combo == nil {
+		return resolveResult{}, errBadModel("auto-combo engine is not initialized")
+	}
+	built, err := s.combo.Build(ctx, variant)
+	if err != nil {
+		return resolveResult{}, err
+	}
+	if len(built) == 0 {
+		return resolveResult{}, errBadModel(
+			"no models available for auto-combo (no connected providers with observed usage)")
+	}
+	out := make([]target, len(built))
+	for i, t := range built {
+		out[i] = target{Provider: t.Provider, Model: t.Model}
+	}
+	return resolveResult{
+		Targets:   out,
+		Strategy:  strategyPriority,
+		ChainName: variant.ChainName(),
+		EchoModel: model,
+	}, nil
 }
 
 // aliasResult resolves an exact alias name to its active targets, ordered by

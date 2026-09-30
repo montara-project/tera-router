@@ -45,6 +45,11 @@ const resources = (): ProviderResources => {
       const url = `${customPath}/${id}`
       return api.delete(url)
     },
+    /** fetches the model catalog from the provider's upstream API */
+    customModels: (id) => {
+      const url = `${customPath}/${id}/models`
+      return api.get(url)
+    },
     /** provider-scoped bulk account operations (provider slug as :id) */
     accountsBulkDisable: (slug) => {
       const url = `${path}/${slug}/accounts/disable-all`

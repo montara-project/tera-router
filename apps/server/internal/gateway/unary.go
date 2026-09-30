@@ -46,6 +46,12 @@ func (s *Server) unaryChat(
 		}
 		lastErr = pe
 
+		// Feed the auto-combo engine's self-healing: a fallbackable failure
+		// counts against the provider, a request-shaped one does not.
+		if pe.Fallbackable() {
+			s.combo.ExcludeAfterFailure(at.Target.Provider, at.Target.Model)
+		}
+
 		// A request-shaped failure will not improve on another account.
 		if !pe.Fallbackable() {
 			s.logFailure(pe)
@@ -75,6 +81,7 @@ func (s *Server) callUnary(ctx context.Context, at attempt, req *core.ChatReques
 		resp, err := at.Conn.Chat(ctx, attemptReq, at.Creds)
 		latency := time.Since(started)
 		if err == nil {
+			s.combo.NoteSuccess(at.Target.Provider, at.Target.Model)
 			return resp, nil, true
 		}
 

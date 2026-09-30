@@ -253,6 +253,56 @@ func (h *providersHandler) CustomDelete(c fiber.Ctx) error {
 	return dtos.Deleted(c, "Provider deleted")
 }
 
+// CustomModels fetches the model catalog straight from the provider's
+// upstream model-list endpoint, authenticated with its highest-priority
+// usable credential (GET /v1/custom-providers/:id/models).
+func (h *providersHandler) CustomModels(c fiber.Ctx) error {
+	id, err := lib.ContextParamUUID(c, "id")
+	if err != nil {
+		return apperr.ErrBadRequest
+	}
+
+	provider, err := h.app.Repos.Providers.Get(c.Context(), id.String())
+	if err != nil {
+		return err
+	}
+	if provider.BaseURL == "" {
+		return apperr.New(apperr.KindUnprocessable, "provider has no base_url configured")
+	}
+
+	accounts, err := h.app.Repos.Accounts.ListUsable(c.Context(), provider.Slug)
+	if err != nil {
+		return err
+	}
+	apiKey := ""
+	for _, account := range accounts {
+		// Mirror the account probe: OAuth credentials live in Token,
+		// API keys in Secret.
+		if !account.Secret.Empty() {
+			apiKey, err = h.app.Secrets.OpenString(fromModelsSealed(account.Secret))
+		} else if !account.Token.Empty() {
+			apiKey, err = h.app.Secrets.OpenString(fromModelsSealed(account.Token))
+		}
+		if apiKey != "" || err != nil {
+			break
+		}
+	}
+	if err != nil {
+		return err
+	}
+	if apiKey == "" {
+		return apperr.New(apperr.KindUnprocessable, "no usable credential for this provider; add an API key first")
+	}
+
+	anthropic := provider.APIKind == "anthropic"
+	endpoint := upstreamModelsEndpoint(provider.BaseURL, anthropic)
+	modelIDs, err := h.app.Services.Upstream.ListModels(c.Context(), endpoint, anthropic, apiKey)
+	if err != nil {
+		return apperr.New(apperr.KindUnprocessable, "%s", err.Error())
+	}
+	return dtos.OK(c, fiber.Map{"models": modelIDs})
+}
+
 // --- Provider-scoped bulk account operations ---
 
 func (h *providersHandler) AccountsBulkDisable(c fiber.Ctx) error {

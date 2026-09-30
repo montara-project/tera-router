@@ -2,11 +2,13 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"net/url"
+	"slices"
 	"time"
 
 	"tera-router/server/internal/dtos"
@@ -147,4 +149,58 @@ func (s *UpstreamService) ProbeCredential(ctx context.Context, endpoint string, 
 		result.Detail = fmt.Sprintf("upstream responded with status %d", resp.StatusCode)
 	}
 	return result, nil
+}
+
+// ListModels fetches the model catalog from the provider's model-list
+// endpoint using the given credential. Both wire dialects answer with the
+// same {"data":[{"id":...}]} shape; the ids come back sorted for a stable
+// listing.
+func (s *UpstreamService) ListModels(ctx context.Context, endpoint string, anthropicDialect bool, apiKey string) ([]string, error) {
+	if err := validateEndpoint(endpoint); err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+	if anthropicDialect {
+		req.Header.Set("x-api-key", apiKey)
+		req.Header.Set("anthropic-version", "2023-06-01")
+	} else {
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+	}
+
+	client := probeClient()
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("upstream request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return nil, fmt.Errorf("read upstream response: %w", err)
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("upstream responded with status %d", resp.StatusCode)
+	}
+
+	var payload struct {
+		Data []struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return nil, fmt.Errorf("parse upstream model list: %w", err)
+	}
+
+	ids := make([]string, 0, len(payload.Data))
+	for _, m := range payload.Data {
+		if m.ID != "" {
+			ids = append(ids, m.ID)
+		}
+	}
+	slices.Sort(ids)
+	return ids, nil
 }

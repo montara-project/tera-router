@@ -1,7 +1,10 @@
+import type { AxiosError } from 'axios'
+
 import {
   IconApps,
   IconArrowLeft,
   IconCircleCheck,
+  IconDownload,
   IconGitBranch,
   IconKey,
   IconPlus,
@@ -86,6 +89,7 @@ function CustomProviderDetailRoute() {
   const [accountPage, setAccountPage] = useState(1)
   const [testingId, setTestingId] = useState<string | null>(null)
   const [testingAll, setTestingAll] = useState(false)
+  const [catalog, setCatalog] = useState<Models.UpstreamModels | null>(null)
 
   const providerQuery = useQuery(queries.providers.customGet(providerId))
   const provider = providerQuery.data
@@ -97,6 +101,7 @@ function CustomProviderDetailRoute() {
   const toggleProviderMutation = useMutation(queries.providers.customUpdate(providerId))
   const testAccountMutation = useMutation(queries.accounts.test())
   const deleteAccountMutation = useMutation(queries.accounts.delete())
+  const fetchModelsMutation = useMutation(queries.providers.customModels(providerId))
 
   const accounts = useMemo(
     () => (accountQuery.data?.data ?? []).filter((account) => account.provider === provider?.slug),
@@ -205,6 +210,17 @@ function CustomProviderDetailRoute() {
     setTestingAll(false)
     if (ok === accounts.length) toast.success(`All ${ok} accounts reachable`)
     else toast.warning(`${ok} of ${accounts.length} accounts reachable`)
+  }
+
+  const fetchCatalog = async () => {
+    try {
+      const result = await fetchModelsMutation.mutateAsync()
+      setCatalog(result.data)
+      toast.success(`Fetched ${result.data.models.length} models from upstream`)
+    } catch (err) {
+      const detail = (err as AxiosError<{ message?: string }>).response?.data?.message
+      toast.error(detail || 'Failed to fetch models from upstream')
+    }
   }
 
   if (providerQuery.isLoading) return <DetailSkeleton />
@@ -472,7 +488,13 @@ function CustomProviderDetailRoute() {
             </TabsContent>
 
             <TabsContent value="models" className="mt-4">
-              <ModelsPanel models={providerModels} loading={usageQuery.isLoading} />
+              <ModelsPanel
+                models={providerModels}
+                loading={usageQuery.isLoading}
+                catalog={catalog}
+                fetching={fetchModelsMutation.isPending}
+                onFetch={fetchCatalog}
+              />
             </TabsContent>
 
             <TabsContent value="routing" className="mt-4">
@@ -536,60 +558,109 @@ function SummaryTile({
 function ModelsPanel({
   models,
   loading,
+  catalog,
+  fetching,
+  onFetch,
 }: {
   models: Models.UsageModelAccountingRow[]
   loading: boolean
+  catalog: Models.UpstreamModels | null
+  fetching: boolean
+  onFetch: () => void
 }) {
-  if (loading)
-    return (
-      <div className="space-y-2">
-        <Skeleton className="h-12 w-full" />
-        <Skeleton className="h-12 w-full" />
-      </div>
-    )
-  if (!models.length) {
-    return (
-      <Empty className="border">
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <IconApps />
-          </EmptyMedia>
-          <EmptyTitle>No observed models yet</EmptyTitle>
-          <EmptyDescription>
-            Models appear here after this provider has terminal usage. The backend does not expose a
-            provider model catalog yet.
-          </EmptyDescription>
-        </EmptyHeader>
-      </Empty>
-    )
-  }
   return (
-    <Card className="bg-background">
-      <CardHeader className="h-20">
-        <CardHeading>
-          <CardTitle>Observed models ({models.length})</CardTitle>
-          <CardDescription>Models seen in terminal usage for this provider.</CardDescription>
-        </CardHeading>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="divide-y divide-border/60">
-          {models.map((model) => (
-            <div
-              key={model.id}
-              className="grid grid-cols-[1.4fr_0.8fr_0.9fr_1fr] items-center gap-4 px-5 py-3"
-            >
-              <div>
-                <p className="font-mono text-sm font-medium">{model.model}</p>
-                <p className="text-xs text-muted-foreground">{model.provider}</p>
-              </div>
-              <span className="text-sm tabular-nums">{model.requests} requests</span>
-              <span className="text-sm tabular-nums">{model.successPct}% success</span>
-              <span className="text-sm tabular-nums">{fmtLatency(model.latencyMs)} avg</span>
+    <div className="space-y-4">
+      <Card className="bg-background">
+        <CardHeader className="h-20">
+          <CardHeading>
+            <CardTitle>Upstream catalog</CardTitle>
+            <CardDescription>
+              Fetch the full model list directly from the provider's API.
+            </CardDescription>
+          </CardHeading>
+          <CardToolbar>
+            <Button size="sm" variant="outline" disabled={fetching} onClick={onFetch}>
+              {fetching ? <IconRefresh className="animate-spin" /> : <IconDownload />} Fetch models
+            </Button>
+          </CardToolbar>
+        </CardHeader>
+        <CardContent className="p-0">
+          {fetching ? (
+            <div className="space-y-2 p-5">
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
             </div>
-          ))}
+          ) : catalog ? (
+            catalog.models.length ? (
+              <div className="divide-y divide-border/60">
+                {catalog.models.map((model) => (
+                  <div key={model} className="px-5 py-2.5 font-mono text-sm">
+                    {model}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="px-5 py-4 text-sm text-muted-foreground">
+                The upstream returned no models.
+              </p>
+            )
+          ) : (
+            <p className="px-5 py-4 text-sm text-muted-foreground">
+              Run <span className="font-medium text-foreground">Fetch models</span> to list every
+              model this provider exposes on its upstream API.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {loading ? (
+        <div className="space-y-2">
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
         </div>
-      </CardContent>
-    </Card>
+      ) : !models.length ? (
+        <Empty className="border">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <IconApps />
+            </EmptyMedia>
+            <EmptyTitle>No observed models yet</EmptyTitle>
+            <EmptyDescription>
+              Models appear here after this provider has terminal usage. Fetch the upstream catalog
+              above to see every model the provider exposes.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      ) : (
+        <Card className="bg-background">
+          <CardHeader className="h-20">
+            <CardHeading>
+              <CardTitle>Observed models ({models.length})</CardTitle>
+              <CardDescription>Models seen in terminal usage for this provider.</CardDescription>
+            </CardHeading>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="divide-y divide-border/60">
+              {models.map((model) => (
+                <div
+                  key={model.id}
+                  className="grid grid-cols-[1.4fr_0.8fr_0.9fr_1fr] items-center gap-4 px-5 py-3"
+                >
+                  <div>
+                    <p className="font-mono text-sm font-medium">{model.model}</p>
+                    <p className="text-xs text-muted-foreground">{model.provider}</p>
+                  </div>
+                  <span className="text-sm tabular-nums">{model.requests} requests</span>
+                  <span className="text-sm tabular-nums">{model.successPct}% success</span>
+                  <span className="text-sm tabular-nums">{fmtLatency(model.latencyMs)} avg</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
   )
 }
 
