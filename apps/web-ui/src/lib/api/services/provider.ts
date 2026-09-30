@@ -45,10 +45,10 @@ const resources = (): ProviderResources => {
       const url = `${customPath}/${id}`
       return api.delete(url)
     },
-    /** stored catalog with per-model states (the gateway's bare-name source) */
-    customModels: (id) => {
+    /** stored catalog with per-model states; server-side search + paging */
+    customModels: (id, params) => {
       const url = `${customPath}/${id}/models`
-      return api.get(url)
+      return api.get(url, { params })
     },
     /** live-fetch the upstream /models list and merge it into the catalog */
     customModelsSync: (id) => {

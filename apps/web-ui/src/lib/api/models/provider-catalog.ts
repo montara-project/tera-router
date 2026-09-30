@@ -28,6 +28,12 @@ export type UpstreamModels = {
   fetched_at?: string | null
   /** how many models got a pricing override imported during this sync */
   priced?: number
+  /** filtered total across pages (pagination) */
+  total?: number
+  /** active models over the whole catalog */
+  enabled?: number
+  /** models in the whole catalog */
+  count?: number
 }
 
 /** One ordered candidate within a model alias pool. */

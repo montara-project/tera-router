@@ -18,7 +18,7 @@ import {
 } from '@tabler/icons-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate, useParams } from '@tanstack/react-router'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
 import type { Models } from '@/lib/api/models'
@@ -55,6 +55,7 @@ export const Route = createFileRoute('/(protected)/(connection)/providers/$provi
 })
 
 const PAGE_SIZE = 5
+const CATALOG_PAGE_SIZE = 10
 const AMBER_BUTTON_CLASS =
   'bg-amber-600 text-white hover:bg-amber-500/90 dark:bg-amber-600 dark:hover:bg-amber-500/90'
 const EMERALD_BUTTON_CLASS =
@@ -103,7 +104,6 @@ function CustomProviderDetailRoute() {
   const accountQuery = useQuery(queries.accounts.list({ offset: 0, limit: 100 }))
   const chainsQuery = useQuery(queries.chains.list({ offset: 0, limit: 100 }))
   const usageQuery = useQuery(queries.usage.telemetry('30d'))
-  const catalogQuery = useQuery(queries.providers.customModels(providerId))
 
   const deleteProviderMutation = useMutation(queries.providers.customDelete())
   const toggleProviderMutation = useMutation(queries.providers.customUpdate(providerId))
@@ -501,9 +501,8 @@ function CustomProviderDetailRoute() {
 
             <TabsContent value="models" className="mt-4">
               <ModelsPanel
+                providerId={providerId}
                 providerSlug={provider.slug}
-                catalog={catalogQuery.data?.data ?? null}
-                loading={catalogQuery.isLoading}
                 observed={providerModels}
                 observedLoading={usageQuery.isLoading}
                 syncing={syncModelsMutation.isPending}
@@ -571,18 +570,16 @@ function SummaryTile({
 }
 
 function ModelsPanel({
+  providerId,
   providerSlug,
-  catalog,
-  loading,
   observed,
   observedLoading,
   syncing,
   onSync,
   onUpdate,
 }: {
+  providerId: string
   providerSlug: string
-  catalog: Models.UpstreamModels | null
-  loading: boolean
   observed: Models.UsageModelAccountingRow[]
   observedLoading: boolean
   syncing: boolean
@@ -592,19 +589,53 @@ function ModelsPanel({
   }) => Promise<unknown>
 }) {
   const [subTab, setSubTab] = useState('catalog')
-  const enabledCount = catalog?.models.filter((m) => m.state === 'active').length ?? 0
+  // Catalog search and paging are server-side: the raw input feeds a
+  // debounced query param, and a new search resets the page.
+  const [searchInput, setSearchInput] = useState('')
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const [selected, setSelected] = useState<string[]>([])
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchInput)
+      setPage(1)
+      setSelected([])
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchInput])
+
+  const catalogQuery = useQuery(
+    queries.providers.customModels(providerId, {
+      search,
+      offset: (page - 1) * CATALOG_PAGE_SIZE,
+      limit: CATALOG_PAGE_SIZE,
+    })
+  )
+  const catalog = catalogQuery.data?.data ?? null
+
+  const changePage = (next: number) => {
+    setPage(next)
+    setSelected([])
+  }
 
   return (
     <Tabs value={subTab} onValueChange={setSubTab}>
       <TabsList className="w-full justify-start overflow-x-auto">
-        <TabsTrigger value="catalog">Catalog ({enabledCount})</TabsTrigger>
+        <TabsTrigger value="catalog">Catalog ({catalog?.enabled ?? 0})</TabsTrigger>
         <TabsTrigger value="observed">Observed ({observed.length})</TabsTrigger>
       </TabsList>
       <TabsContent value="catalog" className="mt-4">
         <ModelsCatalog
           providerSlug={providerSlug}
           catalog={catalog}
-          loading={loading}
+          loading={catalogQuery.isLoading}
+          searchValue={searchInput}
+          onSearchChange={setSearchInput}
+          page={page}
+          onPageChange={changePage}
+          selected={selected}
+          onSelectedChange={setSelected}
           syncing={syncing}
           onSync={onSync}
           onUpdate={onUpdate}
@@ -621,6 +652,12 @@ function ModelsCatalog({
   providerSlug,
   catalog,
   loading,
+  searchValue,
+  onSearchChange,
+  page,
+  onPageChange,
+  selected,
+  onSelectedChange,
   syncing,
   onSync,
   onUpdate,
@@ -628,25 +665,28 @@ function ModelsCatalog({
   providerSlug: string
   catalog: Models.UpstreamModels | null
   loading: boolean
+  searchValue: string
+  onSearchChange: (value: string) => void
+  page: number
+  onPageChange: (page: number) => void
+  selected: string[]
+  onSelectedChange: (ids: string[]) => void
   syncing: boolean
   onSync: () => void
   onUpdate: (body: {
     models: { id: string; state: Models.ProviderModelState }[]
   }) => Promise<unknown>
 }) {
-  const [search, setSearch] = useState('')
-  const [selected, setSelected] = useState<string[]>([])
-
   const models = useMemo(() => catalog?.models ?? [], [catalog])
-  const enabledCount = models.filter((m) => m.state === 'active').length
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    if (!q) return models
-    return models.filter((m) => m.id.toLowerCase().includes(q))
-  }, [models, search])
-  const selectedInFiltered = selected.filter((id) => filtered.some((m) => m.id === id))
-  const allSelected = filtered.length > 0 && selectedInFiltered.length === filtered.length
-  const someSelected = selectedInFiltered.length > 0 && !allSelected
+  const enabledCount = catalog?.enabled ?? 0
+  const totalCount = catalog?.count ?? 0
+  const filteredTotal = catalog?.total ?? 0
+  const pages = Math.max(1, Math.ceil(filteredTotal / CATALOG_PAGE_SIZE))
+  // Selection is page-scoped: the catalog is paged server-side, so "select
+  // all" and bulk actions operate on the rows currently on screen.
+  const selectedInPage = selected.filter((id) => models.some((m) => m.id === id))
+  const allSelected = models.length > 0 && selectedInPage.length === models.length
+  const someSelected = selectedInPage.length > 0 && !allSelected
 
   const toggleModel = async (id: string, state: Models.ProviderModelState) => {
     try {
@@ -657,21 +697,21 @@ function ModelsCatalog({
   }
 
   const bulkToggle = async (state: Models.ProviderModelState) => {
-    if (selectedInFiltered.length === 0) return
-    const count = selectedInFiltered.length
+    if (selectedInPage.length === 0) return
+    const count = selectedInPage.length
     try {
-      await onUpdate({ models: selectedInFiltered.map((id) => ({ id, state })) })
+      await onUpdate({ models: selectedInPage.map((id) => ({ id, state })) })
       toast.success(
         `${count} ${count === 1 ? 'model' : 'models'} ${state === 'active' ? 'enabled' : 'disabled'}`
       )
-      setSelected([])
+      onSelectedChange([])
     } catch {
       toast.error('Failed to update models')
     }
   }
 
   const toggleSelect = (id: string, checked: boolean) => {
-    setSelected((prev) => (checked ? [...prev, id] : prev.filter((x) => x !== id)))
+    onSelectedChange(checked ? [...selected, id] : selected.filter((x) => x !== id))
   }
 
   return (
@@ -681,7 +721,7 @@ function ModelsCatalog({
           <CardTitle>Model catalog</CardTitle>
           <CardDescription>
             {catalog
-              ? `${enabledCount} of ${models.length} models enabled in this catalog. Disabled models are excluded from routing.`
+              ? `${enabledCount} of ${totalCount} models enabled in this catalog. Disabled models are excluded from routing.`
               : 'Sync from /models to import the provider model list into the catalog.'}
           </CardDescription>
         </CardHeading>
@@ -700,7 +740,7 @@ function ModelsCatalog({
             ))}
           </div>
         </CardContent>
-      ) : models.length === 0 ? (
+      ) : totalCount === 0 ? (
         <CardContent className="p-0">
           <Empty className="border-0 py-12">
             <EmptyHeader>
@@ -721,56 +761,60 @@ function ModelsCatalog({
             <div className="relative min-w-56 flex-1 md:max-w-sm">
               <IconSearch className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                value={searchValue}
+                onChange={(e) => onSearchChange(e.target.value)}
                 placeholder="Search by model name or ID..."
                 className="h-9 pl-9"
               />
             </div>
-            {selectedInFiltered.length > 0 ? (
+            {selectedInPage.length > 0 ? (
               <div className="flex flex-wrap items-center gap-2">
                 <Button size="sm" variant="outline" onClick={() => bulkToggle('active')}>
-                  <IconCircleCheck /> Enable ({selectedInFiltered.length})
+                  <IconCircleCheck /> Enable ({selectedInPage.length})
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => bulkToggle('disabled')}>
-                  <IconEyeOff /> Disable ({selectedInFiltered.length})
+                  <IconEyeOff /> Disable ({selectedInPage.length})
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => setSelected([])}>
+                <Button size="sm" variant="ghost" onClick={() => onSelectedChange([])}>
                   Clear
                 </Button>
               </div>
             ) : (
               <div className="ml-auto flex items-center gap-3">
-                <span className="text-xs text-muted-foreground">{filtered.length} shown</span>
+                <span className="text-xs text-muted-foreground">{filteredTotal} shown</span>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Checkbox
                     size="sm"
                     checked={allSelected ? true : someSelected ? 'indeterminate' : false}
                     onCheckedChange={(checked) =>
-                      setSelected(checked === true ? filtered.map((m) => m.id) : [])
+                      onSelectedChange(checked === true ? models.map((m) => m.id) : [])
                     }
-                    aria-label="Select all models"
+                    aria-label="Select all models on this page"
                   />
                   Select all
                 </div>
               </div>
             )}
           </div>
-          {filtered.length === 0 ? (
+          {filteredTotal === 0 ? (
             <Empty className="border-0 py-12">
               <EmptyHeader>
                 <EmptyMedia variant="icon">
                   <IconSearch />
                 </EmptyMedia>
-                <EmptyTitle>No models match "{search}"</EmptyTitle>
+                <EmptyTitle>No models match "{searchValue}"</EmptyTitle>
                 <EmptyDescription>
                   Try a shorter name or clear the search to see the full catalog.
                 </EmptyDescription>
               </EmptyHeader>
             </Empty>
+          ) : models.length === 0 ? (
+            <p className="px-5 py-8 text-center text-sm text-muted-foreground">
+              No models on this page — go back a page.
+            </p>
           ) : (
             <div className="grid gap-3 p-5 md:grid-cols-2 xl:grid-cols-3">
-              {filtered.map((model) => (
+              {models.map((model) => (
                 <ModelCard
                   key={model.id}
                   providerSlug={providerSlug}
@@ -782,6 +826,32 @@ function ModelsCatalog({
               ))}
             </div>
           )}
+          {filteredTotal > CATALOG_PAGE_SIZE ? (
+            <div className="flex items-center justify-between border-t border-border px-5 py-3">
+              <p className="text-xs text-muted-foreground">{filteredTotal} models</p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={page <= 1}
+                  onClick={() => onPageChange(Math.max(1, page - 1))}
+                >
+                  Previous
+                </Button>
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  {page} / {pages}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={page >= pages}
+                  onClick={() => onPageChange(Math.min(pages, page + 1))}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          ) : null}
         </CardContent>
       )}
     </Card>

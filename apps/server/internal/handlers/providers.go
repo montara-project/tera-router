@@ -262,6 +262,11 @@ func (h *providersHandler) CustomDelete(c fiber.Ctx) error {
 // active/disabled state (GET /v1/custom-providers/:id/models). The catalog is
 // what the gateway uses to resolve bare model ids and to advertise them on
 // /v1/models.
+//
+// Query params: search (case-insensitive substring on the model id), offset
+// and limit (limit defaults to 10, capped at 100) for the dashboard's paged
+// catalog view. The response always reports totals over the whole catalog so
+// a single page is enough to render the header and pagination.
 func (h *providersHandler) CustomModels(c fiber.Ctx) error {
 	id, err := lib.ContextParamUUID(c, "id")
 	if err != nil {
@@ -279,7 +284,60 @@ func (h *providersHandler) CustomModels(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	return dtos.OK(c, fiber.Map{"models": cat.Models, "fetched_at": cat.FetchedAt})
+
+	offset, _ := strconv.Atoi(c.Query("offset"))
+	limit, _ := strconv.Atoi(c.Query("limit"))
+	page, total, enabled := catalogPage(cat.Models, c.Query("search"), offset, limit)
+	return dtos.OK(c, fiber.Map{
+		"models":     page,
+		"total":      total,
+		"enabled":    enabled,
+		"count":      len(cat.Models),
+		"fetched_at": cat.FetchedAt,
+	})
+}
+
+// catalogPage filters one catalog by a case-insensitive id substring and
+// slices out one page. It returns the page, the filtered total (for page
+// count), and the enabled count over the whole catalog (for the header).
+func catalogPage(models []modelcatalog.ModelEntry, search string, offset, limit int) (page []modelcatalog.ModelEntry, total, enabled int) {
+	if models == nil {
+		models = []modelcatalog.ModelEntry{}
+	}
+	for _, m := range models {
+		if m.State == modelcatalog.StateActive {
+			enabled++
+		}
+	}
+
+	filtered := models
+	if q := strings.ToLower(strings.TrimSpace(search)); q != "" {
+		filtered = make([]modelcatalog.ModelEntry, 0, len(models))
+		for _, m := range models {
+			if strings.Contains(strings.ToLower(m.ID), q) {
+				filtered = append(filtered, m)
+			}
+		}
+	}
+	total = len(filtered)
+
+	if limit <= 0 {
+		limit = 10
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	if offset > total {
+		offset = total
+	}
+	end := offset + limit
+	if end > total {
+		end = total
+	}
+	return filtered[offset:end], total, enabled
 }
 
 // CustomModelsSync fetches the model catalog straight from the provider's

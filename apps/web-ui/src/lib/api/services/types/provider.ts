@@ -13,7 +13,10 @@ export type ProviderResources = {
     payload: CustomProviderDto
   ) => Promise<AxiosItemResponse<Models.CustomProvider>>
   customDelete: (id: string) => Promise<AxiosDeleteResponse>
-  customModels: (id: string) => Promise<AxiosItemResponse<Models.UpstreamModels>>
+  customModels: (
+    id: string,
+    params?: { search?: string; offset?: number; limit?: number }
+  ) => Promise<AxiosItemResponse<Models.UpstreamModels>>
   customModelsSync: (id: string) => Promise<AxiosItemResponse<Models.UpstreamModels>>
   customModelsUpdate: (
     id: string,
