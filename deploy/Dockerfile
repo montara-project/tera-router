@@ -16,7 +16,9 @@ RUN corepack enable && pnpm install --frozen-lockfile --filter @tera/web
 
 COPY apps/web-ui apps/web-ui
 
-RUN pnpm --filter @tera/web build
+# `exec` bypasses the package.json lifecycle, so prebuild (format/lint/typecheck)
+# and `tsc -b` don't run — image builds only bundle; checks belong to CI/dev.
+RUN pnpm --filter @tera/web exec vite build
 
 # ====================================================================================
 # Stage 2: server (Go build)
