@@ -3,6 +3,15 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [0.1.2](https://github.com/montara-project/tera-router/compare/v0.1.1...v0.1.2) (2026-09-30)
+
+### Bug Fixes
+
+* only rilis linux amd64 ([401ad4c](https://github.com/montara-project/tera-router/commit/401ad4c2973ef5ede38b4e1b01fcefe362fb3afa))
+* update prefix VITE_ ([935d8cb](https://github.com/montara-project/tera-router/commit/935d8cb5316ef0ecec0f26f38e6b69bfdca61eba))
+* update react doctor ([a4e8986](https://github.com/montara-project/tera-router/commit/a4e8986e78d36523c047cc258ab4ad088f135d8a))
+* update vite api url ([cbf3198](https://github.com/montara-project/tera-router/commit/cbf31989a5816020712cbccde7e4889fce314270))
+
 ## [0.1.1](https://github.com/montara-project/tera-router/compare/v0.1.0...v0.1.1) (2026-09-30)
 
 ### Bug Fixes
