@@ -70,6 +70,7 @@ func serve(app *app.Application) error {
 	server.Use(middlewares.RateLimit(
 		app.Config.App.Env == config.EnvDevelopment,
 		gateway.IsGatewayPath,
+		app.Config.App.RateLimitExemptIPs,
 	))
 
 	server.Use(static.New("./public"))

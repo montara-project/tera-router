@@ -1,6 +1,7 @@
 package middlewares
 
 import (
+	"strings"
 	"time"
 
 	"tera-router/server/internal/lib/apperr"
@@ -31,10 +32,24 @@ const (
 // means a same-host reverse proxy would make every request look like loopback
 // and silently disable the limiter. Operators behind a proxy should configure
 // ProxyHeader/TrustProxyConfig so the real client IP is used instead.
-func RateLimit(exemptLoopback bool, skipPaths func(string) bool) fiber.Handler {
+//
+// exemptIPs is a comma-separated list of client IPs (e.g. internal health
+// checks or an uptime monitor) that skip the limiter outright. Beware that
+// c.IP() is the direct TCP peer: when every request arrives through a reverse
+// proxy, exempting the proxy's address disables the limiter for all traffic.
+func RateLimit(exemptLoopback bool, skipPaths func(string) bool, exemptIPs string) fiber.Handler {
+	exempt := map[string]struct{}{}
+	for _, ip := range strings.Split(exemptIPs, ",") {
+		if ip = strings.TrimSpace(ip); ip != "" {
+			exempt[ip] = struct{}{}
+		}
+	}
 	return limiter.New(limiter.Config{
 		Next: func(c fiber.Ctx) bool {
 			if skipPaths != nil && skipPaths(c.Path()) {
+				return true
+			}
+			if _, ok := exempt[c.IP()]; ok {
 				return true
 			}
 			return exemptLoopback && c.IP() == "127.0.0.1"

@@ -19,6 +19,9 @@ type ConfigApp struct {
 	Name               string
 	Secret             string
 	CORSAllowedOrigins string
+	// RateLimitExemptIPs is a comma-separated list of client IPs that skip the
+	// dashboard rate limiter entirely.
+	RateLimitExemptIPs string
 }
 
 type ConfigDatabase struct {

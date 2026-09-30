@@ -27,6 +27,7 @@ func parseFlag(cfg *config.Config) {
 	flag.StringVar(&cfg.App.Name, "app-name", "tera-router-server", "App Name")
 	flag.StringVar(&cfg.App.Secret, "app-secret", "", "App Secret")
 	flag.StringVar(&cfg.App.CORSAllowedOrigins, "cors-allowed-origins", "*", "CORS Allowed Origins")
+	flag.StringVar(&cfg.App.RateLimitExemptIPs, "rate-limit-exempt-ips", "", "Comma-separated client IPs exempt from the rate limiter")
 
 	// Database
 	flag.StringVar(&cfg.Database.Path, "database-path", database.DefaultPath, "SQLite database file path")
