@@ -1,6 +1,5 @@
 import { Metadata } from 'next'
 
-
 export const META_URL = 'https://terarouter.xyz'
 export const META_TITLE = `Tera Router — Unified AI Provider Gateway`
 export const META_DESCRIPTION = `Self-hosted inference gateway that unifies every AI provider behind one OpenAI-compatible endpoint. Multi-dialect, multi-account, with keys, guardrails, and usage analytics.`
