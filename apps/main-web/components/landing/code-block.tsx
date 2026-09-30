@@ -7,15 +7,15 @@ function tokenizeRest(rest: string, out: Token[]) {
   for (const part of rest.split(/("[^"]*"|'[^']*')/g)) {
     if (!part) continue
     if (part.startsWith('"') || part.startsWith("'")) {
-      out.push({ text: part, cls: 'text-amber-200/90' })
+      out.push({ text: part, cls: 'text-amber-400/90' })
       continue
     }
     for (const piece of part.split(new RegExp(`(${FLAG.source})`, 'g'))) {
       if (!piece) continue
       out.push(
         FLAG.test(piece) && piece.startsWith('-')
-          ? { text: piece, cls: 'text-sky-300' }
-          : { text: piece, cls: 'text-slate-300' }
+          ? { text: piece, cls: 'text-neutral-400' }
+          : { text: piece, cls: 'text-neutral-300' }
       )
     }
   }
@@ -49,7 +49,7 @@ export function CodeBlock({ label, lines, className = '' }: CodeBlockProps) {
         <span aria-hidden className="size-2.5 rounded-full bg-[#f55036]" />
         <span aria-hidden className="size-2.5 rounded-full bg-[#f5bf4f]" />
         <span aria-hidden className="size-2.5 rounded-full bg-[#22c55e]" />
-        <span className="ml-2 font-mono text-xs text-slate-500">{label}</span>
+        <span className="ml-2 font-mono text-xs text-neutral-500">{label}</span>
       </div>
       <pre className="overflow-x-auto p-4 font-mono text-[13px] leading-relaxed">
         <code>
