@@ -76,6 +76,11 @@ jobs:
           platforms: ${{ env.PLATFORMS }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # Vite bakes these into the web-ui bundle at build time. Override via
+          # repo/environment Variables when deploying under a different domain.
+          build-args: |
+            VITE_APP_NAME=${{ vars.VITE_APP_NAME || 'Tera Router' }}
+            VITE_API_URL=${{ vars.VITE_API_URL || 'https://llm.terarouter.xyz' }}
           push: true
           # GitHub Actions cache keeps the Go module and pnpm store layers warm
           # between runs, which is most of the build time.
