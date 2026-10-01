@@ -105,16 +105,11 @@ func (h *usageHandler) buildTelemetry(ctx context.Context, from time.Time) (dtos
 
 	// A price that arrived after the requests were recorded (a new override or
 	// a compiled-in rate) must not make recorded-at-zero groups read as free:
-	// re-derive those from the current rates. Providers group several models
-	// with different rates, so the derived figure is the per-model sum.
-	derivedByProvider := make(map[string]int64, len(byProvider))
-	pricedByProvider := make(map[string]int64, len(byProvider))
-	for _, g := range byModel {
-		if o, ok := rates[pricingKey(g.Provider, g.Model)]; ok {
-			derivedByProvider[g.Provider] += groupCost(g, o)
-			pricedByProvider[g.Provider] += g.Requests
-		}
-	}
+	// re-derive those from the current rates. Groups whose pricing is gone
+	// still contribute their recorded cost, so real spend never drops out of
+	// the totals. Providers group several models with different rates, so the
+	// derived figure is the per-model sum.
+	derivedByProvider, pricedByProvider := costByProvider(byModel, rates)
 
 	out := dtos.UsageTelemetry{
 		Traffic: dtos.UsageTelemetryTraffic{
@@ -166,9 +161,29 @@ func (h *usageHandler) buildTelemetry(ctx context.Context, from time.Time) (dtos
 func totalCost(groups []repositories.UsageGroup, derivedByProvider map[string]int64) int64 {
 	var total int64
 	for _, g := range groups {
-		total += providerCost(g, derivedByProvider[g.Provider])
+		total += derivedByProvider[g.Provider]
 	}
 	return total
+}
+
+// costByProvider derives each provider's displayed cost from the per-model
+// aggregates: a priced group contributes groupCost (its recorded figure when
+// one exists, else re-derived from the current rates) and an unpriced group
+// contributes its recorded cost, so spend recorded under a since-deleted
+// override is not lost. It also counts each provider's priced requests for
+// the coverage column.
+func costByProvider(groups []repositories.UsageGroup, rates map[string]models.PricingOverride) (derived, priced map[string]int64) {
+	derived = make(map[string]int64, len(groups))
+	priced = make(map[string]int64, len(groups))
+	for _, g := range groups {
+		if o, ok := rates[pricingKey(g.Provider, g.Model)]; ok {
+			derived[g.Provider] += groupCost(g, o)
+			priced[g.Provider] += g.Requests
+			continue
+		}
+		derived[g.Provider] += g.CostMicros
+	}
+	return derived, priced
 }
 
 // fillFallbackRates completes the rates map for every grouped model that has
@@ -215,17 +230,6 @@ func groupCost(g repositories.UsageGroup, o models.PricingOverride) int64 {
 	}, g.PromptTokens, g.CachedTokens, g.CacheWriteTokens, g.CompletionTokens, g.ReasoningTokens)
 }
 
-// providerCost returns the displayed cost of one provider group: its recorded
-// total when one exists, otherwise the derived per-model sum for the same
-// provider (a provider group spans several rates, so it cannot be re-derived
-// from its own token counts).
-func providerCost(g repositories.UsageGroup, derived int64) int64 {
-	if g.CostMicros > 0 {
-		return g.CostMicros
-	}
-	return derived
-}
-
 // providerMeta maps a provider slug to the display name and api kind the
 // dashboard uses: catalog metadata for built-in providers, the
 // operator-supplied fields for custom ones, and nothing when the provider is
@@ -269,7 +273,7 @@ func providerRows(groups []repositories.UsageGroup, derivedByProvider, pricedByP
 			CacheWriteTokens: g.CacheWriteTokens,
 			OutputTokens:     g.CompletionTokens,
 			ReasoningTokens:  g.ReasoningTokens,
-			CostMicros:       providerCost(g, derivedByProvider[g.Provider]),
+			CostMicros:       derivedByProvider[g.Provider],
 			LatencyMs:        g.AvgLatencyMS,
 			TTFTMs:           g.AvgTTFTMS,
 			Coverage:         percent(pricedByProvider[g.Provider], g.Requests),

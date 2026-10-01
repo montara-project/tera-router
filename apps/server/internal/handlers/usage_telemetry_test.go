@@ -239,7 +239,7 @@ func TestProviderRowsUseDisplayNameAndCoverage(t *testing.T) {
 		t.Errorf("coverage = %v/%d, want 100/4", row.Coverage, row.PricingEst)
 	}
 	if row.CostMicros != 5 {
-		t.Errorf("cost = %d, want the recorded 5", row.CostMicros)
+		t.Errorf("cost = %d, want the derived 5", row.CostMicros)
 	}
 }
 
@@ -254,6 +254,32 @@ func TestProviderRowsDeriveCostWhenRecordedZero(t *testing.T) {
 	rows := providerRows(groups, derived, map[string]int64{"openai": 2}, nil, nil)
 	if rows[0].CostMicros != 123 {
 		t.Errorf("cost = %d, want the derived 123", rows[0].CostMicros)
+	}
+}
+
+// The provider totals are the per-model sums: a priced group contributes
+// groupCost and an unpriced group its recorded cost, so spend recorded under
+// a since-deleted override is not dropped, and a provider group's own
+// recorded (possibly stale or partial) total never short-circuits it.
+func TestCostByProviderMixesDerivedAndRecorded(t *testing.T) {
+	groups := []repositories.UsageGroup{
+		// Priced now, recorded at zero (priced after the fact): re-derived
+		// from the current rates — 100 prompt tokens at $0.15/M → 15 micros.
+		{Provider: "openai", Model: "gpt-4o-mini", Requests: 2, PromptTokens: 100},
+		// Pricing since deleted: only the recorded figure is left, and it
+		// must still reach the provider total.
+		{Provider: "openai", Model: "orphan", Requests: 1, PromptTokens: 50, CostMicros: 300},
+	}
+	rates := map[string]models.PricingOverride{
+		pricingKey("openai", "gpt-4o-mini"): {InputMicros: 150_000},
+	}
+
+	derived, priced := costByProvider(groups, rates)
+	if derived["openai"] != 315 {
+		t.Errorf("derived = %d, want 315 (15 re-derived + 300 recorded)", derived["openai"])
+	}
+	if priced["openai"] != 2 {
+		t.Errorf("priced requests = %d, want 2", priced["openai"])
 	}
 }
 
