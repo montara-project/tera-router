@@ -622,6 +622,71 @@ func (h *providersHandler) CustomModelsUpdate(c fiber.Ctx) error {
 	return dtos.OK(c, fiber.Map{"models": cat.Models, "fetched_at": cat.FetchedAt})
 }
 
+// CatalogModels serves GET /v1/providers/:id/models — the CustomModels
+// counterpart for catalog providers, which are keyed by slug rather than a
+// custom-provider uuid. A provider with no stored catalog yet (never synced)
+// answers with an empty list so the dashboard renders its empty state.
+func (h *providersHandler) CatalogModels(c fiber.Ctx) error {
+	slug := c.Params("id")
+	if _, ok := catalog.Lookup(slug); !ok {
+		return apperr.ErrNotFound
+	}
+	cat, err := modelcatalog.Load(c.Context(), h.app.Repos.Settings, slug)
+	if errors.Is(err, modelcatalog.ErrNoCatalog) {
+		return dtos.OK(c, fiber.Map{"models": []modelcatalog.ModelEntry{}, "fetched_at": nil})
+	}
+	if err != nil {
+		return err
+	}
+
+	offset, _ := strconv.Atoi(c.Query("offset"))
+	limit, _ := strconv.Atoi(c.Query("limit"))
+	page, total, enabled := catalogPage(cat.Models, c.Query("search"), offset, limit)
+	return dtos.OK(c, fiber.Map{
+		"models":     page,
+		"total":      total,
+		"enabled":    enabled,
+		"count":      len(cat.Models),
+		"fetched_at": cat.FetchedAt,
+	})
+}
+
+// CatalogModelsUpdate applies per-model active/disabled changes
+// (PATCH /v1/providers/:id/models) for catalog providers — the
+// CustomModelsUpdate counterpart keyed by slug.
+func (h *providersHandler) CatalogModelsUpdate(c fiber.Ctx) error {
+	slug := c.Params("id")
+	if _, ok := catalog.Lookup(slug); !ok {
+		return apperr.ErrNotFound
+	}
+	var req dtos.ProviderModelStates
+	if err := lib.ValidateRequestBody(c, &req); err != nil {
+		return err
+	}
+
+	updates := make([]modelcatalog.StateUpdate, 0, len(req.Models))
+	for _, m := range req.Models {
+		if m.ID == "" {
+			return apperr.New(apperr.KindUnprocessable, "model id is required")
+		}
+		if m.State != modelcatalog.StateActive && m.State != modelcatalog.StateDisabled {
+			return apperr.New(apperr.KindUnprocessable, "state must be active or disabled")
+		}
+		updates = append(updates, modelcatalog.StateUpdate{ID: m.ID, State: m.State})
+	}
+
+	cat, err := modelcatalog.SetStates(c.Context(), h.app.Repos.Settings, slug, updates)
+	switch {
+	case errors.Is(err, modelcatalog.ErrNoCatalog):
+		return apperr.New(apperr.KindUnprocessable, "no stored catalog for this provider; sync from /models first")
+	case errors.Is(err, modelcatalog.ErrUnknownModel):
+		return apperr.New(apperr.KindUnprocessable, "%s", err.Error())
+	case err != nil:
+		return err
+	}
+	return dtos.OK(c, fiber.Map{"models": cat.Models, "fetched_at": cat.FetchedAt})
+}
+
 // --- Provider-scoped bulk account operations ---
 
 func (h *providersHandler) AccountsBulkDisable(c fiber.Ctx) error {
