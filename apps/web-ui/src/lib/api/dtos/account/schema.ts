@@ -36,6 +36,8 @@ export const AccountSchema = z.object({
   token: optionalString('token'),
   refresh: optionalString('refresh token'),
   metadata: optionalObject('metadata'),
+  /** Form-level endpoint override; folded into metadata.base_url on submit. */
+  base_url: optionalString('base url'),
   priority: optionalNumber('priority'),
   proxy_pool_id: optionalString('proxy pool'),
   disabled: optionalBoolean('disabled'),

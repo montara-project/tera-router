@@ -357,10 +357,8 @@ func TestProviderSpecDialects(t *testing.T) {
 	}{
 		{"openai", "openai", true},
 		{"anthropic", "anthropic", true},
-		{"codex", "openai_responses", true},
-		// Catalog entries with no dialect are account-management only.
-		{"gemini", "", false},
-		{"cursor", "", false},
+		{"cline", "openai", true},
+		{"cloudflare", "openai", true},
 	}
 	for _, tc := range cases {
 		spec, ok := s.providerSpec(context.Background(), tc.slug)

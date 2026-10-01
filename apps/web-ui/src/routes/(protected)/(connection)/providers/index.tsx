@@ -138,6 +138,7 @@ const API_KEY_PROVIDERS: Record<string, { name: string; authKind?: 'none' }> = {
   ollama: { name: 'Ollama Cloud' },
   'ollama-local': { name: 'Ollama Local', authKind: 'none' },
   cline: { name: 'Cline' },
+  cloudflare: { name: 'Cloudflare AI' },
 }
 
 const SYNCABLE_PROVIDERS = new Set(Object.keys(API_KEY_PROVIDERS))

@@ -48,7 +48,14 @@ function AbstractForm({
     },
     onSubmit: async ({ value }) => {
       try {
-        await mutation.mutateAsync(value)
+        // base_url is a form field, not a wire field — it travels inside
+        // metadata, where probe and dispatch already look for the override.
+        const { base_url, ...rest } = value
+        const override = base_url?.trim()
+        await mutation.mutateAsync({
+          ...rest,
+          metadata: override ? { ...rest.metadata, base_url: override } : rest.metadata,
+        })
         onSuccess?.()
       } catch (error) {
         toastAxiosError(error)
@@ -106,6 +113,16 @@ function AbstractForm({
         )}
       />
       <p className="text-xs text-muted-foreground">Lower priority numbers are tried first.</p>
+
+      <form.AppField
+        name="base_url"
+        children={(field) => (
+          <field.TextField
+            label="Base URL override"
+            placeholder="Leave empty to use the provider default"
+          />
+        )}
+      />
     </SimpleAlertScrollableDialogForm>
   )
 }
@@ -138,6 +155,7 @@ export function AddCustomProviderApiKeyForm({
         auth_kind: authKind ?? 'api_key',
         api_key: '',
         priority: 100,
+        base_url: '',
       }}
       schema={AccountSchema}
       mutation={mutation}

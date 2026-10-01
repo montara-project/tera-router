@@ -452,6 +452,27 @@ func (h *providersHandler) importUpstreamPricing(ctx context.Context, providerSl
 // usableAPIKey opens the highest-priority usable credential of a provider:
 // API keys live in Secret, OAuth tokens in Token. Returns "" when none of the
 // provider's usable accounts yields a readable secret.
+// usableBaseURL returns the first usable account's metadata.base_url
+// override for a catalog provider. Providers whose endpoint embeds an
+// account-scoped segment (e.g. Cloudflare's /accounts/<id>/ai) keep only a
+// template in the catalog; the real URL lives on the account.
+func (h *providersHandler) usableBaseURL(ctx context.Context, providerSlug string) string {
+	accounts, err := h.app.Repos.Accounts.ListUsable(ctx, providerSlug)
+	if err != nil {
+		return ""
+	}
+	for _, account := range accounts {
+		var meta map[string]any
+		if json.Unmarshal([]byte(orEmptyJSON(account.Metadata)), &meta) != nil {
+			continue
+		}
+		if u, ok := meta["base_url"].(string); ok && u != "" {
+			return u
+		}
+	}
+	return ""
+}
+
 func (h *providersHandler) usableAPIKey(ctx context.Context, providerSlug string) string {
 	accounts, err := h.app.Repos.Accounts.ListUsable(ctx, providerSlug)
 	if err != nil {
@@ -482,6 +503,7 @@ var modelsSyncProviders = map[string]bool{
 	"ollama":       true,
 	"ollama-local": true,
 	"cline":        true,
+	"cloudflare":   true,
 }
 
 // ModelsSync refreshes the stored model catalog of a catalog provider. The
@@ -514,6 +536,17 @@ func (h *providersHandler) ModelsSync(c fiber.Ctx) error {
 			return apperr.New(apperr.KindUnprocessable, "no usable credential for this provider; add an API key first")
 		}
 		upstream, err = h.app.Services.Upstream.ListClineModels(c.Context(), spec.BaseURL, apiKey)
+	case "cloudflare":
+		if apiKey == "" {
+			return apperr.New(apperr.KindUnprocessable, "no usable credential for this provider; add an API key first")
+		}
+		// The catalog URL embeds {account_id}; the stored account's base_url
+		// override carries the real endpoint.
+		base := spec.BaseURL
+		if u := h.usableBaseURL(c.Context(), slug); u != "" {
+			base = strings.TrimSuffix(u, "/")
+		}
+		upstream, err = h.app.Services.Upstream.ListModels(c.Context(), base+"/models", false, apiKey)
 	}
 	if err != nil {
 		return apperr.New(apperr.KindUnprocessable, "%s", err.Error())
