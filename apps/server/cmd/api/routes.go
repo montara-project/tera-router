@@ -89,9 +89,11 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	protected.Post("/custom-providers/:id/models/sync", h.Providers.CustomModelsSync)
 	protected.Patch("/custom-providers/:id/models", h.Providers.CustomModelsUpdate)
 
-	// Catalog provider model sync (openrouter, ollama, ollama-local, cline):
-	// provider slug as :id.
+	// Catalog provider model catalog + sync (openrouter, ollama, ollama-local,
+	// cline): provider slug as :id.
+	protected.Get("/providers/:id/models", h.Providers.CatalogModels)
 	protected.Post("/providers/:id/models/sync", h.Providers.ModelsSync)
+	protected.Patch("/providers/:id/models", h.Providers.CatalogModelsUpdate)
 
 	protected.Post("/validate-key", h.Accounts.ValidateKey)
 	protected.Get("/accounts", h.Accounts.Index)

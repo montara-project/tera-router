@@ -9,6 +9,12 @@ import type { Models } from '@/lib/api/models'
 import IconBadge from '@/components/block/common/icon-badge'
 import SectionCard from '@/components/block/common/section-card'
 import CapabilityChips, { CAPABILITIES } from '@/components/block/providers/capability-chips'
+import {
+  API_KEY_PROVIDERS,
+  CUSTOM_CONNECT_PRESETS,
+  OAUTH_PROVIDERS,
+  SYNCABLE_PROVIDERS,
+} from '@/components/block/providers/catalog-connect'
 import { AddCustomProviderForm } from '@/components/block/providers/form'
 import { AddCustomProviderApiKeyForm } from '@/components/block/providers/form-provider-api-key'
 import ProviderGrid from '@/components/block/providers/provider-grid'
@@ -117,31 +123,6 @@ function ProvidersCard({
     </Card>
   )
 }
-
-/** Catalog cards whose Connect opens the custom-provider form pre-prefilled. */
-const CUSTOM_CONNECT_PRESETS: Record<string, { slug: string; api_kind: string }> = {
-  'custom-openai': { slug: 'custom-openai', api_kind: 'openai' },
-  'custom-anthropic': { slug: 'custom-anthropic', api_kind: 'anthropic' },
-}
-
-/** OAuth providers: Connect opens the provider's official web in a popup. */
-const OAUTH_PROVIDERS: Record<string, string> = {
-  claude: 'Anthropic (Claude Code)',
-  codex: 'OpenAI (Codex)',
-}
-
-/** API-key providers wired end-to-end: Connect opens the key form, and the
- * stored model catalog can be re-synced from the connected card. ollama-local
- * needs no credential at all. */
-const API_KEY_PROVIDERS: Record<string, { name: string; authKind?: 'none' }> = {
-  openrouter: { name: 'OpenRouter' },
-  ollama: { name: 'Ollama Cloud' },
-  'ollama-local': { name: 'Ollama Local', authKind: 'none' },
-  cline: { name: 'Cline' },
-  cloudflare: { name: 'Cloudflare AI' },
-}
-
-const SYNCABLE_PROVIDERS = new Set(Object.keys(API_KEY_PROVIDERS))
 
 function RouteComponent() {
   const [search, setSearch] = useState('')

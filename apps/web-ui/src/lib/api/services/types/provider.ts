@@ -24,6 +24,15 @@ export type ProviderResources = {
   ) => Promise<AxiosItemResponse<Models.UpstreamModels>>
   /** catalog-provider model sync (openrouter, ollama, ollama-local, cline) */
   modelsSync: (slug: string) => Promise<AxiosItemResponse<Models.UpstreamModels>>
+  /** catalog-provider stored catalog with per-model states; server-side search + paging */
+  modelsList: (
+    slug: string,
+    params?: { search?: string; offset?: number; limit?: number }
+  ) => Promise<AxiosItemResponse<Models.UpstreamModels>>
+  modelsUpdate: (
+    slug: string,
+    payload: { models: { id: string; state: Models.ProviderModelState }[] }
+  ) => Promise<AxiosItemResponse<Models.UpstreamModels>>
   accountsBulkDisable: (slug: string) => Promise<AxiosItemResponse<{ updated: number }>>
   accountsBulkEnable: (slug: string) => Promise<AxiosItemResponse<{ updated: number }>>
   accountsBulkDeleteDisabled: (slug: string) => Promise<AxiosItemResponse<{ deleted: number }>>

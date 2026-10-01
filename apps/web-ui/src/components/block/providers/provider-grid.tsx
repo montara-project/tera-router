@@ -65,10 +65,9 @@ export default function ProviderGrid({
   return (
     <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
       {providers.map((provider) => {
-        const detailPath =
-          detailBasePath && !provider.id.startsWith('prov-')
-            ? `${detailBasePath}/${provider.id}`
-            : null
+        // Catalog providers carry "prov-<slug>" ids; custom providers carry
+        // uuids — the detail route serves both.
+        const detailPath = detailBasePath ? `${detailBasePath}/${provider.id}` : null
 
         return (
           <div

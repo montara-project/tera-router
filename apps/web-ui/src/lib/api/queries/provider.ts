@@ -29,6 +29,10 @@ export const GET_CUSTOM_PROVIDER_MODELS_QUERY_KEY = (id: string) => {
   return [CUSTOM_PROVIDER_QUERY_KEY, 'models', id]
 }
 
+export const GET_PROVIDER_MODELS_QUERY_KEY = (slug: string) => {
+  return [PROVIDER_QUERY_KEY, 'models', slug]
+}
+
 export type ProviderModelListParams = PaginateDto & { search?: string }
 
 const list = () =>
@@ -169,6 +173,68 @@ const customModelsUpdate = (id: string) => {
   })
 }
 
+// Catalog-provider counterparts of customModels/customModelsSync/
+// customModelsUpdate: same payloads, keyed by the provider slug.
+const catalogModels = (slug: string, params?: ProviderModelListParams) =>
+  queryOptions({
+    queryKey: [...GET_PROVIDER_MODELS_QUERY_KEY(slug), params ?? {}],
+    queryFn: async () => {
+      const res = await services.providers.modelsList(slug, params)
+      return res.data
+    },
+  })
+
+const catalogModelsSync = (slug: string) => {
+  const qc = getQueryClient()
+
+  return mutationOptions({
+    mutationFn: async () => {
+      const res = await services.providers.modelsSync(slug)
+      return res.data
+    },
+    onSuccess: () => {
+      // Refetch whichever page of the catalog is on screen.
+      qc.invalidateQueries({ queryKey: GET_PROVIDER_MODELS_QUERY_KEY(slug) })
+    },
+  })
+}
+
+const catalogModelsUpdate = (slug: string) => {
+  const qc = getQueryClient()
+
+  return mutationOptions({
+    mutationFn: async (reqBody: { models: { id: string; state: Models.ProviderModelState }[] }) => {
+      const res = await services.providers.modelsUpdate(slug, reqBody)
+      return res.data
+    },
+    onMutate: async (reqBody) => {
+      await qc.cancelQueries({ queryKey: GET_PROVIDER_MODELS_QUERY_KEY(slug) })
+      const next = new Map(reqBody.models.map((u) => [u.id, u.state]))
+      qc.setQueriesData<ApiItemResponse<Models.UpstreamModels>>(
+        { queryKey: GET_PROVIDER_MODELS_QUERY_KEY(slug) },
+        (old) => {
+          if (!old) return old
+          return {
+            ...old,
+            data: {
+              ...old.data,
+              models: old.data.models.map((m) =>
+                next.has(m.id) ? { ...m, state: next.get(m.id)! } : m
+              ),
+            },
+          }
+        }
+      )
+    },
+    onError: () => {
+      qc.invalidateQueries({ queryKey: GET_PROVIDER_MODELS_QUERY_KEY(slug) })
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: GET_PROVIDER_MODELS_QUERY_KEY(slug) })
+    },
+  })
+}
+
 export const providerQueries = {
   list,
   customList,
@@ -179,4 +245,7 @@ export const providerQueries = {
   customModels,
   customModelsSync,
   customModelsUpdate,
+  catalogModels,
+  catalogModelsSync,
+  catalogModelsUpdate,
 } as const
