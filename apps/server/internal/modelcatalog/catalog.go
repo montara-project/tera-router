@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"sync"
 	"time"
 
 	"tera-router/server/internal/lib/apperr"
@@ -73,12 +74,37 @@ func SettingsKey(providerSlug string) string {
 	return repositories.ProviderModelsSettingsKey(providerSlug)
 }
 
+// The catalog is one JSON blob per provider rewritten on every change, so a
+// read-modify-write cycle (Load … persist) must not interleave with another
+// one for the same provider — a sync and a state update running concurrently
+// would otherwise lose one side's result. The locks are keyed by provider
+// slug and never removed; the map stays bounded by the provider count.
+var (
+	catalogLocksMu sync.Mutex
+	catalogLocks   = map[string]*sync.Mutex{}
+)
+
+func lockProvider(providerSlug string) func() {
+	catalogLocksMu.Lock()
+	l, ok := catalogLocks[providerSlug]
+	if !ok {
+		l = &sync.Mutex{}
+		catalogLocks[providerSlug] = l
+	}
+	catalogLocksMu.Unlock()
+
+	l.Lock()
+	return l.Unlock
+}
+
 // Store persists a freshly fetched upstream id list as the provider's
 // catalog, reconciling it with the previous one the way IDrouter's merge
 // does: models the operator disabled stay disabled (even when they
 // disappeared from the upstream list, so a returning model re-applies the
 // choice), and everything else arrives active.
 func Store(ctx context.Context, r *repositories.SettingRepository, providerSlug string, fetched []string) (Catalog, error) {
+	defer lockProvider(providerSlug)()
+
 	prev := make(map[string]string)
 	if cat, err := Load(ctx, r, providerSlug); err == nil {
 		for _, m := range cat.Models {
@@ -119,6 +145,8 @@ func Store(ctx context.Context, r *repositories.SettingRepository, providerSlug 
 // the upstream does not serve is the dashboard's future "custom models"
 // feature, not a state change.
 func SetStates(ctx context.Context, r *repositories.SettingRepository, providerSlug string, updates []StateUpdate) (Catalog, error) {
+	defer lockProvider(providerSlug)()
+
 	cat, err := Load(ctx, r, providerSlug)
 	if err != nil {
 		return Catalog{}, err
@@ -177,6 +205,26 @@ func Load(ctx context.Context, r *repositories.SettingRepository, providerSlug s
 		return Catalog{Version: BlobVersion, FetchedAt: v1.FetchedAt, Models: models}, nil
 	}
 	return Catalog{}, ErrNoCatalog
+}
+
+// ActiveModels returns the ids a provider's stored catalog marks active, as
+// a set. hasCatalog=false when the provider has no stored catalog — built-in
+// providers never do, and a missing entry is not a gate on the pair.
+func ActiveModels(ctx context.Context, r *repositories.SettingRepository, providerSlug string) (active map[string]bool, hasCatalog bool, err error) {
+	cat, err := Load(ctx, r, providerSlug)
+	if err != nil {
+		if errors.Is(err, ErrNoCatalog) {
+			return nil, false, nil
+		}
+		return nil, false, err
+	}
+	active = make(map[string]bool, len(cat.Models))
+	for _, m := range cat.Models {
+		if m.State == StateActive {
+			active[m.ID] = true
+		}
+	}
+	return active, true, nil
 }
 
 func persist(ctx context.Context, r *repositories.SettingRepository, providerSlug string, cat Catalog) (Catalog, error) {
