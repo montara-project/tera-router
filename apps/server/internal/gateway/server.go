@@ -111,7 +111,7 @@ func New(a *app.Application) *Server {
 		codecs:    codecs,
 		conns:     connectors.New(codecs),
 		rotation:  newRotationState(),
-		combo:     autocombo.NewEngine(autocombo.RepoAccounts{R: a.Repos.Accounts}, autocombo.RepoStats{R: a.Repos.Usage}),
+		combo:     autocombo.NewEngine(autocombo.RepoAccounts{R: a.Repos.Accounts}, autocombo.RepoStats{R: a.Repos.Usage}, autocombo.RepoCatalog{R: a.Repos.Settings}),
 		cooldowns: newCooldownTracker(),
 		auth:      newAuthCache(),
 		inflight:  make(chan struct{}, defaultMaxConcurrent),

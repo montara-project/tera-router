@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"tera-router/server/internal/modelcatalog"
 	"tera-router/server/internal/repositories"
 )
 
@@ -56,4 +57,16 @@ func (s RepoStats) ModelStats(ctx context.Context, from time.Time) ([]PairStats,
 		})
 	}
 	return out, nil
+}
+
+// RepoCatalog adapts the settings repository (the stored model catalogs) to
+// the CatalogSource interface.
+type RepoCatalog struct {
+	R *repositories.SettingRepository
+}
+
+// ActiveModels returns the ids a provider's stored catalog marks active, or
+// hasCatalog=false when it has none.
+func (s RepoCatalog) ActiveModels(ctx context.Context, provider string) (map[string]bool, bool, error) {
+	return modelcatalog.ActiveModels(ctx, s.R, provider)
 }

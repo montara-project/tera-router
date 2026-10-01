@@ -120,6 +120,14 @@ type StatsSource interface {
 	ModelStats(ctx context.Context, from time.Time) ([]PairStats, error)
 }
 
+// CatalogSource lists the model ids a provider's stored model catalog marks
+// active (see the modelcatalog package). Custom providers have such a
+// catalog; built-in providers do not, and a provider without one is not
+// gated per model.
+type CatalogSource interface {
+	ActiveModels(ctx context.Context, provider string) (active map[string]bool, hasCatalog bool, err error)
+}
+
 // Self-healing tuning: a provider/model pair is excluded from builds after
 // excludeFailureThreshold consecutive failed attempts, and the exclusion
 // expires on its own after excludeFailureDuration.
@@ -138,6 +146,9 @@ const (
 type Engine struct {
 	accounts AccountSource
 	stats    StatsSource
+	// catalog gates candidate models by the provider's stored catalog. Nil
+	// disables the gate (tests).
+	catalog CatalogSource
 
 	mu        sync.Mutex
 	excluded  map[string]time.Time // provider/model -> excludeUntil
@@ -146,11 +157,13 @@ type Engine struct {
 	rng       *rand.Rand
 }
 
-// NewEngine creates an auto-combo engine. Both sources are required.
-func NewEngine(accounts AccountSource, stats StatsSource) *Engine {
+// NewEngine creates an auto-combo engine. Both sources are required; catalog
+// may be nil, which leaves candidate models ungated by any stored catalog.
+func NewEngine(accounts AccountSource, stats StatsSource, catalog CatalogSource) *Engine {
 	return &Engine{
 		accounts: accounts,
 		stats:    stats,
+		catalog:  catalog,
 		excluded: make(map[string]time.Time),
 		failures: make(map[string]int),
 		rng:      rand.New(rand.NewSource(time.Now().UnixNano())),
@@ -161,7 +174,8 @@ func NewEngine(accounts AccountSource, stats StatsSource) *Engine {
 // providers scored and ordered, best first. Providers whose accounts are all
 // disabled or awaiting re-auth are skipped, as are providers with no observed
 // usage in the stats window — there is no curated model catalog to fall back
-// on for choosing their model.
+// on for choosing their model. A provider with a stored model catalog only
+// contributes pairs the catalog marks active.
 func (e *Engine) Build(ctx context.Context, variant Variant) ([]Target, error) {
 	accs, err := e.accounts.ListAll(ctx)
 	if err != nil {
@@ -206,10 +220,29 @@ func (e *Engine) Build(ctx context.Context, variant Variant) ([]Target, error) {
 		return nil, err
 	}
 
+	// Providers with a stored model catalog only route models the catalog
+	// marks active, so pairs the catalog does not active-list never become
+	// candidates. Built-ins have no catalog and stay ungated.
+	catalogActive := make(map[string]map[string]bool, len(providers))
+	if e.catalog != nil {
+		for _, provider := range providers {
+			active, hasCatalog, err := e.catalog.ActiveModels(ctx, provider)
+			if err != nil {
+				return nil, err
+			}
+			if hasCatalog {
+				catalogActive[provider] = active
+			}
+		}
+	}
+
 	// Per provider, keep the best-scoring observed model pair; the recent
 	// window aggregates feed the health factor per provider.
 	best := make(map[string]PairStats, len(long))
 	for _, pair := range long {
+		if active := catalogActive[pair.Provider]; active != nil && !active[pair.Model] {
+			continue
+		}
 		cur, ok := best[pair.Provider]
 		if !ok || betterPair(pair, cur) {
 			best[pair.Provider] = pair
