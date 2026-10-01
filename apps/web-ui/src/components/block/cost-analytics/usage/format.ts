@@ -17,3 +17,7 @@ export function fmtLatency(ms: number): string {
 export function fmtKb(bytes: number): string {
   return `${(bytes / 1e3).toFixed(1)} KB`
 }
+
+export function fmtRate(rate: number): string {
+  return new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(rate)
+}

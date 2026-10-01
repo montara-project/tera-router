@@ -17,7 +17,11 @@ type UsageRecord struct {
 	CacheWriteTokens int       `json:"cache_write_tokens"`
 	ReasoningTokens  int       `json:"reasoning_tokens"`
 	CostMicros       int64     `json:"cost_micros"`
-	CacheHit         bool      `json:"cache_hit"`
+	// TokenConsumptionRate snapshots the model's budget-drain multiplier at
+	// request time (nil = no override, 1:1). Cost is never scaled; token
+	// budgets sum prompt+completion times this rate.
+	TokenConsumptionRate *float64  `json:"token_consumption_rate,omitempty"`
+	CacheHit             bool      `json:"cache_hit"`
 	LatencyMS        int       `json:"latency_ms"`
 	TTFTMS           int       `json:"ttft_ms"`
 	Failed           bool      `json:"failed"`

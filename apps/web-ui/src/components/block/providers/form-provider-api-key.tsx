@@ -22,7 +22,11 @@ type AbstractFormProps = Omit<BaseAbstractForm<TModel, TMutation, TDto, TRespons
   }
   open: boolean
   onOpenChange: (open: boolean) => void
-  provider: Models.CustomProvider
+  /** Minimal identity the dialog needs; custom providers satisfy it too. */
+  provider: { slug: string; name: string }
+  /** Auth-free providers (e.g. ollama-local) hide the key field. */
+  authKind?: 'api_key' | 'none'
+  onSuccess?: () => void
 }
 
 function AbstractForm({
@@ -33,6 +37,8 @@ function AbstractForm({
   mutation,
   isEdit,
   provider,
+  authKind = 'api_key',
+  onSuccess,
 }: AbstractFormProps) {
   const form = useAppForm({
     defaultValues,
@@ -42,7 +48,15 @@ function AbstractForm({
     },
     onSubmit: async ({ value }) => {
       try {
-        await mutation.mutateAsync(value)
+        // base_url is a form field, not a wire field — it travels inside
+        // metadata, where probe and dispatch already look for the override.
+        const { base_url, ...rest } = value
+        const override = base_url?.trim()
+        await mutation.mutateAsync({
+          ...rest,
+          metadata: override ? { ...rest.metadata, base_url: override } : rest.metadata,
+        })
+        onSuccess?.()
       } catch (error) {
         toastAxiosError(error)
       } finally {
@@ -51,8 +65,6 @@ function AbstractForm({
       }
     },
   })
-
-  console.log(form.state.errors)
 
   return (
     <SimpleAlertScrollableDialogForm
@@ -75,10 +87,18 @@ function AbstractForm({
         )}
       />
 
-      <form.AppField
-        name="api_key"
-        children={(field) => <field.PasswordField label="API Key" placeholder="sk-..." asterisk />}
-      />
+      {authKind === 'none' ? (
+        <p className="text-xs text-muted-foreground">
+          This provider requires no authentication — the account links its endpoint directly.
+        </p>
+      ) : (
+        <form.AppField
+          name="api_key"
+          children={(field) => (
+            <field.PasswordField label="API Key" placeholder="sk-..." asterisk />
+          )}
+        />
+      )}
 
       <form.AppField
         name="priority"
@@ -93,6 +113,16 @@ function AbstractForm({
         )}
       />
       <p className="text-xs text-muted-foreground">Lower priority numbers are tried first.</p>
+
+      <form.AppField
+        name="base_url"
+        children={(field) => (
+          <field.TextField
+            label="Base URL override"
+            placeholder="Leave empty to use the provider default"
+          />
+        )}
+      />
     </SimpleAlertScrollableDialogForm>
   )
 }
@@ -100,13 +130,18 @@ function AbstractForm({
 type AddCustomProviderApiKeyFormProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
-  provider: Models.CustomProvider
+  /** Custom provider or a catalog provider identity ({slug, name}). */
+  provider: { slug: string; name: string }
+  authKind?: 'api_key' | 'none'
+  onSuccess?: () => void
 }
 
 export function AddCustomProviderApiKeyForm({
   open,
   onOpenChange,
   provider,
+  authKind,
+  onSuccess,
 }: AddCustomProviderApiKeyFormProps) {
   const mutation = useMutation(queries.accounts.create())
 
@@ -117,13 +152,16 @@ export function AddCustomProviderApiKeyForm({
       defaultValues={{
         provider: provider.slug,
         label: '',
-        auth_kind: 'api_key',
+        auth_kind: authKind ?? 'api_key',
         api_key: '',
         priority: 100,
+        base_url: '',
       }}
       schema={AccountSchema}
       mutation={mutation}
       provider={provider}
+      authKind={authKind}
+      onSuccess={onSuccess}
     />
   )
 }

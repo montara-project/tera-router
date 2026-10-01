@@ -4,12 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"sort"
 	"strings"
 	"sync"
 
+	"tera-router/server/internal/autocombo"
 	"tera-router/server/internal/catalog"
 	"tera-router/server/internal/core"
 	"tera-router/server/internal/lib/apperr"
+	"tera-router/server/internal/modelcatalog"
+	"tera-router/server/internal/models"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -55,16 +59,22 @@ func errBadModel(msg string) error { return badModelError{msg} }
 
 // resolveTargets turns an inbound model string into an ordered fallback chain.
 //
-// Four forms are supported, in priority order:
+// Five forms are supported, in priority order:
 //
 //   - "chain:<name>"    — the named routing chain's steps.
 //   - exact alias match — checked before provider/model parsing so an alias
 //     named "vendor/model" wins over the provider/model interpretation.
+//   - "auto" / "auto/<variant>" — a virtual combo built dynamically from the
+//     connected accounts by the auto-combo engine (see the autocombo
+//     package). Because this check runs before provider/model parsing and
+//     bare-name lookup, a chain or alias literally named "auto" is shadowed
+//     by the engine.
 //   - "provider/model"  — a single explicit target. Slashes beyond the first
 //     stay in the model id, so vendor-namespaced ids survive.
-//   - bare "name"       — a chain by that name, then an alias by that name.
-//     A bare name is never assumed to be a provider model; routing stays
-//     explicit.
+//   - bare "name"       — a chain by that name, then an alias by that name,
+//     then a bare model id from a stored provider catalog (see
+//     catalogResult). A bare name is never sent upstream unverified; routing
+//     stays explicit.
 //
 // The provider half of "provider/model" must be either a built-in catalog slug
 // or an enabled custom provider slug. Anything else is rejected with 400
@@ -90,6 +100,11 @@ func (s *Server) resolveTargets(ctx context.Context, model string) (resolveResul
 		return res, nil
 	}
 
+	// Auto-combo prefix: "auto" or "auto/<variant>".
+	if variant, ok := autocombo.ParsePrefix(model); ok {
+		return s.autoComboResult(ctx, model, variant)
+	}
+
 	// provider/model.
 	if provider, rest, ok := strings.Cut(model, "/"); ok && provider != "" && rest != "" {
 		if _, routable := s.providerSpec(ctx, provider); !routable {
@@ -101,15 +116,109 @@ func (s *Server) resolveTargets(ctx context.Context, model string) (resolveResul
 		}, nil
 	}
 
-	// bare name -> chain, then alias.
+	// bare name -> chain, then alias, then a stored provider catalog.
 	if res, err := s.chainResult(ctx, model); err == nil {
 		return res, nil
 	}
 	if res, ok := s.aliasResult(ctx, model); ok {
 		return res, nil
 	}
+	res, found, err := s.catalogResult(ctx, model)
+	if err != nil {
+		return resolveResult{}, err
+	}
+	if found {
+		return res, nil
+	}
 
 	return resolveResult{}, errBadModel("unknown model: " + model)
+}
+
+// catalogResult resolves a bare model id — "deepseek-v4.1-flash", no provider
+// prefix — against the stored model catalogs of enabled custom providers.
+// The catalogs are populated by the dashboard's "Fetch models" action and
+// kept in the settings kv store (see the modelcatalog package).
+//
+// Every provider serving the id becomes a fallback target, ordered by the
+// provider's priority (lower value wins, matching account ordering) then
+// slug, so one bare id degrades into a cross-provider fallback chain without
+// the operator creating an alias per model. Aliases and chains win over the
+// catalog because they are explicit operator intent.
+func (s *Server) catalogResult(ctx context.Context, model string) (resolveResult, bool, error) {
+	providers, err := s.app.Repos.Providers.List(ctx)
+	if err != nil {
+		return resolveResult{}, false, err
+	}
+
+	candidates := make([]models.CustomProvider, 0, len(providers))
+	for _, p := range providers {
+		// A disabled provider must never route, mirroring providerSpec.
+		if !p.Enabled || p.BaseURL == "" {
+			continue
+		}
+		candidates = append(candidates, p)
+	}
+	sort.Slice(candidates, func(i, j int) bool {
+		if candidates[i].Priority != candidates[j].Priority {
+			return candidates[i].Priority < candidates[j].Priority
+		}
+		return candidates[i].Slug < candidates[j].Slug
+	})
+
+	var out []target
+	for _, p := range candidates {
+		cat, err := modelcatalog.Load(ctx, s.app.Repos.Settings, p.Slug)
+		if err != nil {
+			continue // no stored catalog: nothing to match against
+		}
+		for _, entry := range cat.Models {
+			// A model the operator disabled is excluded from routing.
+			if entry.State != modelcatalog.StateActive {
+				continue
+			}
+			if entry.ID == model {
+				out = append(out, target{Provider: p.Slug, Model: model})
+				break
+			}
+		}
+	}
+	if len(out) == 0 {
+		return resolveResult{}, false, nil
+	}
+	return resolveResult{
+		Targets:   out,
+		Strategy:  strategyPriority,
+		EchoModel: model,
+	}, true, nil
+}
+
+// autoComboResult builds the virtual combo for an "auto" request and wraps it
+// in a resolve result. The result carries the variant's synthetic chain name
+// ("auto" / "auto/<variant>") so access policies can allowlist the variant
+// like a chain, and the engine's exclusion of unhealthy candidates means an
+// empty build is a client-facing bad model, not a router fault.
+func (s *Server) autoComboResult(ctx context.Context, model string, variant autocombo.Variant) (resolveResult, error) {
+	if s.combo == nil {
+		return resolveResult{}, errBadModel("auto-combo engine is not initialized")
+	}
+	built, err := s.combo.Build(ctx, variant)
+	if err != nil {
+		return resolveResult{}, err
+	}
+	if len(built) == 0 {
+		return resolveResult{}, errBadModel(
+			"no models available for auto-combo (no connected providers with observed usage)")
+	}
+	out := make([]target, len(built))
+	for i, t := range built {
+		out[i] = target{Provider: t.Provider, Model: t.Model}
+	}
+	return resolveResult{
+		Targets:   out,
+		Strategy:  strategyPriority,
+		ChainName: variant.ChainName(),
+		EchoModel: model,
+	}, nil
 }
 
 // aliasResult resolves an exact alias name to its active targets, ordered by
@@ -133,7 +242,7 @@ func (s *Server) aliasResult(ctx context.Context, name string) (resolveResult, b
 	if len(out) == 0 {
 		return resolveResult{}, false
 	}
-	return resolveResult{Targets: out, EchoModel: name, Strategy: "priority"}, true
+	return resolveResult{Targets: out, EchoModel: name, Strategy: strategyPriority}, true
 }
 
 // chainResult resolves a chain by name. A missing, disabled, or stepless chain

@@ -1,8 +1,12 @@
 import { mutationOptions, queryOptions } from '@tanstack/react-query'
 
+import type { ApiItemResponse } from '@/types/api'
+
 import { getQueryClient } from '@/lib/providers/react-query'
 
+import type { PaginateDto } from '../dtos/paginate'
 import type { CustomProviderDto } from '../dtos/provider/schema'
+import type { Models } from '../models'
 
 import { services } from '../services'
 
@@ -20,6 +24,12 @@ export const LIST_CUSTOM_PROVIDER_QUERY_KEY = () => {
 export const GET_CUSTOM_PROVIDER_QUERY_KEY = (id: string) => {
   return [CUSTOM_PROVIDER_QUERY_KEY, 'detail', id]
 }
+
+export const GET_CUSTOM_PROVIDER_MODELS_QUERY_KEY = (id: string) => {
+  return [CUSTOM_PROVIDER_QUERY_KEY, 'models', id]
+}
+
+export type ProviderModelListParams = PaginateDto & { search?: string }
 
 const list = () =>
   queryOptions({
@@ -95,6 +105,70 @@ const customDelete = () => {
   })
 }
 
+// Stored catalog with per-model states; search and paging are server-side,
+// so the params are part of the cache key.
+const customModels = (id: string, params?: ProviderModelListParams) =>
+  queryOptions({
+    queryKey: [...GET_CUSTOM_PROVIDER_MODELS_QUERY_KEY(id), params ?? {}],
+    queryFn: async () => {
+      const res = await services.providers.customModels(id, params)
+      return res.data
+    },
+  })
+
+const customModelsSync = (id: string) => {
+  const qc = getQueryClient()
+
+  return mutationOptions({
+    mutationFn: async () => {
+      const res = await services.providers.customModelsSync(id)
+      return res.data
+    },
+    onSuccess: () => {
+      // Refetch whichever page of the catalog is on screen.
+      qc.invalidateQueries({ queryKey: GET_CUSTOM_PROVIDER_MODELS_QUERY_KEY(id) })
+    },
+  })
+}
+
+// Optimistic active/disabled toggle: apply to every cached page of the
+// catalog, then refetch on settle (and on failure) so the UI never lies.
+const customModelsUpdate = (id: string) => {
+  const qc = getQueryClient()
+
+  return mutationOptions({
+    mutationFn: async (reqBody: { models: { id: string; state: Models.ProviderModelState }[] }) => {
+      const res = await services.providers.customModelsUpdate(id, reqBody)
+      return res.data
+    },
+    onMutate: async (reqBody) => {
+      await qc.cancelQueries({ queryKey: GET_CUSTOM_PROVIDER_MODELS_QUERY_KEY(id) })
+      const next = new Map(reqBody.models.map((u) => [u.id, u.state]))
+      qc.setQueriesData<ApiItemResponse<Models.UpstreamModels>>(
+        { queryKey: GET_CUSTOM_PROVIDER_MODELS_QUERY_KEY(id) },
+        (old) => {
+          if (!old) return old
+          return {
+            ...old,
+            data: {
+              ...old.data,
+              models: old.data.models.map((m) =>
+                next.has(m.id) ? { ...m, state: next.get(m.id)! } : m
+              ),
+            },
+          }
+        }
+      )
+    },
+    onError: () => {
+      qc.invalidateQueries({ queryKey: GET_CUSTOM_PROVIDER_MODELS_QUERY_KEY(id) })
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: GET_CUSTOM_PROVIDER_MODELS_QUERY_KEY(id) })
+    },
+  })
+}
+
 export const providerQueries = {
   list,
   customList,
@@ -102,4 +176,7 @@ export const providerQueries = {
   customCreate,
   customUpdate,
   customDelete,
+  customModels,
+  customModelsSync,
+  customModelsUpdate,
 } as const

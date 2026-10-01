@@ -15,12 +15,6 @@ import (
 func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	h := handlers.New(app)
 
-	r.Get("/", func(c fiber.Ctx) error {
-		return c.JSON(fiber.Map{
-			"message": "Hello, World!",
-		})
-	})
-
 	if app.Config.App.Debug {
 		r.Get("/get-error", func(c fiber.Ctx) error {
 			sentry.CaptureMessage("It works!")
@@ -81,7 +75,7 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 
 	protected.Get("/models/alias", h.Chains.AliasIndex)
 	protected.Put("/models/alias", h.Chains.AliasPut)
-	protected.Delete("/models/alias", h.Chains.AliasDelete)
+	protected.Delete("/models/alias/:name", h.Chains.AliasDelete)
 
 	// Providers & accounts
 	protected.Get("/providers", h.Providers.Index)
@@ -91,6 +85,13 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	protected.Put("/custom-providers/:id", h.Providers.CustomUpdate)
 	protected.Patch("/custom-providers/:id", h.Providers.CustomUpdate)
 	protected.Delete("/custom-providers/:id", h.Providers.CustomDelete)
+	protected.Get("/custom-providers/:id/models", h.Providers.CustomModels)
+	protected.Post("/custom-providers/:id/models/sync", h.Providers.CustomModelsSync)
+	protected.Patch("/custom-providers/:id/models", h.Providers.CustomModelsUpdate)
+
+	// Catalog provider model sync (openrouter, ollama, ollama-local, cline):
+	// provider slug as :id.
+	protected.Post("/providers/:id/models/sync", h.Providers.ModelsSync)
 
 	protected.Post("/validate-key", h.Accounts.ValidateKey)
 	protected.Get("/accounts", h.Accounts.Index)
@@ -110,6 +111,14 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	protected.Post("/providers/:id/accounts/enable-all", h.Providers.AccountsBulkEnable)
 	protected.Delete("/providers/:id/accounts/disabled", h.Providers.AccountsBulkDeleteDisabled)
 	protected.Delete("/providers/:id/accounts/all", h.Providers.AccountsBulkDeleteAll)
+
+	// OAuth connection flows (claude, codex): start a PKCE flow against the
+	// provider's official web, then exchange the returned code for sealed
+	// tokens. Codex additionally captures its fixed loopback redirect on
+	// localhost:1455/1457 via an in-process listener.
+	protected.Get("/oauth/providers", h.OAuth.ListProviders)
+	protected.Post("/oauth/:provider/authorize", h.OAuth.Authorize)
+	protected.Post("/oauth/:provider/exchange", h.OAuth.Exchange)
 
 	// Budgets & usage
 	protected.Get("/budgets", h.Budgets.Index)

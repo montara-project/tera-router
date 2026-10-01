@@ -3,7 +3,9 @@ package main
 import (
 	"flag"
 	"log"
+	"net/netip"
 	"os"
+	"strings"
 
 	"tera-router/server/internal/config"
 	"tera-router/server/internal/database"
@@ -27,6 +29,8 @@ func parseFlag(cfg *config.Config) {
 	flag.StringVar(&cfg.App.Name, "app-name", "tera-router-server", "App Name")
 	flag.StringVar(&cfg.App.Secret, "app-secret", "", "App Secret")
 	flag.StringVar(&cfg.App.CORSAllowedOrigins, "cors-allowed-origins", "*", "CORS Allowed Origins")
+	flag.StringVar(&cfg.App.RateLimitExemptIPs, "rate-limit-exempt-ips", "", "Comma-separated client IPs exempt from the rate limiter")
+	flag.StringVar(&cfg.App.TrustedProxies, "trusted-proxies", "", "Comma-separated IPs/CIDRs trusted to supply X-Forwarded-For (e.g. the reverse proxy's address)")
 
 	// Database
 	flag.StringVar(&cfg.Database.Path, "database-path", database.DefaultPath, "SQLite database file path")
@@ -41,7 +45,6 @@ func parseFlag(cfg *config.Config) {
 	uint16Max := uint(1<<16 - 1)
 	if machineID > uint16Max {
 		log.Fatal("flag machine-id can only handle uint16")
-		return
 	}
 
 	cfg.App.MachineID = uint16(machineID)
@@ -64,5 +67,19 @@ func validateFlag(cfg *config.Config) {
 
 	if cfg.Database.Path == "" {
 		log.Fatal("flag database-path must not be empty")
+	}
+
+	// Entries feed fiber.TrustProxyConfig.Proxies — a malformed one panics in
+	// fiber.New, so reject it here with a readable flag error.
+	for _, p := range strings.Split(cfg.App.TrustedProxies, ",") {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		if _, err := netip.ParseAddr(p); err != nil {
+			if _, err := netip.ParsePrefix(p); err != nil {
+				log.Fatalf("flag trusted-proxies: %q is not an IP address or CIDR", p)
+			}
+		}
 	}
 }

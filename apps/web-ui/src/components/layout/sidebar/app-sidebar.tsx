@@ -3,7 +3,8 @@
 import { Link } from '@tanstack/react-router'
 import React from 'react'
 
-import type { AuthSession } from '@/types/auth'
+import type { Models } from '@/lib/api/models'
+import type { UserInfo } from '@/types/menu'
 
 import {
   Sidebar,
@@ -21,19 +22,24 @@ import NavMain from './nav-main'
 import NavUser from './nav-user'
 
 type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
-  auth?: AuthSession
+  /** The signed-in user from GET /v1/auth/me; undefined while it loads. */
+  user?: Models.User | null
+  /** True when the profile request failed and no data is available. */
+  userError?: boolean
+  /** Refetches the profile request, wired to the error state's retry. */
+  onRetryUser?: () => void
 }
 
-export default function AppSidebar({ auth, ...props }: AppSidebarProps) {
+export default function AppSidebar({ user, userError, onRetryUser, ...props }: AppSidebarProps) {
   const menu = getSidebarMenu()
 
-  const user = auth
+  const userInfo: UserInfo | undefined = user
     ? {
-        name: auth.user.fullname,
-        email: auth.user.email,
+        name: user.fullname,
+        email: user.email,
         avatar: '',
       }
-    : { ...menu.user }
+    : undefined
 
   return (
     <Sidebar collapsible="icon" variant="floating" {...props}>
@@ -70,7 +76,7 @@ export default function AppSidebar({ auth, ...props }: AppSidebarProps) {
         {menu.navSetting.length > 0 && <NavMain title="Settings" items={menu.navSetting} />}
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={user} />
+        <NavUser user={userInfo} userError={userError} onRetryUser={onRetryUser} />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

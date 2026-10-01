@@ -24,7 +24,7 @@ export default function SubmitButton({
 
   return (
     <form.Subscribe selector={(state) => state.isSubmitting}>
-      {(isSubmitting) => (
+      {(isSubmitting: boolean) => (
         <Button
           type="submit"
           className={cn(

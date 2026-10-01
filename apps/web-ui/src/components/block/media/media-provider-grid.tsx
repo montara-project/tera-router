@@ -1,5 +1,3 @@
-import { IconBrandGithub } from '@tabler/icons-react'
-
 import type { MediaCapability, MediaProvider } from '@/lib/api/models/media'
 
 import { Icons } from '@/components/block/common/icons'
@@ -24,25 +22,17 @@ type Brand = {
 }
 
 const BRANDS: Record<string, Brand> = {
-  openrouter: { letter: 'O', tileClassName: 'bg-slate-600 text-white' },
-  nvidia: { letter: 'N', tileClassName: 'bg-lime-600 text-white' },
-  vllm: { letter: 'V', tileClassName: 'bg-orange-500 text-white' },
-  gemini: {
-    letter: 'G',
-    tileClassName: 'bg-gradient-to-br from-sky-400 via-indigo-400 to-fuchsia-400 text-white',
-  },
-  github: { icon: IconBrandGithub, tileClassName: 'bg-zinc-800 text-white' },
-  openai: { icon: Icons.chatgpt, tileClassName: 'bg-white text-zinc-900' },
-  mistral: {
-    letter: 'M',
-    tileClassName: 'bg-gradient-to-br from-orange-500 to-red-500 text-white',
-  },
-  together: { letter: 'T', tileClassName: 'bg-white text-zinc-900' },
-  fireworks: { letter: 'F', tileClassName: 'bg-rose-500 text-white' },
-  nebius: { letter: 'N', tileClassName: 'bg-lime-300 text-zinc-900' },
-  venice: { letter: 'V', tileClassName: 'bg-red-500 text-white' },
-  'voyage-ai': { letter: 'V', tileClassName: 'bg-zinc-100 text-zinc-900' },
-  'jina-ai': { letter: 'J', tileClassName: 'bg-zinc-900 text-white' },
+  openrouter: { icon: Icons.openrouter, tileClassName: 'bg-white text-black' },
+  nvidia: { icon: Icons.nvidia, tileClassName: 'bg-white' },
+  gemini: { icon: Icons.gemini, tileClassName: 'bg-white' },
+
+  openai: { icon: Icons.openai, tileClassName: 'bg-white text-black' },
+  mistral: { icon: Icons.mistral, tileClassName: 'bg-white' },
+  together: { icon: Icons.together, tileClassName: 'bg-white text-black' },
+  fireworks: { icon: Icons.fireworks, tileClassName: 'bg-white' },
+  nebius: { icon: Icons.nebius, tileClassName: 'bg-white text-black' },
+  'voyage-ai': { icon: Icons.voyage, tileClassName: 'bg-white' },
+  'jina-ai': { icon: Icons.jina, tileClassName: 'bg-white text-black' },
 }
 
 function ProviderAvatar({ slug }: { slug: string }) {

@@ -32,6 +32,8 @@ export namespace Models {
   export type Plan = import('./plan').Plan
   export type Provider = import('./provider').Provider
   export type ProviderCapability = import('./provider').ProviderCapability
+  export type ProviderModel = import('./provider-catalog').ProviderModel
+  export type ProviderModelState = import('./provider-catalog').ProviderModelState
   export type ProvidersOverview = import('./provider').ProvidersOverview
   export type ProxyPool = import('./proxy-pool').ProxyPool
   export type ProxyPoolStatus = import('./proxy-pool').ProxyPoolStatus
@@ -43,6 +45,7 @@ export namespace Models {
   export type Skill = import('./skill').Skill
   export type SourceCodeFilterMode = import('./settings').SourceCodeFilterMode
   export type SystemStats = import('./system').SystemStats
+  export type UpstreamModels = import('./provider-catalog').UpstreamModels
   export type UsageByModel = import('./usage').UsageByModel
   export type UsageDaily = import('./usage').UsageDaily
   export type UsageModelAccountingRow = import('./usage').UsageModelAccountingRow

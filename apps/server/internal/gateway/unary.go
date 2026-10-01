@@ -46,6 +46,12 @@ func (s *Server) unaryChat(
 		}
 		lastErr = pe
 
+		// Feed the auto-combo engine's self-healing: a fallbackable failure
+		// counts against the provider, a request-shaped one does not.
+		if pe.Fallbackable() && s.combo != nil {
+			s.combo.ExcludeAfterFailure(at.Target.Provider, at.Target.Model)
+		}
+
 		// A request-shaped failure will not improve on another account.
 		if !pe.Fallbackable() {
 			s.logFailure(pe)
@@ -75,6 +81,9 @@ func (s *Server) callUnary(ctx context.Context, at attempt, req *core.ChatReques
 		resp, err := at.Conn.Chat(ctx, attemptReq, at.Creds)
 		latency := time.Since(started)
 		if err == nil {
+			if s.combo != nil {
+				s.combo.NoteSuccess(at.Target.Provider, at.Target.Model)
+			}
 			return resp, nil, true
 		}
 
@@ -138,7 +147,7 @@ func (s *Server) writeUnarySuccess(
 	if resp != nil {
 		usage = resp.Usage
 	}
-	rates := s.ratesFor(c.Context(), at.Target.Provider, at.Target.Model)
+	rates, tokenRate := s.pricingFor(c.Context(), at.Target.Provider, at.Target.Model)
 	cost := costMicros(rates, usage)
 	s.recordUsage(usageRecord{
 		APIKeyID:   meta.APIKeyID,
@@ -149,6 +158,7 @@ func (s *Server) writeUnarySuccess(
 		ClientIP:   meta.ClientIP,
 		Usage:      usage,
 		CostMicros: cost,
+		TokenRate:  tokenRate,
 		Latency:    latency,
 	})
 	s.logCompletion(meta, at.Target.Provider, at.Target.Model,

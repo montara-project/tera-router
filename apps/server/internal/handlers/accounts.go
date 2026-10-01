@@ -364,6 +364,9 @@ func (h *accountsHandler) Test(c fiber.Ctx) error {
 
 // probe resolves the endpoint from the provider catalog (overridable via
 // account metadata) and asks the upstream service to verify the credential.
+// Providers with a dedicated integration flow (ported from IDRouter's
+// connectors) use their own probe: OpenRouter validates against /api/v1/key,
+// the Ollama family against /api/tags, and Cline skips validation entirely.
 func (h *accountsHandler) probe(ctx context.Context, providerSlug, metadataRaw, apiKey string) (dtos.TestResult, error) {
 	spec, ok := catalog.Lookup(providerSlug)
 	if !ok {
@@ -380,6 +383,32 @@ func (h *accountsHandler) probe(ctx context.Context, providerSlug, metadataRaw, 
 	if baseURL == "" {
 		return dtos.TestResult{OK: true, Detail: "no base_url configured; skipped upstream probe"}, nil
 	}
+
+	switch providerSlug {
+	case "openrouter":
+		if apiKey == "" {
+			return dtos.TestResult{OK: true, Detail: "no credential stored; skipped upstream probe"}, nil
+		}
+		return h.app.Services.Upstream.ProbeOpenRouterKey(ctx, baseURL, apiKey)
+	case "ollama", "ollama-local":
+		// /api/tags doubles as the Ollama probe and model list; it needs no
+		// auth locally and accepts the cloud key via bearer.
+		models, err := h.app.Services.Upstream.ListOllamaModels(ctx, baseURL, apiKey)
+		if err != nil {
+			return dtos.TestResult{OK: false, Detail: err.Error()}, nil
+		}
+		detail := "credential accepted"
+		if apiKey == "" {
+			detail = "daemon reachable"
+		}
+		return dtos.TestResult{OK: true, Detail: fmt.Sprintf("%s · %d models", detail, len(models))}, nil
+	case "cline":
+		// IDRouter marks Cline SkipValidation: its gateway answers /models 404
+		// and the recommended-models endpoint is public, so there is no cheap
+		// authenticated probe.
+		return dtos.TestResult{OK: true, Detail: "provider skips credential validation"}, nil
+	}
+
 	if spec.AuthKind == string(models.AuthNone) {
 		return dtos.TestResult{OK: true, Detail: "provider requires no authentication"}, nil
 	}
@@ -394,6 +423,11 @@ func (h *accountsHandler) probe(ctx context.Context, providerSlug, metadataRaw, 
 func upstreamModelsEndpoint(baseURL string, anthropic bool) string {
 	base := strings.TrimSuffix(baseURL, "/")
 	if anthropic {
+		// Anthropic base URLs typically already carry /v1 — appending the full
+		// path again would produce /v1/v1/models.
+		if strings.HasSuffix(base, "/v1") {
+			return base + "/models"
+		}
 		return base + "/v1/models"
 	}
 	if strings.HasSuffix(base, "/v1") || strings.HasSuffix(base, "/openai/v1") {

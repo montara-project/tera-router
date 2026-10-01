@@ -39,7 +39,7 @@ func (r *ChainRepository) insertExec(ctx context.Context, ex Executor, c models.
 		VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 		c.ID, c.Name, c.Strategy, c.FallbackProvider, c.FallbackModel, c.ContextWindow, c.Enabled,
 	); err != nil {
-		return err
+		return translateUnique(err, "chain name already exists")
 	}
 	return r.insertStepsExec(ctx, ex, c.ID, c.Steps)
 }
@@ -168,7 +168,7 @@ func (r *ChainRepository) updateExec(ctx context.Context, ex Executor, c models.
 		c.ID, c.Name, c.Strategy, c.FallbackProvider, c.FallbackModel, c.ContextWindow, c.Enabled,
 	)
 	if err != nil {
-		return err
+		return translateUnique(err, "chain name already exists")
 	}
 	if err := requireAffected(res, "chain"); err != nil {
 		return err

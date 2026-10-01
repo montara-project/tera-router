@@ -1,5 +1,5 @@
 import { IconApps, IconPlugConnected, IconPlus, IconSearch } from '@tabler/icons-react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
@@ -10,7 +10,9 @@ import IconBadge from '@/components/block/common/icon-badge'
 import SectionCard from '@/components/block/common/section-card'
 import CapabilityChips, { CAPABILITIES } from '@/components/block/providers/capability-chips'
 import { AddCustomProviderForm } from '@/components/block/providers/form'
+import { AddCustomProviderApiKeyForm } from '@/components/block/providers/form-provider-api-key'
 import ProviderGrid from '@/components/block/providers/provider-grid'
+import { useOAuthConnect } from '@/components/block/providers/use-oauth-connect'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -24,7 +26,10 @@ import {
 } from '@/components/ui/card'
 import { Input, InputWrapper } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
-import { providerQueries } from '@/lib/api/queries/provider'
+import { toastAxiosError } from '@/lib/api/axios-error'
+import { ACCOUNT_QUERY_KEY } from '@/lib/api/queries/account'
+import { PROVIDER_QUERY_KEY, providerQueries } from '@/lib/api/queries/provider'
+import { services } from '@/lib/api/services'
 
 export const Route = createFileRoute('/(protected)/(connection)/providers/')({
   component: RouteComponent,
@@ -68,6 +73,8 @@ function ProvidersCard({
   title,
   variant,
   onConnect,
+  onSync,
+  syncingSlug,
   detailBasePath,
 }: {
   count: number
@@ -77,6 +84,8 @@ function ProvidersCard({
   title: string
   variant: 'connected' | 'available'
   onConnect?: (provider: Models.Provider) => void
+  onSync?: (provider: Models.Provider) => void
+  syncingSlug?: string | null
   detailBasePath?: string
 }) {
   return (
@@ -100,6 +109,8 @@ function ProvidersCard({
           providers={providers}
           variant={variant}
           onConnect={onConnect}
+          onSync={onSync}
+          syncingSlug={syncingSlug}
           detailBasePath={detailBasePath}
         />
       </CardContent>
@@ -107,10 +118,42 @@ function ProvidersCard({
   )
 }
 
+/** Catalog cards whose Connect opens the custom-provider form pre-prefilled. */
+const CUSTOM_CONNECT_PRESETS: Record<string, { slug: string; api_kind: string }> = {
+  'custom-openai': { slug: 'custom-openai', api_kind: 'openai' },
+  'custom-anthropic': { slug: 'custom-anthropic', api_kind: 'anthropic' },
+}
+
+/** OAuth providers: Connect opens the provider's official web in a popup. */
+const OAUTH_PROVIDERS: Record<string, string> = {
+  claude: 'Anthropic (Claude Code)',
+  codex: 'OpenAI (Codex)',
+}
+
+/** API-key providers wired end-to-end: Connect opens the key form, and the
+ * stored model catalog can be re-synced from the connected card. ollama-local
+ * needs no credential at all. */
+const API_KEY_PROVIDERS: Record<string, { name: string; authKind?: 'none' }> = {
+  openrouter: { name: 'OpenRouter' },
+  ollama: { name: 'Ollama Cloud' },
+  'ollama-local': { name: 'Ollama Local', authKind: 'none' },
+  cline: { name: 'Cline' },
+  cloudflare: { name: 'Cloudflare AI' },
+}
+
+const SYNCABLE_PROVIDERS = new Set(Object.keys(API_KEY_PROVIDERS))
+
 function RouteComponent() {
   const [search, setSearch] = useState('')
   const [capability, setCapability] = useState('all')
   const [createOpen, setCreateOpen] = useState(false)
+  const [createPreset, setCreatePreset] = useState<{ slug: string; api_kind: string } | undefined>(
+    undefined
+  )
+  const [keyProvider, setKeyProvider] = useState<{ slug: string; name: string } | null>(null)
+  const [syncingSlug, setSyncingSlug] = useState<string | null>(null)
+  const { connect: connectOAuth } = useOAuthConnect()
+  const queryClient = useQueryClient()
 
   const { data } = useQuery(providerQueries.list())
   const overview = data?.data
@@ -148,11 +191,54 @@ function RouteComponent() {
   }
 
   const handleNewProvider = () => {
+    setCreatePreset(undefined)
     setCreateOpen(true)
   }
 
   const handleConnect = (provider: Models.Provider) => {
+    if (OAUTH_PROVIDERS[provider.slug]) {
+      void connectOAuth(provider.slug)
+      return
+    }
+    const preset = CUSTOM_CONNECT_PRESETS[provider.slug]
+    if (preset) {
+      setCreatePreset(preset)
+      setCreateOpen(true)
+      return
+    }
+    if (API_KEY_PROVIDERS[provider.slug]) {
+      setKeyProvider({ slug: provider.slug, name: provider.name })
+      return
+    }
     toast.info(`Connect flow for ${provider.name} is not wired to the backend yet`)
+  }
+
+  const handleKeyConnected = async () => {
+    const slug = keyProvider?.slug
+    setKeyProvider(null)
+    if (!slug) return
+    // Connect and model sync in one step where the provider supports it
+    // (OpenRouter also imports its per-model pricing).
+    await queryClient.invalidateQueries({ queryKey: [PROVIDER_QUERY_KEY] })
+    await queryClient.invalidateQueries({ queryKey: [ACCOUNT_QUERY_KEY] })
+    if (SYNCABLE_PROVIDERS.has(slug)) {
+      await syncModels(slug)
+    }
+  }
+  const syncModels = async (slug: string) => {
+    setSyncingSlug(slug)
+    try {
+      const result = await services.providers.modelsSync(slug)
+      const payload = result.data.data
+      toast.success(
+        `Synced ${payload.models.length} models from upstream` +
+          (payload.priced ? ` · ${payload.priced} priced` : '')
+      )
+    } catch (error) {
+      toastAxiosError(error)
+    } finally {
+      setSyncingSlug(null)
+    }
   }
 
   return (
@@ -191,6 +277,16 @@ function RouteComponent() {
             title="Connected providers"
             variant="connected"
             detailBasePath="/providers"
+            onSync={
+              SYNCABLE_PROVIDERS.size > 0
+                ? (provider) => {
+                    if (SYNCABLE_PROVIDERS.has(provider.slug)) {
+                      void syncModels(provider.slug)
+                    }
+                  }
+                : undefined
+            }
+            syncingSlug={syncingSlug}
           />
 
           <ProvidersCard
@@ -205,7 +301,19 @@ function RouteComponent() {
         </div>
       </SectionCard>
 
-      <AddCustomProviderForm open={createOpen} onOpenChange={setCreateOpen} />
+      <AddCustomProviderForm open={createOpen} onOpenChange={setCreateOpen} preset={createPreset} />
+
+      <AddCustomProviderApiKeyForm
+        open={Boolean(keyProvider)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setKeyProvider(null)
+          }
+        }}
+        provider={keyProvider ?? { slug: '', name: '' }}
+        authKind={keyProvider ? API_KEY_PROVIDERS[keyProvider.slug]?.authKind : undefined}
+        onSuccess={handleKeyConnected}
+      />
     </>
   )
 }

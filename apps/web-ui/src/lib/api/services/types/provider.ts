@@ -13,6 +13,17 @@ export type ProviderResources = {
     payload: CustomProviderDto
   ) => Promise<AxiosItemResponse<Models.CustomProvider>>
   customDelete: (id: string) => Promise<AxiosDeleteResponse>
+  customModels: (
+    id: string,
+    params?: { search?: string; offset?: number; limit?: number }
+  ) => Promise<AxiosItemResponse<Models.UpstreamModels>>
+  customModelsSync: (id: string) => Promise<AxiosItemResponse<Models.UpstreamModels>>
+  customModelsUpdate: (
+    id: string,
+    payload: { models: { id: string; state: Models.ProviderModelState }[] }
+  ) => Promise<AxiosItemResponse<Models.UpstreamModels>>
+  /** catalog-provider model sync (openrouter, ollama, ollama-local, cline) */
+  modelsSync: (slug: string) => Promise<AxiosItemResponse<Models.UpstreamModels>>
   accountsBulkDisable: (slug: string) => Promise<AxiosItemResponse<{ updated: number }>>
   accountsBulkEnable: (slug: string) => Promise<AxiosItemResponse<{ updated: number }>>
   accountsBulkDeleteDisabled: (slug: string) => Promise<AxiosItemResponse<{ deleted: number }>>

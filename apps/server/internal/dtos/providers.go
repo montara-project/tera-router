@@ -5,18 +5,35 @@ import "tera-router/server/internal/lib/validator"
 // CustomProvider is the OpenAI-compatible upstream registration body
 // (POST/PUT/PATCH /v1/custom-providers).
 type CustomProvider struct {
-	Name     string         `json:"name"`
-	Slug     string         `json:"slug"`
-	BaseURL  string         `json:"base_url"`
-	APIKind  string         `json:"api_kind"`
-	Pricing  map[string]any `json:"pricing"`
-	Enabled  *bool          `json:"enabled"`
-	Priority int            `json:"priority"`
+	Name    string         `json:"name"`
+	Slug    string         `json:"slug"`
+	BaseURL string         `json:"base_url"`
+	APIKind string         `json:"api_kind"`
+	Pricing map[string]any `json:"pricing"`
+	Enabled *bool          `json:"enabled"`
+	// Pointer so PATCH can distinguish "not sent" from an explicit 0.
+	Priority *int           `json:"priority"`
 	Metadata map[string]any `json:"metadata"`
 }
 
 func (d *CustomProvider) Validate(v *validator.MapValidator) {
 	v.Field("name").Required().String()
+}
+
+// ProviderModelState sets one catalog model's state
+// (PATCH /v1/custom-providers/:id/models).
+type ProviderModelState struct {
+	ID    string `json:"id"`
+	State string `json:"state"`
+}
+
+// ProviderModelStates is the per-model active/disabled update body.
+type ProviderModelStates struct {
+	Models []ProviderModelState `json:"models"`
+}
+
+func (d *ProviderModelStates) Validate(v *validator.MapValidator) {
+	v.Field("models").Required()
 }
 
 // CatalogProvider is a built-in provider spec, ported (condensed) from

@@ -21,7 +21,7 @@ export default function ChainStepRow({ row }: ChainStepRowProps) {
             <React.Fragment key={item.position}>
               <div className="flex min-w-0 items-center gap-2 rounded-lg border border-border bg-card px-2 py-1.5">
                 <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent text-[10px] font-semibold text-accent-foreground">
-                  {item.position + 1}
+                  {item.position}
                 </span>
                 <Icons.chatgpt className="size-3.5 shrink-0 text-white" />
                 <span className="min-w-0 truncate font-mono text-xs font-medium">{item.model}</span>

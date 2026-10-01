@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as protectedRouteRouteImport } from './routes/(protected)/route'
+import { Route as CallbackRouteImport } from './routes/callback'
 import { Route as authloginIndexRouteImport } from './routes/(auth)/(login)/index'
 import { Route as authRegisterIndexRouteImport } from './routes/(auth)/register/index'
 import { Route as protectedDashboardIndexRouteImport } from './routes/(protected)/dashboard/index'
@@ -30,10 +31,16 @@ import { Route as protectedsafetyGuardrailsIndexRouteImport } from './routes/(pr
 import { Route as protectedsafetyProviderHealthIndexRouteImport } from './routes/(protected)/(safety)/provider-health/index'
 import { Route as protectedtrafficChainsIndexRouteImport } from './routes/(protected)/(traffic)/chains/index'
 import { Route as protectedtrafficEndpointsIndexRouteImport } from './routes/(protected)/(traffic)/endpoints/index'
+import { Route as protectedtrafficModelAliasIndexRouteImport } from './routes/(protected)/(traffic)/model-alias/index'
 import { Route as protectedtrafficSkillsIndexRouteImport } from './routes/(protected)/(traffic)/skills/index'
 
 const protectedRouteRoute = protectedRouteRouteImport.update({
   id: '/(protected)',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CallbackRoute = CallbackRouteImport.update({
+  id: '/callback',
+  path: '/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
 const authloginIndexRoute = authloginIndexRouteImport.update({
@@ -153,6 +160,12 @@ const protectedtrafficEndpointsIndexRoute =
     path: '/endpoints/',
     getParentRoute: () => protectedRouteRoute,
   } as any)
+const protectedtrafficModelAliasIndexRoute =
+  protectedtrafficModelAliasIndexRouteImport.update({
+    id: '/(traffic)/model-alias/',
+    path: '/model-alias/',
+    getParentRoute: () => protectedRouteRoute,
+  } as any)
 const protectedtrafficSkillsIndexRoute =
   protectedtrafficSkillsIndexRouteImport.update({
     id: '/(traffic)/skills/',
@@ -161,6 +174,7 @@ const protectedtrafficSkillsIndexRoute =
   } as any)
 
 export interface FileRoutesByFullPath {
+  '/callback': typeof CallbackRoute
   '/': typeof authloginIndexRoute
   '/register/': typeof authRegisterIndexRoute
   '/dashboard/': typeof protectedDashboardIndexRoute
@@ -181,9 +195,11 @@ export interface FileRoutesByFullPath {
   '/provider-health/': typeof protectedsafetyProviderHealthIndexRoute
   '/chains/': typeof protectedtrafficChainsIndexRoute
   '/endpoints/': typeof protectedtrafficEndpointsIndexRoute
+  '/model-alias/': typeof protectedtrafficModelAliasIndexRoute
   '/skills/': typeof protectedtrafficSkillsIndexRoute
 }
 export interface FileRoutesByTo {
+  '/callback': typeof CallbackRoute
   '/': typeof authloginIndexRoute
   '/register': typeof authRegisterIndexRoute
   '/dashboard': typeof protectedDashboardIndexRoute
@@ -204,11 +220,13 @@ export interface FileRoutesByTo {
   '/provider-health': typeof protectedsafetyProviderHealthIndexRoute
   '/chains': typeof protectedtrafficChainsIndexRoute
   '/endpoints': typeof protectedtrafficEndpointsIndexRoute
+  '/model-alias': typeof protectedtrafficModelAliasIndexRoute
   '/skills': typeof protectedtrafficSkillsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/(protected)': typeof protectedRouteRouteWithChildren
+  '/callback': typeof CallbackRoute
   '/(auth)/(login)/': typeof authloginIndexRoute
   '/(auth)/register/': typeof authRegisterIndexRoute
   '/(protected)/dashboard/': typeof protectedDashboardIndexRoute
@@ -229,11 +247,13 @@ export interface FileRoutesById {
   '/(protected)/(safety)/provider-health/': typeof protectedsafetyProviderHealthIndexRoute
   '/(protected)/(traffic)/chains/': typeof protectedtrafficChainsIndexRoute
   '/(protected)/(traffic)/endpoints/': typeof protectedtrafficEndpointsIndexRoute
+  '/(protected)/(traffic)/model-alias/': typeof protectedtrafficModelAliasIndexRoute
   '/(protected)/(traffic)/skills/': typeof protectedtrafficSkillsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
+    | '/callback'
     | '/'
     | '/register/'
     | '/dashboard/'
@@ -254,9 +274,11 @@ export interface FileRouteTypes {
     | '/provider-health/'
     | '/chains/'
     | '/endpoints/'
+    | '/model-alias/'
     | '/skills/'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/callback'
     | '/'
     | '/register'
     | '/dashboard'
@@ -277,10 +299,12 @@ export interface FileRouteTypes {
     | '/provider-health'
     | '/chains'
     | '/endpoints'
+    | '/model-alias'
     | '/skills'
   id:
     | '__root__'
     | '/(protected)'
+    | '/callback'
     | '/(auth)/(login)/'
     | '/(auth)/register/'
     | '/(protected)/dashboard/'
@@ -301,11 +325,13 @@ export interface FileRouteTypes {
     | '/(protected)/(safety)/provider-health/'
     | '/(protected)/(traffic)/chains/'
     | '/(protected)/(traffic)/endpoints/'
+    | '/(protected)/(traffic)/model-alias/'
     | '/(protected)/(traffic)/skills/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   protectedRouteRoute: typeof protectedRouteRouteWithChildren
+  CallbackRoute: typeof CallbackRoute
   authloginIndexRoute: typeof authloginIndexRoute
   authRegisterIndexRoute: typeof authRegisterIndexRoute
 }
@@ -317,6 +343,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: ''
       preLoaderRoute: typeof protectedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/callback': {
+      id: '/callback'
+      path: '/callback'
+      fullPath: '/callback'
+      preLoaderRoute: typeof CallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/(auth)/(login)/': {
@@ -459,6 +492,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof protectedtrafficEndpointsIndexRouteImport
       parentRoute: typeof protectedRouteRoute
     }
+    '/(protected)/(traffic)/model-alias/': {
+      id: '/(protected)/(traffic)/model-alias/'
+      path: '/model-alias'
+      fullPath: '/model-alias/'
+      preLoaderRoute: typeof protectedtrafficModelAliasIndexRouteImport
+      parentRoute: typeof protectedRouteRoute
+    }
     '/(protected)/(traffic)/skills/': {
       id: '/(protected)/(traffic)/skills/'
       path: '/skills'
@@ -488,6 +528,7 @@ interface protectedRouteRouteChildren {
   protectedsafetyProviderHealthIndexRoute: typeof protectedsafetyProviderHealthIndexRoute
   protectedtrafficChainsIndexRoute: typeof protectedtrafficChainsIndexRoute
   protectedtrafficEndpointsIndexRoute: typeof protectedtrafficEndpointsIndexRoute
+  protectedtrafficModelAliasIndexRoute: typeof protectedtrafficModelAliasIndexRoute
   protectedtrafficSkillsIndexRoute: typeof protectedtrafficSkillsIndexRoute
 }
 
@@ -514,6 +555,7 @@ const protectedRouteRouteChildren: protectedRouteRouteChildren = {
     protectedsafetyProviderHealthIndexRoute,
   protectedtrafficChainsIndexRoute: protectedtrafficChainsIndexRoute,
   protectedtrafficEndpointsIndexRoute: protectedtrafficEndpointsIndexRoute,
+  protectedtrafficModelAliasIndexRoute: protectedtrafficModelAliasIndexRoute,
   protectedtrafficSkillsIndexRoute: protectedtrafficSkillsIndexRoute,
 }
 
@@ -523,6 +565,7 @@ const protectedRouteRouteWithChildren = protectedRouteRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   protectedRouteRoute: protectedRouteRouteWithChildren,
+  CallbackRoute: CallbackRoute,
   authloginIndexRoute: authloginIndexRoute,
   authRegisterIndexRoute: authRegisterIndexRoute,
 }

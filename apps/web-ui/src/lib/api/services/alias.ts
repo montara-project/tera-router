@@ -26,8 +26,8 @@ const resources = (): AliasResources => {
       return api.put(url, parseDto(AliasSchema, payload))
     },
     remove: (name) => {
-      const url = path
-      return api.delete(url, { params: { name } })
+      const url = `${path}/${encodeURIComponent(name)}`
+      return api.delete(url)
     },
   }
 }

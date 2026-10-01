@@ -45,6 +45,25 @@ const resources = (): ProviderResources => {
       const url = `${customPath}/${id}`
       return api.delete(url)
     },
+    /** stored catalog with per-model states; server-side search + paging */
+    customModels: (id, params) => {
+      const url = `${customPath}/${id}/models`
+      return api.get(url, { params })
+    },
+    /** live-fetch the upstream /models list and merge it into the catalog */
+    customModelsSync: (id) => {
+      const url = `${customPath}/${id}/models/sync`
+      return api.post(url)
+    },
+    customModelsUpdate: (id, payload) => {
+      const url = `${customPath}/${id}/models`
+      return api.patch(url, payload)
+    },
+    /** catalog-provider model sync (openrouter, ollama, ollama-local, cline) */
+    modelsSync: (slug) => {
+      const url = `${path}/${slug}/models/sync`
+      return api.post(url)
+    },
     /** provider-scoped bulk account operations (provider slug as :id) */
     accountsBulkDisable: (slug) => {
       const url = `${path}/${slug}/accounts/disable-all`

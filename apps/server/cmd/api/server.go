@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path"
 	"strings"
 	"syscall"
 	"time"
@@ -33,7 +34,7 @@ func serve(app *app.Application) error {
 	})
 
 	// Fiber Configuration
-	server := fiber.New(fiber.Config{
+	fiberConfig := fiber.Config{
 		// 32 MiB: agent conversations (long tool-call histories, inline
 		// base64 screenshots) routinely exceed the dashboard's 2 MiB.
 		BodyLimit:    32 * 1024 * 1024,
@@ -42,7 +43,24 @@ func serve(app *app.Application) error {
 		WriteTimeout: 3 * time.Minute,
 		TrustProxy:   true,
 		ErrorHandler: middlewares.ErrorHandler,
-	})
+	}
+
+	// Behind a reverse proxy, X-Forwarded-For carries the client IP. Only
+	// requests whose direct peer is in the allowlist get the header honored —
+	// EnableIPValidation walks the chain right-to-left past trusted hops and
+	// returns the first untrusted address, so spoofed left-side entries cannot
+	// forge the client IP.
+	if proxies := app.Config.App.TrustedProxies; proxies != "" {
+		for _, p := range strings.Split(proxies, ",") {
+			if p = strings.TrimSpace(p); p != "" {
+				fiberConfig.TrustProxyConfig.Proxies = append(fiberConfig.TrustProxyConfig.Proxies, p)
+			}
+		}
+		fiberConfig.ProxyHeader = fiber.HeaderXForwardedFor
+		fiberConfig.EnableIPValidation = true
+	}
+
+	server := fiber.New(fiberConfig)
 
 	// Middleware
 	server.Use(recover.New())
@@ -70,21 +88,44 @@ func serve(app *app.Application) error {
 	server.Use(middlewares.RateLimit(
 		app.Config.App.Env == config.EnvDevelopment,
 		gateway.IsGatewayPath,
+		app.Config.App.RateLimitExemptIPs,
 	))
 
 	server.Use(static.New("./public"))
 
 	// Initial Routes
-	gw := routes(server, app) // Create channel to listen for interrupt signals
+	gw := routes(server, app)
+
+	// SPA fallback: the web-ui is a client-side routed bundle — routes like
+	// /dashboard exist only in the browser, so a refresh asks the server for a
+	// file that doesn't exist. A wildcard route registered last only runs when
+	// no real route matched, so API paths keep their JSON 404 instead.
+	spaFallback := func(c fiber.Ctx) error {
+		p := c.Path()
+		if p == "/health" ||
+			strings.HasPrefix(p, "/v1") ||
+			strings.HasPrefix(p, "/responses") ||
+			gateway.IsGatewayPath(p) ||
+			// Asset-looking paths (…/x.js, /favicon.ico) are misses, not SPA
+			// routes — answer 404 rather than HTML.
+			strings.Contains(path.Base(p), ".") {
+			return fiber.ErrNotFound
+		}
+		return c.SendFile("./public/index.html")
+	}
+	server.Get("/*", spaFallback)
+	server.Head("/*", spaFallback)
+
+	// Create channel to listen for interrupt signals
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 
 	// Start server in a goroutine
 	go func() {
 		app.Logger.Info("server started on port", "port", app.Config.App.Port)
-		listerPort := fmt.Sprintf(":%d", app.Config.App.Port)
+		listenAddr := fmt.Sprintf(":%d", app.Config.App.Port)
 
-		if err := server.Listen(listerPort); err != nil {
+		if err := server.Listen(listenAddr); err != nil {
 			app.Logger.Error("failed to start server", "error", err)
 		}
 	}()

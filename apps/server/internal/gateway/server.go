@@ -6,8 +6,9 @@
 // as a relayed SSE stream.
 //
 // It serves POST /v1/chat/completions (OpenAI Chat), POST /v1/messages and
-// POST /v1/messages/count_tokens (Anthropic Messages), and POST /v1/responses
-// + POST /responses (OpenAI Responses).
+// POST /v1/messages/count_tokens (Anthropic Messages), POST /v1/responses
+// + POST /responses (OpenAI Responses), and GET /v1/models (OpenAI-shaped
+// listing that advertises chains and auto-combos alongside provider models).
 package gateway
 
 import (
@@ -16,6 +17,7 @@ import (
 	"time"
 
 	"tera-router/server/internal/app"
+	"tera-router/server/internal/autocombo"
 	"tera-router/server/internal/connectors"
 	"tera-router/server/internal/core"
 	"tera-router/server/internal/transform"
@@ -81,6 +83,10 @@ type Server struct {
 
 	// rotation is the per-chain round-robin cursor, keyed by chain name.
 	rotation rotationState
+	// combo builds the virtual auto-combo target lists for "auto" requests
+	// and consumes the attempt loop's failure/success accounting for
+	// self-healing exclusions.
+	combo *autocombo.Engine
 	// cooldowns tracks accounts parked after a rate-limit/auth failure.
 	cooldowns cooldownTracker
 	// auth caches verified inbound API keys so argon2 runs once per key per TTL.
@@ -105,6 +111,7 @@ func New(a *app.Application) *Server {
 		codecs:    codecs,
 		conns:     connectors.New(codecs),
 		rotation:  newRotationState(),
+		combo:     autocombo.NewEngine(autocombo.RepoAccounts{R: a.Repos.Accounts}, autocombo.RepoStats{R: a.Repos.Usage}, autocombo.RepoCatalog{R: a.Repos.Settings}),
 		cooldowns: newCooldownTracker(),
 		auth:      newAuthCache(),
 		inflight:  make(chan struct{}, defaultMaxConcurrent),
@@ -151,6 +158,7 @@ func Register(r *fiber.App, a *app.Application) *Server {
 	r.Post("/v1/messages/count_tokens", s.authMiddleware, s.handleAnthropicCountTokens)
 	r.Post("/v1/responses", s.authMiddleware, s.handleOpenAIResponses)
 	r.Post("/responses", s.authMiddleware, s.handleOpenAIResponses)
+	r.Get("/v1/models", s.authMiddleware, s.handleListModels)
 	return s
 }
 
@@ -163,6 +171,7 @@ var GatewayRoutes = []string{
 	"/v1/messages/count_tokens",
 	"/v1/responses",
 	"/responses",
+	"/v1/models",
 }
 
 // IsGatewayPath reports whether a request path is served by the inference

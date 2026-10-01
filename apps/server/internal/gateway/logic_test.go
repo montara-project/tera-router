@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"tera-router/server/internal/core"
+	"tera-router/server/internal/lib/cost"
 )
 
 func TestParseModelSuffix(t *testing.T) {
@@ -125,7 +126,7 @@ func TestEstimateInputTokens(t *testing.T) {
 }
 
 func TestCostMicros(t *testing.T) {
-	rates := pricingRates{
+	rates := cost.Rates{
 		InputMicros:      3_000_000, // $3.00 / M
 		OutputMicros:     15_000_000,
 		CacheReadMicros:  300_000,
@@ -186,7 +187,7 @@ func TestCostMicros(t *testing.T) {
 }
 
 func TestCostMicrosUnpricedModelIsFree(t *testing.T) {
-	if got := costMicros(pricingRates{}, core.Usage{PromptTokens: 1_000_000, CompletionTokens: 1_000_000}); got != 0 {
+	if got := costMicros(cost.Rates{}, core.Usage{PromptTokens: 1_000_000, CompletionTokens: 1_000_000}); got != 0 {
 		t.Errorf("cost = %d, want 0 for an unpriced model", got)
 	}
 }

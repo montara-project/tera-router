@@ -48,6 +48,24 @@ func (c *connector) headers(creds core.Credentials) map[string]string {
 func (c *connector) openAIHeaders(creds core.Credentials) map[string]string {
 	h := map[string]string{}
 	if tok := creds.Token(); tok != "" {
+		if c.id == "cline" {
+			// Cline's gateway requires its SDK's identification headers and a
+			// workos: token prefix (WorkOS-backed auth) unless the operator
+			// stored an already-prefixed or native sk_ key.
+			if !strings.HasPrefix(tok, "workos:") && !strings.HasPrefix(tok, "sk_") {
+				tok = "workos:" + tok
+			}
+			h["Authorization"] = bearer(tok)
+			h["HTTP-Referer"] = "https://cline.bot"
+			h["X-Title"] = "Cline"
+			h["X-CLIENT-TYPE"] = "cline-sdk"
+			h["X-PLATFORM"] = "web"
+			h["X-IS-MULTIROOT"] = "false"
+			h["X-CLIENT-VERSION"] = "3.0.46"
+			h["X-CORE-VERSION"] = "3.0.46"
+			h["X-PLATFORM-VERSION"] = "unknown"
+			return mergeHeaders(h, creds.Headers)
+		}
 		h["Authorization"] = bearer(tok)
 	}
 	return mergeHeaders(h, creds.Headers)

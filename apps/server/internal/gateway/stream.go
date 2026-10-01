@@ -129,11 +129,19 @@ func (s *Server) connectStream(
 
 		conn, err := s.connectOne(ctx, at, req, clientDialect, meta)
 		if err == nil {
+			if s.combo != nil {
+				s.combo.NoteSuccess(at.Target.Provider, at.Target.Model)
+			}
 			return conn, nil
 		}
 		lastErr = err
 
+		// Feed the auto-combo engine's self-healing: a fallbackable failure
+		// counts against the provider, a request-shaped one does not.
 		pe := core.AsProviderError(err)
+		if pe.Fallbackable() && s.combo != nil {
+			s.combo.ExcludeAfterFailure(at.Target.Provider, at.Target.Model)
+		}
 		if !pe.Fallbackable() {
 			return streamConn{}, pe
 		}
@@ -461,7 +469,7 @@ func (sw *streamWriter) record(ctx context.Context) {
 		ttft = sw.ttft()
 	}
 
-	rates := sw.srv.ratesFor(lookupCtx, sw.provider, sw.model)
+	rates, tokenRate := sw.srv.pricingFor(lookupCtx, sw.provider, sw.model)
 	cost := costMicros(rates, usage)
 
 	sw.srv.recordUsage(usageRecord{
@@ -473,6 +481,7 @@ func (sw *streamWriter) record(ctx context.Context) {
 		ClientIP:   sw.meta.ClientIP,
 		Usage:      usage,
 		CostMicros: cost,
+		TokenRate:  tokenRate,
 		Latency:    latency,
 		TTFT:       ttft,
 	})

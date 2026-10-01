@@ -1,9 +1,12 @@
 import { accountQueries } from './account'
+import { aliasQueries } from './alias'
+import { authQueries } from './auth'
 import { chainQueries } from './chain'
 import { consoleQueries } from './console'
 import { guardrailsQueries } from './guardrails'
 import { keyQueries } from './key'
 import { mediaQueries } from './media'
+import { oauthQueries } from './oauth'
 import { planQueries } from './plan'
 import { providerQueries } from './provider'
 import { providerHealthQueries } from './provider-health'
@@ -16,11 +19,14 @@ import { usageQueries } from './usage'
 
 export const queries = {
   accounts: accountQueries,
+  aliases: aliasQueries,
+  auth: authQueries,
   chains: chainQueries,
   console: consoleQueries,
   guardrails: guardrailsQueries,
   keys: keyQueries,
   media: mediaQueries,
+  oauth: oauthQueries,
   plans: planQueries,
   providerHealth: providerHealthQueries,
   providers: providerQueries,

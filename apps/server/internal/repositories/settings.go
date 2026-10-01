@@ -10,6 +10,15 @@ type SettingRepository struct {
 	BaseRepository
 }
 
+// ProviderModelsSettingsKey returns the settings key holding one provider's
+// stored model catalog (the value's shape is owned by the modelcatalog
+// package). The key format lives here so the provider cascade can remove it in
+// the same transaction that deletes the provider, without this package
+// importing modelcatalog — which imports this one.
+func ProviderModelsSettingsKey(providerSlug string) string {
+	return "provider_models_" + providerSlug
+}
+
 // Get returns the raw JSON value for a settings key.
 func (r *SettingRepository) Get(ctx context.Context, key string) (string, error) {
 	return r.getExec(ctx, key)

@@ -10,6 +10,7 @@ import { toast } from 'sonner'
 import type { Models } from '@/lib/api/models'
 import type { BaseColumnProps } from '@/types/column'
 
+import { Badge, BadgeDot } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toastAxiosError } from '@/lib/api/axios-error'
@@ -25,7 +26,11 @@ import ChainStepRow from './chain-step-row'
 
 type ColumnType = ColumnDef<typeof features, Models.Chain, unknown>
 
-export function ChainColumn({ loading }: BaseColumnProps) {
+type ChainColumnProps = BaseColumnProps & {
+  onEdit?: (chain: Models.Chain) => void
+}
+
+export function ChainColumn({ loading, onEdit }: ChainColumnProps) {
   const columns = useMemo<ColumnType[]>(() => {
     return [
       {
@@ -73,28 +78,50 @@ export function ChainColumn({ loading }: BaseColumnProps) {
         },
       },
       {
+        accessorKey: 'enabled',
+        header: 'Status',
+        cell: ({ row }) => {
+          if (loading) {
+            return <Skeleton className="h-5 w-full" />
+          }
+
+          return (
+            <Badge
+              variant={row.original.enabled ? 'success' : 'secondary'}
+              appearance="light"
+              size="sm"
+            >
+              <BadgeDot />
+              {row.original.enabled ? 'Active' : 'Inactive'}
+            </Badge>
+          )
+        },
+        size: 110,
+      },
+      {
         accessorKey: 'actions',
         header: 'Actions',
         cell: ({ row }) => {
           return loading ? (
             <Skeleton className="h-5 w-full" />
           ) : (
-            <ActionCell record={row.original} />
+            <ActionCell record={row.original} onEdit={onEdit} />
           )
         },
         size: 50,
       },
     ]
-  }, [loading])
+  }, [loading, onEdit])
 
   return columns
 }
 
 interface ActionCellProps {
   record: Models.Chain
+  onEdit?: (chain: Models.Chain) => void
 }
 
-function ActionCell({ record }: ActionCellProps) {
+function ActionCell({ record, onEdit }: ActionCellProps) {
   const [openDelete, setOpenDelete] = useState(false)
 
   const deleteMutation = useMutation(queries.chains.delete())
@@ -111,7 +138,10 @@ function ActionCell({ record }: ActionCellProps) {
 
   return (
     <React.Fragment>
-      <RowColumnAction onEdit={() => console.log('edit')} onDelete={() => setOpenDelete(true)} />
+      <RowColumnAction
+        onEdit={onEdit ? () => onEdit(record) : undefined}
+        onDelete={() => setOpenDelete(true)}
+      />
 
       <SimpleAlertDialog
         title="Do you want to delete this chain?"

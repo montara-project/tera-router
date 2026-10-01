@@ -194,6 +194,38 @@ func (r *AccountRepository) setDisabledExec(ctx context.Context, id string, disa
 	return requireAffected(res, "account")
 }
 
+// SetNeedsReconnect flags an OAuth account whose refresh token is dead, so the
+// dashboard surfaces it for re-authentication.
+func (r *AccountRepository) SetNeedsReconnect(ctx context.Context, id string, needs bool) error {
+	res, err := r.execContext(ctx, r.DB,
+		`UPDATE accounts SET needs_reconnect = $2, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now') WHERE id = $1`, id, needs)
+	if err != nil {
+		return err
+	}
+	return requireAffected(res, "account")
+}
+
+// ListByProvider returns every account of one provider — including disabled
+// and needs-reconnect rows — so OAuth connect can dedup against them.
+func (r *AccountRepository) ListByProvider(ctx context.Context, provider string) ([]models.Account, error) {
+	rows, err := r.queryContext(ctx, r.DB,
+		`SELECT`+accountColumns+` FROM accounts WHERE provider = $1 ORDER BY created_at ASC`, provider)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	accounts := []models.Account{}
+	for rows.Next() {
+		a, err := scanAccount(rows)
+		if err != nil {
+			return nil, err
+		}
+		accounts = append(accounts, a)
+	}
+	return accounts, errtrace.Wrap(rows.Err())
+}
+
 // Delete removes one account.
 func (r *AccountRepository) Delete(ctx context.Context, id string) error {
 	return r.deleteExec(ctx, id)

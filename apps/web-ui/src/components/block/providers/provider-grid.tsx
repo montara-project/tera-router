@@ -3,6 +3,7 @@ import {
   IconArrowUpRight,
   IconPlugConnected,
   IconPlus,
+  IconRefresh,
   IconSearch,
 } from '@tabler/icons-react'
 import { Link } from '@tanstack/react-router'
@@ -43,6 +44,9 @@ interface ProviderGridProps {
   providers: Models.Provider[]
   variant: 'connected' | 'available'
   onConnect?: (provider: Models.Provider) => void
+  /** Re-sync the stored model catalog (providers that support it). */
+  onSync?: (provider: Models.Provider) => void
+  syncingSlug?: string | null
   detailBasePath?: string
 }
 
@@ -50,6 +54,8 @@ export default function ProviderGrid({
   providers,
   variant,
   onConnect,
+  onSync,
+  syncingSlug,
   detailBasePath,
 }: ProviderGridProps) {
   if (providers.length === 0) {
@@ -105,9 +111,26 @@ export default function ProviderGrid({
 
             <div className="mt-auto flex items-center justify-between gap-2 pt-3">
               {variant === 'connected' ? (
-                <p className="text-xs text-muted-foreground">
-                  {provider.accounts ?? 0} {(provider.accounts ?? 0) === 1 ? 'account' : 'accounts'}
-                </p>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-xs text-muted-foreground">
+                    {provider.accounts ?? 0}{' '}
+                    {(provider.accounts ?? 0) === 1 ? 'account' : 'accounts'}
+                  </p>
+                  {onSync ? (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-6"
+                      aria-label={`Sync models for ${provider.name}`}
+                      disabled={syncingSlug === provider.slug}
+                      onClick={() => onSync(provider)}
+                    >
+                      <IconRefresh
+                        className={cn('size-3.5', syncingSlug === provider.slug && 'animate-spin')}
+                      />
+                    </Button>
+                  ) : null}
+                </div>
               ) : (
                 <Button variant="outline" size="sm" onClick={() => onConnect?.(provider)}>
                   <IconPlus />

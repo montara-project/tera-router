@@ -55,9 +55,12 @@ function AbstractForm({
       }
 
       try {
+        // The custom-<api_kind>- slug marker is a UI convention — the server
+        // stores the slug verbatim. Send the composed marker when an alias is
+        // set; omit the field so the server can slugify the name otherwise.
         await mutation.mutateAsync({
           ...value,
-          slug: `${value.api_kind}-${trimmedAlias || undefined}`,
+          slug: trimmedAlias ?? undefined,
           base_url: trimmedBaseUrl,
         })
       } catch (error) {
@@ -109,10 +112,15 @@ function AbstractForm({
         )}
       />
 
-      <form.AppField
-        name="slug"
-        children={(field) => <field.TextField label="Alias / prefix" placeholder="e.g. kei-ai" />}
-      />
+      {/* Slug is immutable after create — accounts and chain steps reference
+          the provider by slug, so PATCH ignores it. Only offer the alias
+          field on create. */}
+      {!isEdit ? (
+        <form.AppField
+          name="slug"
+          children={(field) => <field.TextField label="Alias / prefix" placeholder="e.g. kei-ai" />}
+        />
+      ) : null}
     </SimpleAlertScrollableDialogForm>
   )
 }
@@ -120,9 +128,14 @@ function AbstractForm({
 type AddCustomProviderFormProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** Prefilled fields for guided connects, e.g. the catalog's custom-openai / custom-anthropic cards. */
+  preset?: {
+    slug?: string
+    api_kind?: string
+  }
 }
 
-export function AddCustomProviderForm({ open, onOpenChange }: AddCustomProviderFormProps) {
+export function AddCustomProviderForm({ open, onOpenChange, preset }: AddCustomProviderFormProps) {
   const mutation = useMutation(queries.providers.customCreate())
 
   return (
@@ -131,9 +144,9 @@ export function AddCustomProviderForm({ open, onOpenChange }: AddCustomProviderF
       onOpenChange={onOpenChange}
       defaultValues={{
         name: '',
-        api_kind: 'openai',
+        api_kind: preset?.api_kind ?? 'openai',
         base_url: '',
-        slug: '',
+        slug: preset?.slug ?? '',
       }}
       schema={CustomProviderSchema}
       mutation={mutation}

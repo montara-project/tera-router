@@ -101,13 +101,60 @@ func (r *ProviderRepository) updateExec(ctx context.Context, p models.CustomProv
 	return requireAffected(res, "provider")
 }
 
-// Delete removes one custom provider.
-func (r *ProviderRepository) Delete(ctx context.Context, id string) error {
-	return r.deleteExec(ctx, id)
+// ProviderDeleteResult reports what one provider deletion removed. Accounts
+// carry credentials, so the count is worth surfacing to the operator.
+type ProviderDeleteResult struct {
+	Slug     string
+	Accounts int64
 }
 
-func (r *ProviderRepository) deleteExec(ctx context.Context, id string) error {
-	res, err := r.execContext(ctx, r.DB, `DELETE FROM custom_providers WHERE id = $1`, id)
+// Delete removes one custom provider together with everything scoped to it:
+// its accounts (credentials), its stored model catalog, and its per-model
+// pricing and capability overrides. The rows share no foreign key — accounts
+// reference the provider by slug — so the cascade is explicit and runs in one
+// transaction: a failure part-way leaves the provider intact rather than
+// half-deleted.
+//
+// Usage records are deliberately kept: they are the historical ledger, and
+// deleting a provider must not rewrite past spend.
+func (r *ProviderRepository) Delete(ctx context.Context, id string) (ProviderDeleteResult, error) {
+	provider, err := r.Get(ctx, id)
+	if err != nil {
+		return ProviderDeleteResult{}, err
+	}
+
+	var result ProviderDeleteResult
+	result.Slug = provider.Slug
+	err = r.withTx(ctx, func(tx Executor) error {
+		accounts, err := r.execAffected(ctx, tx, `DELETE FROM accounts WHERE provider = $1`, provider.Slug)
+		if err != nil {
+			return err
+		}
+		result.Accounts = accounts
+
+		if _, err := r.execAffected(ctx, tx,
+			`DELETE FROM model_pricing_overrides WHERE provider = $1`, provider.Slug); err != nil {
+			return err
+		}
+		if _, err := r.execAffected(ctx, tx,
+			`DELETE FROM model_capability_overrides WHERE provider = $1`, provider.Slug); err != nil {
+			return err
+		}
+		// The stored catalog is a settings row, not a table of its own.
+		if _, err := r.execAffected(ctx, tx,
+			`DELETE FROM settings WHERE key = $1`, ProviderModelsSettingsKey(provider.Slug)); err != nil {
+			return err
+		}
+		return r.deleteExec(ctx, tx, id)
+	})
+	if err != nil {
+		return ProviderDeleteResult{}, err
+	}
+	return result, nil
+}
+
+func (r *ProviderRepository) deleteExec(ctx context.Context, ex Executor, id string) error {
+	res, err := r.execContext(ctx, ex, `DELETE FROM custom_providers WHERE id = $1`, id)
 	if err != nil {
 		return err
 	}
