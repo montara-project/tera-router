@@ -128,12 +128,13 @@ export default function AliasCard({
                   value={field.state.value}
                   onChange={(e) => field.handleChange(e.target.value)}
                   onBlur={field.handleBlur}
+                  readOnly={!isNew}
                   placeholder="alias-name"
                   aria-label="Alias name"
                   aria-invalid={nameError !== ''}
                   className={`h-9 w-full max-w-xs rounded-md border bg-background px-3 font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                     nameError ? 'border-destructive/60' : 'border-border'
-                  }`}
+                  } ${!isNew ? 'cursor-default' : ''}`}
                 />
                 {nameError ? (
                   <p className="mt-1 text-xs text-destructive">{nameError}</p>
@@ -345,7 +346,11 @@ export default function AliasCard({
           >
             Delete
           </Button>
-        ) : null}
+        ) : (
+          <Button variant="outline" className="ml-auto" onClick={() => onClose?.()}>
+            Cancel
+          </Button>
+        )}
       </div>
 
       <SimpleAlertDialog
