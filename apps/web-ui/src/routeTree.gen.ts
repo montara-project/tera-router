@@ -32,6 +32,7 @@ import { Route as protectedsafetyProviderHealthIndexRouteImport } from './routes
 import { Route as protectedtrafficChainsIndexRouteImport } from './routes/(protected)/(traffic)/chains/index'
 import { Route as protectedtrafficEndpointsIndexRouteImport } from './routes/(protected)/(traffic)/endpoints/index'
 import { Route as protectedtrafficModelAliasIndexRouteImport } from './routes/(protected)/(traffic)/model-alias/index'
+import { Route as protectedtrafficPricingIndexRouteImport } from './routes/(protected)/(traffic)/pricing/index'
 import { Route as protectedtrafficSkillsIndexRouteImport } from './routes/(protected)/(traffic)/skills/index'
 
 const protectedRouteRoute = protectedRouteRouteImport.update({
@@ -166,6 +167,12 @@ const protectedtrafficModelAliasIndexRoute =
     path: '/model-alias/',
     getParentRoute: () => protectedRouteRoute,
   } as any)
+const protectedtrafficPricingIndexRoute =
+  protectedtrafficPricingIndexRouteImport.update({
+    id: '/(traffic)/pricing/',
+    path: '/pricing/',
+    getParentRoute: () => protectedRouteRoute,
+  } as any)
 const protectedtrafficSkillsIndexRoute =
   protectedtrafficSkillsIndexRouteImport.update({
     id: '/(traffic)/skills/',
@@ -196,6 +203,7 @@ export interface FileRoutesByFullPath {
   '/chains/': typeof protectedtrafficChainsIndexRoute
   '/endpoints/': typeof protectedtrafficEndpointsIndexRoute
   '/model-alias/': typeof protectedtrafficModelAliasIndexRoute
+  '/pricing/': typeof protectedtrafficPricingIndexRoute
   '/skills/': typeof protectedtrafficSkillsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -221,6 +229,7 @@ export interface FileRoutesByTo {
   '/chains': typeof protectedtrafficChainsIndexRoute
   '/endpoints': typeof protectedtrafficEndpointsIndexRoute
   '/model-alias': typeof protectedtrafficModelAliasIndexRoute
+  '/pricing': typeof protectedtrafficPricingIndexRoute
   '/skills': typeof protectedtrafficSkillsIndexRoute
 }
 export interface FileRoutesById {
@@ -248,6 +257,7 @@ export interface FileRoutesById {
   '/(protected)/(traffic)/chains/': typeof protectedtrafficChainsIndexRoute
   '/(protected)/(traffic)/endpoints/': typeof protectedtrafficEndpointsIndexRoute
   '/(protected)/(traffic)/model-alias/': typeof protectedtrafficModelAliasIndexRoute
+  '/(protected)/(traffic)/pricing/': typeof protectedtrafficPricingIndexRoute
   '/(protected)/(traffic)/skills/': typeof protectedtrafficSkillsIndexRoute
 }
 export interface FileRouteTypes {
@@ -275,6 +285,7 @@ export interface FileRouteTypes {
     | '/chains/'
     | '/endpoints/'
     | '/model-alias/'
+    | '/pricing/'
     | '/skills/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -300,6 +311,7 @@ export interface FileRouteTypes {
     | '/chains'
     | '/endpoints'
     | '/model-alias'
+    | '/pricing'
     | '/skills'
   id:
     | '__root__'
@@ -326,6 +338,7 @@ export interface FileRouteTypes {
     | '/(protected)/(traffic)/chains/'
     | '/(protected)/(traffic)/endpoints/'
     | '/(protected)/(traffic)/model-alias/'
+    | '/(protected)/(traffic)/pricing/'
     | '/(protected)/(traffic)/skills/'
   fileRoutesById: FileRoutesById
 }
@@ -499,6 +512,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof protectedtrafficModelAliasIndexRouteImport
       parentRoute: typeof protectedRouteRoute
     }
+    '/(protected)/(traffic)/pricing/': {
+      id: '/(protected)/(traffic)/pricing/'
+      path: '/pricing'
+      fullPath: '/pricing/'
+      preLoaderRoute: typeof protectedtrafficPricingIndexRouteImport
+      parentRoute: typeof protectedRouteRoute
+    }
     '/(protected)/(traffic)/skills/': {
       id: '/(protected)/(traffic)/skills/'
       path: '/skills'
@@ -529,6 +549,7 @@ interface protectedRouteRouteChildren {
   protectedtrafficChainsIndexRoute: typeof protectedtrafficChainsIndexRoute
   protectedtrafficEndpointsIndexRoute: typeof protectedtrafficEndpointsIndexRoute
   protectedtrafficModelAliasIndexRoute: typeof protectedtrafficModelAliasIndexRoute
+  protectedtrafficPricingIndexRoute: typeof protectedtrafficPricingIndexRoute
   protectedtrafficSkillsIndexRoute: typeof protectedtrafficSkillsIndexRoute
 }
 
@@ -556,6 +577,7 @@ const protectedRouteRouteChildren: protectedRouteRouteChildren = {
   protectedtrafficChainsIndexRoute: protectedtrafficChainsIndexRoute,
   protectedtrafficEndpointsIndexRoute: protectedtrafficEndpointsIndexRoute,
   protectedtrafficModelAliasIndexRoute: protectedtrafficModelAliasIndexRoute,
+  protectedtrafficPricingIndexRoute: protectedtrafficPricingIndexRoute,
   protectedtrafficSkillsIndexRoute: protectedtrafficSkillsIndexRoute,
 }
 
