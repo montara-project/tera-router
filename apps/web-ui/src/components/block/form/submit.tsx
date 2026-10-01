@@ -3,6 +3,7 @@
 import type { ButtonHTMLAttributes } from 'react'
 
 import { IconDeviceFloppy, IconLoader2 } from '@tabler/icons-react'
+import { useSelector } from '@tanstack/react-form'
 
 import { Button } from '@/components/ui/button'
 import { useFormContext } from '@/hooks/form-context'
@@ -21,24 +22,21 @@ export default function SubmitButton({
   ...props
 }: SubmitButtonProps) {
   const form = useFormContext()
+  const isSubmitting = useSelector(form.store, (state) => state.isSubmitting)
 
   return (
-    <form.Subscribe selector={(state) => state.isSubmitting}>
-      {(isSubmitting: boolean) => (
-        <Button
-          type="submit"
-          className={cn(
-            'text-off-white bg-obsidian-black hover:bg-obsidian-black/80 h-10 rounded-lg px-6 transition-colors',
-            className
-          )}
-          disabled={isSubmitting}
-          {...props}
-        >
-          {isSubmitting ? <IconLoader2 className="size-4 animate-spin" /> : null}
-          {Icon ? <Icon className="size-4" /> : null}
-          {label}
-        </Button>
+    <Button
+      type="submit"
+      className={cn(
+        'text-off-white bg-obsidian-black hover:bg-obsidian-black/80 h-10 rounded-lg px-6 transition-colors',
+        className
       )}
-    </form.Subscribe>
+      disabled={isSubmitting}
+      {...props}
+    >
+      {isSubmitting ? <IconLoader2 className="size-4 animate-spin" /> : null}
+      {Icon ? <Icon className="size-4" /> : null}
+      {label}
+    </Button>
   )
 }
