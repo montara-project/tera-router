@@ -1,4 +1,5 @@
 import { IconChevronDown, IconChevronUp, IconPlus, IconStack2, IconX } from '@tabler/icons-react'
+import { useSelector } from '@tanstack/react-form'
 import { useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import z from 'zod'
@@ -138,6 +139,7 @@ function ChainForm({ chain, onOpenChange }: ChainFormProps) {
   })
 
   const saving = createMutation.isPending || updateMutation.isPending
+  const isSubmitting = useSelector(form.store, (state) => state.isSubmitting)
 
   return (
     <form
@@ -336,13 +338,9 @@ function ChainForm({ chain, onOpenChange }: ChainFormProps) {
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <form.Subscribe selector={(state) => state.isSubmitting}>
-              {(isSubmitting: boolean) => (
-                <Button type="submit" disabled={isSubmitting || saving}>
-                  {isSubmitting || saving ? 'Saving…' : editing ? 'Save changes' : 'Create chain'}
-                </Button>
-              )}
-            </form.Subscribe>
+            <Button type="submit" disabled={isSubmitting || saving}>
+              {isSubmitting || saving ? 'Saving…' : editing ? 'Save changes' : 'Create chain'}
+            </Button>
           </div>
         </div>
       </div>

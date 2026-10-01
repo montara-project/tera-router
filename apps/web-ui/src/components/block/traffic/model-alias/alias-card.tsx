@@ -1,4 +1,5 @@
 import { IconChevronDown, IconChevronUp, IconPlus, IconReplace, IconX } from '@tabler/icons-react'
+import { useSelector } from '@tanstack/react-form'
 import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -104,6 +105,12 @@ export default function AliasCard({
     },
   })
 
+  const targetCount = useSelector(form.store, (s) => s.values.targets.length)
+  const saveDisabled = useSelector(
+    form.store,
+    (s) => !s.isDirty || s.values.targets.some(isPartialTarget)
+  )
+
   const remove = async () => {
     try {
       await removeMutation.mutateAsync(alias.name)
@@ -139,13 +146,9 @@ export default function AliasCard({
                 {nameError ? (
                   <p className="mt-1 text-xs text-destructive">{nameError}</p>
                 ) : (
-                  <form.Subscribe selector={(state) => state.values.targets.length}>
-                    {(count: number) => (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {count} target{count === 1 ? '' : 's'} in fallback order
-                      </p>
-                    )}
-                  </form.Subscribe>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {targetCount} target{targetCount === 1 ? '' : 's'} in fallback order
+                  </p>
                 )}
               </div>
             )
@@ -307,20 +310,14 @@ export default function AliasCard({
       </div>
 
       <div className="flex flex-wrap items-center gap-2 border-t border-border p-4">
-        <form.Subscribe
-          selector={(state) => !state.isDirty || state.values.targets.some(isPartialTarget)}
+        <Button
+          variant="outline"
+          disabled={saveDisabled || upsertMutation.isPending}
+          onClick={() => form.handleSubmit()}
+          className="h-10"
         >
-          {(disabled: boolean) => (
-            <Button
-              variant="outline"
-              disabled={disabled || upsertMutation.isPending}
-              onClick={() => form.handleSubmit()}
-              className="h-10"
-            >
-              Save pool
-            </Button>
-          )}
-        </form.Subscribe>
+          Save pool
+        </Button>
 
         <Button
           className={EMERALD_BUTTON_CLASS}
