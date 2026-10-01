@@ -128,10 +128,12 @@ func TestClassifyRefreshError(t *testing.T) {
 		t.Errorf("503 classified permanent: %+v", err)
 	}
 
-	// 401 from the token endpoint is permanent.
+	// 401 with no recognized error code is transient: a bare 401 does not
+	// prove the refresh token is dead (some auth servers answer 401 during
+	// outages), so it must not force re-authentication.
 	err = classifyRefreshError([]byte(`{}`), 401)
-	if !err.Permanent {
-		t.Errorf("401 classified transient: %+v", err)
+	if err.Permanent {
+		t.Errorf("401 classified permanent: %+v", err)
 	}
 }
 

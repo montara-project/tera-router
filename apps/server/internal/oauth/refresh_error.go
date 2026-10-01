@@ -76,22 +76,19 @@ func classifyRefreshError(body []byte, status int) *RefreshError {
 	}
 
 	// permanentCodes are OAuth error codes that indicate the refresh token
-	// itself is invalid and cannot be recovered.
+	// itself is invalid and cannot be recovered. Client- and consent-side
+	// codes (unauthorized_client, access_denied) are deliberately excluded:
+	// they do not prove the stored token is dead, and HTTP 401/403 alone is
+	// equally unreliable — some auth servers answer 401 for transient
+	// outages, and marking that permanent forces needless re-authentication.
 	permanentCodes := map[string]bool{
-		"token_revoked":       true,
-		"token_invalidated":   true,
-		"invalid_grant":       true,
-		"invalid_token":       true,
-		"unauthorized_client": true,
-		"access_denied":       true,
+		"token_revoked":     true,
+		"token_invalidated": true,
+		"invalid_grant":     true,
+		"invalid_token":     true,
 	}
 
 	permanent := permanentCodes[strings.ToLower(code)]
-
-	// 401/403 with a refresh error is almost always permanent.
-	if !permanent && (status == 401 || status == 403) {
-		permanent = true
-	}
 
 	// Transient: rate limiting or server errors.
 	if status == 429 || status >= 500 {
