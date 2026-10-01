@@ -239,18 +239,13 @@ func (s *UpstreamService) ListModels(ctx context.Context, endpoint string, anthr
 // stay zero, and a pricing object without a usable prompt/completion rate
 // yields nil so it is treated as unpriced rather than free.
 func parseUpstreamPricing(raw map[string]json.RawMessage) *UpstreamPricing {
-	if len(raw) == 0 {
+	var p UpstreamPricing
+	var inputOK, outputOK bool
+	p.InputMicros, inputOK = usdPerTokenToMicros(raw["prompt"])
+	p.OutputMicros, outputOK = usdPerTokenToMicros(raw["completion"])
+	if !inputOK && !outputOK {
 		return nil
 	}
-	if _, hasPrompt := raw["prompt"]; !hasPrompt {
-		if _, hasCompletion := raw["completion"]; !hasCompletion {
-			return nil
-		}
-	}
-
-	var p UpstreamPricing
-	p.InputMicros, _ = usdPerTokenToMicros(raw["prompt"])
-	p.OutputMicros, _ = usdPerTokenToMicros(raw["completion"])
 	p.CacheReadMicros, _ = usdPerTokenToMicros(raw["input_cache_read"])
 	p.CacheWriteMicros, _ = usdPerTokenToMicros(raw["input_cache_write"])
 	return &p
