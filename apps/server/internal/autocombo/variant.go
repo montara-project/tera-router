@@ -58,18 +58,3 @@ func (v Variant) ChainName() string {
 	}
 	return "auto/" + string(v)
 }
-
-// ListedModels returns the model ids the gateway's /v1/models listing should
-// advertise for the auto-combo feature: the bare "auto" id plus every named
-// variant.
-func ListedModels() []string {
-	return []string{
-		"auto",
-		"auto/" + string(VariantCoding),
-		"auto/" + string(VariantFast),
-		"auto/" + string(VariantCheap),
-		"auto/" + string(VariantOffline),
-		"auto/" + string(VariantSmart),
-		"auto/" + string(VariantLKGP),
-	}
-}
