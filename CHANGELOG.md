@@ -3,6 +3,12 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [0.4.0](https://github.com/montara-project/tera-router/compare/v0.3.0...v0.4.0) (2026-10-01)
+
+### Features
+
+* model pricing overrides page + reasoning rates in catalog ([#20](https://github.com/montara-project/tera-router/issues/20)) ([aed0d6f](https://github.com/montara-project/tera-router/commit/aed0d6f8a05df32755c1a32a8ba77e93eca375ee))
+
 ## [0.3.0](https://github.com/montara-project/tera-router/compare/v0.2.0...v0.3.0) (2026-10-01)
 
 ### Features
