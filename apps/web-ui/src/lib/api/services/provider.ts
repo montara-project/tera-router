@@ -64,6 +64,15 @@ const resources = (): ProviderResources => {
       const url = `${path}/${slug}/models/sync`
       return api.post(url)
     },
+    /** catalog-provider stored catalog with per-model states; server-side search + paging */
+    modelsList: (slug, params) => {
+      const url = `${path}/${slug}/models`
+      return api.get(url, { params })
+    },
+    modelsUpdate: (slug, payload) => {
+      const url = `${path}/${slug}/models`
+      return api.patch(url, payload)
+    },
     /** provider-scoped bulk account operations (provider slug as :id) */
     accountsBulkDisable: (slug) => {
       const url = `${path}/${slug}/accounts/disable-all`

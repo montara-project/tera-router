@@ -25,6 +25,7 @@ import type { Models } from '@/lib/api/models'
 import SectionCard from '@/components/block/common/section-card'
 import SimpleAlertDialog from '@/components/block/common/simple-alert-dialog'
 import { fmtLatency } from '@/components/block/cost-analytics/usage/format'
+import { API_KEY_PROVIDERS, OAUTH_PROVIDERS } from '@/components/block/providers/catalog-connect'
 import { AddCustomProviderApiKeyForm } from '@/components/block/providers/form-provider-api-key'
 import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
 import { Badge, BadgeDot } from '@/components/ui/badge'
@@ -96,8 +97,35 @@ function CustomProviderDetailRoute() {
   const [testingId, setTestingId] = useState<string | null>(null)
   const [testingAll, setTestingAll] = useState(false)
 
-  const providerQuery = useQuery(queries.providers.customGet(providerId))
-  const provider = providerQuery.data
+  // Catalog providers (openrouter, ollama, cline, …) carry a "prov-<slug>" id
+  // and load their identity from the providers overview; custom providers
+  // come from the custom-provider table by uuid.
+  const isCatalogProvider = providerId.startsWith('prov-')
+  const catalogSlug = isCatalogProvider ? providerId.slice('prov-'.length) : ''
+
+  const providerQuery = useQuery({
+    ...queries.providers.customGet(providerId),
+    enabled: !isCatalogProvider,
+  })
+  const overviewQuery = useQuery(queries.providers.list())
+  const catalogView = useMemo(() => {
+    if (!isCatalogProvider) return null
+    const overview = overviewQuery.data?.data
+    return (
+      [...(overview?.connected ?? []), ...(overview?.available ?? [])].find(
+        (item) => item.id === providerId
+      ) ?? null
+    )
+  }, [overviewQuery.data, isCatalogProvider, providerId])
+
+  const provider = isCatalogProvider ? null : providerQuery.data
+  const providerName = isCatalogProvider ? catalogView?.name : provider?.name
+  const slug = isCatalogProvider ? catalogSlug : provider?.slug
+  const apiKind = isCatalogProvider ? catalogView?.api_kind : provider?.api_kind
+  const dialectLabel = apiKind === 'anthropic' ? 'Anthropic-compatible' : 'OpenAI-compatible'
+  const isOAuthProvider = isCatalogProvider && OAUTH_PROVIDERS[catalogSlug] !== undefined
+  const catalogAuthKind = isCatalogProvider ? API_KEY_PROVIDERS[catalogSlug]?.authKind : undefined
+
   const accountQuery = useQuery(queries.accounts.list({ offset: 0, limit: 100 }))
   const chainsQuery = useQuery(queries.chains.list({ offset: 0, limit: 100 }))
   const usageQuery = useQuery(queries.usage.telemetry('30d'))
@@ -108,23 +136,24 @@ function CustomProviderDetailRoute() {
   const deleteAccountMutation = useMutation(queries.accounts.delete())
   const syncModelsMutation = useMutation(queries.providers.customModelsSync(providerId))
   const updateModelsMutation = useMutation(queries.providers.customModelsUpdate(providerId))
+  const catalogSyncMutation = useMutation(queries.providers.catalogModelsSync(catalogSlug))
+  const catalogUpdateMutation = useMutation(queries.providers.catalogModelsUpdate(catalogSlug))
 
   const accounts = useMemo(
-    () => (accountQuery.data?.data ?? []).filter((account) => account.provider === provider?.slug),
-    [accountQuery.data, provider?.slug]
+    () => (accountQuery.data?.data ?? []).filter((account) => account.provider === slug),
+    [accountQuery.data, slug]
   )
   const models = useMemo(() => {
     const rows = usageQuery.data?.modelAccounting ?? []
-    return rows.filter((row) => row.provider.toLowerCase() === provider?.slug.toLowerCase())
-  }, [usageQuery.data, provider?.slug])
+    return rows.filter((row) => row.provider.toLowerCase() === slug?.toLowerCase())
+  }, [usageQuery.data, slug])
   const chains = useMemo(
     () =>
       (chainsQuery.data?.data ?? []).filter(
         (chain) =>
-          chain.steps.some((step) => step.provider === provider?.slug) ||
-          chain.fallback_provider === provider?.slug
+          chain.steps.some((step) => step.provider === slug) || chain.fallback_provider === slug
       ),
-    [chainsQuery.data, provider?.slug]
+    [chainsQuery.data, slug]
   )
 
   const invalidate = async () => {
@@ -225,7 +254,9 @@ function CustomProviderDetailRoute() {
 
   const syncCatalog = async () => {
     try {
-      const result = await syncModelsMutation.mutateAsync()
+      const result = isCatalogProvider
+        ? await catalogSyncMutation.mutateAsync()
+        : await syncModelsMutation.mutateAsync()
       const priced = result.data.priced
       toast.success(
         `Synced ${result.data.models.length} models from upstream` +
@@ -236,14 +267,13 @@ function CustomProviderDetailRoute() {
     }
   }
 
-  if (providerQuery.isLoading) return <DetailSkeleton />
+  if (isCatalogProvider ? overviewQuery.isLoading : providerQuery.isLoading) {
+    return <DetailSkeleton />
+  }
 
-  if (providerQuery.isError || !provider) {
+  if (isCatalogProvider ? !catalogView : providerQuery.isError || !provider) {
     return (
-      <SectionCard
-        title="Provider not found"
-        description="This custom provider may have been removed."
-      >
+      <SectionCard title="Provider not found" description="This provider may have been removed.">
         <Button asChild variant="outline">
           <Link to="/providers">
             <IconArrowLeft />
@@ -265,8 +295,8 @@ function CustomProviderDetailRoute() {
   return (
     <div className="space-y-4">
       <SectionCard
-        title={provider.name}
-        description={`${provider.slug} · ${provider.api_kind === 'anthropic' ? 'Anthropic-compatible' : 'OpenAI-compatible'}`}
+        title={providerName ?? ''}
+        description={`${slug} · ${dialectLabel}`}
         toolbar={
           <Button asChild variant="outline" size="sm">
             <Link to="/providers">
@@ -278,54 +308,81 @@ function CustomProviderDetailRoute() {
       >
         <div className="space-y-5">
           <div className="flex flex-wrap items-center gap-4">
-            <ProviderAvatar slug={provider.slug} apiKind={provider.api_kind} size="lg" />
+            <ProviderAvatar slug={slug ?? ''} apiKind={apiKind} size="lg" />
             <div className="flex flex-wrap items-center gap-2">
-              <Badge
-                variant={provider.enabled ? 'success' : 'secondary'}
-                appearance="light"
-                size="sm"
-              >
-                <BadgeDot />
-                {provider.enabled ? 'Enabled' : 'Disabled'}
-              </Badge>
-              <Badge variant="outline" size="sm">
-                Custom
-              </Badge>
+              {isCatalogProvider ? (
+                <Badge variant="outline" size="sm">
+                  Catalog
+                </Badge>
+              ) : (
+                <>
+                  <Badge
+                    variant={provider?.enabled ? 'success' : 'secondary'}
+                    appearance="light"
+                    size="sm"
+                  >
+                    <BadgeDot />
+                    {provider?.enabled ? 'Enabled' : 'Disabled'}
+                  </Badge>
+                  <Badge variant="outline" size="sm">
+                    Custom
+                  </Badge>
+                </>
+              )}
               <span className="text-xs text-muted-foreground">
                 {accountCount} {accountCount === 1 ? 'account' : 'accounts'} ·{' '}
                 {providerModels.length} observed models
               </span>
             </div>
             <div className="ml-auto flex flex-wrap items-center gap-2">
-              <Button className={AMBER_BUTTON_CLASS} onClick={() => setAccountOpen(true)}>
-                <IconPlus /> Add API key
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => handleToggleProvider(!provider.enabled)}
-                disabled={toggleProviderMutation.isPending}
-              >
-                <IconSettings />
-                {provider.enabled ? 'Disable' : 'Enable'}
-              </Button>
-              <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
-                <IconTrash /> Delete
-              </Button>
+              {!isOAuthProvider ? (
+                <Button className={AMBER_BUTTON_CLASS} onClick={() => setAccountOpen(true)}>
+                  <IconPlus /> Add API key
+                </Button>
+              ) : null}
+              {!isCatalogProvider && provider ? (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => handleToggleProvider(!provider.enabled)}
+                    disabled={toggleProviderMutation.isPending}
+                  >
+                    <IconSettings />
+                    {provider.enabled ? 'Disable' : 'Enable'}
+                  </Button>
+                  <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
+                    <IconTrash /> Delete
+                  </Button>
+                </>
+              ) : null}
             </div>
           </div>
 
           <div className="grid gap-3 md:grid-cols-3">
-            <SummaryTile label="Base URL" value={provider.base_url} mono />
-            <SummaryTile
-              label="Dialect"
-              value={
-                provider.api_kind === 'anthropic' ? 'Anthropic-compatible' : 'OpenAI-compatible'
-              }
-            />
-            <SummaryTile
-              label="Accounts"
-              value={`${activeAccounts} active · ${accounts.length - activeAccounts} disabled`}
-            />
+            {isCatalogProvider ? (
+              <>
+                <SummaryTile label="Dialect" value={dialectLabel} />
+                <SummaryTile
+                  label="Auth"
+                  value={
+                    isOAuthProvider ? 'OAuth' : catalogAuthKind === 'none' ? 'None' : 'API key'
+                  }
+                />
+                <SummaryTile
+                  label="Accounts"
+                  value={`${activeAccounts} active · ${accounts.length - activeAccounts} disabled`}
+                />
+              </>
+            ) : (
+              <>
+                <SummaryTile label="Base URL" value={provider?.base_url ?? ''} mono />
+                <SummaryTile label="Dialect" value={dialectLabel} />
+                <SummaryTile
+                  label="Accounts"
+                  value={`${activeAccounts} active · ${accounts.length - activeAccounts} disabled`}
+                />
+              </>
+            )}
           </div>
 
           <Tabs value={tab} onValueChange={setTab}>
@@ -354,9 +411,11 @@ function CustomProviderDetailRoute() {
                         )}{' '}
                         Test all
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => setAccountOpen(true)}>
-                        <IconPlus /> Import keys
-                      </Button>
+                      {!isOAuthProvider ? (
+                        <Button size="sm" variant="outline" onClick={() => setAccountOpen(true)}>
+                          <IconPlus /> Import keys
+                        </Button>
+                      ) : null}
                     </div>
                   </CardToolbar>
                 </CardHeader>
@@ -494,18 +553,25 @@ function CustomProviderDetailRoute() {
 
             <TabsContent value="models" className="mt-4">
               <ModelsPanel
+                variant={isCatalogProvider ? 'catalog' : 'custom'}
                 providerId={providerId}
-                providerSlug={provider.slug}
+                providerSlug={slug ?? ''}
                 observed={providerModels}
                 observedLoading={usageQuery.isLoading}
-                syncing={syncModelsMutation.isPending}
+                syncing={
+                  isCatalogProvider ? catalogSyncMutation.isPending : syncModelsMutation.isPending
+                }
                 onSync={syncCatalog}
-                onUpdate={updateModelsMutation.mutateAsync}
+                onUpdate={
+                  isCatalogProvider
+                    ? catalogUpdateMutation.mutateAsync
+                    : updateModelsMutation.mutateAsync
+                }
               />
             </TabsContent>
 
             <TabsContent value="routing" className="mt-4">
-              <RoutingPanel chains={chains} loading={chainsQuery.isLoading} slug={provider.slug} />
+              <RoutingPanel chains={chains} loading={chainsQuery.isLoading} slug={slug ?? ''} />
             </TabsContent>
           </Tabs>
         </div>
@@ -514,18 +580,21 @@ function CustomProviderDetailRoute() {
       <AddCustomProviderApiKeyForm
         open={accountOpen}
         onOpenChange={setAccountOpen}
-        provider={provider}
+        provider={{ slug: slug ?? '', name: providerName ?? '' }}
+        authKind={catalogAuthKind}
       />
 
-      <SimpleAlertDialog
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-        title="Delete custom provider?"
-        description={`Delete ${provider.name}? This permanently removes the provider, its ${accountCount} ${accountCount === 1 ? 'API key' : 'API keys'}, stored model catalog, and pricing overrides. Usage history is kept.`}
-        confirmText="Delete provider"
-        onConfirm={handleDeleteProvider}
-        variant="destructive"
-      />
+      {!isCatalogProvider ? (
+        <SimpleAlertDialog
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          title="Delete custom provider?"
+          description={`Delete ${providerName}? This permanently removes the provider, its ${accountCount} ${accountCount === 1 ? 'API key' : 'API keys'}, stored model catalog, and pricing overrides. Usage history is kept.`}
+          confirmText="Delete provider"
+          onConfirm={handleDeleteProvider}
+          variant="destructive"
+        />
+      ) : null}
       <SimpleAlertDialog
         open={deleteAccountId !== null}
         onOpenChange={(open) => !open && setDeleteAccountId(null)}
@@ -563,6 +632,7 @@ function SummaryTile({
 }
 
 function ModelsPanel({
+  variant,
   providerId,
   providerSlug,
   observed,
@@ -571,6 +641,8 @@ function ModelsPanel({
   onSync,
   onUpdate,
 }: {
+  /** catalog providers are keyed by slug; customs by their uuid */
+  variant: 'catalog' | 'custom'
   providerId: string
   providerSlug: string
   observed: Models.UsageModelAccountingRow[]
@@ -598,7 +670,9 @@ function ModelsPanel({
   }
 
   const catalogQuery = useQuery(
-    queries.providers.customModels(providerId, { search, offset, limit })
+    variant === 'catalog'
+      ? queries.providers.catalogModels(providerSlug, { search, offset, limit })
+      : queries.providers.customModels(providerId, { search, offset, limit })
   )
   const catalog = catalogQuery.data?.data ?? null
 
