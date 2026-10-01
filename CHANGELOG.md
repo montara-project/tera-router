@@ -3,6 +3,52 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [0.2.0](https://github.com/montara-project/tera-router/compare/v0.1.2...v0.2.0) (2026-10-01)
+
+### Features
+
+* add autocombo dan model upstream ([9585869](https://github.com/montara-project/tera-router/commit/95858694e1c7d78214c30009fd29c92681ad8869))
+* **server:** add compiled-in model pricing fallback ([32a49b8](https://github.com/montara-project/tera-router/commit/32a49b85f056015017c85e0e59b2b9e5e442613c))
+* **server:** add OAuth connect flows for claude and codex ([cbb1fa5](https://github.com/montara-project/tera-router/commit/cbb1fa5996446816e5a56157bf4280064d6fe384))
+* **server:** integrate OpenRouter, Ollama, and Cline accounts ([bf9a2d1](https://github.com/montara-project/tera-router/commit/bf9a2d1224e19e5ccb3111a9b3536a3dccfe14dc))
+* **web-ui:** prefill custom provider form from Connect ([0659d82](https://github.com/montara-project/tera-router/commit/0659d82d8803084c570deb319dc359dc72c71c78))
+* **web-ui:** show the signed-in user in the sidebar nav ([bcbeb3f](https://github.com/montara-project/tera-router/commit/bcbeb3f9b5df4621b91f051763231c523f704709))
+* **web-ui:** use real brand marks for provider avatars ([18c7c77](https://github.com/montara-project/tera-router/commit/18c7c77f476de5c43db925362395b8fa66db49d8))
+* **web-ui:** wire chains page to the chains API ([5c456ec](https://github.com/montara-project/tera-router/commit/5c456ec22c8055139e6c5ca9d510b2b3e902eb2c))
+* **web-ui:** wire provider connect flows to the dashboard ([458e29e](https://github.com/montara-project/tera-router/commit/458e29e2d09e87de2695cb81b14031f6d79845f0))
+
+### Bug Fixes
+
+* minor form.Subscribe button ([bd434b6](https://github.com/montara-project/tera-router/commit/bd434b6246d1b0dab046b3ebb788acc025e4eeb8))
+* **server:** derive provider spend totals from per-model costs ([3ea505d](https://github.com/montara-project/tera-router/commit/3ea505d0c874a08a2b24d010f76d726820377507))
+* **server:** drop unsupported media providers from the console catalog ([a1b0d75](https://github.com/montara-project/tera-router/commit/a1b0d757b9bf7391a2f59b0eec52ff07b9f8ec3d))
+* **server:** gate auto-combo candidates by the provider model catalog ([4dd2c63](https://github.com/montara-project/tera-router/commit/4dd2c63a9dd07400c6919f5ec271083dbcb68d94))
+* **server:** harden OAuth reconnect, popup HTML, and callback timeouts ([44bc30e](https://github.com/montara-project/tera-router/commit/44bc30e02c3e6211ebe08fdbff67e81ad7d93c95))
+* **server:** map duplicate chain names to a 409 conflict ([4c2e20b](https://github.com/montara-project/tera-router/commit/4c2e20b52a1f5aee54c4425f7dd3ec9cf3019a85))
+* **server:** narrow OAuth refresh permanence to token-invalid codes ([cf1ef52](https://github.com/montara-project/tera-router/commit/cf1ef52e260b6190cf4b9b60e4366853c792de01))
+* **server:** normalize custom provider api_kind before the sync dialect check ([4641197](https://github.com/montara-project/tera-router/commit/46411978aa99b24027e235ec041543880fa8f0c7))
+* **server:** serialize model catalog read-modify-write per provider ([9cc32a4](https://github.com/montara-project/tera-router/commit/9cc32a45abc33c03424c280731e80a788e16c5e7))
+* **server:** treat upstream pricing without usable rates as unpriced ([c24dbdd](https://github.com/montara-project/tera-router/commit/c24dbdd59d24d62fdb3dc11fdc2f0e5069ecc690))
+* update allowed ip for rate limit ([c7ddc99](https://github.com/montara-project/tera-router/commit/c7ddc99c84335a4db04d983bc2fc3f8d5fa2d14d))
+* update catalog ([0c303f2](https://github.com/montara-project/tera-router/commit/0c303f2a41970681017d02ee7b5858f11cc245c4))
+* update minor ([ac8d7fa](https://github.com/montara-project/tera-router/commit/ac8d7fa1bd9577004fc1d92c6cfeeaecfb50878d))
+* update model alias ([38cb121](https://github.com/montara-project/tera-router/commit/38cb121ef0d13e8df7572810067a44ac6849330d))
+* update model price upstream ([6d2ee20](https://github.com/montara-project/tera-router/commit/6d2ee203f1325c385d6248e933966b0be098b13b))
+* update model pricing ([b2035c1](https://github.com/montara-project/tera-router/commit/b2035c1f23307f2e9496f006f34c5fa35259af19))
+* update provider ([3340002](https://github.com/montara-project/tera-router/commit/33400022814c931ff0c5f55a84436c0f96ac2979))
+* update provider catalog ([5537ce6](https://github.com/montara-project/tera-router/commit/5537ce640ce0f3821e896bbc1d2f301d381dd650))
+* update provider catalog price ([5b489c0](https://github.com/montara-project/tera-router/commit/5b489c089134a028e014fa5b23a03c1dbda4aad1))
+* update provider custom ([c0f388a](https://github.com/montara-project/tera-router/commit/c0f388a5739970a0a4b34ba759dfc1ce19130b63))
+* update provider detail ([67246c4](https://github.com/montara-project/tera-router/commit/67246c460192cd127ed8bea6d0d62d15f8434ac0))
+* update search debounce ([4aa4120](https://github.com/montara-project/tera-router/commit/4aa4120aa7499b9ae356a2130335a6db1d9a2ade))
+* update spa broken & sync models ([d6c9c07](https://github.com/montara-project/tera-router/commit/d6c9c0751dd2bc67653b518368fe549f81ec1de1))
+* update trusted proxies ([ce5e730](https://github.com/montara-project/tera-router/commit/ce5e730e9411dad8f4304f03cb2b7c2068e645bb))
+* **web-ui:** make alias names read-only on edit and add draft cancel ([a3866fe](https://github.com/montara-project/tera-router/commit/a3866fe614d5a8a200260d44de85daffc0f053df))
+* **web-ui:** re-type form.Subscribe render-prop params ([2ce4854](https://github.com/montara-project/tera-router/commit/2ce4854b12b5f5eabbeb5c57e4038d985047276c))
+* **web-ui:** restore explicit types on form.Subscribe render props ([91bde7a](https://github.com/montara-project/tera-router/commit/91bde7ae4ee7cd992beea85431ad004090b21309))
+* **web-ui:** retry profile errors and reset chains pagination on filter ([a309047](https://github.com/montara-project/tera-router/commit/a309047f29730461dc4abf420c0f3da318229710))
+* **web-ui:** type form.Subscribe render-prop params ([9035963](https://github.com/montara-project/tera-router/commit/9035963c66080e240ae6d3586243c3241ceb1e26))
+
 ## [0.1.2](https://github.com/montara-project/tera-router/compare/v0.1.1...v0.1.2) (2026-09-30)
 
 ### Bug Fixes
