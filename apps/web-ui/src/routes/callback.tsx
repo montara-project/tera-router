@@ -64,7 +64,8 @@ function OAuthCallbackRoute() {
   }, [])
 
   const tone = status === 'success' ? '#22c55e' : status === 'error' ? '#ef4444' : '#fafafa'
-  const title = status === 'success' ? 'Connected' : status === 'error' ? 'Sign-in failed' : 'Signing in…'
+  const title =
+    status === 'success' ? 'Connected' : status === 'error' ? 'Sign-in failed' : 'Signing in…'
 
   return (
     <div
@@ -79,7 +80,9 @@ function OAuthCallbackRoute() {
       }}
     >
       <div style={{ textAlign: 'center' }}>
-        <p style={{ fontSize: 18, fontWeight: 600, color: status === 'working' ? '#fafafa' : tone }}>
+        <p
+          style={{ fontSize: 18, fontWeight: 600, color: status === 'working' ? '#fafafa' : tone }}
+        >
           {title}
         </p>
         <p style={{ color: '#a1a1aa', fontSize: 14 }}>{message}</p>

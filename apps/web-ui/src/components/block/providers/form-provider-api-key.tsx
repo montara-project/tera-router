@@ -87,7 +87,9 @@ function AbstractForm({
       ) : (
         <form.AppField
           name="api_key"
-          children={(field) => <field.PasswordField label="API Key" placeholder="sk-..." asterisk />}
+          children={(field) => (
+            <field.PasswordField label="API Key" placeholder="sk-..." asterisk />
+          )}
         />
       )}
 

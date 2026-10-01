@@ -32,11 +32,7 @@ export function useOAuthConnect() {
       const authorizeURL = res.data.data.authorize_url
 
       sessionStorage.setItem(PROVIDER_STORAGE_KEY, provider)
-      const popup = window.open(
-        authorizeURL,
-        'tera-oauth',
-        'width=560,height=760,popup=yes'
-      )
+      const popup = window.open(authorizeURL, 'tera-oauth', 'width=560,height=760,popup=yes')
       if (!popup) {
         toast.error('Popup blocked — allow popups for this site and try again.')
         return
