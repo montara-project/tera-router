@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"html"
 	"net"
 	"net/http"
 	"net/url"
@@ -219,7 +220,12 @@ func (h *oauthHandler) persistAccount(ctx context.Context, actor, provider, labe
 	if existing != nil {
 		existing.Label = acc.Label
 		existing.Token = acc.Token
-		existing.Refresh = acc.Refresh
+		// A grant re-consent may come back without a refresh token; keeping
+		// the stored one preserves the ability to refresh the new access
+		// token.
+		if !acc.Refresh.Empty() {
+			existing.Refresh = acc.Refresh
+		}
 		existing.TokenExpiresAt = acc.TokenExpiresAt
 		existing.Metadata = acc.Metadata
 		existing.NeedsReconnect = false
@@ -329,7 +335,23 @@ func (h *oauthHandler) ensureLoopback(cfg oauth.ProviderConfig) (int, error) {
 		path = "/callback"
 	}
 	mux.HandleFunc("GET "+path, h.loopbackCallback)
-	srv := &http.Server{Handler: mux, ReadHeaderTimeout: 5 * time.Second}
+	// The callback handler can block up to httpClientTimeout in the token
+	// exchange before writing, so WriteTimeout must exceed it or slow/awkward
+	// clients would see the response cut off; the other limits just stop
+	// abandoned connections from lingering on this process-lifetime listener.
+	const (
+		readTimeout       = 10 * time.Second
+		writeTimeout      = 60 * time.Second
+		idleTimeout       = 60 * time.Second
+		readHeaderTimeout = 5 * time.Second
+	)
+	srv := &http.Server{
+		Handler:           mux,
+		ReadTimeout:       readTimeout,
+		ReadHeaderTimeout: readHeaderTimeout,
+		WriteTimeout:      writeTimeout,
+		IdleTimeout:       idleTimeout,
+	}
 
 	var lastErr error
 	for _, port := range ports {
@@ -399,6 +421,9 @@ func renderOAuthPopupResult(status, msg string) string {
 	if status == "error" {
 		title = "Sign-in failed"
 	}
+	// The message can echo provider-controlled error strings, so it is
+	// escaped for the HTML text nodes; the JSON payload is embedded in the
+	// script, where json.Marshal's escaping already applies, and stays raw.
 	return fmt.Sprintf(`<!doctype html>
 <html>
 <head><meta charset="utf-8"><title>%s — Tera Router</title></head>
@@ -413,7 +438,7 @@ try { if (window.opener) window.opener.postMessage(%s, "*"); } catch (e) {}
 setTimeout(function () { window.close(); }, 800);
 </script>
 </body>
-</html>`, title, title, msg, payload)
+</html>`, html.EscapeString(title), html.EscapeString(title), html.EscapeString(msg), payload)
 }
 
 // validateOAuthRedirect restricts the browser-facing callback target: https
