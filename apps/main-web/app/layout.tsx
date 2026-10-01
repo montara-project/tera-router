@@ -17,6 +17,11 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <script
+          defer
+          src="https://analytics.masb0ymas.com/script.js"
+          data-website-id="aefcb7e9-8cd5-4504-9ab5-9070c29d33de"
+        ></script>
         <script dangerouslySetInnerHTML={{ __html: themeInit }} />
       </head>
       <body className="bg-canvas font-sans text-ink antialiased">{children}</body>
