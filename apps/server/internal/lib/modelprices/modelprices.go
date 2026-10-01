@@ -3,6 +3,9 @@
 // ported from the IDRouter reference (connectors/model_prices.go): override →
 // built-in table → zero, so every known model shows pricing on the Usage page
 // without manual setup. Operator rows in model_pricing_overrides always win.
+// Reasoning rates split the completion bill the same way the reference does:
+// when a model reports reasoning tokens inside its completion count, those
+// tokens price at ReasoningMicros instead of the output rate.
 //
 // Rates reuse the shared cost.Rates units: micros of USD per million tokens.
 package modelprices
@@ -33,6 +36,15 @@ func rates(in, out, cacheRead, cacheWrite float64) cost.Rates {
 	}
 }
 
+// reasoning returns r with the reasoning rate set (USD per million tokens).
+// Zero — the default from rates — bills the whole completion at the output
+// rate, so only the handful of models with a separate reasoning price need
+// this wrapper.
+func reasoning(r cost.Rates, perMillion float64) cost.Rates {
+	r.ReasoningMicros = usd(perMillion)
+	return r
+}
+
 // table is keyed by provider + "\x00" + model, matching the pricing-key
 // encoding used by the meter and the telemetry handlers.
 var table = buildTable()
@@ -52,11 +64,13 @@ func buildTable() map[string]cost.Rates {
 		{[]string{"openai", "codex"}, "gpt-4o-2024-08-06", rates(2.5, 10, 1.25, 2.5)},
 		{[]string{"openai", "codex"}, "gpt-4o-mini", rates(0.15, 0.6, 0.075, 0.15)},
 		{[]string{"openai", "codex"}, "gpt-4o-mini-2024-07-18", rates(0.15, 0.6, 0.075, 0.15)},
-		{[]string{"openai", "codex"}, "o1", rates(15, 60, 7.5, 15)},
-		{[]string{"openai", "codex"}, "o1-pro", rates(150, 600, 75, 150)},
-		{[]string{"openai", "codex"}, "o3", rates(2, 8, 0.5, 2)},
-		{[]string{"openai", "codex"}, "o3-mini", rates(1.1, 4.4, 0.55, 1.1)},
-		{[]string{"openai", "codex"}, "o4-mini", rates(1.1, 4.4, 0.275, 1.1)},
+		// o-series reasoning tokens bill at the output rate, stated explicitly
+		// so a future split keeps the current behavior.
+		{[]string{"openai", "codex"}, "o1", reasoning(rates(15, 60, 7.5, 15), 60)},
+		{[]string{"openai", "codex"}, "o1-pro", reasoning(rates(150, 600, 75, 150), 600)},
+		{[]string{"openai", "codex"}, "o3", reasoning(rates(2, 8, 0.5, 2), 8)},
+		{[]string{"openai", "codex"}, "o3-mini", reasoning(rates(1.1, 4.4, 0.55, 1.1), 4.4)},
+		{[]string{"openai", "codex"}, "o4-mini", reasoning(rates(1.1, 4.4, 0.275, 1.1), 4.4)},
 		// Older models (no prompt caching).
 		{[]string{"openai", "codex"}, "gpt-4-turbo", rates(10, 30, 0, 0)},
 		{[]string{"openai", "codex"}, "gpt-4", rates(30, 60, 0, 0)},
@@ -84,7 +98,7 @@ func buildTable() map[string]cost.Rates {
 		// DeepSeek.
 		{[]string{"deepseek"}, "deepseek-chat", rates(0.27, 1.1, 0.07, 0.27)},
 		{[]string{"deepseek"}, "deepseek-coder", rates(0.27, 1.1, 0.07, 0.27)},
-		{[]string{"deepseek"}, "deepseek-reasoner", rates(0.55, 2.19, 0.14, 0.55)},
+		{[]string{"deepseek"}, "deepseek-reasoner", reasoning(rates(0.55, 2.19, 0.14, 0.55), 2.19)},
 
 		// Gemini — cache write = standard input.
 		{[]string{"gemini"}, "gemini-2.5-pro", rates(1.25, 10, 0.3125, 1.25)},
@@ -112,7 +126,7 @@ func buildTable() map[string]cost.Rates {
 		// xAI.
 		{[]string{"xai"}, "grok-3", rates(3, 15, 0.75, 3)},
 		{[]string{"xai"}, "grok-3-fast", rates(5, 25, 1.25, 5)},
-		{[]string{"xai"}, "grok-3-mini", rates(0.3, 0.5, 0.075, 0.3)},
+		{[]string{"xai"}, "grok-3-mini", reasoning(rates(0.3, 0.5, 0.075, 0.3), 0.5)},
 		{[]string{"xai"}, "grok-2", rates(2, 10, 0.5, 2)},
 
 		// Perplexity.
@@ -143,9 +157,9 @@ func buildTable() map[string]cost.Rates {
 
 		// MiniMax.
 		{[]string{"minimax"}, "MiniMax-Text-01", rates(0.2, 1.1, 0, 0)},
-		{[]string{"minimax"}, "MiniMax-M1", rates(0.2, 1.1, 0, 0)},
+		{[]string{"minimax"}, "MiniMax-M1", reasoning(rates(0.2, 1.1, 0, 0), 1.1)},
 		{[]string{"minimax"}, "MiniMax-M2.5", rates(0.3, 1.1, 0, 0)},
-		{[]string{"minimax"}, "MiniMax-M3", rates(0.4, 1.6, 0, 0)},
+		{[]string{"minimax"}, "MiniMax-M3", reasoning(rates(0.4, 1.6, 0, 0), 1.6)},
 
 		// GLM.
 		{[]string{"glm"}, "glm-4-plus", rates(0.6, 0.6, 0, 0)},
