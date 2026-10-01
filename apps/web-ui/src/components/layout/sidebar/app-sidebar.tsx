@@ -24,9 +24,13 @@ import NavUser from './nav-user'
 type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
   /** The signed-in user from GET /v1/auth/me; undefined while it loads. */
   user?: Models.User | null
+  /** True when the profile request failed and no data is available. */
+  userError?: boolean
+  /** Refetches the profile request, wired to the error state's retry. */
+  onRetryUser?: () => void
 }
 
-export default function AppSidebar({ user, ...props }: AppSidebarProps) {
+export default function AppSidebar({ user, userError, onRetryUser, ...props }: AppSidebarProps) {
   const menu = getSidebarMenu()
 
   const userInfo: UserInfo | undefined = user
@@ -72,7 +76,7 @@ export default function AppSidebar({ user, ...props }: AppSidebarProps) {
         {menu.navSetting.length > 0 && <NavMain title="Settings" items={menu.navSetting} />}
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={userInfo} />
+        <NavUser user={userInfo} userError={userError} onRetryUser={onRetryUser} />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

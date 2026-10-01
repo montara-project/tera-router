@@ -1,6 +1,6 @@
 'use client'
 
-import { BadgeCheck, Bell, ChevronsUpDown, CreditCard, LogOut } from 'lucide-react'
+import { BadgeCheck, Bell, ChevronsUpDown, CreditCard, LogOut, RotateCcw } from 'lucide-react'
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -19,6 +19,10 @@ import { type UserInfo } from '@/types/menu'
 type NavUserProps = {
   /** The signed-in user; undefined while GET /v1/auth/me is loading. */
   user?: UserInfo
+  /** True when the profile request failed and no user data is available. */
+  userError?: boolean
+  /** Refetches the profile request, wired to the error state's retry. */
+  onRetryUser?: () => void
 }
 
 /** First letters of the first two name words, e.g. "Admin" → "AD". */
@@ -33,7 +37,7 @@ function getInitials(name: string) {
     .join('')
 }
 
-export default function NavUser({ user }: NavUserProps) {
+export default function NavUser({ user, userError, onRetryUser }: NavUserProps) {
   const handleSignOut = async () => {
     // TODO: Implement sign out logic
   }
@@ -41,6 +45,20 @@ export default function NavUser({ user }: NavUserProps) {
   const name = user?.name ?? ''
   const email = user?.email ?? ''
   const initials = getInitials(name)
+
+  if (userError) {
+    return (
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <div className="px-2 py-1.5 text-xs text-destructive">Couldn't load your profile.</div>
+          <SidebarMenuButton size="lg" onClick={onRetryUser}>
+            <RotateCcw />
+            <span>Try again</span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    )
+  }
 
   if (!user) {
     return (

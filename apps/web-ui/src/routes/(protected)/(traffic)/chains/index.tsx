@@ -1,6 +1,7 @@
 import { IconPlus } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
+import { useQueryState } from 'nuqs'
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
@@ -21,12 +22,30 @@ export const Route = createFileRoute('/(protected)/(traffic)/chains/')({
 
 function RouteComponent() {
   const { offset, limit, pageIndex } = usePaginationQuery()
+  // The pager writes ?page=<n> directly; clearing it returns to page 1.
+  const [, setPageParam] = useQueryState('page')
 
   const [search, setSearch] = useState('')
   const [strategy, setStrategy] = useState('all')
   const [status, setStatus] = useState('all')
   const [createOpen, setCreateOpen] = useState(false)
   const [editing, setEditing] = useState<Models.Chain | null>(null)
+
+  // A filter change shrinks the filtered set, so a page kept from the old
+  // results could be past the new last page and render empty.
+  const resetPage = () => void setPageParam(null)
+  const handleSearchChange = (value: string) => {
+    setSearch(value)
+    resetPage()
+  }
+  const handleStrategyChange = (value: string) => {
+    setStrategy(value)
+    resetPage()
+  }
+  const handleStatusChange = (value: string) => {
+    setStatus(value)
+    resetPage()
+  }
 
   const {
     data: chainData,
@@ -88,9 +107,9 @@ function RouteComponent() {
       <div className="space-y-4">
         <FilterChain
           search={search}
-          onSearchChange={setSearch}
-          onStrategyChange={setStrategy}
-          onStatusChange={setStatus}
+          onSearchChange={handleSearchChange}
+          onStrategyChange={handleStrategyChange}
+          onStatusChange={handleStatusChange}
         />
 
         <ReactTable
