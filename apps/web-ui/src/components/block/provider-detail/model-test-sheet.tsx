@@ -30,22 +30,23 @@ type TestMessage = {
 
 const SUGGESTIONS = ['Say hello in one short sentence.', 'Reply with exactly: OK']
 
-// Open/close choreography: the sheet slides on a damped spring, the overlay
-// cross-fades with it, and the panel contents rise in a small top-to-bottom
-// stagger once the panel is moving. Leaving is a touch faster than entering,
-// and MotionConfig (reducedMotion="user") drops the transforms for users who
+// Open/close choreography: the panel slides on the iOS-sheet decel curve
+// (deterministic timing reads steadier than a spring under heavy content),
+// the overlay cross-fades with it, and the panel contents rise in a small
+// top-to-bottom stagger. Leaving is a touch faster than entering, and
+// MotionConfig (reducedMotion="user") drops the transforms for users who
 // prefer reduced motion.
-const PANEL_ENTER: Transition = { type: 'spring', stiffness: 420, damping: 40 }
-const PANEL_EXIT: Transition = { duration: 0.25, ease: [0.4, 0, 1, 1] }
+const PANEL_ENTER: Transition = { duration: 0.32, ease: [0.32, 0.72, 0, 1] }
+const PANEL_EXIT: Transition = { duration: 0.24, ease: [0.4, 0, 1, 1] }
 const OVERLAY_ENTER: Transition = { duration: 0.2 }
 const OVERLAY_EXIT: Transition = { duration: 0.18 }
 
 const sectionRise: Variants = {
-  hidden: { opacity: 0, y: 10 },
+  hidden: { opacity: 0, y: 8 },
   shown: (step: number) => ({
     opacity: 1,
     y: 0,
-    transition: { delay: 0.05 + step * 0.05, duration: 0.3, ease: 'easeOut' },
+    transition: { delay: 0.03 + step * 0.04, duration: 0.25, ease: 'easeOut' },
   }),
 }
 
@@ -168,7 +169,7 @@ export default function ModelTestSheet({
                 showCloseButton={false}
                 showOverlay={false}
                 size={size}
-                className="gap-0 bg-background data-closed:animate-none data-open:animate-none data-[side=right]:w-full"
+                className="gap-0 bg-background transition-none transform-gpu data-closed:animate-none data-open:animate-none data-[side=right]:w-full"
               >
                 <motion.div
                   initial={{ x: '100%' }}
