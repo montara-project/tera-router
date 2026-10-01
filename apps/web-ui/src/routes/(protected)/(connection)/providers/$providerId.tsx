@@ -26,6 +26,7 @@ import SectionCard from '@/components/block/common/section-card'
 import SimpleAlertDialog from '@/components/block/common/simple-alert-dialog'
 import { fmtLatency } from '@/components/block/cost-analytics/usage/format'
 import { AddCustomProviderApiKeyForm } from '@/components/block/providers/form-provider-api-key'
+import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
 import { Badge, BadgeDot } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -80,15 +81,6 @@ function DetailSkeleton() {
         <Skeleton className="h-72 rounded-xl" />
       </div>
     </div>
-  )
-}
-
-function ProviderAvatar({ slug }: { slug: string }) {
-  const letter = slug.charAt(0).toUpperCase() || 'P'
-  return (
-    <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-lg font-bold text-amber-600 ring-1 ring-amber-500/20">
-      {letter}
-    </span>
   )
 }
 
@@ -286,7 +278,7 @@ function CustomProviderDetailRoute() {
       >
         <div className="space-y-5">
           <div className="flex flex-wrap items-center gap-4">
-            <ProviderAvatar slug={provider.slug} />
+            <ProviderAvatar slug={provider.slug} apiKind={provider.api_kind} size="lg" />
             <div className="flex flex-wrap items-center gap-2">
               <Badge
                 variant={provider.enabled ? 'success' : 'secondary'}
