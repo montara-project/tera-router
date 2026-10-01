@@ -3,11 +3,11 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { toast } from 'sonner'
 
+import EmptyState from '@/components/block/common/empty-state'
 import SectionCard from '@/components/block/common/section-card'
 import PlanCard from '@/components/block/plans/plan-card'
 import PlansStats from '@/components/block/plans/plans-stats'
 import { Button } from '@/components/ui/button'
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toastAxiosError } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
@@ -81,17 +81,11 @@ function RouteComponent() {
         </div>
 
         {plans.length === 0 ? (
-          <Empty className="py-14">
-            <EmptyHeader>
-              <EmptyMedia variant="icon" className="size-12 rounded-full">
-                <IconShieldCheck />
-              </EmptyMedia>
-              <EmptyTitle>No plans yet</EmptyTitle>
-              <EmptyDescription>
-                Create a plan to give API keys budget limits, rate limits, and model restrictions.
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
+          <EmptyState
+            icon={IconShieldCheck}
+            title="No plans yet"
+            description="Create a plan to give API keys budget limits, rate limits, and model restrictions."
+          />
         ) : (
           <div className="grid gap-4 lg:grid-cols-2">
             {plans.map((plan) => (

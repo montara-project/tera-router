@@ -33,6 +33,13 @@ export default async function RootLayout({
 
   return (
     <html lang={lang} suppressHydrationWarning>
+      <head>
+        <script
+          defer
+          src="https://analytics.masb0ymas.com/script.js"
+          data-website-id="682f23b6-27c4-4c88-b740-8f2cca76916e"
+        ></script>
+      </head>
       <body>
         <RootProvider i18n={i18nProvider(translations, lang)}>{children}</RootProvider>
       </body>
