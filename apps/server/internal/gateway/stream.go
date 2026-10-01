@@ -469,7 +469,7 @@ func (sw *streamWriter) record(ctx context.Context) {
 		ttft = sw.ttft()
 	}
 
-	rates := sw.srv.ratesFor(lookupCtx, sw.provider, sw.model)
+	rates, tokenRate := sw.srv.pricingFor(lookupCtx, sw.provider, sw.model)
 	cost := costMicros(rates, usage)
 
 	sw.srv.recordUsage(usageRecord{
@@ -481,6 +481,7 @@ func (sw *streamWriter) record(ctx context.Context) {
 		ClientIP:   sw.meta.ClientIP,
 		Usage:      usage,
 		CostMicros: cost,
+		TokenRate:  tokenRate,
 		Latency:    latency,
 		TTFT:       ttft,
 	})

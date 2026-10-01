@@ -21,32 +21,25 @@ import (
 // rate costs zero, which is the correct default for self-hosted and free-tier
 // endpoints.
 
-// pricingRates is one model's per-million-token rates in micros.
-type pricingRates struct {
-	InputMicros      int64
-	OutputMicros     int64
-	CacheReadMicros  int64
-	CacheWriteMicros int64
-}
-
 // costMicros computes the cost of a usage event in micros of USD through the
 // shared cost package, so the gateway's charge and the usage dashboard's
 // re-derived figures cannot drift apart.
-func costMicros(rates pricingRates, u core.Usage) int64 {
-	return cost.Micros(cost.Rates{
-		InputMicros:      rates.InputMicros,
-		OutputMicros:     rates.OutputMicros,
-		CacheReadMicros:  rates.CacheReadMicros,
-		CacheWriteMicros: rates.CacheWriteMicros,
-	}, int64(u.PromptTokens), int64(u.CachedTokens), int64(u.CacheWriteTokens), int64(u.CompletionTokens))
+func costMicros(rates cost.Rates, u core.Usage) int64 {
+	return cost.Micros(rates,
+		int64(u.PromptTokens), int64(u.CachedTokens), int64(u.CacheWriteTokens),
+		int64(u.CompletionTokens), int64(u.ReasoningTokens))
 }
 
-// ratesFor resolves the pricing for a provider/model pair. Operator overrides
-// win (per-model, then the provider-level row with an empty model); the
-// compiled-in retail table backs known models so usage shows a real cost
-// without manual setup. A miss yields zero rates, not an error: an unpriced
-// model is free.
-func (s *Server) ratesFor(ctx context.Context, provider, model string) pricingRates {
+// pricingFor resolves the pricing verdict for a provider/model pair: the cost
+// rates and the token-budget drain multiplier. Operator overrides win (per-
+// model, then the provider-level row with an empty model); the compiled-in
+// retail table backs known models so usage shows a real cost without manual
+// setup. A miss yields zero rates, not an error: an unpriced model is free.
+//
+// Only overrides carry a token rate — the retail table always drains 1:1. A
+// nil rate means "no override"; an override's explicit 0 means the model
+// drains no token budget at all.
+func (s *Server) pricingFor(ctx context.Context, provider, model string) (cost.Rates, *float64) {
 	override, err := s.app.Repos.Pricing.Get(ctx, provider, model)
 	if err != nil {
 		if !isNotFound(err) {
@@ -59,16 +52,18 @@ func (s *Server) ratesFor(ctx context.Context, provider, model string) pricingRa
 			s.log.Warn("gateway provider pricing lookup failed", "provider", provider, "error", err)
 		}
 		if rates, ok := modelprices.Lookup(provider, model); ok {
-			return pricingRates(rates)
+			return rates, nil
 		}
-		return pricingRates{}
+		return cost.Rates{}, nil
 	}
-	return pricingRates{
+	rates := cost.Rates{
 		InputMicros:      override.InputMicros,
 		OutputMicros:     override.OutputMicros,
 		CacheReadMicros:  override.CacheReadMicros,
 		CacheWriteMicros: override.CacheWriteMicros,
+		ReasoningMicros:  override.ReasoningMicros,
 	}
+	return rates, override.TokenConsumptionRate
 }
 
 // isNotFound reports whether an error is the repositories' typed not-found.
@@ -89,6 +84,9 @@ type usageRecord struct {
 	Usage core.Usage
 	// CostMicros is computed by the caller from the resolved rates.
 	CostMicros int64
+	// TokenRate snapshots the model's budget-drain multiplier (nil = 1:1) so
+	// budget sums stay stable across override retunes.
+	TokenRate  *float64
 	Latency    time.Duration
 	TTFT       time.Duration
 
@@ -115,6 +113,7 @@ func (s *Server) recordUsage(rec usageRecord) {
 		CacheWriteTokens: rec.Usage.CacheWriteTokens,
 		ReasoningTokens:  rec.Usage.ReasoningTokens,
 		CostMicros:       rec.CostMicros,
+		TokenConsumptionRate: rec.TokenRate,
 		LatencyMS:        int(rec.Latency.Milliseconds()),
 		TTFTMS:           int(rec.TTFT.Milliseconds()),
 		Failed:           rec.Failed,

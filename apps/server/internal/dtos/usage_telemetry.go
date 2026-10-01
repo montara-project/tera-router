@@ -180,7 +180,10 @@ type UsageTelemetryRequestRow struct {
 	ReasoningTokens int64   `json:"reasoningTokens"`
 	CostMicros      *int64  `json:"costMicros"`
 	CostNote        *string `json:"costNote"`
-	LatencyMs       int64   `json:"latencyMs"`
-	UpstreamMs      int64   `json:"upstreamMs"`
-	Time            string  `json:"time"`
+	// TokenConsumptionRate is the budget-drain multiplier snapshotted onto the
+	// row at request time; nil renders as 1:1. Cost is never scaled.
+	TokenConsumptionRate *float64 `json:"tokenConsumptionRate,omitempty"`
+	LatencyMs            int64    `json:"latencyMs"`
+	UpstreamMs           int64    `json:"upstreamMs"`
+	Time                 string   `json:"time"`
 }

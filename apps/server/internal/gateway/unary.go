@@ -147,7 +147,7 @@ func (s *Server) writeUnarySuccess(
 	if resp != nil {
 		usage = resp.Usage
 	}
-	rates := s.ratesFor(c.Context(), at.Target.Provider, at.Target.Model)
+	rates, tokenRate := s.pricingFor(c.Context(), at.Target.Provider, at.Target.Model)
 	cost := costMicros(rates, usage)
 	s.recordUsage(usageRecord{
 		APIKeyID:   meta.APIKeyID,
@@ -158,6 +158,7 @@ func (s *Server) writeUnarySuccess(
 		ClientIP:   meta.ClientIP,
 		Usage:      usage,
 		CostMicros: cost,
+		TokenRate:  tokenRate,
 		Latency:    latency,
 	})
 	s.logCompletion(meta, at.Target.Provider, at.Target.Model,

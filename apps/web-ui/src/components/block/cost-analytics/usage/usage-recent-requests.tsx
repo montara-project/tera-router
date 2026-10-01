@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 
-import { fmtCompact, fmtLatency, fmtMoney } from './format'
+import { fmtCompact, fmtLatency, fmtMoney, fmtRate } from './format'
 
 const COLUMNS = 'grid grid-cols-[1.1fr_1.6fr_1fr_1fr_1.1fr_1.1fr_0.7fr_0.7fr] items-center gap-4'
 const PAGE_SIZE = 10
@@ -133,6 +133,15 @@ export default function UsageRecentRequests({ rows }: RecentRequestsProps) {
                       <Badge variant="destructive" appearance="light" size="sm">
                         Missing price
                       </Badge>
+                    ) : null}
+                    {row.tokenConsumptionRate !== undefined &&
+                    row.tokenConsumptionRate !== null &&
+                    row.tokenConsumptionRate !== 1 ? (
+                      <p className="text-muted-foreground text-xs">
+                        {row.tokenConsumptionRate === 0
+                          ? 'free token budget'
+                          : `×${fmtRate(row.tokenConsumptionRate)} token budget`}
+                      </p>
                     ) : null}
                   </div>
 

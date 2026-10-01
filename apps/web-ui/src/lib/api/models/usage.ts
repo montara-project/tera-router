@@ -92,6 +92,8 @@ export type UsageTerminalRequestRow = {
   costMicros: number | null
   /** 'No billable usage' style note under cost */
   costNote: string | null
+  /** Budget-drain multiplier snapshotted at request time; absent = 1:1 */
+  tokenConsumptionRate?: number | null
   latencyMs: number
   upstreamMs: number
   time: string

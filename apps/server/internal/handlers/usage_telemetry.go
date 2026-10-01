@@ -193,6 +193,7 @@ func fillFallbackRates(rates map[string]models.PricingOverride, providerLevel ma
 				OutputMicros:     r.OutputMicros,
 				CacheReadMicros:  r.CacheReadMicros,
 				CacheWriteMicros: r.CacheWriteMicros,
+				ReasoningMicros:  r.ReasoningMicros,
 			}
 		}
 	}
@@ -210,7 +211,8 @@ func groupCost(g repositories.UsageGroup, o models.PricingOverride) int64 {
 		OutputMicros:     o.OutputMicros,
 		CacheReadMicros:  o.CacheReadMicros,
 		CacheWriteMicros: o.CacheWriteMicros,
-	}, g.PromptTokens, g.CachedTokens, g.CacheWriteTokens, g.CompletionTokens)
+		ReasoningMicros:  o.ReasoningMicros,
+	}, g.PromptTokens, g.CachedTokens, g.CacheWriteTokens, g.CompletionTokens, g.ReasoningTokens)
 }
 
 // providerCost returns the displayed cost of one provider group: its recorded
@@ -324,6 +326,9 @@ func formatRates(o models.PricingOverride) string {
 	}
 	if o.CacheWriteMicros != 0 {
 		parts = append(parts, fmt.Sprintf("$%s cache write", dollars(o.CacheWriteMicros)))
+	}
+	if o.ReasoningMicros != 0 {
+		parts = append(parts, fmt.Sprintf("$%s reasoning", dollars(o.ReasoningMicros)))
 	}
 	parts = append(parts, fmt.Sprintf("$%s out", dollars(o.OutputMicros)))
 	return strings.Join(parts, " · ")
@@ -439,9 +444,11 @@ func requestRows(records []models.UsageRecord, rates map[string]models.PricingOv
 					OutputMicros:     o.OutputMicros,
 					CacheReadMicros:  o.CacheReadMicros,
 					CacheWriteMicros: o.CacheWriteMicros,
-				}, int64(u.PromptTokens), int64(u.CachedTokens), int64(u.CacheWriteTokens), int64(u.CompletionTokens)))
+					ReasoningMicros:  o.ReasoningMicros,
+				}, int64(u.PromptTokens), int64(u.CachedTokens), int64(u.CacheWriteTokens), int64(u.CompletionTokens), int64(u.ReasoningTokens)))
 			}
 		}
+		row.TokenConsumptionRate = u.TokenConsumptionRate
 		out = append(out, row)
 	}
 	return out

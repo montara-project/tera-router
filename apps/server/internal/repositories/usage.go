@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
 	"tera-router/server/internal/models"
@@ -24,11 +25,11 @@ func (r *UsageRepository) insertExec(ctx context.Context, u models.UsageRecord) 
 	_, err := r.execContext(ctx, r.DB, `
 		INSERT INTO usage_records (api_key_id, account_id, provider, model, client, client_ip,
 			prompt_tokens, completion_tokens, cached_tokens, cache_write_tokens, reasoning_tokens,
-			cost_micros, cache_hit, latency_ms, ttft_ms, failed, error_kind, error_status, error_message, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)`,
+			cost_micros, token_consumption_rate, cache_hit, latency_ms, ttft_ms, failed, error_kind, error_status, error_message, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)`,
 		u.APIKeyID, u.AccountID, u.Provider, u.Model, u.Client, u.ClientIP,
 		u.PromptTokens, u.CompletionTokens, u.CachedTokens, u.CacheWriteTokens, u.ReasoningTokens,
-		u.CostMicros, u.CacheHit, u.LatencyMS, u.TTFTMS, u.Failed, u.ErrorKind, u.ErrorStatus,
+		u.CostMicros, u.TokenConsumptionRate, u.CacheHit, u.LatencyMS, u.TTFTMS, u.Failed, u.ErrorKind, u.ErrorStatus,
 		u.ErrorMessage, u.CreatedAt,
 	)
 	return err
@@ -40,6 +41,10 @@ type UsageSpend struct {
 	CostMicros       int64 `json:"cost_micros"`
 	PromptTokens     int64 `json:"prompt_tokens"`
 	CompletionTokens int64 `json:"completion_tokens"`
+	// BudgetTokens is the rate-scaled token drain: each row contributes
+	// (prompt + completion) × its snapshotted token_consumption_rate, with
+	// NULL counting 1:1. Token budgets compare against this, not the raw sum.
+	BudgetTokens int64 `json:"budget_tokens"`
 }
 
 // SumSince totals spend and tokens for usage created at or after from. When
@@ -52,7 +57,8 @@ func (r *UsageRepository) SumSince(ctx context.Context, apiKeyID *string, from t
 func (r *UsageRepository) sumSinceExec(ctx context.Context, apiKeyID *string, from time.Time) (UsageSpend, error) {
 	query := `
 		SELECT COALESCE(SUM(cost_micros), 0),
-		       COALESCE(SUM(prompt_tokens), 0), COALESCE(SUM(completion_tokens), 0)
+		       COALESCE(SUM(prompt_tokens), 0), COALESCE(SUM(completion_tokens), 0),
+		       COALESCE(SUM((prompt_tokens + completion_tokens) * COALESCE(token_consumption_rate, 1)), 0)
 		FROM usage_records WHERE created_at >= $1`
 	args := []any{from}
 	if apiKeyID != nil {
@@ -62,7 +68,7 @@ func (r *UsageRepository) sumSinceExec(ctx context.Context, apiKeyID *string, fr
 
 	var s UsageSpend
 	err := r.queryRowContext(ctx, r.DB, query, args...).
-		Scan(&s.CostMicros, &s.PromptTokens, &s.CompletionTokens)
+		Scan(&s.CostMicros, &s.PromptTokens, &s.CompletionTokens, &s.BudgetTokens)
 	return s, errtrace.Wrap(err)
 }
 
@@ -406,7 +412,7 @@ func (r *UsageRepository) recentExec(ctx context.Context, limit int) ([]models.U
 	rows, err := r.queryContext(ctx, r.DB, `
 		SELECT id, api_key_id, account_id, provider, model, client, client_ip,
 		       prompt_tokens, completion_tokens, cached_tokens, cache_write_tokens, reasoning_tokens,
-		       cost_micros, cache_hit, latency_ms, ttft_ms, failed, error_kind, error_status,
+		       cost_micros, token_consumption_rate, cache_hit, latency_ms, ttft_ms, failed, error_kind, error_status,
 		       error_message, created_at
 		FROM usage_records ORDER BY created_at DESC, id DESC LIMIT $1`, limit)
 	if err != nil {
@@ -417,11 +423,15 @@ func (r *UsageRepository) recentExec(ctx context.Context, limit int) ([]models.U
 	out := []models.UsageRecord{}
 	for rows.Next() {
 		var u models.UsageRecord
+		var rate sql.Null[float64]
 		if err := rows.Scan(&u.ID, &u.APIKeyID, &u.AccountID, &u.Provider, &u.Model, &u.Client, &u.ClientIP,
 			&u.PromptTokens, &u.CompletionTokens, &u.CachedTokens, &u.CacheWriteTokens, &u.ReasoningTokens,
-			&u.CostMicros, &u.CacheHit, &u.LatencyMS, &u.TTFTMS, &u.Failed, &u.ErrorKind, &u.ErrorStatus,
+			&u.CostMicros, &rate, &u.CacheHit, &u.LatencyMS, &u.TTFTMS, &u.Failed, &u.ErrorKind, &u.ErrorStatus,
 			&u.ErrorMessage, &u.CreatedAt); err != nil {
 			return nil, errtrace.Wrap(err)
+		}
+		if rate.Valid {
+			u.TokenConsumptionRate = &rate.V
 		}
 		out = append(out, u)
 	}

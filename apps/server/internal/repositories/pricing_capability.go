@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"database/sql"
 
 	"tera-router/server/internal/lib/apperr"
 	"tera-router/server/internal/models"
@@ -16,14 +17,19 @@ type PricingRepository struct {
 
 const pricingColumns = `
 	id, provider, model, input_micros, output_micros, cache_read_micros, cache_write_micros,
-	created_at, updated_at`
+	reasoning_micros, token_consumption_rate, created_at, updated_at`
 
 func scanPricing(row rowScanner) (models.PricingOverride, error) {
 	var p models.PricingOverride
+	var rate sql.Null[float64]
 	err := row.Scan(
 		&p.ID, &p.Provider, &p.Model, &p.InputMicros, &p.OutputMicros,
-		&p.CacheReadMicros, &p.CacheWriteMicros, &p.CreatedAt, &p.UpdatedAt,
+		&p.CacheReadMicros, &p.CacheWriteMicros, &p.ReasoningMicros, &rate,
+		&p.CreatedAt, &p.UpdatedAt,
 	)
+	if rate.Valid {
+		p.TokenConsumptionRate = &rate.V
+	}
 	return p, translateNotFound(err)
 }
 
@@ -34,15 +40,18 @@ func (r *PricingRepository) Upsert(ctx context.Context, p models.PricingOverride
 
 func (r *PricingRepository) upsertExec(ctx context.Context, p models.PricingOverride) error {
 	_, err := r.execContext(ctx, r.DB, `
-		INSERT INTO model_pricing_overrides (id, provider, model, input_micros, output_micros, cache_read_micros, cache_write_micros)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO model_pricing_overrides (id, provider, model, input_micros, output_micros, cache_read_micros, cache_write_micros, reasoning_micros, token_consumption_rate)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		ON CONFLICT (provider, model) DO UPDATE SET
 			input_micros = EXCLUDED.input_micros,
 			output_micros = EXCLUDED.output_micros,
 			cache_read_micros = EXCLUDED.cache_read_micros,
 			cache_write_micros = EXCLUDED.cache_write_micros,
+			reasoning_micros = EXCLUDED.reasoning_micros,
+			token_consumption_rate = EXCLUDED.token_consumption_rate,
 			updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now')`,
 		p.ID, p.Provider, p.Model, p.InputMicros, p.OutputMicros, p.CacheReadMicros, p.CacheWriteMicros,
+		p.ReasoningMicros, p.TokenConsumptionRate,
 	)
 	return err
 }

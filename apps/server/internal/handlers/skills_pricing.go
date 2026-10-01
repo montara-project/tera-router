@@ -79,13 +79,15 @@ func (h *pricingHandler) PricingUpsert(c fiber.Ctx) error {
 	}
 
 	override := models.PricingOverride{
-		ID:               uuid.NewString(),
-		Provider:         req.Provider,
-		Model:            req.Model,
-		InputMicros:      req.InputMicros,
-		OutputMicros:     req.OutputMicros,
-		CacheReadMicros:  req.CacheReadMicros,
-		CacheWriteMicros: req.CacheWriteMicros,
+		ID:                   uuid.NewString(),
+		Provider:             req.Provider,
+		Model:                req.Model,
+		InputMicros:          req.InputMicros,
+		OutputMicros:         req.OutputMicros,
+		CacheReadMicros:      req.CacheReadMicros,
+		CacheWriteMicros:     req.CacheWriteMicros,
+		ReasoningMicros:      req.ReasoningMicros,
+		TokenConsumptionRate: req.TokenRate,
 	}
 	if err := h.app.Repos.Pricing.Upsert(c.Context(), override); err != nil {
 		return err
