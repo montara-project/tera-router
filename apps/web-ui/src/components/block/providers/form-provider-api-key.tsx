@@ -22,7 +22,11 @@ type AbstractFormProps = Omit<BaseAbstractForm<TModel, TMutation, TDto, TRespons
   }
   open: boolean
   onOpenChange: (open: boolean) => void
-  provider: Models.CustomProvider
+  /** Minimal identity the dialog needs; custom providers satisfy it too. */
+  provider: { slug: string; name: string }
+  /** Auth-free providers (e.g. ollama-local) hide the key field. */
+  authKind?: 'api_key' | 'none'
+  onSuccess?: () => void
 }
 
 function AbstractForm({
@@ -33,6 +37,8 @@ function AbstractForm({
   mutation,
   isEdit,
   provider,
+  authKind = 'api_key',
+  onSuccess,
 }: AbstractFormProps) {
   const form = useAppForm({
     defaultValues,
@@ -43,6 +49,7 @@ function AbstractForm({
     onSubmit: async ({ value }) => {
       try {
         await mutation.mutateAsync(value)
+        onSuccess?.()
       } catch (error) {
         toastAxiosError(error)
       } finally {
@@ -51,8 +58,6 @@ function AbstractForm({
       }
     },
   })
-
-  console.log(form.state.errors)
 
   return (
     <SimpleAlertScrollableDialogForm
@@ -75,10 +80,16 @@ function AbstractForm({
         )}
       />
 
-      <form.AppField
-        name="api_key"
-        children={(field) => <field.PasswordField label="API Key" placeholder="sk-..." asterisk />}
-      />
+      {authKind === 'none' ? (
+        <p className="text-xs text-muted-foreground">
+          This provider requires no authentication — the account links its endpoint directly.
+        </p>
+      ) : (
+        <form.AppField
+          name="api_key"
+          children={(field) => <field.PasswordField label="API Key" placeholder="sk-..." asterisk />}
+        />
+      )}
 
       <form.AppField
         name="priority"
@@ -100,13 +111,18 @@ function AbstractForm({
 type AddCustomProviderApiKeyFormProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
-  provider: Models.CustomProvider
+  /** Custom provider or a catalog provider identity ({slug, name}). */
+  provider: { slug: string; name: string }
+  authKind?: 'api_key' | 'none'
+  onSuccess?: () => void
 }
 
 export function AddCustomProviderApiKeyForm({
   open,
   onOpenChange,
   provider,
+  authKind,
+  onSuccess,
 }: AddCustomProviderApiKeyFormProps) {
   const mutation = useMutation(queries.accounts.create())
 
@@ -117,13 +133,15 @@ export function AddCustomProviderApiKeyForm({
       defaultValues={{
         provider: provider.slug,
         label: '',
-        auth_kind: 'api_key',
+        auth_kind: authKind ?? 'api_key',
         api_key: '',
         priority: 100,
       }}
       schema={AccountSchema}
       mutation={mutation}
       provider={provider}
+      authKind={authKind}
+      onSuccess={onSuccess}
     />
   )
 }

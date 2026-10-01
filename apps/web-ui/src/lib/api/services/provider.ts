@@ -59,6 +59,11 @@ const resources = (): ProviderResources => {
       const url = `${customPath}/${id}/models`
       return api.patch(url, payload)
     },
+    /** catalog-provider model sync (openrouter, ollama, ollama-local, cline) */
+    modelsSync: (slug) => {
+      const url = `${path}/${slug}/models/sync`
+      return api.post(url)
+    },
     /** provider-scoped bulk account operations (provider slug as :id) */
     accountsBulkDisable: (slug) => {
       const url = `${path}/${slug}/accounts/disable-all`

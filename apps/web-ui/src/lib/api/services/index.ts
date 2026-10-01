@@ -7,6 +7,7 @@ import { consoleServices } from './console'
 import { guardrailsServices } from './guardrails'
 import { keyServices } from './key'
 import { mediaServices } from './media'
+import { oauthServices } from './oauth'
 import { overrideServices } from './override'
 import { planServices } from './plan'
 import { providerServices } from './provider'
@@ -28,6 +29,7 @@ export const services = {
   guardrails: guardrailsServices,
   keys: keyServices,
   media: mediaServices,
+  oauth: oauthServices,
   overrides: overrideServices,
   plans: planServices,
   providerHealth: providerHealthServices,

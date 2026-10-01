@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as protectedRouteRouteImport } from './routes/(protected)/route'
+import { Route as CallbackRouteImport } from './routes/callback'
 import { Route as authloginIndexRouteImport } from './routes/(auth)/(login)/index'
 import { Route as authRegisterIndexRouteImport } from './routes/(auth)/register/index'
 import { Route as protectedDashboardIndexRouteImport } from './routes/(protected)/dashboard/index'
@@ -35,6 +36,11 @@ import { Route as protectedtrafficSkillsIndexRouteImport } from './routes/(prote
 
 const protectedRouteRoute = protectedRouteRouteImport.update({
   id: '/(protected)',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CallbackRoute = CallbackRouteImport.update({
+  id: '/callback',
+  path: '/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
 const authloginIndexRoute = authloginIndexRouteImport.update({
@@ -168,6 +174,7 @@ const protectedtrafficSkillsIndexRoute =
   } as any)
 
 export interface FileRoutesByFullPath {
+  '/callback': typeof CallbackRoute
   '/': typeof authloginIndexRoute
   '/register/': typeof authRegisterIndexRoute
   '/dashboard/': typeof protectedDashboardIndexRoute
@@ -192,6 +199,7 @@ export interface FileRoutesByFullPath {
   '/skills/': typeof protectedtrafficSkillsIndexRoute
 }
 export interface FileRoutesByTo {
+  '/callback': typeof CallbackRoute
   '/': typeof authloginIndexRoute
   '/register': typeof authRegisterIndexRoute
   '/dashboard': typeof protectedDashboardIndexRoute
@@ -218,6 +226,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/(protected)': typeof protectedRouteRouteWithChildren
+  '/callback': typeof CallbackRoute
   '/(auth)/(login)/': typeof authloginIndexRoute
   '/(auth)/register/': typeof authRegisterIndexRoute
   '/(protected)/dashboard/': typeof protectedDashboardIndexRoute
@@ -244,6 +253,7 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
+    | '/callback'
     | '/'
     | '/register/'
     | '/dashboard/'
@@ -268,6 +278,7 @@ export interface FileRouteTypes {
     | '/skills/'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/callback'
     | '/'
     | '/register'
     | '/dashboard'
@@ -293,6 +304,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/(protected)'
+    | '/callback'
     | '/(auth)/(login)/'
     | '/(auth)/register/'
     | '/(protected)/dashboard/'
@@ -319,6 +331,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   protectedRouteRoute: typeof protectedRouteRouteWithChildren
+  CallbackRoute: typeof CallbackRoute
   authloginIndexRoute: typeof authloginIndexRoute
   authRegisterIndexRoute: typeof authRegisterIndexRoute
 }
@@ -330,6 +343,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: ''
       preLoaderRoute: typeof protectedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/callback': {
+      id: '/callback'
+      path: '/callback'
+      fullPath: '/callback'
+      preLoaderRoute: typeof CallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/(auth)/(login)/': {
@@ -545,6 +565,7 @@ const protectedRouteRouteWithChildren = protectedRouteRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   protectedRouteRoute: protectedRouteRouteWithChildren,
+  CallbackRoute: CallbackRoute,
   authloginIndexRoute: authloginIndexRoute,
   authRegisterIndexRoute: authRegisterIndexRoute,
 }
