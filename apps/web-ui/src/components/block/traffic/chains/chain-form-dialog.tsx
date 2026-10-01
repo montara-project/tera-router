@@ -337,7 +337,7 @@ function ChainForm({ chain, onOpenChange }: ChainFormProps) {
               Cancel
             </Button>
             <form.Subscribe selector={(state) => state.isSubmitting}>
-              {(isSubmitting) => (
+              {(isSubmitting: boolean) => (
                 <Button type="submit" disabled={isSubmitting || saving}>
                   {isSubmitting || saving ? 'Saving…' : editing ? 'Save changes' : 'Create chain'}
                 </Button>

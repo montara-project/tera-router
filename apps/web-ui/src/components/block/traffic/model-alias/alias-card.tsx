@@ -140,7 +140,7 @@ export default function AliasCard({
                   <p className="mt-1 text-xs text-destructive">{nameError}</p>
                 ) : (
                   <form.Subscribe selector={(state) => state.values.targets.length}>
-                    {(count) => (
+                    {(count: number) => (
                       <p className="mt-1 text-xs text-muted-foreground">
                         {count} target{count === 1 ? '' : 's'} in fallback order
                       </p>
@@ -310,7 +310,7 @@ export default function AliasCard({
         <form.Subscribe
           selector={(state) => !state.isDirty || state.values.targets.some(isPartialTarget)}
         >
-          {(disabled) => (
+          {(disabled: boolean) => (
             <Button
               variant="outline"
               disabled={disabled || upsertMutation.isPending}
