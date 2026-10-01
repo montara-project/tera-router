@@ -1,6 +1,7 @@
 package services
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -477,4 +478,176 @@ func (s *UpstreamService) ListClineModels(ctx context.Context, baseURL, apiKey s
 	}
 	slices.SortFunc(out, func(a, b UpstreamModel) int { return strings.Compare(a.ID, b.ID) })
 	return out, nil
+}
+
+// modelTestMaxTokens caps the completion length of a dashboard model test so
+// a single probe stays cheap even on expensive models.
+const modelTestMaxTokens = 1024
+
+// chatCompletionClient sends one-shot test completions: no redirects (the
+// same pivot protection as probeClient) with a much longer timeout, since a
+// real completion can take tens of seconds where a credential probe cannot.
+func chatCompletionClient() *http.Client {
+	return &http.Client{
+		Timeout: 90 * time.Second,
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+}
+
+// anthropicMessagesEndpoint resolves the /v1/messages URL for an Anthropic
+// base URL, avoiding the /v1/v1 double when the base already ends in /v1.
+func anthropicMessagesEndpoint(baseURL string) string {
+	base := strings.TrimSuffix(baseURL, "/")
+	if strings.HasSuffix(base, "/v1") {
+		return base + "/messages"
+	}
+	return base + "/v1/messages"
+}
+
+// ChatCompletion sends one small chat completion to the upstream to verify a
+// model actually answers — the dashboard's model test. The caller resolves
+// the base URL, wire dialect, and credential exactly like the gateway would.
+// Upstream failures (non-2xx, unparseable body, empty answer) are reported in
+// the result rather than as a Go error, so the dashboard can render the
+// reason inline; only context/transport setup problems return an error.
+func (s *UpstreamService) ChatCompletion(ctx context.Context, baseURL string, anthropicDialect bool, apiKey, model string, messages []dtos.ModelTestMessage) (dtos.ModelTestResult, error) {
+	endpoint := strings.TrimSuffix(baseURL, "/") + "/chat/completions"
+	if anthropicDialect {
+		endpoint = anthropicMessagesEndpoint(baseURL)
+	}
+	if err := validateEndpoint(endpoint); err != nil {
+		return dtos.ModelTestResult{OK: false, Detail: err.Error()}, nil
+	}
+
+	msgs := make([]map[string]string, 0, len(messages))
+	for _, m := range messages {
+		msgs = append(msgs, map[string]string{"role": m.Role, "content": m.Content})
+	}
+	payload := map[string]any{"model": model, "max_tokens": modelTestMaxTokens, "messages": msgs}
+	if !anthropicDialect {
+		payload["stream"] = false
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return dtos.ModelTestResult{}, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
+	if err != nil {
+		return dtos.ModelTestResult{}, err
+	}
+	if anthropicDialect {
+		req.Header.Set("x-api-key", apiKey)
+		req.Header.Set("anthropic-version", "2023-06-01")
+	} else {
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	start := time.Now()
+	resp, err := chatCompletionClient().Do(req)
+	latency := time.Since(start).Milliseconds()
+	if err != nil {
+		return dtos.ModelTestResult{OK: false, LatencyMS: latency, Model: model, Detail: err.Error()}, nil
+	}
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return dtos.ModelTestResult{OK: false, LatencyMS: latency, Model: model, Detail: "read upstream response: " + err.Error()}, nil
+	}
+
+	result := dtos.ModelTestResult{Status: resp.StatusCode, LatencyMS: latency, Model: model}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		result.Detail = upstreamErrorMessage(raw, resp.StatusCode)
+		return result, nil
+	}
+
+	if anthropicDialect {
+		var parsed struct {
+			Content []struct {
+				Type string `json:"type"`
+				Text string `json:"text"`
+			} `json:"content"`
+			Usage struct {
+				InputTokens  int64 `json:"input_tokens"`
+				OutputTokens int64 `json:"output_tokens"`
+			} `json:"usage"`
+		}
+		if err := json.Unmarshal(raw, &parsed); err != nil {
+			result.Detail = "parse upstream response: " + err.Error()
+			return result, nil
+		}
+		var text strings.Builder
+		for _, block := range parsed.Content {
+			if block.Type == "text" && block.Text != "" {
+				if text.Len() > 0 {
+					text.WriteString("\n")
+				}
+				text.WriteString(block.Text)
+			}
+		}
+		result.Content = text.String()
+		result.InputTokens = parsed.Usage.InputTokens
+		result.OutputTokens = parsed.Usage.OutputTokens
+	} else {
+		var parsed struct {
+			Choices []struct {
+				Message struct {
+					Content string `json:"content"`
+				} `json:"message"`
+			} `json:"choices"`
+			Usage struct {
+				PromptTokens     int64 `json:"prompt_tokens"`
+				CompletionTokens int64 `json:"completion_tokens"`
+			} `json:"usage"`
+		}
+		if err := json.Unmarshal(raw, &parsed); err != nil {
+			result.Detail = "parse upstream response: " + err.Error()
+			return result, nil
+		}
+		if len(parsed.Choices) > 0 {
+			result.Content = parsed.Choices[0].Message.Content
+		}
+		result.InputTokens = parsed.Usage.PromptTokens
+		result.OutputTokens = parsed.Usage.CompletionTokens
+	}
+
+	if result.Content == "" {
+		result.Detail = "upstream returned an empty completion"
+		return result, nil
+	}
+	result.OK = true
+	return result, nil
+}
+
+// upstreamErrorMessage extracts a human-readable reason from an upstream
+// error body: both wire dialects nest it under error.message, some upstreams
+// put a plain string under error, and the truncated raw body is the fallback
+// so an HTML error page still says something.
+func upstreamErrorMessage(raw []byte, status int) string {
+	var probe struct {
+		Error json.RawMessage `json:"error"`
+	}
+	if json.Unmarshal(raw, &probe) == nil && len(probe.Error) > 0 {
+		var nested struct {
+			Message string `json:"message"`
+		}
+		if json.Unmarshal(probe.Error, &nested) == nil && nested.Message != "" {
+			return nested.Message
+		}
+		var flat string
+		if json.Unmarshal(probe.Error, &flat) == nil && flat != "" {
+			return flat
+		}
+	}
+	detail := strings.TrimSpace(string(raw))
+	if len(detail) > 300 {
+		detail = detail[:300] + "…"
+	}
+	if detail == "" {
+		return fmt.Sprintf("upstream responded with status %d", status)
+	}
+	return detail
 }

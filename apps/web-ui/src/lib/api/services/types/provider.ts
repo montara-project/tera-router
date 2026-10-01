@@ -33,6 +33,16 @@ export type ProviderResources = {
     slug: string,
     payload: { models: { id: string; state: Models.ProviderModelState }[] }
   ) => Promise<AxiosItemResponse<Models.UpstreamModels>>
+  /** catalog-provider one-shot model test (chat completion with the stored credential) */
+  modelsTest: (
+    slug: string,
+    payload: { model: string; messages: Models.ModelTestMessage[] }
+  ) => Promise<AxiosItemResponse<Models.ModelTestResult>>
+  /** custom-provider one-shot model test */
+  customModelsTest: (
+    id: string,
+    payload: { model: string; messages: Models.ModelTestMessage[] }
+  ) => Promise<AxiosItemResponse<Models.ModelTestResult>>
   accountsBulkDisable: (slug: string) => Promise<AxiosItemResponse<{ updated: number }>>
   accountsBulkEnable: (slug: string) => Promise<AxiosItemResponse<{ updated: number }>>
   accountsBulkDeleteDisabled: (slug: string) => Promise<AxiosItemResponse<{ deleted: number }>>

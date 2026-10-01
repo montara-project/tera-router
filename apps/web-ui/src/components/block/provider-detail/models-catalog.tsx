@@ -23,14 +23,17 @@ import {
   CardToolbar,
 } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EMERALD_BUTTON_CLASS } from '@/lib/constants/ui'
 
+import EmptyState from '../common/empty-state'
+
 export const CATALOG_PAGE_SIZE = 15
 
 export default function ModelsCatalog({
+  variant,
+  providerId,
   providerSlug,
   catalog,
   loading,
@@ -44,6 +47,9 @@ export default function ModelsCatalog({
   onSync,
   onUpdate,
 }: {
+  /** catalog providers are keyed by slug; customs by their uuid */
+  variant: 'catalog' | 'custom'
+  providerId: string
   providerSlug: string
   catalog: Models.UpstreamModels | null
   loading: boolean
@@ -124,18 +130,22 @@ export default function ModelsCatalog({
         </CardContent>
       ) : totalCount === 0 ? (
         <CardContent className="p-0">
-          <Empty className="border-0 py-12">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <IconApps />
-              </EmptyMedia>
-              <EmptyTitle>No catalog yet</EmptyTitle>
-              <EmptyDescription>
-                Sync from /models to import every model this provider exposes, then enable the ones
-                that should route. Enabled models become callable by their bare name.
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
+          <EmptyState
+            className="border-0"
+            icon={IconApps}
+            title="No catalog yet"
+            description="Sync from /models to import every model this provider exposes, then enable the ones that should route. Enabled models become callable by their bare name."
+            action={
+              <Button
+                size="sm"
+                className={EMERALD_BUTTON_CLASS}
+                disabled={syncing}
+                onClick={onSync}
+              >
+                {syncing ? <IconRefresh className="animate-spin" /> : <IconDownload />} Sync now
+              </Button>
+            }
+          />
         </CardContent>
       ) : (
         <CardContent className="p-0">
@@ -179,17 +189,17 @@ export default function ModelsCatalog({
             )}
           </div>
           {filteredTotal === 0 ? (
-            <Empty className="border-0 py-12">
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <IconSearch />
-                </EmptyMedia>
-                <EmptyTitle>No models match "{searchValue}"</EmptyTitle>
-                <EmptyDescription>
-                  Try a shorter name or clear the search to see the full catalog.
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
+            <EmptyState
+              className="border-0"
+              icon={IconSearch}
+              title={`No models match "${searchValue}"`}
+              description="Try a shorter name or clear the search to see the full catalog."
+              action={
+                <Button size="sm" variant="outline" onClick={() => onSearchChange('')}>
+                  Clear search
+                </Button>
+              }
+            />
           ) : models.length === 0 ? (
             <p className="px-5 py-8 text-center text-sm text-muted-foreground">
               No models on this page — go back a page.
@@ -200,6 +210,8 @@ export default function ModelsCatalog({
                 <ModelCard
                   key={model.id}
                   providerSlug={providerSlug}
+                  providerId={providerId}
+                  variant={variant}
                   model={model}
                   selected={selected.includes(model.id)}
                   onToggleSelect={toggleSelect}

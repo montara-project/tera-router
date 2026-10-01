@@ -235,6 +235,25 @@ const catalogModelsUpdate = (slug: string) => {
   })
 }
 
+// One-shot model test for catalog and custom providers. A test changes no
+// server state, so there is nothing to invalidate — the playground renders
+// the result (or the upstream error) inline.
+const catalogModelTest = (slug: string) =>
+  mutationOptions({
+    mutationFn: async (reqBody: { model: string; messages: Models.ModelTestMessage[] }) => {
+      const res = await services.providers.modelsTest(slug, reqBody)
+      return res.data
+    },
+  })
+
+const customModelTest = (id: string) =>
+  mutationOptions({
+    mutationFn: async (reqBody: { model: string; messages: Models.ModelTestMessage[] }) => {
+      const res = await services.providers.customModelsTest(id, reqBody)
+      return res.data
+    },
+  })
+
 export const providerQueries = {
   list,
   customList,
@@ -248,4 +267,6 @@ export const providerQueries = {
   catalogModels,
   catalogModelsSync,
   catalogModelsUpdate,
+  catalogModelTest,
+  customModelTest,
 } as const

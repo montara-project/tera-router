@@ -46,6 +46,24 @@ export type AliasTarget = {
   active: boolean
 }
 
+/** One turn of a model test conversation. */
+export type ModelTestMessage = {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+/** Matches the POST .../models/test payload data. */
+export type ModelTestResult = {
+  ok: boolean
+  status: number
+  latency_ms: number
+  model: string
+  content: string
+  detail: string
+  input_tokens: number
+  output_tokens: number
+}
+
 /** Matches the models.ModelAlias json shape. */
 export type ModelAlias = {
   id: string

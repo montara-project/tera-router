@@ -73,6 +73,16 @@ const resources = (): ProviderResources => {
       const url = `${path}/${slug}/models`
       return api.patch(url, payload)
     },
+    /** catalog-provider one-shot model test (chat completion with the stored credential) */
+    modelsTest: (slug, payload) => {
+      const url = `${path}/${slug}/models/test`
+      return api.post(url, payload)
+    },
+    /** custom-provider one-shot model test */
+    customModelsTest: (id, payload) => {
+      const url = `${customPath}/${id}/models/test`
+      return api.post(url, payload)
+    },
     /** provider-scoped bulk account operations (provider slug as :id) */
     accountsBulkDisable: (slug) => {
       const url = `${path}/${slug}/accounts/disable-all`

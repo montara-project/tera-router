@@ -83,7 +83,7 @@ export default function PricingOverridesCard({
 
   return (
     <Card className="bg-background">
-      <CardHeader>
+      <CardHeader className="h-20">
         <CardHeading>
           <CardTitle>Pricing overrides</CardTitle>
           <CardDescription>
