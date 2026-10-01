@@ -41,8 +41,12 @@ func All() []dtos.CatalogProvider {
 		{Slug: "perplexity", Name: "Perplexity", BaseURL: "https://api.perplexity.ai", Dialect: dialectOpenAI, Capabilities: llmCaps("search"), AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true},
 		{Slug: "openrouter", Name: "OpenRouter", BaseURL: "https://openrouter.ai/api/v1", Dialect: dialectOpenAI, Capabilities: llmCaps("embeddings"), AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true, Notice: "Free tier: 27+ free models, no credit card, 200 req/day."},
 		{Slug: "nvidia", Name: "NVIDIA NIM", BaseURL: "https://integrate.api.nvidia.com/v1", Dialect: dialectOpenAI, Capabilities: llmCaps("tts", "embeddings"), AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true},
-		{Slug: "ollama", Name: "Ollama Cloud", BaseURL: "https://ollama.com", Capabilities: llmCaps(), AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true},
-		{Slug: "ollama-local", Name: "Ollama Local", BaseURL: "http://localhost:11434", Capabilities: llmCaps(), AuthKind: "none", AuthModes: []string{"none"}, Official: true},
+		// Ollama (cloud and local) serves an OpenAI-compatible endpoint under
+		// /v1 (chat completions, models) beside its native /api surface, so
+		// the gateway speaks the plain OpenAI dialect against it. The native
+		// /api/tags model list is still what sync and probing use.
+		{Slug: "ollama", Name: "Ollama Cloud", BaseURL: "https://ollama.com/v1", Dialect: dialectOpenAI, Capabilities: llmCaps(), AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true},
+		{Slug: "ollama-local", Name: "Ollama Local", BaseURL: "http://localhost:11434/v1", Dialect: dialectOpenAI, Capabilities: llmCaps(), AuthKind: "none", AuthModes: []string{"none"}, Official: true},
 		{Slug: "vllm", Name: "vLLM", BaseURL: "http://localhost:8000/v1", Dialect: dialectOpenAI, Capabilities: llmCaps("embeddings"), AuthKind: "none", AuthModes: []string{"none", "api_key"}, Official: true, Notice: "Self-hosted vLLM OpenAI-compatible server. Provide an API key only if you started vLLM with --api-key."},
 		{Slug: "azure", Name: "Azure OpenAI", Dialect: dialectOpenAI, Capabilities: llmCaps(), AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true},
 		{Slug: "github", Name: "GitHub Copilot", BaseURL: "https://api.githubcopilot.com", Capabilities: llmCaps("embeddings"), AuthKind: "oauth", AuthModes: []string{"oauth"}, Official: false},

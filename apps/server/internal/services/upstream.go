@@ -270,3 +270,216 @@ func usdPerTokenToMicros(raw json.RawMessage) (int64, bool) {
 	}
 	return int64(math.Round(f * 1e12)), true
 }
+
+// ollamaAPIBase strips the OpenAI-compatible "/v1" suffix an Ollama base URL
+// carries, returning the daemon origin the native /api surface hangs off.
+func ollamaAPIBase(baseURL string) string {
+	base := strings.TrimSuffix(baseURL, "/")
+	return strings.TrimSuffix(base, "/v1")
+}
+
+// ProbeOpenRouterKey validates an OpenRouter API key against /api/v1/key —
+// the one authenticated endpoint that answers 401 on a bad key — and reports
+// the key's usage/limit when the provider returns them.
+func (s *UpstreamService) ProbeOpenRouterKey(ctx context.Context, baseURL, apiKey string) (dtos.TestResult, error) {
+	endpoint := strings.TrimSuffix(baseURL, "/") + "/key"
+	if err := validateEndpoint(endpoint); err != nil {
+		return dtos.TestResult{OK: false, Detail: err.Error()}, nil
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return dtos.TestResult{}, err
+	}
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+
+	start := time.Now()
+	client := probeClient()
+	resp, err := client.Do(req)
+	latency := time.Since(start).Milliseconds()
+	if err != nil {
+		return dtos.TestResult{OK: false, LatencyMS: latency, Detail: err.Error()}, nil
+	}
+	defer resp.Body.Close()
+
+	result := dtos.TestResult{Status: resp.StatusCode, LatencyMS: latency}
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		result.Detail = "credential rejected by provider"
+		return result, nil
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		result.Detail = fmt.Sprintf("upstream responded with status %d", resp.StatusCode)
+		return result, nil
+	}
+
+	var payload struct {
+		Data struct {
+			Label      string   `json:"label"`
+			Usage      *float64 `json:"usage"`
+			Limit      *float64 `json:"limit"`
+			IsFreeTier bool     `json:"is_free_tier"`
+		} `json:"data"`
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
+	if err == nil {
+		_ = json.Unmarshal(body, &payload)
+	}
+
+	result.OK = true
+	detail := "credential accepted"
+	if payload.Data.Label != "" {
+		detail += " · " + payload.Data.Label
+	}
+	if payload.Data.Usage != nil {
+		detail += fmt.Sprintf(" · usage $%.4f", *payload.Data.Usage)
+	}
+	if payload.Data.Limit != nil && *payload.Data.Limit > 0 {
+		detail += fmt.Sprintf(" of $%.2f", *payload.Data.Limit)
+	}
+	result.Detail = detail
+	return result, nil
+}
+
+// ListOllamaModels fetches Ollama's native /api/tags model list (both Ollama
+// Cloud and a local daemon answer it; the key is optional and only sent when
+// set). Model ids are the tags' bare names.
+func (s *UpstreamService) ListOllamaModels(ctx context.Context, baseURL, apiKey string) ([]UpstreamModel, error) {
+	endpoint := ollamaAPIBase(baseURL) + "/api/tags"
+	if err := validateEndpoint(endpoint); err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+	if apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+	}
+
+	client := probeClient()
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("upstream request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
+	if err != nil {
+		return nil, fmt.Errorf("read upstream response: %w", err)
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("upstream responded with status %d", resp.StatusCode)
+	}
+
+	var payload struct {
+		Models []struct {
+			Name string `json:"name"`
+		} `json:"models"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return nil, fmt.Errorf("parse ollama tags response: %w", err)
+	}
+
+	models := make([]UpstreamModel, 0, len(payload.Models))
+	for _, m := range payload.Models {
+		if m.Name == "" {
+			continue
+		}
+		models = append(models, UpstreamModel{ID: m.Name})
+	}
+	slices.SortFunc(models, func(a, b UpstreamModel) int { return strings.Compare(a.ID, b.ID) })
+	return models, nil
+}
+
+// ListClineModels fetches the Cline model catalog: the union of the standard
+// OpenAI-compatible GET {base}/models response and the free-promotion list
+// from GET {base}/ai/cline/recommended-models (whose `free` array carries the
+// no-cost tier). Both upstream calls are best-effort — only when both fail and
+// nothing was collected does the refresh error. Requests carry the Cline SDK's
+// identification headers; the key needs the workos: prefix its gateway
+// expects.
+func (s *UpstreamService) ListClineModels(ctx context.Context, baseURL, apiKey string) ([]UpstreamModel, error) {
+	base := strings.TrimSuffix(baseURL, "/")
+	if apiKey != "" && !strings.HasPrefix(apiKey, "workos:") && !strings.HasPrefix(apiKey, "sk_") {
+		apiKey = "workos:" + apiKey
+	}
+	do := func(endpoint string, recommended bool) ([]UpstreamModel, error) {
+		if err := validateEndpoint(endpoint); err != nil {
+			return nil, err
+		}
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+		if err != nil {
+			return nil, err
+		}
+		if apiKey != "" {
+			req.Header.Set("Authorization", "Bearer "+apiKey)
+		}
+		req.Header.Set("User-Agent", "Cline/1.0.0")
+		req.Header.Set("Accept", "application/json")
+
+		resp, err := probeClient().Do(req)
+		if err != nil {
+			return nil, err
+		}
+		defer resp.Body.Close()
+		body, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
+		if err != nil {
+			return nil, err
+		}
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			return nil, fmt.Errorf("GET %s returned %d", endpoint, resp.StatusCode)
+		}
+		if recommended {
+			var free struct {
+				Free []struct {
+					ID   string `json:"id"`
+					Name string `json:"name"`
+				} `json:"free"`
+			}
+			if err := json.Unmarshal(body, &free); err != nil {
+				return nil, fmt.Errorf("parse recommended-models response: %w", err)
+			}
+			out := make([]UpstreamModel, 0, len(free.Free))
+			for _, e := range free.Free {
+				if e.ID != "" {
+					out = append(out, UpstreamModel{ID: e.ID})
+				}
+			}
+			return out, nil
+		}
+		var env struct {
+			Data []struct {
+				ID string `json:"id"`
+			} `json:"data"`
+		}
+		if err := json.Unmarshal(body, &env); err != nil {
+			return nil, fmt.Errorf("parse models response: %w", err)
+		}
+		out := make([]UpstreamModel, 0, len(env.Data))
+		for _, e := range env.Data {
+			if e.ID != "" {
+				out = append(out, UpstreamModel{ID: e.ID})
+			}
+		}
+		return out, nil
+	}
+
+	standard, errStandard := do(base+"/models", false)
+	free, errFree := do(base+"/ai/cline/recommended-models", true)
+
+	seen := map[string]bool{}
+	out := make([]UpstreamModel, 0, len(standard)+len(free))
+	for _, m := range append(standard, free...) {
+		if m.ID == "" || seen[m.ID] {
+			continue
+		}
+		seen[m.ID] = true
+		out = append(out, m)
+	}
+	if len(out) == 0 && errStandard != nil && errFree != nil {
+		return nil, fmt.Errorf("both /models and recommended-models failed: %v; %v", errStandard, errFree)
+	}
+	slices.SortFunc(out, func(a, b UpstreamModel) int { return strings.Compare(a.ID, b.ID) })
+	return out, nil
+}

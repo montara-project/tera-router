@@ -449,6 +449,100 @@ func (h *providersHandler) importUpstreamPricing(ctx context.Context, providerSl
 	return imported, nil
 }
 
+// usableAPIKey opens the highest-priority usable credential of a provider:
+// API keys live in Secret, OAuth tokens in Token. Returns "" when none of the
+// provider's usable accounts yields a readable secret.
+func (h *providersHandler) usableAPIKey(ctx context.Context, providerSlug string) string {
+	accounts, err := h.app.Repos.Accounts.ListUsable(ctx, providerSlug)
+	if err != nil {
+		return ""
+	}
+	for _, account := range accounts {
+		if !account.Secret.Empty() {
+			if key, err := h.app.Secrets.OpenString(fromModelsSealed(account.Secret)); err == nil && key != "" {
+				return key
+			}
+		}
+		if !account.Token.Empty() {
+			if key, err := h.app.Secrets.OpenString(fromModelsSealed(account.Token)); err == nil && key != "" {
+				return key
+			}
+		}
+	}
+	return ""
+}
+
+// modelsSyncProviders are the catalog providers whose model list the dashboard
+// can sync (POST /v1/providers/:id/models/sync), each with its own source
+// ported from IDRouter's connectors: OpenRouter's public /models (whose
+// pricing is imported into the overrides), the Ollama family's /api/tags, and
+// Cline's union of /models and the recommended-models free list.
+var modelsSyncProviders = map[string]bool{
+	"openrouter":   true,
+	"ollama":       true,
+	"ollama-local": true,
+	"cline":        true,
+}
+
+// ModelsSync refreshes the stored model catalog of a catalog provider. The
+// per-provider source decides whether a credential is needed: Cline requires
+// an account key, OpenRouter's list is public (a stored key is still sent for
+// rate limiting), and Ollama accepts a key only on the cloud tier.
+func (h *providersHandler) ModelsSync(c fiber.Ctx) error {
+	slug := c.Params("id")
+	if !modelsSyncProviders[slug] {
+		if _, ok := catalog.Lookup(slug); ok {
+			return apperr.New(apperr.KindUnprocessable, "provider %s does not support model sync", slug)
+		}
+		return apperr.ErrNotFound
+	}
+	spec, _ := catalog.Lookup(slug)
+
+	apiKey := h.usableAPIKey(c.Context(), slug)
+
+	var (
+		upstream []services.UpstreamModel
+		err      error
+	)
+	switch slug {
+	case "openrouter":
+		upstream, err = h.app.Services.Upstream.ListModels(c.Context(), spec.BaseURL+"/models", false, apiKey)
+	case "ollama", "ollama-local":
+		upstream, err = h.app.Services.Upstream.ListOllamaModels(c.Context(), spec.BaseURL, apiKey)
+	case "cline":
+		if apiKey == "" {
+			return apperr.New(apperr.KindUnprocessable, "no usable credential for this provider; add an API key first")
+		}
+		upstream, err = h.app.Services.Upstream.ListClineModels(c.Context(), spec.BaseURL, apiKey)
+	}
+	if err != nil {
+		return apperr.New(apperr.KindUnprocessable, "%s", err.Error())
+	}
+
+	ids := make([]string, 0, len(upstream))
+	for _, m := range upstream {
+		ids = append(ids, m.ID)
+	}
+	cat, err := modelcatalog.Store(c.Context(), h.app.Repos.Settings, slug, ids)
+	if err != nil {
+		return err
+	}
+
+	priced := 0
+	if slug == "openrouter" && len(upstream) > 0 {
+		priced, err = h.importUpstreamPricing(c.Context(), slug, upstream)
+		if err != nil {
+			return err
+		}
+	}
+	if priced > 0 {
+		auditRecord(c.Context(), h.app, actorFrom(c), "pricing.import_upstream", slug, map[string]string{"count": strconv.Itoa(priced)})
+	}
+	auditRecord(c.Context(), h.app, actorFrom(c), "provider.models_sync", slug, map[string]int{"count": len(ids)})
+
+	return dtos.OK(c, fiber.Map{"models": cat.Models, "fetched_at": cat.FetchedAt, "priced": priced})
+}
+
 // CustomModelsUpdate applies per-model active/disabled changes
 // (PATCH /v1/custom-providers/:id/models). Only models already in the stored
 // catalog can be toggled; unknown ids are a client error.

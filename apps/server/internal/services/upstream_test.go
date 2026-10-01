@@ -1,7 +1,11 @@
 package services
 
 import (
+	"context"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -103,5 +107,121 @@ func TestParseUpstreamPricingToleratesGarbage(t *testing.T) {
 	}
 	if p.OutputMicros != 0 || p.CacheReadMicros != 0 {
 		t.Errorf("unparseable fields must stay zero, got %+v", p)
+	}
+}
+
+// The Ollama sync reads the native /api/tags surface (origin, not /v1) and
+// maps the tags' names onto model ids.
+func TestListOllamaModels(t *testing.T) {
+	var gotPath string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		if r.Header.Get("Authorization") != "Bearer ork-key" {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		_, _ = w.Write([]byte(`{"models":[{"name":"llama3.2"},{"name":"gpt-oss:20b"},{"name":""}]}`))
+	}))
+	defer srv.Close()
+
+	svc := &UpstreamService{}
+	models, err := svc.ListOllamaModels(context.Background(), srv.URL+"/v1", "ork-key")
+	if err != nil {
+		t.Fatalf("ListOllamaModels: %v", err)
+	}
+	if gotPath != "/api/tags" {
+		t.Errorf("path = %q, want /api/tags", gotPath)
+	}
+	if len(models) != 2 || models[0].ID != "gpt-oss:20b" || models[1].ID != "llama3.2" {
+		t.Errorf("models = %+v", models)
+	}
+}
+
+// The Cline sync unions /models with the recommended-models free list, dedups
+// by id, prefixes the key with workos:, and fails only when both upstreams
+// fail.
+func TestListClineModels(t *testing.T) {
+	var gotAuth, gotUA string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth = r.Header.Get("Authorization")
+		gotUA = r.Header.Get("User-Agent")
+		switch r.URL.Path {
+		case "/api/v1/models":
+			_, _ = w.Write([]byte(`{"data":[{"id":"anthropic/claude-sonnet-4.5"},{"id":"deepseek/deepseek-chat"}]}`))
+		case "/api/v1/ai/cline/recommended-models":
+			_, _ = w.Write([]byte(`{"free":[{"id":"deepseek/deepseek-chat"},{"id":"cline-free/mimo-v2.6-flash","name":"MiMo"}]}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	svc := &UpstreamService{}
+	models, err := svc.ListClineModels(context.Background(), srv.URL+"/api/v1", "raw-key")
+	if err != nil {
+		t.Fatalf("ListClineModels: %v", err)
+	}
+	if gotAuth != "Bearer workos:raw-key" {
+		t.Errorf("auth = %q, want the workos-prefixed key", gotAuth)
+	}
+	if gotUA != "Cline/1.0.0" {
+		t.Errorf("user-agent = %q", gotUA)
+	}
+	if len(models) != 3 {
+		t.Fatalf("models = %+v, want the 3-id union", models)
+	}
+	if models[0].ID != "anthropic/claude-sonnet-4.5" || models[1].ID != "cline-free/mimo-v2.6-flash" || models[2].ID != "deepseek/deepseek-chat" {
+		t.Errorf("union = %+v", models)
+	}
+}
+
+func TestListClineModelsBothFail(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "down", http.StatusBadGateway)
+	}))
+	defer srv.Close()
+
+	svc := &UpstreamService{}
+	if _, err := svc.ListClineModels(context.Background(), srv.URL+"/api/v1", "k"); err == nil {
+		t.Fatal("both upstreams failing must error")
+	}
+}
+
+// The OpenRouter key probe validates against /api/v1/key and surfaces the
+// key's usage/limit in the detail.
+func TestProbeOpenRouterKey(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/key" {
+			http.NotFound(w, r)
+			return
+		}
+		if r.Header.Get("Authorization") != "Bearer sk-or-key" {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		_, _ = w.Write([]byte(`{"data":{"label":"my key","usage":0.25,"limit":10,"is_free_tier":false}}`))
+	}))
+	defer srv.Close()
+
+	svc := &UpstreamService{}
+	result, err := svc.ProbeOpenRouterKey(context.Background(), srv.URL+"/api/v1", "sk-or-key")
+	if err != nil {
+		t.Fatalf("ProbeOpenRouterKey: %v", err)
+	}
+	if !result.OK {
+		t.Fatalf("result = %+v, want ok", result)
+	}
+	for _, want := range []string{"my key", "usage $0.2500", "of $10.00"} {
+		if !strings.Contains(result.Detail, want) {
+			t.Errorf("detail %q missing %q", result.Detail, want)
+		}
+	}
+
+	result, err = svc.ProbeOpenRouterKey(context.Background(), srv.URL+"/api/v1", "bad")
+	if err != nil {
+		t.Fatalf("probe bad key: %v", err)
+	}
+	if result.OK || result.Detail != "credential rejected by provider" {
+		t.Errorf("bad key result = %+v", result)
 	}
 }
