@@ -158,7 +158,7 @@ func Register(r *fiber.App, a *app.Application) *Server {
 	r.Post("/v1/messages/count_tokens", s.authMiddleware, s.handleAnthropicCountTokens)
 	r.Post("/v1/responses", s.authMiddleware, s.handleOpenAIResponses)
 	r.Post("/responses", s.authMiddleware, s.handleOpenAIResponses)
-	r.Get("/v1/models", s.authMiddleware, s.handleListModels)
+	r.Get("/v1/models", s.handleListModels)
 	return s
 }
 
