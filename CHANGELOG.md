@@ -3,6 +3,22 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [0.3.0](https://github.com/montara-project/tera-router/compare/v0.2.0...v0.3.0) (2026-10-01)
+
+### Features
+
+* **server:** advertise only model aliases on /v1/models ([348ac16](https://github.com/montara-project/tera-router/commit/348ac161f73a56b8abe99ab669482edc4edf1b0f))
+* **server:** catalog provider model catalog endpoints ([4bff28f](https://github.com/montara-project/tera-router/commit/4bff28fb8c31ff747f00be9bafd875f5e34a2c1b))
+* **web-ui:** provider detail and key management for catalog providers ([c9344c6](https://github.com/montara-project/tera-router/commit/c9344c622e57d9bf57d449cabfc5fa58ff38cff6))
+
+### Bug Fixes
+
+* open model list ([9316ba5](https://github.com/montara-project/tera-router/commit/9316ba50b28b5be91b1719439276a8c7907c0d82))
+
+### Reverts
+
+* models list with auth ([2c896d3](https://github.com/montara-project/tera-router/commit/2c896d3084bdbfe6f1b1ab8be848ce00b9976f08))
+
 ## [0.2.0](https://github.com/montara-project/tera-router/compare/v0.1.2...v0.2.0) (2026-10-01)
 
 ### Features
