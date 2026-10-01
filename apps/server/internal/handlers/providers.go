@@ -386,7 +386,11 @@ func (h *providersHandler) CustomModelsSync(c fiber.Ctx) error {
 		return apperr.New(apperr.KindUnprocessable, "no usable credential for this provider; add an API key first")
 	}
 
-	anthropic := provider.APIKind == "anthropic"
+	// Match the gateway's dialect resolution (customProviderDialect): the
+	// operator-set api_kind may carry the "custom-" marker, whitespace, or
+	// different casing the raw comparison would miss.
+	kind := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(provider.APIKind)), "custom-")
+	anthropic := kind == "anthropic"
 	endpoint := upstreamModelsEndpoint(provider.BaseURL, anthropic)
 	upstream, err := h.app.Services.Upstream.ListModels(c.Context(), endpoint, anthropic, apiKey)
 	if err != nil {
