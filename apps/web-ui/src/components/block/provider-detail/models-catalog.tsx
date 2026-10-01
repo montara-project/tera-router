@@ -32,6 +32,8 @@ import EmptyState from '../common/empty-state'
 export const CATALOG_PAGE_SIZE = 15
 
 export default function ModelsCatalog({
+  variant,
+  providerId,
   providerSlug,
   catalog,
   loading,
@@ -45,6 +47,9 @@ export default function ModelsCatalog({
   onSync,
   onUpdate,
 }: {
+  /** catalog providers are keyed by slug; customs by their uuid */
+  variant: 'catalog' | 'custom'
+  providerId: string
   providerSlug: string
   catalog: Models.UpstreamModels | null
   loading: boolean
@@ -205,6 +210,8 @@ export default function ModelsCatalog({
                 <ModelCard
                   key={model.id}
                   providerSlug={providerSlug}
+                  providerId={providerId}
+                  variant={variant}
                   model={model}
                   selected={selected.includes(model.id)}
                   onToggleSelect={toggleSelect}

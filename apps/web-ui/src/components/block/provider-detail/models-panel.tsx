@@ -69,6 +69,8 @@ export default function ModelsPanel({
       </TabsList>
       <TabsContent value="catalog" className="mt-4">
         <ModelsCatalog
+          variant={variant}
+          providerId={providerId}
           providerSlug={providerSlug}
           catalog={catalog}
           loading={catalogQuery.isLoading}

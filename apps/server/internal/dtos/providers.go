@@ -36,6 +36,40 @@ func (d *ProviderModelStates) Validate(v *validator.MapValidator) {
 	v.Field("models").Required()
 }
 
+// ModelTestMessage is one turn of a model test conversation.
+type ModelTestMessage struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
+
+// ModelTestRequest is the body of the model test endpoints
+// (POST /v1/providers/:id/models/test and its custom-provider counterpart):
+// one small conversation addressed to a single model.
+type ModelTestRequest struct {
+	Model    string             `json:"model"`
+	Messages []ModelTestMessage `json:"messages"`
+}
+
+func (d *ModelTestRequest) Validate(v *validator.MapValidator) {
+	v.Field("model").Required().String()
+	v.Field("messages").Required()
+}
+
+// ModelTestResult reports one test chat completion against the upstream. A
+// transport-level success with a model-side failure (bad model id, rejected
+// credential, empty answer) is OK=false with Detail set, so the dashboard can
+// render the reason inline instead of as a request error.
+type ModelTestResult struct {
+	OK           bool   `json:"ok"`
+	Status       int    `json:"status"`
+	LatencyMS    int64  `json:"latency_ms"`
+	Model        string `json:"model"`
+	Content      string `json:"content"`
+	Detail       string `json:"detail"`
+	InputTokens  int64  `json:"input_tokens"`
+	OutputTokens int64  `json:"output_tokens"`
+}
+
 // CatalogProvider is a built-in provider spec, ported (condensed) from
 // IDRouter's connectors catalog: the subset of metadata the dashboard needs
 // to render the providers page and validate credentials.

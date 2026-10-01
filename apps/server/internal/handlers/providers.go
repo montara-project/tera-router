@@ -687,6 +687,102 @@ func (h *providersHandler) CatalogModelsUpdate(c fiber.Ctx) error {
 	return dtos.OK(c, fiber.Map{"models": cat.Models, "fetched_at": cat.FetchedAt})
 }
 
+// --- Model test (dashboard playground) ---
+
+// modelTestMessageCap bounds one test conversation so a test stays small and
+// cannot double as a free relay through the operator's credentials.
+const (
+	modelTestMaxMessages = 20
+	modelTestMaxChars    = 4000
+)
+
+// validateModelTestMessages checks the conversation shape the upstream
+// service will forward.
+func validateModelTestMessages(msgs []dtos.ModelTestMessage) error {
+	if len(msgs) == 0 {
+		return apperr.New(apperr.KindUnprocessable, "at least one message is required")
+	}
+	if len(msgs) > modelTestMaxMessages {
+		return apperr.New(apperr.KindUnprocessable, "at most %d messages per test", modelTestMaxMessages)
+	}
+	for _, m := range msgs {
+		if m.Role != "user" && m.Role != "assistant" {
+			return apperr.New(apperr.KindUnprocessable, "message role must be user or assistant")
+		}
+		if strings.TrimSpace(m.Content) == "" {
+			return apperr.New(apperr.KindUnprocessable, "message content is required")
+		}
+		if len(m.Content) > modelTestMaxChars {
+			return apperr.New(apperr.KindUnprocessable, "message content exceeds %d characters", modelTestMaxChars)
+		}
+	}
+	return nil
+}
+
+// runModelTest validates the request and issues one small chat completion
+// against the already-resolved upstream endpoint and credential. Shared by
+// the catalog and custom-provider handlers; the response carries the
+// assistant reply, latency, and token usage so the playground can render
+// them inline.
+func (h *providersHandler) runModelTest(c fiber.Ctx, baseURL, apiKey string, anthropic bool) error {
+	var req dtos.ModelTestRequest
+	if err := lib.ValidateRequestBody(c, &req); err != nil {
+		return err
+	}
+	if err := validateModelTestMessages(req.Messages); err != nil {
+		return err
+	}
+	if baseURL == "" {
+		return apperr.New(apperr.KindUnprocessable, "no base_url configured for this provider; add an account with a base URL first")
+	}
+
+	result, err := h.app.Services.Upstream.ChatCompletion(c.Context(), baseURL, anthropic, apiKey, req.Model, req.Messages)
+	if err != nil {
+		return err
+	}
+	return dtos.OK(c, result)
+}
+
+// CatalogModelTest issues one test chat completion for a catalog provider
+// model (POST /v1/providers/:id/models/test, :id = slug). The account's
+// base_url override wins — it is what the gateway routes through — with the
+// catalog spec's default as the fallback.
+func (h *providersHandler) CatalogModelTest(c fiber.Ctx) error {
+	slug := c.Params("id")
+	spec, ok := catalog.Lookup(slug)
+	if !ok {
+		return apperr.ErrNotFound
+	}
+
+	base := h.usableBaseURL(c.Context(), slug)
+	if base == "" {
+		base = spec.BaseURL
+	}
+	return h.runModelTest(c, base, h.usableAPIKey(c.Context(), slug), spec.Dialect == "anthropic")
+}
+
+// CustomModelTest issues one test chat completion for a custom provider model
+// (POST /v1/custom-providers/:id/models/test). Dialect resolution mirrors the
+// gateway: the operator-set api_kind may carry the "custom-" marker,
+// whitespace, or different casing.
+func (h *providersHandler) CustomModelTest(c fiber.Ctx) error {
+	id, err := lib.ContextParamUUID(c, "id")
+	if err != nil {
+		return apperr.ErrBadRequest
+	}
+	provider, err := h.app.Repos.Providers.Get(c.Context(), id.String())
+	if err != nil {
+		return err
+	}
+	if provider.BaseURL == "" {
+		return apperr.New(apperr.KindUnprocessable, "provider has no base_url configured")
+	}
+
+	kind := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(provider.APIKind)), "custom-")
+	anthropic := kind == "anthropic"
+	return h.runModelTest(c, provider.BaseURL, h.usableAPIKey(c.Context(), provider.Slug), anthropic)
+}
+
 // --- Provider-scoped bulk account operations ---
 
 func (h *providersHandler) AccountsBulkDisable(c fiber.Ctx) error {

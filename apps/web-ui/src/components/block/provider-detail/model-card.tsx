@@ -1,20 +1,27 @@
-import { IconCopy, IconEye, IconEyeOff } from '@tabler/icons-react'
+import { IconCopy, IconEye, IconEyeOff, IconMessageChatbot } from '@tabler/icons-react'
+import { useState } from 'react'
 import { toast } from 'sonner'
 
 import type { Models } from '@/lib/api/models'
 
+import ModelTestSheet from '@/components/block/provider-detail/model-test-sheet'
 import { Badge, BadgeDot } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 
 export default function ModelCard({
   providerSlug,
+  providerId,
+  variant,
   model,
   selected,
   onToggleSelect,
   onToggleState,
 }: {
   providerSlug: string
+  /** matches the API path key: slug for catalog providers, uuid for customs */
+  providerId: string
+  variant: 'catalog' | 'custom'
   model: Models.ProviderModel
   selected: boolean
   onToggleSelect: (id: string, checked: boolean) => void
@@ -22,6 +29,7 @@ export default function ModelCard({
 }) {
   const active = model.state === 'active'
   const composite = `${providerSlug}/${model.id}`
+  const [testOpen, setTestOpen] = useState(false)
 
   const copy = async () => {
     try {
@@ -70,6 +78,14 @@ export default function ModelCard({
           <Button
             size="icon"
             variant="ghost"
+            aria-label={`Test ${model.id}`}
+            onClick={() => setTestOpen(true)}
+          >
+            <IconMessageChatbot />
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
             aria-label={active ? `Disable ${model.id}` : `Enable ${model.id}`}
             onClick={() => onToggleState(model.id, active ? 'disabled' : 'active')}
           >
@@ -80,6 +96,14 @@ export default function ModelCard({
           </Button>
         </div>
       </div>
+      <ModelTestSheet
+        open={testOpen}
+        onOpenChange={setTestOpen}
+        variant={variant}
+        providerId={providerId}
+        providerSlug={providerSlug}
+        modelId={model.id}
+      />
     </div>
   )
 }

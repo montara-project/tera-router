@@ -28,6 +28,8 @@ export namespace Models {
   export type MediaCategory = import('./media').MediaCategory
   export type MediaProvider = import('./media').MediaProvider
   export type ModelAlias = import('./provider-catalog').ModelAlias
+  export type ModelTestMessage = import('./provider-catalog').ModelTestMessage
+  export type ModelTestResult = import('./provider-catalog').ModelTestResult
   export type PricingOverride = import('./override').PricingOverride
   export type Plan = import('./plan').Plan
   export type Provider = import('./provider').Provider
