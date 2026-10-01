@@ -5,10 +5,10 @@ import { useMemo, useState } from 'react'
 
 import type { Models } from '@/lib/api/models'
 
+import EmptyState from '@/components/block/common/empty-state'
 import SectionCard from '@/components/block/common/section-card'
 import AliasCard from '@/components/block/traffic/model-alias/alias-card'
 import { Button } from '@/components/ui/button'
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { queries } from '@/lib/api/queries'
@@ -90,30 +90,30 @@ function ModelAliasRoute() {
             <Skeleton className="h-52 w-full rounded-xl" />
           </div>
         ) : aliases.length === 0 ? (
-          <Empty className="border">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <IconReplace />
-              </EmptyMedia>
-              <EmptyTitle>
-                {search ? 'No aliases match your search' : 'No model aliases yet'}
-              </EmptyTitle>
-              <EmptyDescription>
-                {search
-                  ? 'Try a shorter name or clear the search to see every alias.'
-                  : 'Create an alias to give clients a stable model name backed by an ordered pool of provider targets.'}
-              </EmptyDescription>
-            </EmptyHeader>
-            {search ? (
-              <Button variant="outline" size="sm" onClick={() => setSearch('')}>
-                Clear search
-              </Button>
-            ) : (
-              <Button size="sm" className={EMERALD_BUTTON_CLASS} onClick={() => setCreating(true)}>
-                <IconPlus /> New alias
-              </Button>
-            )}
-          </Empty>
+          <EmptyState
+            icon={IconReplace}
+            title={search ? 'No aliases match your search' : 'No model aliases yet'}
+            description={
+              search
+                ? 'Try a shorter name or clear the search to see every alias.'
+                : 'Create an alias to give clients a stable model name backed by an ordered pool of provider targets.'
+            }
+            action={
+              search ? (
+                <Button variant="outline" size="sm" onClick={() => setSearch('')}>
+                  Clear search
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  className={EMERALD_BUTTON_CLASS}
+                  onClick={() => setCreating(true)}
+                >
+                  <IconPlus /> New alias
+                </Button>
+              )
+            }
+          />
         ) : (
           <div className="space-y-3">
             {aliases.map((alias) => (
