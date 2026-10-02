@@ -1,5 +1,5 @@
 import { IconChartLine } from '@tabler/icons-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import type { UsageTelemetryOverview } from '@/lib/api/models/usage'
 
@@ -38,14 +38,31 @@ function niceStep(max: number): number {
 export default function UsageTrendCard({ telemetry }: { telemetry: UsageTelemetryOverview }) {
   const { trend, trendBusiest: busiest } = telemetry
   const [metric, setMetric] = useState<Metric>('requests')
+  const chartRef = useRef<HTMLDivElement>(null)
+  const [size, setSize] = useState({ width: 0, height: 0 })
+
+  // the grid stretches this card to match its taller sibling; the chart must
+  // draw at the stretched size instead of its intrinsic aspect ratio
+  useEffect(() => {
+    const el = chartRef.current
+    if (!el) return
+    const observer = new ResizeObserver(([entry]) => {
+      setSize({
+        width: Math.round(entry.contentRect.width),
+        height: Math.round(entry.contentRect.height),
+      })
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
 
   const values = useMemo(() => trend.map((point) => metricValue(point, metric)), [trend, metric])
   const max = Math.max(...values, 1)
   const step = niceStep(max)
   const top = step * 4
 
-  const width = 760
-  const height = 250
+  const width = size.width || 760
+  const height = size.height || 250
   const padLeft = 46
   const padBottom = 26
   const plotWidth = width - padLeft - 12
@@ -97,10 +114,10 @@ export default function UsageTrendCard({ telemetry }: { telemetry: UsageTelemetr
           </div>
         </div>
 
-        <div className="mt-4 flex flex-1 items-center">
+        <div ref={chartRef} className="mt-4 min-h-40 flex-1">
           <svg
             viewBox={`0 0 ${width} ${height}`}
-            className="w-full"
+            className="block h-full w-full"
             role="img"
             aria-label={`Usage trend by ${metric}`}
           >
@@ -155,9 +172,9 @@ export default function UsageTrendCard({ telemetry }: { telemetry: UsageTelemetr
               index % labelEvery === 0 ? (
                 <text
                   key={point.day}
-                  x={x(index)}
+                  x={index === trend.length - 1 ? width : x(index)}
                   y={height - 6}
-                  textAnchor="middle"
+                  textAnchor={index === trend.length - 1 ? 'end' : 'middle'}
                   className="fill-muted-foreground text-[10px]"
                 >
                   {point.day}

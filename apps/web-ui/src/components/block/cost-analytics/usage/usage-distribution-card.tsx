@@ -45,7 +45,7 @@ export default function UsageDistributionCard({ telemetry }: DistributionCardPro
           ))}
         </div>
 
-        <div className="mt-5 min-h-[244px] space-y-4">
+        <div className="mt-5 min-h-61 space-y-4 mb-2">
           {visible.map((entry) => (
             <div key={entry.provider} className="flex items-center gap-3">
               <ProviderAvatar slug={entry.provider} apiKind={entry.api_kind} size="sm" />
@@ -61,8 +61,8 @@ export default function UsageDistributionCard({ telemetry }: DistributionCardPro
           ))}
         </div>
 
-        <div className="mt-auto flex items-center justify-between border-t border-border pt-4">
-          <p className="text-muted-foreground text-xs">{distributionTotalRequests} total</p>
+        <div className="mt-auto flex items-center justify-between border-t border-border pt-2">
+          <p className="text-muted-foreground text-xs">{distributionTotalRequests} total requests</p>
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"
