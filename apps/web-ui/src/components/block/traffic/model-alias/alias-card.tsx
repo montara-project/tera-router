@@ -145,7 +145,10 @@ export default function AliasCard({
   })
   const modelOptionsBySlug = new Map<string, Option<string>[]>()
   targetProviders.forEach((slug, i) => {
-    const models = modelQueries[i]?.data?.data?.models ?? []
+    // only active models are routable, so only they belong in the picker
+    const models = (modelQueries[i]?.data?.data?.models ?? []).filter(
+      (model) => model.state === 'active'
+    )
     modelOptionsBySlug.set(
       slug,
       models.map((model) => ({ value: model.id, label: model.id }))
