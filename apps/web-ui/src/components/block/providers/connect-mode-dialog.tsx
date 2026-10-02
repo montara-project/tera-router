@@ -65,8 +65,8 @@ export default function ConnectModeDialog({
             <span className="min-w-0">
               <span className="block text-sm font-semibold">Sign in to {name}</span>
               <span className="block text-xs text-muted-foreground">
-                Open {name}&apos;s official website in a popup and connect your account — no key
-                to copy.
+                Open {name}&apos;s official website in a popup and connect your account — no key to
+                copy.
               </span>
             </span>
           </button>
