@@ -27,8 +27,6 @@ export const Route = createFileRoute('/(protected)/(analytics)/settings/')({
   component: RouteComponent,
 })
 
-const VERSION = '0.1.29'
-
 const TABS = [
   { value: 'token-saving', label: 'Token Saving', icon: IconBolt },
   { value: 'routing', label: 'Routing', icon: IconRoute },
@@ -55,6 +53,7 @@ function RouteSkeleton() {
 function RouteComponent() {
   const { data } = useQuery(queries.settings.get())
   const settings = data?.data
+  const { data: health } = useQuery(queries.system.health())
 
   const updateMutation = useMutation(queries.settings.update())
 
@@ -101,7 +100,7 @@ function RouteComponent() {
         </TabsContent>
 
         <TabsContent value="system">
-          <SystemTab version={VERSION} />
+          <SystemTab version={health?.version} />
         </TabsContent>
       </Tabs>
     </SectionCard>

@@ -61,3 +61,12 @@ export interface SystemStats {
   cores: SystemCore[]
   history: SystemHistory
 }
+
+export interface SystemHealth {
+  machine_id: number
+  status: string
+  version: string
+  system_info: {
+    debug: boolean
+  }
+}

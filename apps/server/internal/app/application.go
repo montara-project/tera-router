@@ -11,6 +11,11 @@ import (
 	"tera-router/server/internal/services"
 )
 
+// Version is the running app version, injected at build time via
+// -ldflags "-X tera-router/server/internal/app.Version=..." (release images
+// pass the git tag); source builds report "dev".
+var Version = "dev"
+
 // Application is the dependency-injection container threaded through
 // handlers and services.
 type Application struct {

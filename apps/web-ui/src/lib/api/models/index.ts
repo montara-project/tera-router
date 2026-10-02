@@ -46,6 +46,7 @@ export namespace Models {
   export type Role = import('./role').Role
   export type Skill = import('./skill').Skill
   export type SourceCodeFilterMode = import('./settings').SourceCodeFilterMode
+  export type SystemHealth = import('./system').SystemHealth
   export type SystemStats = import('./system').SystemStats
   export type UpstreamModels = import('./provider-catalog').UpstreamModels
   export type UsageByModel = import('./usage').UsageByModel
