@@ -143,6 +143,9 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	protected.Patch("/quota/:id", h.Quota.Update)
 	protected.Delete("/quota/:id", h.Quota.Delete)
 
+	// Provider health (derived from gateway attempt outcomes)
+	protected.Get("/provider-health", h.ProviderHealth.Overview)
+
 	// Proxy pools
 	protected.Get("/proxy-pools", h.ProxyPools.Index)
 	protected.Post("/proxy-pools", h.ProxyPools.Store)

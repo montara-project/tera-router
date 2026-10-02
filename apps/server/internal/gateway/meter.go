@@ -80,6 +80,10 @@ type usageRecord struct {
 	Model     string
 	Client    string
 	ClientIP  string
+	// RequestID and Chain attribute the row to one client request and the
+	// routing chain that served it (see provider health aggregation).
+	RequestID string
+	Chain     string
 
 	Usage core.Usage
 	// CostMicros is computed by the caller from the resolved rates.
@@ -107,6 +111,8 @@ func (s *Server) recordUsage(rec usageRecord) {
 		Model:            rec.Model,
 		Client:           rec.Client,
 		ClientIP:         rec.ClientIP,
+		RequestID:        rec.RequestID,
+		Chain:            rec.Chain,
 		PromptTokens:     rec.Usage.PromptTokens,
 		CompletionTokens: rec.Usage.CompletionTokens,
 		CachedTokens:     rec.Usage.CachedTokens,
@@ -146,6 +152,8 @@ func (s *Server) recordFailure(meta requestMeta, at attempt, pe *core.ProviderEr
 		Model:        at.Target.Model,
 		Client:       meta.Client,
 		ClientIP:     meta.ClientIP,
+		RequestID:    meta.RequestID,
+		Chain:        meta.Chain,
 		Latency:      latency,
 		Failed:       true,
 		ErrorKind:    string(pe.Kind),
