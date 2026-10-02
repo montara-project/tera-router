@@ -265,10 +265,11 @@ func pluralize(n int64, singular, plural string) string {
 // what the gateway uses to resolve bare model ids and to advertise them on
 // /v1/models.
 //
-// Query params: search (case-insensitive substring on the model id), offset
-// and limit (limit defaults to 10, capped at 100) for the dashboard's paged
-// catalog view. The response always reports totals over the whole catalog so
-// a single page is enough to render the header and pagination.
+// Query params: search (case-insensitive substring on the model id), state
+// (active/disabled — pickers pass active to get only routable models), and
+// offset/limit (limit defaults to 10, capped at 100) for the dashboard's
+// paged catalog view. The response always reports totals over the whole
+// catalog so a single page is enough to render the header and pagination.
 func (h *providersHandler) CustomModels(c fiber.Ctx) error {
 	id, err := lib.ContextParamUUID(c, "id")
 	if err != nil {
@@ -289,7 +290,7 @@ func (h *providersHandler) CustomModels(c fiber.Ctx) error {
 
 	offset, _ := strconv.Atoi(c.Query("offset"))
 	limit, _ := strconv.Atoi(c.Query("limit"))
-	page, total, enabled := catalogPage(cat.Models, c.Query("search"), offset, limit)
+	page, total, enabled := catalogPage(cat.Models, c.Query("search"), c.Query("state"), offset, limit)
 	return dtos.OK(c, fiber.Map{
 		"models":     page,
 		"total":      total,
@@ -299,10 +300,13 @@ func (h *providersHandler) CustomModels(c fiber.Ctx) error {
 	})
 }
 
-// catalogPage filters one catalog by a case-insensitive id substring and
-// slices out one page. It returns the page, the filtered total (for page
-// count), and the enabled count over the whole catalog (for the header).
-func catalogPage(models []modelcatalog.ModelEntry, search string, offset, limit int) (page []modelcatalog.ModelEntry, total, enabled int) {
+// catalogPage filters one catalog by a case-insensitive id substring and an
+// optional state ("active"/"disabled"; any other value keeps both), then
+// slices out one page — state and search narrow the catalog BEFORE paging, so
+// pickers that only need routable models see them even when the full catalog
+// spans many pages. It returns the page, the filtered total (for page count),
+// and the enabled count over the whole catalog (for the header).
+func catalogPage(models []modelcatalog.ModelEntry, search, state string, offset, limit int) (page []modelcatalog.ModelEntry, total, enabled int) {
 	if models == nil {
 		models = []modelcatalog.ModelEntry{}
 	}
@@ -313,13 +317,23 @@ func catalogPage(models []modelcatalog.ModelEntry, search string, offset, limit 
 	}
 
 	filtered := models
-	if q := strings.ToLower(strings.TrimSpace(search)); q != "" {
-		filtered = make([]modelcatalog.ModelEntry, 0, len(models))
+	if state == modelcatalog.StateActive || state == modelcatalog.StateDisabled {
+		narrowed := make([]modelcatalog.ModelEntry, 0, len(models))
 		for _, m := range models {
-			if strings.Contains(strings.ToLower(m.ID), q) {
-				filtered = append(filtered, m)
+			if m.State == state {
+				narrowed = append(narrowed, m)
 			}
 		}
+		filtered = narrowed
+	}
+	if q := strings.ToLower(strings.TrimSpace(search)); q != "" {
+		narrowed := make([]modelcatalog.ModelEntry, 0, len(filtered))
+		for _, m := range filtered {
+			if strings.Contains(strings.ToLower(m.ID), q) {
+				narrowed = append(narrowed, m)
+			}
+		}
+		filtered = narrowed
 	}
 	total = len(filtered)
 
@@ -652,7 +666,7 @@ func (h *providersHandler) CatalogModels(c fiber.Ctx) error {
 
 	offset, _ := strconv.Atoi(c.Query("offset"))
 	limit, _ := strconv.Atoi(c.Query("limit"))
-	page, total, enabled := catalogPage(cat.Models, c.Query("search"), offset, limit)
+	page, total, enabled := catalogPage(cat.Models, c.Query("search"), c.Query("state"), offset, limit)
 	return dtos.OK(c, fiber.Map{
 		"models":     page,
 		"total":      total,

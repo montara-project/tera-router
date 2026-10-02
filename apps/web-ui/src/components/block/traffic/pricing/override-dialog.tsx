@@ -123,12 +123,16 @@ export default function OverrideDialog({
   const catalogModelsQuery = useQuery({
     ...queries.providers.catalogModels(selectedProviderModel?.slug ?? '', {
       limit: MODEL_OPTIONS_LIMIT,
+      // Disabled models are not routable and page 1 of a large catalog can
+      // hold none of the enabled ones — filter server-side.
+      state: 'active',
     }),
     enabled: !!selectedProviderModel && isCatalogProvider,
   })
   const customModelsQuery = useQuery({
     ...queries.providers.customModels(selectedProviderModel?.id ?? '', {
       limit: MODEL_OPTIONS_LIMIT,
+      state: 'active',
     }),
     enabled: !!selectedProviderModel && !isCatalogProvider,
   })

@@ -33,7 +33,11 @@ export const GET_PROVIDER_MODELS_QUERY_KEY = (slug: string) => {
   return [PROVIDER_QUERY_KEY, 'models', slug]
 }
 
-export type ProviderModelListParams = PaginateDto & { search?: string }
+export type ProviderModelListParams = PaginateDto & {
+  search?: string
+  /** Server-side state filter — narrows before paging, so pickers pass 'active'. */
+  state?: Models.ProviderModelState
+}
 
 const list = () =>
   queryOptions({
