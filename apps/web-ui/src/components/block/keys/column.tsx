@@ -7,6 +7,7 @@ import {
   IconEye,
   IconEyeOff,
   IconLink,
+  IconLoader2,
   IconTrash,
 } from '@tabler/icons-react'
 import { useMutation } from '@tanstack/react-query'
@@ -37,20 +38,44 @@ const STATUS_DOTS: Record<Models.ApiKeyStatus, string> = {
 
 function KeyCopyCell({ record }: { record: Models.ApiKey }) {
   const { copied, copy } = useCopyToClipboard()
+  const revealMutation = useMutation(queries.keys.reveal())
+
+  // The list payload only carries the masked preview, so copying the real
+  // credential goes through the audit-logged reveal endpoint (same as the
+  // detail page). An optional full_key — e.g. right after creation — skips it.
+  const handleCopy = async () => {
+    if (record.full_key) {
+      copy(record.full_key)
+      return
+    }
+    try {
+      const res = await revealMutation.mutateAsync(record.id)
+      copy(res.data.full_key)
+    } catch (error) {
+      toastAxiosError(error)
+    }
+  }
 
   return (
     <div className="flex items-center gap-2">
       <IconLink className="h-4 w-4 shrink-0 text-muted-foreground" />
       <code className="font-mono text-sm">{record.key_preview}</code>
       <Button
-        aria-label={`Copy ${record.name} key`}
+        aria-label={copied ? `Copied ${record.name} key` : `Copy ${record.name} key`}
         className="text-muted-foreground hover:text-foreground"
+        disabled={revealMutation.isPending}
         mode="icon"
-        onClick={() => record.full_key && copy(record.full_key)}
+        onClick={() => void handleCopy()}
         size="sm"
         variant="ghost"
       >
-        {copied ? <IconCheck className="text-emerald-600 dark:text-emerald-300" /> : <IconCopy />}
+        {revealMutation.isPending ? (
+          <IconLoader2 className="animate-spin" />
+        ) : copied ? (
+          <IconCheck className="text-emerald-600 dark:text-emerald-300" />
+        ) : (
+          <IconCopy />
+        )}
       </Button>
     </div>
   )
