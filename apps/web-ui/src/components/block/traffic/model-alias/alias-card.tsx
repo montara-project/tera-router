@@ -1,11 +1,12 @@
 import { IconChevronDown, IconChevronUp, IconPlus, IconReplace, IconX } from '@tabler/icons-react'
 import { useSelector } from '@tanstack/react-form'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueries, useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import z from 'zod'
 
 import type { Models } from '@/lib/api/models'
+import type { Option } from '@/types/select'
 
 import SimpleAlertDialog from '@/components/block/common/simple-alert-dialog'
 import { Badge, BadgeDot } from '@/components/ui/badge'
@@ -17,6 +18,9 @@ import { AliasTargetSchema } from '@/lib/api/dtos/alias/schema'
 import { queries } from '@/lib/api/queries'
 import { EMERALD_BUTTON_CLASS } from '@/lib/constants/ui'
 import { requiredString } from '@/lib/validation'
+
+/** Model combobox page size — the server caps the catalog page at 100. */
+const MODEL_OPTIONS_LIMIT = 100
 
 const CONTEXT_WINDOW_OPTIONS = [
   { value: 0, label: 'Default (unlimited)' },
@@ -110,6 +114,43 @@ export default function AliasCard({
     form.store,
     (s) => !s.isDirty || s.values.targets.some(isPartialTarget)
   )
+
+  // Provider combobox lists the catalog + custom providers; model comboboxes
+  // read the selected provider's stored catalog (limit = server page cap).
+  const providersQuery = useQuery(queries.providers.list())
+  const providersOverview = providersQuery.data?.data
+  const providers = [
+    ...(providersOverview?.connected ?? []),
+    ...(providersOverview?.available ?? []),
+  ]
+  const providerOptions: Option<string>[] = providers.map((p) => ({
+    value: p.slug,
+    label: p.name || p.slug,
+  }))
+
+  const targetProviderKey = useSelector(form.store, (s) =>
+    [...new Set(s.values.targets.map((t) => t.provider.trim()).filter(Boolean))].join('\u0000')
+  )
+  const targetProviders = targetProviderKey ? targetProviderKey.split('\u0000') : []
+
+  const modelQueries = useQueries({
+    queries: targetProviders.map((slug) => {
+      const provider = providers.find((p) => p.slug === slug)
+      // Catalog providers carry "prov-<slug>" ids; custom providers carry uuids.
+      const isCatalog = provider?.id.startsWith('prov-') ?? true
+      return isCatalog
+        ? queries.providers.catalogModels(provider?.slug ?? slug, { limit: MODEL_OPTIONS_LIMIT })
+        : queries.providers.customModels(provider?.id ?? '', { limit: MODEL_OPTIONS_LIMIT })
+    }),
+  })
+  const modelOptionsBySlug = new Map<string, Option<string>[]>()
+  targetProviders.forEach((slug, i) => {
+    const models = modelQueries[i]?.data?.data?.models ?? []
+    modelOptionsBySlug.set(
+      slug,
+      models.map((model) => ({ value: model.id, label: model.id }))
+    )
+  })
 
   const remove = async () => {
     try {
@@ -219,27 +260,34 @@ export default function AliasCard({
                       </span>
                       <form.AppField name={`targets[${i}].provider`}>
                         {(subField) => (
-                          <input
-                            value={subField.state.value}
-                            onChange={(e) => subField.handleChange(e.target.value)}
-                            onBlur={subField.handleBlur}
-                            placeholder="provider"
-                            aria-label={`Target ${i + 1} provider`}
-                            className={`h-7 min-w-0 flex-1 rounded bg-transparent font-mono text-sm outline-none placeholder:text-muted-foreground/60 focus-visible:bg-muted/40 ${row.active ? '' : 'text-muted-foreground'}`}
-                          />
+                          <div className="min-w-0 flex-1">
+                            <subField.ComboboxField
+                              label="Provider"
+                              hideLabel
+                              placeholder="provider"
+                              options={providerOptions}
+                              defaultValues={row.provider ? [row.provider] : []}
+                              onSelect={() => {
+                                // Model ids are provider-specific; start clean on switch.
+                                form.setFieldValue(`targets[${i}].model`, '')
+                              }}
+                            />
+                          </div>
                         )}
                       </form.AppField>
                       <span className="text-muted-foreground/60">/</span>
                       <form.AppField name={`targets[${i}].model`}>
                         {(subField) => (
-                          <input
-                            value={subField.state.value}
-                            onChange={(e) => subField.handleChange(e.target.value)}
-                            onBlur={subField.handleBlur}
-                            placeholder="model"
-                            aria-label={`Target ${i + 1} model`}
-                            className={`h-7 min-w-0 flex-[1.4] rounded bg-transparent font-mono text-sm outline-none placeholder:text-muted-foreground/60 focus-visible:bg-muted/40 ${row.active ? '' : 'text-muted-foreground'}`}
-                          />
+                          <div className="min-w-0 flex-[1.4]">
+                            <subField.ComboboxField
+                              label="Model"
+                              hideLabel
+                              placeholder={row.provider.trim() ? 'model' : 'pick a provider first'}
+                              options={modelOptionsBySlug.get(row.provider.trim()) ?? []}
+                              defaultValues={row.model ? [row.model] : []}
+                              disabled={row.provider.trim() === ''}
+                            />
+                          </div>
                         )}
                       </form.AppField>
                       <span className="ml-auto flex items-center gap-2">

@@ -25,6 +25,8 @@ interface ComboboxInputProps<TData> {
   defaultValues: string[]
   onSelect: (value: string[]) => void
   onBlur?: () => void
+  /** live selection from the owning field; omit for uncontrolled use */
+  selection?: string[]
   /** false replaces the selection and closes the popover on pick */
   multiple?: boolean
   /** Trigger text while nothing is selected; falls back to the label */
@@ -38,24 +40,27 @@ export default function ComboboxInput<TData>({
   label,
   onSelect,
   onBlur,
+  selection,
   multiple = true,
   placeholder,
   disabled = false,
 }: ComboboxInputProps<TData>) {
   const [open, setOpen] = useState(false)
-  const [selectedValues, setSelectedValues] = React.useState<string[]>(defaultValues)
+  const [fallbackSelection, setFallbackSelection] = React.useState<string[]>(defaultValues)
+  const selectedValues = selection ?? fallbackSelection
+
+  const applySelection = (next: string[]) => {
+    if (selection === undefined) setFallbackSelection(next)
+    onSelect(next)
+  }
 
   const toggleSelection = (value: string) => {
     if (!multiple) {
-      setSelectedValues([value])
-      onSelect([value])
+      applySelection([value])
       setOpen(false)
       return
     }
-    setSelectedValues((prev) =>
-      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
-    )
-    onSelect(
+    applySelection(
       selectedValues.includes(value)
         ? selectedValues.filter((v) => v !== value)
         : [...selectedValues, value]
@@ -63,8 +68,7 @@ export default function ComboboxInput<TData>({
   }
 
   const removeSelection = (value: string) => {
-    setSelectedValues((prev) => prev.filter((v) => v !== value))
-    onSelect(selectedValues.filter((v) => v !== value))
+    applySelection(selectedValues.filter((v) => v !== value))
   }
 
   const selectedLabel = (value: string) => options.find((c) => c.value === value)?.label ?? value
