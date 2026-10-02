@@ -1,5 +1,5 @@
 import { IconChartLine } from '@tabler/icons-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import type { UsageTelemetryOverview } from '@/lib/api/models/usage'
 
@@ -38,14 +38,31 @@ function niceStep(max: number): number {
 export default function UsageTrendCard({ telemetry }: { telemetry: UsageTelemetryOverview }) {
   const { trend, trendBusiest: busiest } = telemetry
   const [metric, setMetric] = useState<Metric>('requests')
+  const chartRef = useRef<HTMLDivElement>(null)
+  const [size, setSize] = useState({ width: 0, height: 0 })
+
+  // the grid stretches this card to match its taller sibling; the chart must
+  // draw at the stretched size instead of its intrinsic aspect ratio
+  useEffect(() => {
+    const el = chartRef.current
+    if (!el) return
+    const observer = new ResizeObserver(([entry]) => {
+      setSize({
+        width: Math.round(entry.contentRect.width),
+        height: Math.round(entry.contentRect.height),
+      })
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
 
   const values = useMemo(() => trend.map((point) => metricValue(point, metric)), [trend, metric])
   const max = Math.max(...values, 1)
   const step = niceStep(max)
   const top = step * 4
 
-  const width = 760
-  const height = 250
+  const width = size.width || 760
+  const height = size.height || 250
   const padLeft = 46
   const padBottom = 26
   const plotWidth = width - padLeft - 12
@@ -66,8 +83,8 @@ export default function UsageTrendCard({ telemetry }: { telemetry: UsageTelemetr
   const labelEvery = Math.ceil(trend.length / 10)
 
   return (
-    <Card className="bg-background">
-      <CardContent className="p-5">
+    <Card className="h-full bg-background">
+      <CardContent className="flex flex-col p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
@@ -97,73 +114,75 @@ export default function UsageTrendCard({ telemetry }: { telemetry: UsageTelemetr
           </div>
         </div>
 
-        <svg
-          viewBox={`0 0 ${width} ${height}`}
-          className="mt-4 w-full"
-          role="img"
-          aria-label={`Usage trend by ${metric}`}
-        >
-          <defs>
-            <linearGradient id="usage-trend-fill" x1="0" y1="0" x2="0" y2="1">
-              <stop
-                offset="0%"
-                stopColor="currentColor"
-                className="text-emerald-500"
-                stopOpacity="0.18"
-              />
-              <stop
-                offset="100%"
-                stopColor="currentColor"
-                className="text-emerald-500"
-                stopOpacity="0"
-              />
-            </linearGradient>
-          </defs>
+        <div ref={chartRef} className="mt-4 min-h-40 flex-1">
+          <svg
+            viewBox={`0 0 ${width} ${height}`}
+            className="block h-full w-full"
+            role="img"
+            aria-label={`Usage trend by ${metric}`}
+          >
+            <defs>
+              <linearGradient id="usage-trend-fill" x1="0" y1="0" x2="0" y2="1">
+                <stop
+                  offset="0%"
+                  stopColor="currentColor"
+                  className="text-emerald-500"
+                  stopOpacity="0.18"
+                />
+                <stop
+                  offset="100%"
+                  stopColor="currentColor"
+                  className="text-emerald-500"
+                  stopOpacity="0"
+                />
+              </linearGradient>
+            </defs>
 
-          {gridValues.map((value) => (
-            <g key={value}>
-              <line
-                x1={padLeft}
-                x2={width - 12}
-                y1={y(value)}
-                y2={y(value)}
-                className="stroke-border/60"
-                strokeWidth="1"
-              />
-              <text
-                x={padLeft - 8}
-                y={y(value) + 3}
-                textAnchor="end"
-                className="fill-muted-foreground text-[10px]"
-              >
-                {formatY(value)}
-              </text>
-            </g>
-          ))}
+            {gridValues.map((value) => (
+              <g key={value}>
+                <line
+                  x1={padLeft}
+                  x2={width - 12}
+                  y1={y(value)}
+                  y2={y(value)}
+                  className="stroke-border/60"
+                  strokeWidth="1"
+                />
+                <text
+                  x={padLeft - 8}
+                  y={y(value) + 3}
+                  textAnchor="end"
+                  className="fill-muted-foreground text-[10px]"
+                >
+                  {formatY(value)}
+                </text>
+              </g>
+            ))}
 
-          <path d={areaPath} fill="url(#usage-trend-fill)" />
-          <path
-            d={linePath}
-            fill="none"
-            className="stroke-emerald-500"
-            strokeWidth="1.5"
-            vectorEffect="non-scaling-stroke"
-          />
+            <path d={areaPath} fill="url(#usage-trend-fill)" />
+            <path
+              d={linePath}
+              fill="none"
+              className="stroke-emerald-500"
+              strokeWidth="1.5"
+              vectorEffect="non-scaling-stroke"
+            />
 
-          {trend.map((point, index) =>
-            index % labelEvery === 0 ? (
-              <text
-                key={point.day}
-                x={x(index)}
-                y={height - 6}
-                textAnchor="middle"
-                className="fill-muted-foreground text-[10px]"
-              >
-                {point.day}
-              </text>
-            ) : null
-          )}
-        </svg>
+            {trend.map((point, index) =>
+              index % labelEvery === 0 ? (
+                <text
+                  key={point.day}
+                  x={index === trend.length - 1 ? width : x(index)}
+                  y={height - 6}
+                  textAnchor={index === trend.length - 1 ? 'end' : 'middle'}
+                  className="fill-muted-foreground text-[10px]"
+                >
+                  {point.day}
+                </text>
+              ) : null
+            )}
+          </svg>
+        </div>
       </CardContent>
     </Card>
   )

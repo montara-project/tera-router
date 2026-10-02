@@ -1,4 +1,4 @@
 {
   "title": "Memulai",
-  "pages": ["installation", "dashboard"]
+  "pages": ["installation", "docker-compose", "dashboard"]
 }

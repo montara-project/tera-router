@@ -46,7 +46,6 @@ export default function PolicyRow({ policy, onToggle, onEdit, onDelete }: Policy
           checked={policy.enabled}
           onCheckedChange={onToggle}
           aria-label={`Toggle ${policy.name}`}
-          className="data-[state=checked]:bg-amber-600"
         />
         <Button size="sm" className={EDIT_BUTTON_CLASS} onClick={onEdit}>
           Edit
