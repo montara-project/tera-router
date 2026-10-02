@@ -202,7 +202,7 @@ export default function OverrideDialog({
               </form.AppField>
 
               <form.Subscribe selector={(s) => s.values.scope}>
-                {(scope) =>
+                {(scope: 'all' | 'model') =>
                   scope === 'model' ? (
                     <form.AppField name="model">
                       {(field) => (
