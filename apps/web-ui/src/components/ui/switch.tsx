@@ -25,6 +25,7 @@ const switchVariants = cva(
     relative peer inline-flex shrink-0 cursor-pointer items-center rounded-full transition-colors 
     focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background 
     disabled:cursor-not-allowed disabled:opacity-50 data-[state=unchecked]:bg-input
+    dark:data-[state=unchecked]:bg-background dark:data-[state=unchecked]:inset-ring dark:data-[state=unchecked]:inset-ring-input
     aria-invalid:border aria-invalid:border-destructive/60 aria-invalid:ring-destructive/10 dark:aria-invalid:border-destructive dark:aria-invalid:ring-destructive/20
     [[data-invalid=true]_&]:border [[data-invalid=true]_&]:border-destructive/60 [[data-invalid=true]_&]:ring-destructive/10  dark:[[data-invalid=true]_&]:border-destructive dark:[[data-invalid=true]_&]:ring-destructive/20
   `,
@@ -42,7 +43,7 @@ const switchVariants = cva(
       },
       permanent: {
         true: 'bg-input',
-        false: 'data-[state=checked]:bg-primary',
+        false: 'data-[state=checked]:bg-orange-300',
       },
     },
     defaultVariants: {
@@ -54,7 +55,7 @@ const switchVariants = cva(
 )
 
 const switchThumbVariants = cva(
-  'pointer-events-none block bg-white w-1/2 h-[calc(100%-4px)] shadow-lg ring-0 transition-transform start-0 data-[state=unchecked]:translate-x-[2px] data-[state=checked]:translate-x-[calc(100%-2px)] rtl:data-[state=unchecked]:-translate-x-[2px] rtl:data-[state=checked]:-translate-x-[calc(100%-2px)]',
+  'pointer-events-none block bg-background dark:data-[state=unchecked]:bg-foreground w-1/2 h-[calc(100%-4px)] shadow-lg ring-0 transition-transform start-0 data-[state=unchecked]:translate-x-[2px] data-[state=checked]:translate-x-[calc(100%-2px)] rtl:data-[state=unchecked]:-translate-x-[2px] rtl:data-[state=checked]:-translate-x-[calc(100%-2px)]',
   {
     variants: {
       shape: {

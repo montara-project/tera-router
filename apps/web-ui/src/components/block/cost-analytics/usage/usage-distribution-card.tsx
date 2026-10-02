@@ -62,7 +62,9 @@ export default function UsageDistributionCard({ telemetry }: DistributionCardPro
         </div>
 
         <div className="mt-auto flex items-center justify-between border-t border-border pt-2">
-          <p className="text-muted-foreground text-xs">{distributionTotalRequests} total requests</p>
+          <p className="text-muted-foreground text-xs">
+            {distributionTotalRequests} total requests
+          </p>
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"

@@ -136,12 +136,7 @@ function ToggleRow({
         <p className="text-sm font-medium text-foreground">{label}</p>
         {sub ? <p className="text-muted-foreground text-xs">{sub}</p> : null}
       </div>
-      <Switch
-        checked={checked}
-        onCheckedChange={onCheckedChange}
-        aria-label={label}
-        className="data-[state=checked]:bg-amber-600"
-      />
+      <Switch checked={checked} onCheckedChange={onCheckedChange} aria-label={label} />
     </div>
   )
 }

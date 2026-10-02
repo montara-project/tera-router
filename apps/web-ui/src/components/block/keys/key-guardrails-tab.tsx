@@ -217,7 +217,6 @@ export default function KeyGuardrailsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
               <Switch
                 aria-label={`Toggle ${policy.name}`}
                 checked={policy.enabled}
-                className="data-[state=checked]:bg-amber-600"
                 disabled={updateMutation.isPending}
                 onCheckedChange={() => handleToggle(policy)}
               />

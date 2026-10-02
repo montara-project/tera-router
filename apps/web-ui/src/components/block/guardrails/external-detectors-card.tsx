@@ -27,7 +27,6 @@ export default function ExternalDetectorsCard({
           checked={checked}
           onCheckedChange={onCheckedChange}
           aria-label="Allow external detector engines"
-          className="data-[state=checked]:bg-amber-600"
         />
       </CardContent>
     </Card>
