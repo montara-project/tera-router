@@ -49,12 +49,13 @@ const create = () => {
   })
 }
 
-const update = (id: string) => {
+const update = () => {
   const qc = getQueryClient()
 
   return mutationOptions({
-    mutationFn: async (reqBody: Partial<AccountDto>) => {
-      const res = await services.accounts.update(id, reqBody)
+    mutationFn: async (reqBody: { id: string } & Partial<AccountDto>) => {
+      const { id, ...body } = reqBody
+      const res = await services.accounts.update(id, body)
       return res.data
     },
     onSuccess: () => {

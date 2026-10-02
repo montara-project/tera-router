@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/card'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Switch } from '@/components/ui/switch'
 import { queries } from '@/lib/api/queries'
 import { services } from '@/lib/api/services'
 
@@ -47,9 +48,11 @@ export default function AccountsPanel({
   const [testingId, setTestingId] = useState<string | null>(null)
   const [testingAll, setTestingAll] = useState(false)
   const [deleteAccountId, setDeleteAccountId] = useState<string | null>(null)
+  const [togglingId, setTogglingId] = useState<string | null>(null)
 
   const testAccountMutation = useMutation(queries.accounts.test())
   const deleteAccountMutation = useMutation(queries.accounts.delete())
+  const toggleAccountMutation = useMutation(queries.accounts.update())
 
   const activeAccounts = accounts.filter(
     (account) => !account.disabled && account.status === 'active'
@@ -101,6 +104,24 @@ export default function AccountsPanel({
       setDeleteAccountId(null)
     } catch {
       toast.error('Failed to remove account')
+    }
+  }
+
+  const toggleAccount = async (account: Models.Account) => {
+    setTogglingId(account.id)
+    try {
+      // the update endpoint validates provider as required even for patches
+      await toggleAccountMutation.mutateAsync({
+        id: account.id,
+        provider: account.provider,
+        disabled: !account.disabled,
+      })
+      await onChanged()
+      toast.success(account.disabled ? 'Account enabled' : 'Account disabled')
+    } catch {
+      toast.error('Failed to update account')
+    } finally {
+      setTogglingId(null)
     }
   }
 
@@ -185,18 +206,27 @@ export default function AccountsPanel({
                       {account.auth_kind === 'api_key' ? 'API key' : account.auth_kind}
                     </span>
                     <span className="font-mono text-sm">{account.priority}</span>
-                    <Badge
-                      variant={
-                        account.disabled || account.status !== 'active' ? 'secondary' : 'success'
-                      }
-                      appearance="light"
-                      size="sm"
-                    >
-                      <BadgeDot />
-                      {account.disabled || account.status !== 'active'
-                        ? 'Disabled'
-                        : 'Direct connection'}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant={
+                          account.disabled || account.status !== 'active' ? 'secondary' : 'success'
+                        }
+                        appearance="light"
+                        size="sm"
+                      >
+                        <BadgeDot />
+                        {account.disabled || account.status !== 'active'
+                          ? 'Disabled'
+                          : 'Direct connection'}
+                      </Badge>
+                      <Switch
+                        size="sm"
+                        checked={!account.disabled}
+                        disabled={togglingId === account.id}
+                        onCheckedChange={() => toggleAccount(account)}
+                        aria-label={`${account.disabled ? 'Enable' : 'Disable'} ${account.label || 'API key'}`}
+                      />
+                    </div>
                     <div className="flex justify-end gap-1">
                       <Button
                         size="icon"
