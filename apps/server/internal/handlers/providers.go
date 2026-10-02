@@ -129,7 +129,7 @@ func (h *providersHandler) Index(c fiber.Ctx) error {
 		Available: []dtos.ProviderView{},
 	}
 
-	for _, spec := range catalog.All() {
+	for _, spec := range catalog.Listed() {
 		view := dtos.ProviderView{
 			ID:           "prov-" + spec.Slug,
 			Name:         spec.Name,

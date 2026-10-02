@@ -40,8 +40,29 @@ func TestProviderConfigs(t *testing.T) {
 		t.Errorf("claude redirect = %q, want the dashboard origin with /callback", got)
 	}
 
-	if _, ok := ConfigFor("openai"); ok {
-		t.Error("openai (api-key provider) must not have an OAuth config")
+	// The catalog-tile aliases reuse the subscription flows: OpenAI's
+	// "sign in to official website" runs the Codex flow but must attribute
+	// its account to the hidden codex provider, while Anthropic's stays on
+	// the anthropic catalog provider.
+	openai, ok := ConfigFor("openai")
+	if !ok {
+		t.Fatal("no config for openai")
+	}
+	if openai.AccountSlug() != "codex" {
+		t.Errorf("openai account slug = %q, want codex", openai.AccountSlug())
+	}
+	if openai.ClientID != codex.ClientID || openai.FixedLoopbackPort != codex.FixedLoopbackPort {
+		t.Errorf("openai flow drifts from codex: %+v", openai)
+	}
+	anthropic, ok := ConfigFor("anthropic")
+	if !ok {
+		t.Fatal("no config for anthropic")
+	}
+	if anthropic.AccountSlug() != "anthropic" {
+		t.Errorf("anthropic account slug = %q, want anthropic", anthropic.AccountSlug())
+	}
+	if anthropic.ClientID != claude.ClientID || anthropic.AuthorizeURL != claude.AuthorizeURL {
+		t.Errorf("anthropic flow drifts from claude: %+v", anthropic)
 	}
 }
 

@@ -99,6 +99,10 @@ type CatalogProvider struct {
 	Pinned bool `json:"pinned"`
 	// Notice is an optional human-readable usage note.
 	Notice string `json:"notice,omitempty"`
+	// Hidden keeps a spec routable (Lookup) but out of the dashboard's
+	// provider listing — used by OAuth-only upstreams that the UI reaches
+	// through another provider's connect flow (codex behind OpenAI).
+	Hidden bool `json:"-"`
 }
 
 // ProviderView matches the web UI Provider model: id, name, slug, connected,

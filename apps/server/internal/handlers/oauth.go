@@ -148,11 +148,11 @@ func (h *oauthHandler) Exchange(c fiber.Ctx) error {
 	}
 	h.sessions.Delete(req.State)
 
-	id, email, perr := h.persistAccount(c.Context(), actorFrom(c), provider, req.Label, tokens)
+	id, email, perr := h.persistAccount(c.Context(), actorFrom(c), cfg.AccountSlug(), req.Label, tokens)
 	if perr != nil {
 		return perr
 	}
-	return dtos.Created(c, fiber.Map{"id": id, "provider": provider, "email": email}, "OAuth account connected")
+	return dtos.Created(c, fiber.Map{"id": id, "provider": cfg.AccountSlug(), "email": email}, "OAuth account connected")
 }
 
 // persistAccount seals OAuth tokens into an account record, deduplicating on
@@ -405,11 +405,52 @@ func (h *oauthHandler) loopbackCallback(w http.ResponseWriter, r *http.Request) 
 	}
 	h.sessions.Delete(state)
 
-	if _, _, perr := h.persistAccount(r.Context(), "system", sess.Provider, "", tokens); perr != nil {
+	if _, _, perr := h.persistAccount(r.Context(), "system", cfg.AccountSlug(), "", tokens); perr != nil {
 		writeResult("error", perr.Error())
 		return
 	}
 	writeResult("success", "")
+}
+
+// DashboardCallback receives the browser redirect for dashboard-origin flows
+// (GET /callback, served by this backend itself): it completes the exchange +
+// persistence and answers with the same self-contained postMessage page as
+// the loopback listener. Development splits the dashboard and API across
+// origins — the callback must follow the API origin, not the page's — while
+// the shipped image serves both from one origin, where this route also wins
+// over the SPA's callback page.
+func (h *oauthHandler) DashboardCallback(c fiber.Ctx) error {
+	code := c.Query("code")
+	state := c.Query("state")
+
+	writeResult := func(status, msg string) error {
+		c.Set("Content-Type", "text/html; charset=utf-8")
+		c.Set("Cache-Control", "no-store")
+		return c.Status(http.StatusOK).SendString(renderOAuthPopupResult(status, msg))
+	}
+
+	if code == "" || state == "" {
+		return writeResult("error", "missing code or state parameter")
+	}
+	sess, ok := h.sessions.Get(state)
+	if !ok {
+		return writeResult("error", "session expired or invalid; please restart the sign-in flow")
+	}
+
+	cfg, ok := oauth.ConfigFor(sess.Provider)
+	if !ok {
+		return writeResult("error", "no OAuth config for provider: "+sess.Provider)
+	}
+	tokens, err := cfg.ExchangeCode(c.Context(), code, sess.RedirectURI, sess.Verifier, state)
+	if err != nil {
+		return writeResult("error", err.Error())
+	}
+	h.sessions.Delete(state)
+
+	if _, _, perr := h.persistAccount(c.Context(), "system", cfg.AccountSlug(), "", tokens); perr != nil {
+		return writeResult("error", perr.Error())
+	}
+	return writeResult("success", "")
 }
 
 // renderOAuthPopupResult renders the callback page shown inside the sign-in

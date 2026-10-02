@@ -56,7 +56,25 @@ func All() []dtos.CatalogProvider {
 		// {Slug: "kiro", Name: "Kiro AI", BaseURL: "https://codewhisperer.us-east-1.amazonaws.com/generateAssistantResponse", Capabilities: llmCaps(), AuthKind: "oauth", AuthModes: []string{"oauth"}, Official: false},
 		// {Slug: "qoder", Name: "Qoder", BaseURL: "https://api3.qoder.sh/algo/api/v2/service/pro/sse/agent_chat_generation", Capabilities: llmCaps(), AuthKind: "oauth", AuthModes: []string{"oauth"}, Official: false},
 		// {Slug: "kilocode", Name: "Kilo Code", BaseURL: "https://api.kilo.ai/api/openrouter", Dialect: dialectOpenAI, Capabilities: llmCaps(), AuthKind: "oauth", AuthModes: []string{"oauth"}, Official: false},
+
+		// Codex is reachable only through OpenAI's "Sign in to official
+		// website" connect flow: its subscription tokens serve the ChatGPT
+		// backend, not the public API, so the account stays attributed to
+		// this separate (hidden) provider instead of the openai tile.
+		{Slug: "codex", Name: "OpenAI Codex", BaseURL: "https://chatgpt.com/backend-api/codex/responses", Dialect: dialectOpenAIResponses, Capabilities: llmCaps("image"), AuthKind: "oauth", AuthModes: []string{"oauth"}, Official: false, Hidden: true, Notice: "Uses a ChatGPT/OAuth subscription session not licensed for proxy use. Account may be restricted. Use at your own risk."},
 	}
+}
+
+// Listed returns the provider specs that appear in the dashboard's provider
+// listing — All() minus the hidden ones, which stay routable via Lookup.
+func Listed() []dtos.CatalogProvider {
+	out := make([]dtos.CatalogProvider, 0)
+	for _, p := range All() {
+		if !p.Hidden {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 // Lookup finds one provider spec by slug.

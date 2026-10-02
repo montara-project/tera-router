@@ -12,9 +12,11 @@ import CapabilityChips, { CAPABILITIES } from '@/components/block/providers/capa
 import {
   API_KEY_PROVIDERS,
   CUSTOM_CONNECT_PRESETS,
+  DUAL_AUTH_PROVIDERS,
   OAUTH_PROVIDERS,
   SYNCABLE_PROVIDERS,
 } from '@/components/block/providers/catalog-connect'
+import ConnectModeDialog from '@/components/block/providers/connect-mode-dialog'
 import { AddCustomProviderForm } from '@/components/block/providers/form'
 import { AddCustomProviderApiKeyForm } from '@/components/block/providers/form-provider-api-key'
 import ProviderGrid from '@/components/block/providers/provider-grid'
@@ -132,8 +134,9 @@ function RouteComponent() {
     undefined
   )
   const [keyProvider, setKeyProvider] = useState<{ slug: string; name: string } | null>(null)
+  const [modeProvider, setModeProvider] = useState<{ slug: string; name: string } | null>(null)
   const [syncingSlug, setSyncingSlug] = useState<string | null>(null)
-  const { connect: connectOAuth } = useOAuthConnect()
+  const { connect: connectOAuth, connecting } = useOAuthConnect()
   const queryClient = useQueryClient()
 
   const { data } = useQuery(providerQueries.list())
@@ -187,11 +190,29 @@ function RouteComponent() {
       setCreateOpen(true)
       return
     }
+    // OpenAI and Anthropic support both paths: official-website sign-in or a
+    // pasted API key — offer the choice before opening either form.
+    if (DUAL_AUTH_PROVIDERS[provider.slug]) {
+      setModeProvider({ slug: provider.slug, name: provider.name })
+      return
+    }
     if (API_KEY_PROVIDERS[provider.slug]) {
       setKeyProvider({ slug: provider.slug, name: provider.name })
       return
     }
     toast.info(`Connect flow for ${provider.name} is not wired to the backend yet`)
+  }
+
+  const handleModeOAuth = () => {
+    const slug = modeProvider?.slug
+    setModeProvider(null)
+    if (slug) void connectOAuth(slug)
+  }
+
+  const handleModeApiKey = () => {
+    const provider = modeProvider
+    setModeProvider(null)
+    if (provider) setKeyProvider(provider)
   }
 
   const handleKeyConnected = async () => {
@@ -294,6 +315,14 @@ function RouteComponent() {
         provider={keyProvider ?? { slug: '', name: '' }}
         authKind={keyProvider ? API_KEY_PROVIDERS[keyProvider.slug]?.authKind : undefined}
         onSuccess={handleKeyConnected}
+      />
+
+      <ConnectModeDialog
+        provider={modeProvider}
+        onClose={() => setModeProvider(null)}
+        onApiKey={handleModeApiKey}
+        onOAuth={handleModeOAuth}
+        oauthPending={connecting !== null}
       />
     </>
   )

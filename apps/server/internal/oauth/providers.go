@@ -47,6 +47,21 @@ type ProviderConfig struct {
 	// connected user's email and display name. When empty, no profile fetch
 	// is attempted and the account label falls back to the provider name.
 	UserInfoURL string
+
+	// AccountProvider is the catalog slug the connected account is attributed
+	// to when it differs from Provider — Codex tokens serve the ChatGPT
+	// backend, so an "openai" flow still stores its account under the hidden
+	// "codex" provider. Empty means the account uses Provider itself.
+	AccountProvider string
+}
+
+// accountProvider returns the catalog slug accounts from this flow are
+// attributed to.
+func (c ProviderConfig) AccountSlug() string {
+	if c.AccountProvider != "" {
+		return c.AccountProvider
+	}
+	return c.Provider
 }
 
 // refreshURL returns the configured refresh URL, defaulting to TokenURL.
@@ -91,8 +106,10 @@ func (c ProviderConfig) ResolveRedirectURI(requested string, port int) string {
 	return u.String()
 }
 
-// configs maps provider slug -> OAuth config. Only the two subscription
-// providers requested so far are wired: Anthropic (claude) and OpenAI (codex).
+// configs maps provider slug -> OAuth config. The claude/codex keys are the
+// original subscription providers; the openai/anthropic aliases let the
+// dashboard start the same flows from the OpenAI and Anthropic catalog tiles'
+// "sign in to official website" option. Both sets are accepted.
 var configs = map[string]ProviderConfig{
 	"claude": {
 		Provider:     "claude",
@@ -108,6 +125,35 @@ var configs = map[string]ProviderConfig{
 	},
 	"codex": {
 		Provider:                  "codex",
+		Flow:                      FlowAuthCodePKCE,
+		ClientID:                  "app_EMoamEEZ73f0CkXaXp7hrann",
+		AuthorizeURL:              "https://auth.openai.com/oauth/authorize",
+		TokenURL:                  "https://auth.openai.com/oauth/token",
+		Scopes:                    []string{"openid", "profile", "email", "offline_access"},
+		ExtraAuthParams:           map[string]string{"id_token_add_organizations": "true", "codex_cli_simplified_flow": "true", "originator": "codex_cli_rs"},
+		ExtraAuthParamOrder:       []string{"id_token_add_organizations", "codex_cli_simplified_flow", "originator"},
+		EncodeAuthSpacesAsPercent: true,
+		CallbackPath:              "/auth/callback",
+		FixedLoopbackPort:         1455,
+		FallbackPorts:             []int{1457},
+		LoopbackHost:              "localhost",
+		UserInfoURL:               "https://auth.openai.com/oauth/userinfo",
+	},
+	"anthropic": {
+		Provider:         "anthropic",
+		AccountProvider:  "anthropic",
+		Flow:             FlowAuthCodePKCE,
+		ClientID:         "9d1c250a-e61b-44d9-88ed-5944d1962f5e",
+		AuthorizeURL:     "https://claude.ai/oauth/authorize",
+		TokenURL:         "https://api.anthropic.com/v1/oauth/token",
+		Scopes:           []string{"org:create_api_key", "user:profile", "user:inference"},
+		TokenContentType: "json",
+		ExtraAuthParams:  map[string]string{"code": "true"},
+		UserInfoURL:      "https://api.anthropic.com/v1/me",
+	},
+	"openai": {
+		Provider:                  "openai",
+		AccountProvider:           "codex",
 		Flow:                      FlowAuthCodePKCE,
 		ClientID:                  "app_EMoamEEZ73f0CkXaXp7hrann",
 		AuthorizeURL:              "https://auth.openai.com/oauth/authorize",
