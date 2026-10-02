@@ -25,6 +25,11 @@ interface ComboboxInputProps<TData> {
   defaultValues: string[]
   onSelect: (value: string[]) => void
   onBlur?: () => void
+  /** false replaces the selection and closes the popover on pick */
+  multiple?: boolean
+  /** Trigger text while nothing is selected; falls back to the label */
+  placeholder?: string
+  disabled?: boolean
 }
 
 export default function ComboboxInput<TData>({
@@ -33,11 +38,20 @@ export default function ComboboxInput<TData>({
   label,
   onSelect,
   onBlur,
+  multiple = true,
+  placeholder,
+  disabled = false,
 }: ComboboxInputProps<TData>) {
   const [open, setOpen] = useState(false)
   const [selectedValues, setSelectedValues] = React.useState<string[]>(defaultValues)
 
   const toggleSelection = (value: string) => {
+    if (!multiple) {
+      setSelectedValues([value])
+      onSelect([value])
+      setOpen(false)
+      return
+    }
     setSelectedValues((prev) =>
       prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
     )
@@ -53,6 +67,8 @@ export default function ComboboxInput<TData>({
     onSelect(selectedValues.filter((v) => v !== value))
   }
 
+  const selectedLabel = (value: string) => options.find((c) => c.value === value)?.label ?? value
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -63,29 +79,38 @@ export default function ComboboxInput<TData>({
           autoHeight={true}
           mode="input"
           placeholder={selectedValues.length === 0}
+          disabled={disabled}
           className="relative w-full p-1"
         >
           <div className="flex flex-wrap items-center gap-1 pe-2.5">
             {selectedValues.length > 0 ? (
-              selectedValues.map((val) => {
-                const item = options.find((c) => c.value === val)
-                return item ? (
-                  <Badge key={val} variant="outline" className="text-primary bg-ivory font-medium">
-                    {item.label}
-                    <BadgeButton
-                      className="text-primary"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        removeSelection(val)
-                      }}
+              multiple ? (
+                selectedValues.map((val) => {
+                  const item = options.find((c) => c.value === val)
+                  return item ? (
+                    <Badge
+                      key={val}
+                      variant="outline"
+                      className="text-primary bg-ivory font-medium"
                     >
-                      <IconX />
-                    </BadgeButton>
-                  </Badge>
-                ) : null
-              })
+                      {item.label}
+                      <BadgeButton
+                        className="text-primary"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          removeSelection(val)
+                        }}
+                      >
+                        <IconX />
+                      </BadgeButton>
+                    </Badge>
+                  ) : null
+                })
+              ) : (
+                <span className="px-2.5">{selectedLabel(selectedValues[0])}</span>
+              )
             ) : (
-              <span className="px-2.5">{label}</span>
+              <span className="px-2.5">{placeholder || label}</span>
             )}
           </div>
           <ButtonArrow className="absolute inset-e-3 top-2" />

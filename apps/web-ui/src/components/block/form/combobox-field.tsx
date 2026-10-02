@@ -14,6 +14,10 @@ interface ComboboxFieldProps<TData> {
   defaultValues?: string[]
   onSelect?: (value: string) => void
   asterisk?: boolean
+  /** true keeps several picks as badges; false replaces the single value */
+  multiple?: boolean
+  placeholder?: string
+  disabled?: boolean
 }
 
 export default function ComboboxField<TData>({
@@ -22,6 +26,9 @@ export default function ComboboxField<TData>({
   defaultValues,
   onSelect,
   asterisk = false,
+  multiple = false,
+  placeholder,
+  disabled = false,
 }: ComboboxFieldProps<TData>) {
   const field = useFieldContext<string>()
   const errors = useSelector(field.store, (state) => state.meta.errors)
@@ -38,10 +45,14 @@ export default function ComboboxField<TData>({
         label={label}
         defaultValues={defaultValues || []}
         options={options}
+        disabled={disabled}
+        multiple={multiple}
+        placeholder={placeholder}
         onBlur={field.handleBlur}
         onSelect={(value: any) => {
-          field.handleChange(value)
-          onSelect?.(value)
+          const next = multiple ? value : (value[0] ?? '')
+          field.handleChange(next)
+          onSelect?.(next)
         }}
       />
     </Field>
