@@ -14,6 +14,7 @@ func (h *healthHandler) Check(c fiber.Ctx) error {
 	v := fiber.Map{
 		"machine_id": h.app.Config.App.MachineID,
 		"status":     "ok",
+		"version":    app.Version,
 		"system_info": map[string]interface{}{
 			"debug": h.app.Config.App.Debug,
 		},

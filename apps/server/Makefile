@@ -2,6 +2,11 @@
 
 DATABASE_PATH ?= terarouter.db
 
+# App version baked into the binary (reported by /health); falls back to the
+# monorepo root package.json version, then "dev".
+APP_VERSION ?= $(shell node -p "require('../../package.json').version" 2>/dev/null || echo dev)
+GO_LDFLAGS := -X tera-router/server/internal/app.Version=$(APP_VERSION)
+
 # ==================================================================================== #
 # HELPERS
 # ==================================================================================== #
@@ -24,7 +29,7 @@ install:
 ## run: run the application
 .PHONY: run
 run:
-	go run ./cmd/api \
+	go run -ldflags="$(GO_LDFLAGS)" ./cmd/api \
 		--machine-id=$(MACHINE_ID) \
 		--debug=$(DEBUG) \
 		--env=$(ENV) \
@@ -84,5 +89,5 @@ vet:
 .PHONY: build/api
 build/api:
 	@echo 'Building cmd/api...'
-	go build -ldflags="-s" -o=./bin/api ./cmd/api
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s" -o=./bin/linux_amd64/api ./cmd/api
+	go build -ldflags="$(GO_LDFLAGS) -s -w" -o=./bin/api ./cmd/api
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="$(GO_LDFLAGS) -s -w" -o=./bin/linux_amd64/api ./cmd/api

@@ -500,14 +500,17 @@ func (h *providersHandler) usableAPIKey(ctx context.Context, providerSlug string
 // modelsSyncProviders are the catalog providers whose model list the dashboard
 // can sync (POST /v1/providers/:id/models/sync), each with its own source
 // ported from IDRouter's connectors: OpenRouter's public /models (whose
-// pricing is imported into the overrides), the Ollama family's /api/tags, and
-// Cline's union of /models and the recommended-models free list.
+// pricing is imported into the overrides), the Ollama family's /api/tags,
+// Cline's union of /models and the recommended-models free list, and the
+// OpenAI/Anthropic official /v1/models.
 var modelsSyncProviders = map[string]bool{
 	"openrouter":   true,
 	"ollama":       true,
 	"ollama-local": true,
 	"cline":        true,
 	"cloudflare":   true,
+	"openai":       true,
+	"anthropic":    true,
 }
 
 // ModelsSync refreshes the stored model catalog of a catalog provider. The
@@ -551,6 +554,14 @@ func (h *providersHandler) ModelsSync(c fiber.Ctx) error {
 			base = strings.TrimSuffix(u, "/")
 		}
 		upstream, err = h.app.Services.Upstream.ListModels(c.Context(), base+"/models", false, apiKey)
+	case "openai", "anthropic":
+		if apiKey == "" {
+			return apperr.New(apperr.KindUnprocessable, "no usable credential for this provider; add an API key first")
+		}
+		// The official /v1/models of each; anthropicDialect only swaps the
+		// auth headers (x-api-key + anthropic-version) — the response envelope
+		// is the same {"data":[{id}]} shape.
+		upstream, err = h.app.Services.Upstream.ListModels(c.Context(), spec.BaseURL+"/models", slug == "anthropic", apiKey)
 	}
 	if err != nil {
 		return apperr.New(apperr.KindUnprocessable, "%s", err.Error())

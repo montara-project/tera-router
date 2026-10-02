@@ -18,6 +18,10 @@ const resources = (): SystemResources => {
       const url = `${path}/stats`
       return api.get(url)
     },
+    health: () => {
+      // public endpoint at the server root: raw JSON, no /v1 prefix, no envelope
+      return api.get('/health')
+    },
   }
 }
 

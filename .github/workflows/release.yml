@@ -82,6 +82,7 @@ jobs:
           build-args: |
             VITE_APP_NAME=${{ vars.VITE_APP_NAME || 'Tera Router' }}
             VITE_API_URL=${{ vars.VITE_API_URL || '' }}
+            APP_VERSION=${{ github.ref_name }}
           push: true
           # GitHub Actions cache keeps the Go module and pnpm store layers warm
           # between runs, which is most of the build time.
@@ -139,9 +140,10 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  # Deploys the marketing web on every release run (tag push or manual
+  # dispatch) — the workflow itself never triggers on branch pushes.
   release-main-web:
     name: Deploy to Cloudflare Workers
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read

@@ -1,5 +1,5 @@
 import { useSelector } from '@tanstack/react-form'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import z from 'zod'
 
@@ -22,6 +22,9 @@ import { queries } from '@/lib/api/queries'
 
 /** USD per million tokens; the wire format is micros of that. */
 const MICROS_PER_DOLLAR = 1_000_000
+
+/** Model combobox page size — the server caps the catalog page at 100. */
+const MODEL_OPTIONS_LIMIT = 100
 
 const OverrideDialogSchema = z.object({
   provider: z.string().min(1, 'The provider field is required.'),
@@ -112,6 +115,30 @@ export default function OverrideDialog({
     label: p.name || p.slug,
   }))
 
+  const selectedProviderSlug = useSelector(form.store, (s) => s.values.provider)
+  const selectedProviderModel = providers.find((p) => p.slug === selectedProviderSlug)
+  // Catalog providers carry "prov-<slug>" ids; custom providers carry uuids.
+  const isCatalogProvider = selectedProviderModel?.id.startsWith('prov-') ?? true
+
+  const catalogModelsQuery = useQuery({
+    ...queries.providers.catalogModels(selectedProviderModel?.slug ?? '', {
+      limit: MODEL_OPTIONS_LIMIT,
+    }),
+    enabled: !!selectedProviderModel && isCatalogProvider,
+  })
+  const customModelsQuery = useQuery({
+    ...queries.providers.customModels(selectedProviderModel?.id ?? '', {
+      limit: MODEL_OPTIONS_LIMIT,
+    }),
+    enabled: !!selectedProviderModel && !isCatalogProvider,
+  })
+
+  const modelOptions: Option<string>[] = (
+    (isCatalogProvider
+      ? catalogModelsQuery.data?.data?.models
+      : customModelsQuery.data?.data?.models) ?? []
+  ).map((model) => ({ value: model.id, label: model.id }))
+
   const saving = useSelector(form.store, (s) => s.isSubmitting)
 
   return (
@@ -141,12 +168,17 @@ export default function OverrideDialog({
             <DialogBody className="space-y-4">
               <form.AppField name="provider">
                 {(field) => (
-                  <field.SelectField
+                  <field.ComboboxField
                     label="Provider"
                     placeholder="Select a provider..."
                     options={providerOptions}
+                    defaultValues={override ? [override.provider] : []}
                     disabled={!!override}
                     asterisk
+                    onSelect={() => {
+                      // Model ids are provider-specific; start clean on switch.
+                      form.setFieldValue('model', '')
+                    }}
                   />
                 )}
               </form.AppField>
@@ -174,9 +206,16 @@ export default function OverrideDialog({
                   scope === 'model' ? (
                     <form.AppField name="model">
                       {(field) => (
-                        <field.TextField
+                        <field.ComboboxField
                           label="Model"
-                          placeholder="e.g. gpt-4o, claude-sonnet-4-6"
+                          placeholder={
+                            selectedProviderModel
+                              ? 'Select a model...'
+                              : 'Select a provider first...'
+                          }
+                          options={modelOptions}
+                          defaultValues={override?.model ? [override.model] : []}
+                          disabled={!selectedProviderModel}
                           asterisk
                         />
                       )}

@@ -4,6 +4,12 @@ services:
     build:
       context: ..
       dockerfile: deploy/Dockerfile
+      # Compose substitutes these from deploy/.env (the file next to this
+      # compose file) at build time; falls back to the Dockerfile defaults.
+      args:
+        APP_VERSION: ${APP_VERSION:-dev}
+        VITE_APP_NAME: ${VITE_APP_NAME:-Tera Router}
+        VITE_API_URL: ${VITE_API_URL:-}
       platforms:
         - linux/amd64
     restart: unless-stopped

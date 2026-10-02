@@ -14,6 +14,8 @@ export const OAUTH_PROVIDERS: Record<string, string> = {
  * stored model catalog can be re-synced from the connected card. ollama-local
  * needs no credential at all. */
 export const API_KEY_PROVIDERS: Record<string, { name: string; authKind?: 'none' }> = {
+  openai: { name: 'OpenAI' },
+  anthropic: { name: 'Anthropic' },
   openrouter: { name: 'OpenRouter' },
   ollama: { name: 'Ollama Cloud' },
   'ollama-local': { name: 'Ollama Local', authKind: 'none' },

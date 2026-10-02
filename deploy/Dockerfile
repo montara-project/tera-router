@@ -42,7 +42,13 @@ RUN go mod download
 
 COPY apps/server ./
 
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /build/tera-server ./cmd/api
+# APP_VERSION is baked into the binary and reported by /health; the release
+# workflow passes the git tag (e.g. v0.4.1).
+ARG APP_VERSION=dev
+
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath \
+    -ldflags="-s -w -X tera-router/server/internal/app.Version=${APP_VERSION}" \
+    -o /build/tera-server ./cmd/api
 
 # ====================================================================================
 # Stage 3: runtime (server + web-ui static files in ./public)
