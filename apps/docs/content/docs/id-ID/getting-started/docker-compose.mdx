@@ -1,0 +1,149 @@
+---
+title: Docker Compose
+description: Deploy API server dan dashboard Tera Router sebagai satu container dengan Docker Compose.
+---
+
+Image release di `ghcr.io/montara-project/tera-router` menggabungkan API server dan dashboard yang
+sudah di-build dalam satu container — server menyajikan dashboard di port yang sama, jadi UI dan
+gateway berbagi satu origin. Database SQLite disimpan di named volume dan tetap utuh saat image
+di-upgrade.
+
+## Prasyarat
+
+- Docker dengan plugin Compose.
+- Mesin yang bisa diakses dari browser (langsung atau di belakang reverse proxy).
+- Tag release untuk di-pin, mis. `v0.4.0` — hindari `latest` agar upgrade bisa direproduksi.
+
+## 1. Buat `docker-compose.yml`
+
+```yaml
+services:
+  tera-router-llm:
+    image: ghcr.io/montara-project/tera-router:v0.4.0
+    container_name: tera-router-llm
+    environment:
+      - ADMIN_EMAIL=${ADMIN_EMAIL}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+
+      - VITE_APP_NAME=${VITE_APP_NAME}
+      - VITE_API_URL=${VITE_API_URL}
+
+      - BETTER_AUTH_URL=${BETTER_AUTH_URL}
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+    command:
+      - '--machine-id=${MACHINE_ID:-1}'
+      - '--debug=${DEBUG:-false}'
+      - '--env=${APP_ENV:-production}'
+      - '--port=${APP_PORT:-8080}'
+
+      - '--app-name=${APP_NAME:-tera-router-server}'
+      - '--app-secret=${APP_SECRET:?APP_SECRET wajib diisi di Dokploy env}'
+      - '--cors-allowed-origins=${CORS_ALLOWED_ORIGINS:-*}'
+
+      - '--rate-limit-exempt-ips=${RATE_LIMIT_EXEMPT_IPS}'
+      - '--trusted-proxies=${TRUSTED_PROXIES}'
+
+      - '--database-path=${DATABASE_PATH:-/app/data/terarouter.db}'
+      - '--migrate-on-boot=${MIGRATE_ON_BOOT:-true}'
+      - '--seed-on-boot=${SEED_ON_BOOT:-true}'
+      - '--sentry-dsn=${SENTRY_DSN:-}'
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:8080/health || exit 1']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    volumes:
+      - tera-data:/app/data
+
+volumes:
+  tera-data:
+```
+
+## 2. Buat `.env`
+
+Letakkan di samping `docker-compose.yml` lalu isi nilainya:
+
+```bash
+# Machine
+MACHINE_ID=1
+
+# App
+DEBUG=false
+ENV=production
+PORT=8080
+APP_NAME=tera-router-server
+APP_SECRET=generate_from_openssl_rand_base32
+
+VITE_APP_NAME=Tera Router
+VITE_API_URL=https://yourdomain.com
+
+BETTER_AUTH_URL=https://yourdomain.com
+BETTER_AUTH_SECRET=generate_from_openssl_rand_base32
+
+CORS_ALLOWED_ORIGINS=*
+RATE_LIMIT_EXEMPT_IPS=your_private_network_ip
+TRUSTED_PROXIES=your_private_network_ip
+
+# SQLite database file (created on first run)
+DATABASE_PATH=/app/data/terarouter.db
+
+# Seeded admin account (used by `make seed` / `make seed/dev`)
+ADMIN_EMAIL=your@email.com
+ADMIN_PASSWORD=your_password
+
+# Apply pending SQL migrations on server boot (true/false)
+MIGRATE_ON_BOOT=true
+
+# Run baseline seeders on server boot after migrating (true/false).
+# With ENV=development, this also mints the sample API key.
+SEED_ON_BOOT=true
+
+# Sentry DSN for error tracking
+SENTRY_DSN=
+```
+
+<Callout type="error" title="APP_SECRET adalah kunci utama">
+  `APP_SECRET` menandatangani token sesi dan menurunkan kunci yang mengenkripsi kredensial provider
+  yang tersimpan. Compose menolak jalan tanpa itu. Menggantinya belakangan membuat semua kredensial
+  yang tersimpan tidak bisa dibaca — set sekali dan simpan baik-baik.
+</Callout>
+
+## 3. Jalankan stack
+
+```bash
+docker compose up -d
+docker compose logs -f tera-router-llm
+```
+
+Saat boot, container akan:
+
+1. Menjalankan migrasi SQLite yang belum diterapkan (`MIGRATE_ON_BOOT`).
+2. Menyeed data awal (`SEED_ON_BOOT`) — role, user admin dari `ADMIN_EMAIL`/`ADMIN_PASSWORD`, dan
+   plan _Default_.
+3. Membuka gateway (`/v1/*`), dashboard API, dan UI dashboard di port yang sama (`APP_PORT`,
+   default `8080`).
+
+Compose melaporkan `healthy` setelah healthcheck bawaan lulus
+(`wget http://127.0.0.1:8080/health` dari dalam container). Lalu buka `https://yourdomain.com`
+(atau `http://<host>:8080` langsung) dan masuk dengan akun admin yang diseed.
+
+## Catatan produksi
+
+- **Trusted proxies** — `--trusted-proxies=your_private_network_ip` harus cocok dengan subnet tempat reverse
+  proxy atau load balancer kamu benar-benar berada, supaya server membaca IP klien asli untuk rate
+  limiting dan log. Sesuaikan nilainya sebelum deploy.
+- **Pengecualian rate limit** — `RATE_LIMIT_EXEMPT_IPS` menerima daftar IP terpisah koma yang
+  melewati rate limit dashboard (mis. host monitoring internal).
+- **Persistensi** — semua yang stateful adalah file SQLite di `/app/data/terarouter.db` pada volume
+  `tera-data`. Masukkan ke rutinitas backup kamu.
+- **Upgrade** — naikkan tag image, lalu `docker compose up -d`. Migrasi yang belum diterapkan
+  berjalan saat boot selama `MIGRATE_ON_BOOT=true`; mem-pin tag menjaga bundle dashboard dan binary
+  server tetap sinkron.
+
+## Langkah berikutnya
+
+- [Konfigurasi](/id-ID/docs/configuration) — referensi lengkap variabel environment di atas.
+- [Tur dashboard](/id-ID/docs/getting-started/dashboard) — kenali tiap halaman.
+- [Gateway API](/id-ID/docs/gateway) — request pertamamu ke router.
