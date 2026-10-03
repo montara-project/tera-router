@@ -2,6 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      // Apply the saved color palette before first paint to avoid a flash of
+      // the default palette. Keep in sync with ThemePaletteProvider.
+      try {
+        document.documentElement.dataset.theme =
+          localStorage.getItem('tera-router-theme-palette') || 'forest-amber'
+      } catch (e) {}
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tera Router — Web UI</title>
     <link rel="icon" type="image/x-icon" href="/favicon/favicon.ico" />

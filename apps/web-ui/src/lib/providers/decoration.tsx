@@ -1,11 +1,13 @@
 import { NuqsAdapter } from 'nuqs/adapters/tanstack-router'
 
-import ThemeProvider from './themes'
+import ThemeProvider, { ThemePaletteProvider } from './themes'
 
 export default function DecorationProvider({ children }: { children: React.ReactNode }) {
   return (
     <NuqsAdapter>
-      <ThemeProvider>{children}</ThemeProvider>
+      <ThemeProvider>
+        <ThemePaletteProvider>{children}</ThemePaletteProvider>
+      </ThemeProvider>
     </NuqsAdapter>
   )
 }
