@@ -1,10 +1,11 @@
 import { IconChevronDown, IconChevronUp, IconPlus, IconStack2, IconX } from '@tabler/icons-react'
 import { useSelector } from '@tanstack/react-form'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueries, useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import z from 'zod'
 
 import type { Models } from '@/lib/api/models'
+import type { Option } from '@/types/select'
 
 import IconBadge from '@/components/block/common/icon-badge'
 import { Button } from '@/components/ui/button'
@@ -31,6 +32,9 @@ const ChainFormSchema = z.object({
   fallback_model: z.string(),
   steps: z.array(ChainStepSchema),
 })
+
+/** Model combobox page size — the server caps the catalog page at 100. */
+const MODEL_OPTIONS_LIMIT = 100
 
 /** The blue info tone the chains page uses for chain identity. */
 const CHAIN_BADGE_CLASS =
@@ -141,6 +145,61 @@ function ChainForm({ chain, onOpenChange }: ChainFormProps) {
   const saving = createMutation.isPending || updateMutation.isPending
   const isSubmitting = useSelector(form.store, (state) => state.isSubmitting)
 
+  // Provider combobox lists connected providers only — a chain step has to be
+  // able to serve traffic. Model comboboxes read the selected provider's
+  // stored catalog (limit = server page cap), active models only.
+  const providersQuery = useQuery(queries.providers.list())
+  const connectedProviders = providersQuery.data?.data?.connected ?? []
+  const providerOptions: Option<string>[] = connectedProviders.map((p) => ({
+    value: p.slug,
+    label: p.name || p.slug,
+  }))
+
+  // One catalog query per distinct provider used across steps + terminal
+  // fallback; rows share the fetched options via a slug → options map.
+  const usedProviderKey = useSelector(form.store, (s) =>
+    [
+      ...new Set(
+        [
+          ...s.values.steps.map((step) => step.provider.trim()),
+          s.values.fallback_provider.trim(),
+        ].filter(Boolean)
+      ),
+    ].join('\u0000')
+  )
+  const usedProviders = usedProviderKey ? usedProviderKey.split('\u0000') : []
+  const fallbackProvider = useSelector(form.store, (s) => s.values.fallback_provider.trim())
+
+  const modelQueries = useQueries({
+    queries: usedProviders.map((slug) => {
+      const provider = connectedProviders.find((p) => p.slug === slug)
+      // Catalog providers carry "prov-<slug>" ids; custom providers carry uuids.
+      const isCatalog = provider?.id.startsWith('prov-') ?? true
+      return isCatalog
+        ? queries.providers.catalogModels(provider?.slug ?? slug, {
+            limit: MODEL_OPTIONS_LIMIT,
+            // Filter server-side so the one fetched page holds the enabled
+            // models even when the full catalog spans many pages.
+            state: 'active',
+          })
+        : queries.providers.customModels(provider?.id ?? '', {
+            limit: MODEL_OPTIONS_LIMIT,
+            state: 'active',
+          })
+    }),
+  })
+  const modelOptionsBySlug = new Map<string, Option<string>[]>()
+  usedProviders.forEach((slug, i) => {
+    // Keep the client filter as a guard for servers predating the state param.
+    const models = (modelQueries[i]?.data?.data?.models ?? []).filter(
+      (model) => model.state === 'active'
+    )
+    modelOptionsBySlug.set(
+      slug,
+      models.map((model) => ({ value: model.id, label: model.id }))
+    )
+  })
+
   return (
     <form
       onSubmit={(event) => {
@@ -149,11 +208,11 @@ function ChainForm({ chain, onOpenChange }: ChainFormProps) {
       }}
     >
       <div className="space-y-5">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <form.AppField name="name">
-            {(field) => <field.TextField label="Name" asterisk placeholder="fast-fallback" />}
-          </form.AppField>
+        <form.AppField name="name">
+          {(field) => <field.TextField label="Name" asterisk placeholder="fast-fallback" />}
+        </form.AppField>
 
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <form.AppField name="strategy">
             {(field) => <field.SelectField label="Strategy" options={CHAIN_STRATEGY_OPTIONS} />}
           </form.AppField>
@@ -204,7 +263,7 @@ function ChainForm({ chain, onOpenChange }: ChainFormProps) {
                   </span>
                 </div>
 
-                {rows.map((_, i) => (
+                {rows.map((row, i) => (
                   <div
                     key={`step-${i}`}
                     className="border-border hover:bg-muted/30 group flex items-center gap-2 rounded-lg border px-3 py-2 transition-colors"
@@ -214,27 +273,34 @@ function ChainForm({ chain, onOpenChange }: ChainFormProps) {
                     </span>
                     <form.AppField name={`steps[${i}].provider`}>
                       {(subField) => (
-                        <input
-                          value={subField.state.value}
-                          onChange={(e) => subField.handleChange(e.target.value)}
-                          onBlur={subField.handleBlur}
-                          placeholder="provider"
-                          aria-label={`Step ${i + 1} provider`}
-                          className="h-7 min-w-0 flex-1 rounded bg-transparent font-mono text-sm outline-none placeholder:text-muted-foreground/60 focus-visible:bg-muted/40"
-                        />
+                        <div className="min-w-0 flex-1">
+                          <subField.ComboboxField
+                            label="Provider"
+                            hideLabel
+                            placeholder="provider"
+                            options={providerOptions}
+                            defaultValues={row.provider ? [row.provider] : []}
+                            onSelect={() => {
+                              // Model ids are provider-specific; start clean on switch.
+                              form.setFieldValue(`steps[${i}].model`, '')
+                            }}
+                          />
+                        </div>
                       )}
                     </form.AppField>
                     <span className="text-muted-foreground/60">/</span>
                     <form.AppField name={`steps[${i}].model`}>
                       {(subField) => (
-                        <input
-                          value={subField.state.value}
-                          onChange={(e) => subField.handleChange(e.target.value)}
-                          onBlur={subField.handleBlur}
-                          placeholder="model"
-                          aria-label={`Step ${i + 1} model`}
-                          className="h-7 min-w-0 flex-[1.4] rounded bg-transparent font-mono text-sm outline-none placeholder:text-muted-foreground/60 focus-visible:bg-muted/40"
-                        />
+                        <div className="min-w-0 flex-[1.4]">
+                          <subField.ComboboxField
+                            label="Model"
+                            hideLabel
+                            placeholder={row.provider.trim() ? 'model' : 'pick a provider first'}
+                            options={modelOptionsBySlug.get(row.provider.trim()) ?? []}
+                            defaultValues={row.model ? [row.model] : []}
+                            disabled={row.provider.trim() === ''}
+                          />
+                        </div>
                       )}
                     </form.AppField>
                     <span className="ml-auto flex shrink-0 items-center gap-0.5">
@@ -274,6 +340,12 @@ function ChainForm({ chain, onOpenChange }: ChainFormProps) {
                   </div>
                 ))}
 
+                {rows.some((row) => (row.provider.trim() === '') !== (row.model.trim() === '')) ? (
+                  <p className="text-xs text-destructive">
+                    Every step needs both a provider and a model before saving.
+                  </p>
+                ) : null}
+
                 {rows.length === 0 ? (
                   <p className="border-border text-muted-foreground rounded-lg border border-dashed px-3 py-4 text-center text-xs">
                     No steps yet — add the first provider/model this chain should try.
@@ -304,27 +376,34 @@ function ChainForm({ chain, onOpenChange }: ChainFormProps) {
           <div className="border-border flex items-center gap-2 rounded-lg border px-3 py-2">
             <form.AppField name="fallback_provider">
               {(field) => (
-                <input
-                  value={field.state.value}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                  onBlur={field.handleBlur}
-                  placeholder="provider"
-                  aria-label="Terminal fallback provider"
-                  className="h-7 min-w-0 flex-1 rounded bg-transparent font-mono text-sm outline-none placeholder:text-muted-foreground/60 focus-visible:bg-muted/40"
-                />
+                <div className="min-w-0 flex-1">
+                  <field.ComboboxField
+                    label="Provider"
+                    hideLabel
+                    placeholder="provider"
+                    options={providerOptions}
+                    defaultValues={field.state.value ? [field.state.value] : []}
+                    onSelect={() => {
+                      // Model ids are provider-specific; start clean on switch.
+                      form.setFieldValue('fallback_model', '')
+                    }}
+                  />
+                </div>
               )}
             </form.AppField>
             <span className="text-muted-foreground/60">/</span>
             <form.AppField name="fallback_model">
               {(field) => (
-                <input
-                  value={field.state.value}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                  onBlur={field.handleBlur}
-                  placeholder="model"
-                  aria-label="Terminal fallback model"
-                  className="h-7 min-w-0 flex-[1.4] rounded bg-transparent font-mono text-sm outline-none placeholder:text-muted-foreground/60 focus-visible:bg-muted/40"
-                />
+                <div className="min-w-0 flex-[1.4]">
+                  <field.ComboboxField
+                    label="Model"
+                    hideLabel
+                    placeholder={fallbackProvider ? 'model' : 'pick a provider first'}
+                    options={modelOptionsBySlug.get(fallbackProvider) ?? []}
+                    defaultValues={field.state.value ? [field.state.value] : []}
+                    disabled={!fallbackProvider}
+                  />
+                </div>
               )}
             </form.AppField>
           </div>
