@@ -8,7 +8,8 @@
 // It serves POST /v1/chat/completions (OpenAI Chat), POST /v1/messages and
 // POST /v1/messages/count_tokens (Anthropic Messages), POST /v1/responses
 // + POST /responses (OpenAI Responses), and GET /v1/models (OpenAI-shaped
-// listing that advertises chains and auto-combos alongside provider models).
+// listing that advertises the aliases, chains, and auto-combo ids a client
+// may route to).
 package gateway
 
 import (

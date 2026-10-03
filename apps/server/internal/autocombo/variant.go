@@ -58,3 +58,22 @@ func (v Variant) ChainName() string {
 	}
 	return "auto/" + string(v)
 }
+
+// advertisedVariants is the canonical variant set, default first, in the
+// order the gateway's model listing advertises them.
+var advertisedVariants = []Variant{
+	VariantDefault, VariantCoding, VariantFast, VariantCheap,
+	VariantOffline, VariantSmart, VariantLKGP,
+}
+
+// AdvertisedIDs returns the model ids a model listing should advertise for
+// the auto-combo: "auto" plus one id per canonical variant. ParsePrefix maps
+// any other "auto/<x>" input onto the default variant, but only the canonical
+// ids are stable names worth advertising.
+func AdvertisedIDs() []string {
+	ids := make([]string, 0, len(advertisedVariants))
+	for _, v := range advertisedVariants {
+		ids = append(ids, v.ChainName())
+	}
+	return ids
+}
