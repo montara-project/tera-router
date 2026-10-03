@@ -77,6 +77,25 @@ func Listed() []dtos.CatalogProvider {
 	return out
 }
 
+// seedable lists the catalog providers that materialize a custom_providers
+// row when one of their accounts is created, seeded from the catalog spec, so
+// the dashboard can address the connected provider by uuid against the
+// database instead of the "prov-<slug>" catalog identity.
+var seedable = map[string]bool{
+	"openai":     true,
+	"anthropic":  true,
+	"openrouter": true,
+	"nvidia":     true,
+	"cline":      true,
+	"cloudflare": true,
+}
+
+// Seedable reports whether connecting the catalog provider (creating an
+// account for it) persists a custom_providers row seeded from the spec.
+func Seedable(slug string) bool {
+	return seedable[slug]
+}
+
 // Lookup finds one provider spec by slug.
 func Lookup(slug string) (dtos.CatalogProvider, bool) {
 	for _, p := range All() {

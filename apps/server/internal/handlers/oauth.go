@@ -160,6 +160,12 @@ func (h *oauthHandler) Exchange(c fiber.Ctx) error {
 // plaintext): reconnecting the same grant updates the existing row in place
 // instead of creating a duplicate.
 func (h *oauthHandler) persistAccount(ctx context.Context, actor, provider, label string, tokens *oauth.Tokens) (string, string, error) {
+	// An OAuth connect on a seedable catalog provider persists its
+	// custom_providers row too (no-op for subscription-only slugs like codex).
+	if _, err := ensureCustomProviderRow(ctx, h.app, actor, provider); err != nil {
+		return "", "", err
+	}
+
 	now := time.Now()
 
 	acc := models.Account{

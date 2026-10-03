@@ -165,6 +165,12 @@ func (h *accountsHandler) Store(c fiber.Ctx) error {
 		return apperr.New(apperr.KindBadRequest, "provider is required")
 	}
 
+	// A connect on a seedable catalog provider persists its custom_providers
+	// row so the dashboard can address it by uuid (provider detail page).
+	if _, err := ensureCustomProviderRow(c.Context(), h.app, actorFrom(c), in.Provider); err != nil {
+		return err
+	}
+
 	account := models.Account{
 		ID:       uuid.NewString(),
 		Provider: in.Provider,

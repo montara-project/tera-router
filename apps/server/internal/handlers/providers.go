@@ -119,34 +119,39 @@ func (h *providersHandler) Index(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	customSlugs := map[string]bool{}
+
+	// Connected seedable catalog providers always have their seeded
+	// custom_providers row; backfill rows missing it (databases predating
+	// connect-time seeding) so their detail page addresses them by uuid.
+	customSlugs := make(map[string]bool, len(customs))
 	for _, c := range customs {
 		customSlugs[c.Slug] = true
 	}
-
-	overview := dtos.ProviderOverview{
-		Connected: []dtos.ProviderView{},
-		Available: []dtos.ProviderView{},
-	}
-
+	reseeded := false
 	for _, spec := range catalog.Listed() {
-		view := dtos.ProviderView{
-			ID:           "prov-" + spec.Slug,
-			Name:         spec.Name,
-			Slug:         spec.Slug,
-			Connected:    counts[spec.Slug] > 0 || customSlugs[spec.Slug],
-			Accounts:     counts[spec.Slug],
-			Capabilities: spec.Capabilities,
-			Official:     spec.Official,
-			Notice:       spec.Notice,
-			APIKind:      spec.Dialect,
-		}
-		if view.Connected {
-			overview.Connected = append(overview.Connected, view)
+		if counts[spec.Slug] == 0 || customSlugs[spec.Slug] || !catalog.Seedable(spec.Slug) {
 			continue
 		}
-		overview.Available = append(overview.Available, view)
+		row, err := ensureCustomProviderRow(c.Context(), h.app, actorFrom(c), spec.Slug)
+		if err != nil {
+			return err
+		}
+		reseeded = reseeded || row != nil
 	}
+	if reseeded {
+		customs, err = h.app.Repos.Providers.List(c.Context())
+		if err != nil {
+			return err
+		}
+	}
+	customBySlug := make(map[string]models.CustomProvider, len(customs))
+	customSlugs = make(map[string]bool, len(customs))
+	for _, c := range customs {
+		customBySlug[c.Slug] = c
+		customSlugs[c.Slug] = true
+	}
+
+	connected, available := catalogOverviewViews(catalog.Listed(), counts, customBySlug)
 
 	// Custom providers with a slug outside the catalog render as their own
 	// connected entries; catalog slugs are already covered above.
@@ -154,7 +159,7 @@ func (h *providersHandler) Index(c fiber.Ctx) error {
 		if _, ok := catalog.Lookup(c.Slug); ok {
 			continue
 		}
-		overview.Connected = append(overview.Connected, dtos.ProviderView{
+		connected = append(connected, dtos.ProviderView{
 			ID:           c.ID,
 			Name:         c.Name,
 			Slug:         c.Slug,
@@ -165,7 +170,40 @@ func (h *providersHandler) Index(c fiber.Ctx) error {
 			APIKind:      c.APIKind,
 		})
 	}
-	return dtos.OK(c, overview)
+	return dtos.OK(c, dtos.ProviderOverview{Connected: connected, Available: available})
+}
+
+// catalogOverviewViews builds the catalog-provider views for the providers
+// page, split into connected and available. A custom_providers row sharing a
+// catalog slug is the provider's persisted identity — seeded at connect time —
+// so its uuid and name take over the view and the detail page can load it
+// from the database by id.
+func catalogOverviewViews(listed []dtos.CatalogProvider, counts map[string]int, customBySlug map[string]models.CustomProvider) (connected, available []dtos.ProviderView) {
+	connected = make([]dtos.ProviderView, 0)
+	available = make([]dtos.ProviderView, 0)
+	for _, spec := range listed {
+		view := dtos.ProviderView{
+			ID:           "prov-" + spec.Slug,
+			Name:         spec.Name,
+			Slug:         spec.Slug,
+			Connected:    counts[spec.Slug] > 0 || customBySlug[spec.Slug].ID != "",
+			Accounts:     counts[spec.Slug],
+			Capabilities: spec.Capabilities,
+			Official:     spec.Official,
+			Notice:       spec.Notice,
+			APIKind:      spec.Dialect,
+		}
+		if row, ok := customBySlug[spec.Slug]; ok {
+			view.ID = row.ID
+			view.Name = row.Name
+		}
+		if view.Connected {
+			connected = append(connected, view)
+			continue
+		}
+		available = append(available, view)
+	}
+	return connected, available
 }
 
 // Rates returns the pricing snapshot (overrides + catalog fallbacks).
@@ -372,41 +410,34 @@ func (h *providersHandler) CustomModelsSync(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	if provider.BaseURL == "" {
-		return apperr.New(apperr.KindUnprocessable, "provider has no base_url configured")
-	}
 
-	accounts, err := h.app.Repos.Accounts.ListUsable(c.Context(), provider.Slug)
-	if err != nil {
-		return err
-	}
-	apiKey := ""
-	for _, account := range accounts {
-		// Mirror the account probe: OAuth credentials live in Token,
-		// API keys in Secret.
-		if !account.Secret.Empty() {
-			apiKey, err = h.app.Secrets.OpenString(fromModelsSealed(account.Secret))
-		} else if !account.Token.Empty() {
-			apiKey, err = h.app.Secrets.OpenString(fromModelsSealed(account.Token))
+	var upstream []services.UpstreamModel
+	if modelsSyncProviders[provider.Slug] {
+		// A catalog-connected provider (seeded at connect time, or a custom
+		// row reusing the slug) syncs through its per-provider source
+		// connector — a plain /models fetch cannot express Cline's union list
+		// or Cloudflare's account-scoped endpoint.
+		upstream, err = h.syncProviderModels(c.Context(), provider.Slug)
+	} else {
+		if provider.BaseURL == "" {
+			return apperr.New(apperr.KindUnprocessable, "provider has no base_url configured")
 		}
-		if apiKey != "" || err != nil {
-			break
+		apiKey, keyErr := h.customProviderSyncKey(c.Context(), provider.Slug)
+		if keyErr != nil {
+			return keyErr
 		}
-	}
-	if err != nil {
-		return err
-	}
-	if apiKey == "" {
-		return apperr.New(apperr.KindUnprocessable, "no usable credential for this provider; add an API key first")
-	}
+		if apiKey == "" {
+			return apperr.New(apperr.KindUnprocessable, "no usable credential for this provider; add an API key first")
+		}
 
-	// Match the gateway's dialect resolution (customProviderDialect): the
-	// operator-set api_kind may carry the "custom-" marker, whitespace, or
-	// different casing the raw comparison would miss.
-	kind := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(provider.APIKind)), "custom-")
-	anthropic := kind == "anthropic"
-	endpoint := upstreamModelsEndpoint(provider.BaseURL, anthropic)
-	upstream, err := h.app.Services.Upstream.ListModels(c.Context(), endpoint, anthropic, apiKey)
+		// Match the gateway's dialect resolution (customProviderDialect): the
+		// operator-set api_kind may carry the "custom-" marker, whitespace, or
+		// different casing the raw comparison would miss.
+		kind := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(provider.APIKind)), "custom-")
+		anthropic := kind == "anthropic"
+		endpoint := upstreamModelsEndpoint(provider.BaseURL, anthropic)
+		upstream, err = h.app.Services.Upstream.ListModels(c.Context(), endpoint, anthropic, apiKey)
+	}
 	if err != nil {
 		return apperr.New(apperr.KindUnprocessable, "%s", err.Error())
 	}
@@ -428,6 +459,28 @@ func (h *providersHandler) CustomModelsSync(c fiber.Ctx) error {
 		auditRecord(c.Context(), h.app, actorFrom(c), "pricing.import_upstream", provider.Slug, map[string]string{"count": strconv.Itoa(priced)})
 	}
 	return dtos.OK(c, fiber.Map{"models": cat.Models, "fetched_at": cat.FetchedAt, "priced": priced})
+}
+
+// customProviderSyncKey opens the first usable credential of the provider's
+// accounts — API keys live in Secret, OAuth tokens in Token — mirroring the
+// account probe's lookup order. Empty when no account carries a credential.
+func (h *providersHandler) customProviderSyncKey(ctx context.Context, providerSlug string) (string, error) {
+	accounts, err := h.app.Repos.Accounts.ListUsable(ctx, providerSlug)
+	if err != nil {
+		return "", err
+	}
+	apiKey := ""
+	for _, account := range accounts {
+		if !account.Secret.Empty() {
+			apiKey, err = h.app.Secrets.OpenString(fromModelsSealed(account.Secret))
+		} else if !account.Token.Empty() {
+			apiKey, err = h.app.Secrets.OpenString(fromModelsSealed(account.Token))
+		}
+		if apiKey != "" || err != nil {
+			break
+		}
+	}
+	return apiKey, err
 }
 
 // importUpstreamPricing creates pricing overrides for synced models whose
@@ -511,12 +564,13 @@ func (h *providersHandler) usableAPIKey(ctx context.Context, providerSlug string
 	return ""
 }
 
-// modelsSyncProviders are the catalog providers whose model list the dashboard
-// can sync (POST /v1/providers/:id/models/sync), each with its own source
-// ported from IDRouter's connectors: OpenRouter's public /models (whose
-// pricing is imported into the overrides), the Ollama family's /api/tags,
-// Cline's union of /models and the recommended-models free list, and the
-// OpenAI/Anthropic official /v1/models.
+// modelsSyncProviders are the providers whose model list the dashboard can
+// sync (POST /v1/providers/:id/models/sync and the custom-provider
+// equivalent), each with its own source ported from IDRouter's connectors:
+// OpenRouter's public /models (whose pricing is imported into the overrides),
+// the Ollama family's /api/tags, Cline's union of /models and the
+// recommended-models free list, Cloudflare's account-scoped /models, and the
+// OpenAI/Anthropic/NVIDIA official /v1/models.
 var modelsSyncProviders = map[string]bool{
 	"openrouter":   true,
 	"ollama":       true,
@@ -525,12 +579,52 @@ var modelsSyncProviders = map[string]bool{
 	"cloudflare":   true,
 	"openai":       true,
 	"anthropic":    true,
+	"nvidia":       true,
 }
 
-// ModelsSync refreshes the stored model catalog of a catalog provider. The
-// per-provider source decides whether a credential is needed: Cline requires
-// an account key, OpenRouter's list is public (a stored key is still sent for
-// rate limiting), and Ollama accepts a key only on the cloud tier.
+// syncProviderModels fetches a provider's upstream model list through its
+// per-provider source connector. The credential comes from the provider's
+// usable accounts; Cloudflare's catalog endpoint embeds {account_id}, so the
+// stored account's base_url override carries the real URL there. Returned
+// errors are client-facing 422s.
+func (h *providersHandler) syncProviderModels(ctx context.Context, slug string) ([]services.UpstreamModel, error) {
+	spec, _ := catalog.Lookup(slug)
+	apiKey := h.usableAPIKey(ctx, slug)
+
+	const noCredential = "no usable credential for this provider; add an API key first"
+	switch slug {
+	case "openrouter":
+		// The list is public (a stored key is still sent for rate limiting).
+		return h.app.Services.Upstream.ListModels(ctx, spec.BaseURL+"/models", false, apiKey)
+	case "ollama", "ollama-local":
+		return h.app.Services.Upstream.ListOllamaModels(ctx, spec.BaseURL, apiKey)
+	case "cline":
+		if apiKey == "" {
+			return nil, apperr.New(apperr.KindUnprocessable, noCredential)
+		}
+		return h.app.Services.Upstream.ListClineModels(ctx, spec.BaseURL, apiKey)
+	case "cloudflare":
+		if apiKey == "" {
+			return nil, apperr.New(apperr.KindUnprocessable, noCredential)
+		}
+		base := spec.BaseURL
+		if u := h.usableBaseURL(ctx, slug); u != "" {
+			base = strings.TrimSuffix(u, "/")
+		}
+		return h.app.Services.Upstream.ListModels(ctx, base+"/models", false, apiKey)
+	case "openai", "anthropic", "nvidia":
+		if apiKey == "" {
+			return nil, apperr.New(apperr.KindUnprocessable, noCredential)
+		}
+		// The official /v1/models of each; the anthropic dialect only swaps
+		// the auth headers (x-api-key + anthropic-version) — the response
+		// envelope is the same {"data":[{id}]} shape.
+		return h.app.Services.Upstream.ListModels(ctx, spec.BaseURL+"/models", slug == "anthropic", apiKey)
+	}
+	return nil, apperr.New(apperr.KindUnprocessable, "provider %s does not support model sync", slug)
+}
+
+// ModelsSync refreshes the stored model catalog of a catalog provider.
 func (h *providersHandler) ModelsSync(c fiber.Ctx) error {
 	slug := c.Params("id")
 	if !modelsSyncProviders[slug] {
@@ -539,46 +633,10 @@ func (h *providersHandler) ModelsSync(c fiber.Ctx) error {
 		}
 		return apperr.ErrNotFound
 	}
-	spec, _ := catalog.Lookup(slug)
 
-	apiKey := h.usableAPIKey(c.Context(), slug)
-
-	var (
-		upstream []services.UpstreamModel
-		err      error
-	)
-	switch slug {
-	case "openrouter":
-		upstream, err = h.app.Services.Upstream.ListModels(c.Context(), spec.BaseURL+"/models", false, apiKey)
-	case "ollama", "ollama-local":
-		upstream, err = h.app.Services.Upstream.ListOllamaModels(c.Context(), spec.BaseURL, apiKey)
-	case "cline":
-		if apiKey == "" {
-			return apperr.New(apperr.KindUnprocessable, "no usable credential for this provider; add an API key first")
-		}
-		upstream, err = h.app.Services.Upstream.ListClineModels(c.Context(), spec.BaseURL, apiKey)
-	case "cloudflare":
-		if apiKey == "" {
-			return apperr.New(apperr.KindUnprocessable, "no usable credential for this provider; add an API key first")
-		}
-		// The catalog URL embeds {account_id}; the stored account's base_url
-		// override carries the real endpoint.
-		base := spec.BaseURL
-		if u := h.usableBaseURL(c.Context(), slug); u != "" {
-			base = strings.TrimSuffix(u, "/")
-		}
-		upstream, err = h.app.Services.Upstream.ListModels(c.Context(), base+"/models", false, apiKey)
-	case "openai", "anthropic":
-		if apiKey == "" {
-			return apperr.New(apperr.KindUnprocessable, "no usable credential for this provider; add an API key first")
-		}
-		// The official /v1/models of each; anthropicDialect only swaps the
-		// auth headers (x-api-key + anthropic-version) — the response envelope
-		// is the same {"data":[{id}]} shape.
-		upstream, err = h.app.Services.Upstream.ListModels(c.Context(), spec.BaseURL+"/models", slug == "anthropic", apiKey)
-	}
+	upstream, err := h.syncProviderModels(c.Context(), slug)
 	if err != nil {
-		return apperr.New(apperr.KindUnprocessable, "%s", err.Error())
+		return err
 	}
 
 	ids := make([]string, 0, len(upstream))
@@ -590,12 +648,11 @@ func (h *providersHandler) ModelsSync(c fiber.Ctx) error {
 		return err
 	}
 
-	priced := 0
-	if slug == "openrouter" && len(upstream) > 0 {
-		priced, err = h.importUpstreamPricing(c.Context(), slug, upstream)
-		if err != nil {
-			return err
-		}
+	// Only OpenRouter's /models advertises rates today; the import is a no-op
+	// for the rest.
+	priced, err := h.importUpstreamPricing(c.Context(), slug, upstream)
+	if err != nil {
+		return err
 	}
 	if priced > 0 {
 		auditRecord(c.Context(), h.app, actorFrom(c), "pricing.import_upstream", slug, map[string]string{"count": strconv.Itoa(priced)})
@@ -799,13 +856,21 @@ func (h *providersHandler) CustomModelTest(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	if provider.BaseURL == "" {
+	base := provider.BaseURL
+	// A template endpoint (e.g. Cloudflare's {account_id}) resolves against
+	// the account's base_url override, mirroring sync and routing.
+	if strings.Contains(base, "{") {
+		if u := h.usableBaseURL(c.Context(), provider.Slug); u != "" {
+			base = u
+		}
+	}
+	if base == "" {
 		return apperr.New(apperr.KindUnprocessable, "provider has no base_url configured")
 	}
 
 	kind := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(provider.APIKind)), "custom-")
 	anthropic := kind == "anthropic"
-	return h.runModelTest(c, provider.BaseURL, h.usableAPIKey(c.Context(), provider.Slug), anthropic)
+	return h.runModelTest(c, base, h.usableAPIKey(c.Context(), provider.Slug), anthropic)
 }
 
 // --- Provider-scoped bulk account operations ---
