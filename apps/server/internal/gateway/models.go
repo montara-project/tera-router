@@ -23,11 +23,10 @@ type modelEntry struct {
 
 // handleListModels serves GET /v1/models: the model ids a client may put in
 // a chat request. Entries are emitted in resolution precedence — active
-// aliases, then the auto-combo ids, then enabled chains — and each bare name
-// appears once, so a listed id never resolves to a different kind of route
-// than its owned_by claims. Bare catalog model ids still resolve when a
-// client names them explicitly, but they are not discoverable through this
-// listing.
+// aliases, then enabled chains — and each bare name appears once, so a listed
+// id never resolves to a different kind of route than its owned_by claims.
+// Bare catalog model ids and the auto-combo ids still resolve when a client
+// names them explicitly, but they are not discoverable through this listing.
 //
 // The listing is identity-level: it does not reflect the calling key's model
 // allowlist, which the per-request access check enforces anyway.
@@ -65,18 +64,6 @@ func (s *Server) handleListModels(c fiber.Ctx) error {
 			OwnedBy: "alias",
 			Created: createdUnix(alias.CreatedAt),
 		})
-	}
-
-	// The auto-combo ids resolve on every request once the engine exists; an
-	// empty candidate pool is a transient upstream condition the request
-	// itself reports, not a reason to hide the ids.
-	if s.combo != nil {
-		for _, id := range autocombo.AdvertisedIDs() {
-			if !claimName(seen, id) {
-				continue // an alias owns the name and wins in resolution too
-			}
-			data = append(data, modelEntry{ID: id, Object: "model", OwnedBy: "auto-combo"})
-		}
 	}
 
 	chains, err := s.app.Repos.Chains.List(ctx)

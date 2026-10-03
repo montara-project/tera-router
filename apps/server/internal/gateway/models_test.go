@@ -9,10 +9,12 @@ import (
 	"tera-router/server/internal/models"
 )
 
-// handleListModels advertises active aliases, the auto-combo ids, and enabled
-// chains — each bare name once, shadowed or non-resolving names excluded —
-// so every listed id resolves to the route its owned_by claims.
-func TestHandleListModelsAdvertisesAliasesCombosChains(t *testing.T) {
+// handleListModels advertises active aliases and enabled chains — each bare
+// name once, shadowed or non-resolving names excluded — so every listed id
+// resolves to the route its owned_by claims. The auto-combo ids stay
+// unadvertised: they resolve when a client names them explicitly, but the
+// listing is reserved for alias and chain routes.
+func TestHandleListModelsAdvertisesAliasesAndChains(t *testing.T) {
 	fiberApp, application := newGatewayApp(t)
 
 	ctx := context.Background()
@@ -89,14 +91,17 @@ func TestHandleListModelsAdvertisesAliasesCombosChains(t *testing.T) {
 
 	for _, id := range []string{
 		"sonnet", "shadowed-chain",
-		"auto", "auto/coding", "auto/fast", "auto/cheap", "auto/offline", "auto/smart", "auto/lkgp",
 		"budget", "fallback-only",
 	} {
 		if _, ok := entries[id]; !ok {
 			t.Errorf("expected id %q in listing", id)
 		}
 	}
-	for _, id := range []string{"ghost", "off-chain", "prov/thing", "chain:weird", "empty-chain"} {
+	for _, id := range []string{
+		"ghost", "off-chain", "prov/thing", "chain:weird", "empty-chain",
+		// auto-combo ids resolve on explicit requests but are not advertised.
+		"auto", "auto/coding", "auto/fast", "auto/cheap", "auto/offline", "auto/smart", "auto/lkgp",
+	} {
 		if _, ok := entries[id]; ok {
 			t.Errorf("id %q must not be advertised", id)
 		}
@@ -107,9 +112,6 @@ func TestHandleListModelsAdvertisesAliasesCombosChains(t *testing.T) {
 	}
 	if e := entries["shadowed-chain"]; e.OwnedBy != "alias" {
 		t.Errorf("shadowed-chain owned_by = %q, want alias (the alias wins in resolution)", e.OwnedBy)
-	}
-	if e := entries["auto"]; e.OwnedBy != "auto-combo" {
-		t.Errorf("auto owned_by = %q, want auto-combo (the combo wins in resolution)", e.OwnedBy)
 	}
 	if e := entries["budget"]; e.OwnedBy != "chain" {
 		t.Errorf("budget owned_by = %q, want chain", e.OwnedBy)
