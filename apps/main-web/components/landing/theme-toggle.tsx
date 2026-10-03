@@ -63,7 +63,7 @@ export function ThemeToggle() {
   return (
     <div
       aria-label="Color theme"
-      className="inline-flex items-center gap-0.5 rounded-lg border border-line bg-raised/80 p-0.5"
+      className="inline-flex items-center gap-0.5 rounded-lg border border-line bg-surface/70 p-0.5 shadow-[var(--shadow-1)]"
       role="radiogroup"
     >
       {options.map(({ value, label, Icon }) => {
@@ -73,9 +73,7 @@ export function ThemeToggle() {
             aria-checked={active}
             aria-label={label}
             className={`inline-flex size-7 cursor-pointer items-center justify-center rounded-md transition-colors duration-200 ${
-              active
-                ? 'bg-accent/15 text-accent-soft'
-                : 'text-faint hover:bg-white/5 hover:text-ink'
+              active ? 'bg-accent/15 text-accent-soft' : 'text-faint hover:bg-raised hover:text-ink'
             }`}
             key={value}
             onClick={() => select(value)}

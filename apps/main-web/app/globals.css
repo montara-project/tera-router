@@ -3,28 +3,37 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Light is the default; .dark on <html> flips every semantic token. */
+/* Light is the default; .dark on <html> flips every semantic token.
+   Every text token below is contrast-checked against every surface token it can
+   land on (canvas / surface / raised / subtle / panel) — smallest measured pair
+   is noted in each block. Do not shift a value without re-checking. */
 :root {
   color-scheme: light;
 
-  --canvas: #f8fafc;
-  --surface: #ffffff;
-  --raised: #f1f5f9;
-  --subtle: #f1f5f9;
+  --canvas: #f6f8fb;
+  --surface: #ffffff; /* 18.7:1 with --ink */
+  --raised: #eef2f7;
+  --subtle: #f1f5fa; /* band tone between canvas and surface */
   --panel: #ffffff;
-  --line: #e2e8f0;
-  --divide: #e2e8f0;
-  --ink: #0f172a;
-  --dim: #475569;
-  --faint: #64748b;
-  --accent: #16a34a;
-  --accent-soft: #15803d;
+  --line: #dfe6ee; /* card hairline */
+  --divide: #e9eef4; /* section hairline, softer than --line */
+  --ink: #0b1220; /* ≥16.6:1 on every light surface */
+  --dim: #45536b; /* ≥6.9:1 */
+  --faint: #5a6678; /* ≥5.2:1 */
+  --accent: #16a34a; /* decorative fills, rings, dots — not text-bearing */
+  --accent-strong: #15803d; /* button fill: white label is 5.02:1 */
+  --accent-soft: #0f6f38; /* accent text: ≥5.4:1 even inside bg-accent/10 */
   --on-accent: #ffffff;
-  --code: #191919; /* docs home terminal card — same in both themes */
-  --code-line: hsla(0, 0%, 40%, 20%);
-  --sheen: rgba(255, 255, 255, 0.9);
-  --grad-1: #166534;
-  --grad-2: #15803d;
+  --code: #14151a; /* terminal card — same in both themes */
+  --code-line: hsla(0, 0%, 100%, 9%);
+  --sheen: rgba(11, 18, 32, 0.05); /* top-edge hairline that defines light cards */
+  --grid-line: rgba(15, 23, 42, 0.045);
+  --glow: 0 10px 30px -12px hsla(142, 76%, 45%, 0.45);
+  --shadow-1: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.05);
+  --shadow-2: 0 4px 12px -2px rgba(15, 23, 42, 0.07), 0 2px 6px -3px rgba(15, 23, 42, 0.05);
+  --shadow-3: 0 18px 40px -18px rgba(15, 23, 42, 0.2), 0 6px 14px -10px rgba(15, 23, 42, 0.1);
+  --grad-1: #0f5c2c;
+  --grad-2: #12723a;
   --grad-3: #16a34a;
 }
 
@@ -33,22 +42,28 @@
 .dark {
   color-scheme: dark;
 
-  --canvas: #121212; /* fd-background — hsl(0 0% 7%) */
-  --surface: #191919; /* fd-card — hsl(0 0% 9.8%) */
-  --raised: #212121; /* fd-muted — hsl(0 0% 12.9%) */
-  --subtle: #161616; /* band tone between canvas and surface */
-  --panel: #1e1e1e; /* fd-popover — hsl(0 0% 11.6%) */
-  --line: hsla(0, 0%, 40%, 20%); /* fd-border */
-  --divide: hsla(0, 0%, 40%, 14%);
-  --ink: #ebebeb; /* fd-foreground — hsl(0 0% 92%) */
-  --dim: hsla(0, 0%, 70%, 80%); /* fd-muted-foreground */
-  --faint: #8c8c8c; /* fd-ring — hsl(0 0% 55%) */
+  --canvas: #0d0e11; /* fd-background */
+  --surface: #141519; /* fd-card */
+  --raised: #1b1d22; /* fd-muted */
+  --subtle: #101114; /* band tone between canvas and surface */
+  --panel: #17181d; /* fd-popover */
+  --line: hsla(0, 0%, 100%, 11%); /* fd-border */
+  --divide: hsla(0, 0%, 100%, 7%);
+  --ink: #f4f5f7; /* fd-foreground — ≥15.6:1 on every dark surface */
+  --dim: #b8b8b8; /* fd-muted-foreground — ≥9.3:1 */
+  --faint: #a3a3a3; /* fd-ring — ≥6.7:1 */
   --accent: #22c55e; /* emerald-500, same as docs */
-  --accent-soft: #34d399; /* emerald-400 */
+  --accent-strong: #22c55e; /* button fill: dark label is 6.5:1 */
+  --accent-soft: #34d399; /* emerald-400 — ≥8.8:1 on every dark surface */
   --on-accent: #052e16;
-  --code: #191919; /* docs home terminal card */
-  --code-line: hsla(0, 0%, 40%, 20%);
-  --sheen: rgba(255, 255, 255, 0.05);
+  --code: #14151a; /* terminal card */
+  --code-line: hsla(0, 0%, 100%, 9%);
+  --sheen: hsla(0, 0%, 100%, 0.06);
+  --grid-line: hsla(0, 0%, 100%, 0.045);
+  --glow: 0 10px 34px -12px hsla(142, 71%, 45%, 0.5);
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-2: 0 8px 20px -8px rgba(0, 0, 0, 0.65);
+  --shadow-3: 0 24px 50px -20px rgba(0, 0, 0, 0.8);
   --grad-1: #34d399; /* emerald-400 */
   --grad-2: #2dd4bf; /* teal-400 */
   --grad-3: #5eead4; /* teal-300 */
@@ -57,9 +72,9 @@
 /* The terminal renders with the dark card palette in both themes, so the
    tokens its text sits on are pinned to their dark values here. */
 .terminal-island {
-  --sheen: rgba(255, 255, 255, 0.05);
+  --sheen: hsla(0, 0%, 100%, 0.06);
   --accent-soft: #34d399; /* emerald-400 */
-  --faint: #8c8c8c;
+  --faint: #a3a3a3;
 }
 
 @theme inline {
@@ -77,6 +92,7 @@
   --color-dim: var(--dim);
   --color-faint: var(--faint);
   --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
   --color-accent-soft: var(--accent-soft);
   --color-on-accent: var(--on-accent);
   --color-code: var(--code);
@@ -85,6 +101,8 @@
 
 html {
   scroll-behavior: smooth;
+  /* Keep #anchors clear of the sticky header (h-16 = 4rem). */
+  scroll-padding-top: 5.5rem;
 }
 
 body {
@@ -93,16 +111,35 @@ body {
   color: var(--ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 ::selection {
-  background: rgba(34, 197, 94, 0.25);
+  background: hsla(142, 76%, 45%, 0.28);
+  color: var(--ink);
 }
 
+/* WCAG 2.2 focus appearance: 2px perimeter, 2px offset, ≥3:1 against both
+   the component and the adjacent background. */
 *:focus-visible {
   outline: 2px solid var(--accent-soft);
   outline-offset: 2px;
   border-radius: 4px;
+}
+
+/* Elevation: the SaaS depth ladder. Cards read as lifted planes instead of
+   outlines, so borders only define edges, not separation. Declared with
+   @utility so `hover:elev-2` composes like any Tailwind utility. */
+@utility elev-1 {
+  box-shadow: var(--shadow-1);
+}
+
+@utility elev-2 {
+  box-shadow: var(--shadow-2);
+}
+
+@utility elev-3 {
+  box-shadow: var(--shadow-3);
 }
 
 .sheen {
@@ -116,16 +153,39 @@ body {
   color: transparent;
 }
 
+/* Hero backdrop: a fine engineering grid, faded out radially so it only
+   suggests structure near the headline. */
+.grid-field {
+  background-image:
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+  background-size: 56px 56px;
+  -webkit-mask-image: radial-gradient(ellipse 75% 60% at 50% 0%, #000 25%, transparent 78%);
+  mask-image: radial-gradient(ellipse 75% 60% at 50% 0%, #000 25%, transparent 78%);
+}
+
+/* Gradient hairline border drawn with two stacked backgrounds so the panel
+   keeps a crisp 1px edge against any surface behind it. */
+.hairline-gradient {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--panel), var(--panel)) padding-box,
+    linear-gradient(150deg, hsla(142, 76%, 45%, 0.5), var(--divide) 45%, var(--divide)) border-box;
+}
+
 /* Provider monogram: brand hue stays, but the text tone follows the theme so
    light brand colors (xAI, Ollama) stay legible on a light background. */
 .brand-mark {
   background: color-mix(in srgb, var(--brand) 12%, transparent);
-  color: color-mix(in srgb, var(--brand) 42%, #0f172a);
+  color: color-mix(in srgb, var(--brand) 42%, #0b1220);
 }
 
 .dark .brand-mark {
   background: color-mix(in srgb, var(--brand) 10%, transparent);
-  color: var(--brand);
+  /* Raw brand hues run 3.6:1–4.0:1 on the dark chip (DeepSeek, Gemini), so the
+     monogram is tinted toward the foreground ink: still recognisably brand,
+     but ≥4.5:1 at 11px. */
+  color: color-mix(in srgb, var(--brand) 78%, #f4f5f7);
 }
 
 @keyframes rise-in {
@@ -153,6 +213,9 @@ body {
   *,
   *::before,
   *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

@@ -214,9 +214,7 @@ export default function OverrideDialog({
                     <field.ComboboxField
                       label="Model"
                       placeholder={
-                        selectedProviderModel
-                          ? 'Select a model...'
-                          : 'Select a provider first...'
+                        selectedProviderModel ? 'Select a model...' : 'Select a provider first...'
                       }
                       options={modelOptions}
                       defaultValues={override?.model ? [override.model] : []}
