@@ -3,6 +3,47 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [0.4.3](https://github.com/montara-project/tera-router/compare/v0.4.2...v0.4.3) (2026-10-03)
+
+### Features
+
+* advertise chains and auto-combos on gateway /v1/models ([3c61ae6](https://github.com/montara-project/tera-router/commit/3c61ae67ba7380d0eb9b3d60dc5e21a31e549a2a))
+* **alias:** list only active models in the model combobox ([61b31c1](https://github.com/montara-project/tera-router/commit/61b31c1e0e084efeafc7d10f4035f070251169a9))
+* **alias:** pick provider and model via combobox in fallback order ([5c0740b](https://github.com/montara-project/tera-router/commit/5c0740b80f5d52d92e51c2708e8f8979d72635a7))
+* **endpoints:** add how-to-use-this-router steps card ([363d42e](https://github.com/montara-project/tera-router/commit/363d42ebcb1b439f4b2a9b4ca19f662182b22945))
+* official-website sign-in option for OpenAI and Anthropic connects ([2dfb832](https://github.com/montara-project/tera-router/commit/2dfb832dc990c99092adf22d34773cb6ffac7730))
+* **pricing:** pick provider and model via combobox in override dialog ([2440ce7](https://github.com/montara-project/tera-router/commit/2440ce7822eb2bd9a0452c0c27e438e8b9ab398c))
+* provider health derived from gateway attempt outcomes ([922b781](https://github.com/montara-project/tera-router/commit/922b781da979d91e410363f4d5b4853f98791e61))
+* **providers:** enable or disable provider API keys from account routing ([831d68c](https://github.com/montara-project/tera-router/commit/831d68c24f0a8435ec53682f2ddf97e54834c6c3))
+* seed custom_providers rows on catalog provider connect ([9c892f6](https://github.com/montara-project/tera-router/commit/9c892f64384f476bcd521968da20a78959935384))
+* **settings:** report app version via /health and check latest release on GitHub ([d78665f](https://github.com/montara-project/tera-router/commit/d78665fd6910f5ef5e656fa9edf1fe1581bfa125))
+* **usage:** paginate provider distribution and align trend card height ([b94d622](https://github.com/montara-project/tera-router/commit/b94d622398eba22106481d7a19df0cf07b80a8ff))
+* **web-ui:** pick chain steps and terminal fallback via provider/model comboboxes ([a02be59](https://github.com/montara-project/tera-router/commit/a02be5932029ea238891f309c1a72a5119df1ca8))
+* **web:** add analytics script to docs and main-web layouts ([a5c7eab](https://github.com/montara-project/tera-router/commit/a5c7eabe89d470feb664ed019812dbcfa1d8ea9b))
+* wire settings color theme palette switching ([146d2fb](https://github.com/montara-project/tera-router/commit/146d2fbf52e9ace978ee9fed9b9d71e57f73091a))
+
+### Bug Fixes
+
+* annotate scope param type in pricing override dialog ([84b1aa6](https://github.com/montara-project/tera-router/commit/84b1aa6bcc3dc56314fbea89000c73dd5f3cb6f6))
+* copy api key through the reveal endpoint in keys table ([30da570](https://github.com/montara-project/tera-router/commit/30da57011fd29c21eecf20bfad42e1dc4f9df8e1))
+* **docs:** update started with docker compose ([bebbc5c](https://github.com/montara-project/tera-router/commit/bebbc5c5547156ce4e50913268243abcb8028212))
+* keep auto-combo ids out of the gateway /v1/models listing ([ee98ace](https://github.com/montara-project/tera-router/commit/ee98ace81ecae0000e45e66541c7b6c32573a629))
+* server-side state filter for model catalog pickers ([53dbde0](https://github.com/montara-project/tera-router/commit/53dbde03f3fd2a88d9e88dd570c660f8b505655e))
+* smooth model test sheet slide animation ([d3ae7a8](https://github.com/montara-project/tera-router/commit/d3ae7a841b1c36cbd0b57cafeff8ed6a6bfdc0ae))
+* update animation with motion/react ([994cef7](https://github.com/montara-project/tera-router/commit/994cef7672f60240f9688c8760b139c6cf571337))
+* update connect chatgpt & anthropic api ([2722bc3](https://github.com/montara-project/tera-router/commit/2722bc32349bc793107cacb3d94d7bb7f29a8d40))
+* update empty state model catalog ([25268ed](https://github.com/montara-project/tera-router/commit/25268edf22ab730bef13fb119523094741fad88e))
+* update main web UI ([1074700](https://github.com/montara-project/tera-router/commit/1074700c6500ba8247123371f6b6a29e8d18a1e5))
+* update nav user ([14adf49](https://github.com/montara-project/tera-router/commit/14adf499e7ca0034d0b26c5786d53ffbf09511e3))
+* update padding ([f05cdef](https://github.com/montara-project/tera-router/commit/f05cdefcd5c043ee4c5887f79646d7a850626123))
+* update provider model test ([bf7b652](https://github.com/montara-project/tera-router/commit/bf7b6525f474b6399002acbff11df6f58edc91c2))
+* update release yml ([2f7d5e0](https://github.com/montara-project/tera-router/commit/2f7d5e05d1977d6337ad74d4f0801d56294f6535))
+* update switch color ([c151b08](https://github.com/montara-project/tera-router/commit/c151b080d452c74f2af2d049ee531f2fdde7a193))
+* update usage card ([bce8408](https://github.com/montara-project/tera-router/commit/bce8408f68b14ff3f1f2d8da0c426e2bcce5817b))
+* **web-ui:** keep skeleton background neutral outside theme palettes ([001f6b0](https://github.com/montara-project/tera-router/commit/001f6b08f125c382eab87b343bef2a5aab98e7c4))
+* **web-ui:** key catalog model tests by slug not prefixed id ([51f2a4e](https://github.com/montara-project/tera-router/commit/51f2a4e7f9fb491d32cfc5f64fe38e619ded6495))
+* **web-ui:** read pricing override scope from form store ([4673ad3](https://github.com/montara-project/tera-router/commit/4673ad39458efef88ea211821dac19aee8665bcb))
+
 ## [0.4.2](https://github.com/montara-project/tera-router/compare/v0.4.1...v0.4.2) (2026-10-02)
 
 ## [0.4.1](https://github.com/montara-project/tera-router/compare/v0.4.0...v0.4.1) (2026-10-02)
