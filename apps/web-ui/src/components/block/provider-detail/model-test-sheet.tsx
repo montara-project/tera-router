@@ -72,9 +72,12 @@ export default function ModelTestSheet({
   const [input, setInput] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
 
+  // Catalog tests are keyed by slug (POST /v1/providers/:slug/models/test);
+  // the route id may still carry the "prov-" display prefix, so never send it
+  // there. Custom providers are keyed by their uuid row.
   const test = useMutation(
     variant === 'catalog'
-      ? queries.providers.catalogModelTest(providerId)
+      ? queries.providers.catalogModelTest(providerSlug)
       : queries.providers.customModelTest(providerId)
   )
   const sending = test.isPending
