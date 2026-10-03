@@ -11,6 +11,7 @@ import (
 	"tera-router/server/internal/transform"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 )
 
 // requestMeta is the router-internal context attached to one inbound request.
@@ -23,17 +24,24 @@ type requestMeta struct {
 	Client   string
 	ClientIP string
 	Dialect  core.Dialect
+	// RequestID groups the usage rows of this one client request so provider
+	// health can distinguish fallbacks from final failures.
+	RequestID string
+	// Chain is the routing chain the request resolved through ("" for direct
+	// alias or provider/model calls).
+	Chain string
 }
 
 // metaFrom extracts the request metadata from the Fiber context and the
 // authenticated key.
 func metaFrom(c fiber.Ctx, key models.APIKey, dialect core.Dialect) requestMeta {
 	return requestMeta{
-		KeyName:  key.Name,
-		APIKeyID: key.ID,
-		Client:   detectClient(c),
-		ClientIP: c.IP(),
-		Dialect:  dialect,
+		KeyName:   key.Name,
+		APIKeyID:  key.ID,
+		Client:    detectClient(c),
+		ClientIP:  c.IP(),
+		Dialect:   dialect,
+		RequestID: uuid.NewString(),
 	}
 }
 
@@ -170,6 +178,9 @@ func (s *Server) handleChat(c fiber.Ctx, dialect core.Dialect) error {
 			"access denied: this API key is not permitted to use model "+req.Model)
 	}
 	resolved.Targets = narrowed
+	// Attribute the usage rows this request produces to the routing chain that
+	// served it ("" when the model string named an alias or provider/model).
+	meta.Chain = resolved.ChainName
 
 	if err := s.checkBudgets(routeCtx, key, plan); err != nil {
 		routeCancel()

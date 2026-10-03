@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
+import { env } from '@/config/env'
 import { toastAxiosError } from '@/lib/api/axios-error'
 import { ACCOUNT_QUERY_KEY } from '@/lib/api/queries/account'
 import { PROVIDER_QUERY_KEY } from '@/lib/api/queries/provider'
@@ -28,7 +29,10 @@ export function useOAuthConnect() {
   const connect = async (provider: string) => {
     setConnecting(provider)
     try {
-      const res = await services.oauth.authorize(provider, `${window.location.origin}/callback`)
+      // The callback must follow the API origin: development splits dashboard
+      // and API across ports, while the shipped image serves both from the
+      // page origin (VITE_API_URL falls back to window.location.origin).
+      const res = await services.oauth.authorize(provider, `${env.VITE_API_URL}/callback`)
       const authorizeURL = res.data.data.authorize_url
 
       sessionStorage.setItem(PROVIDER_STORAGE_KEY, provider)

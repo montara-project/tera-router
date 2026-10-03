@@ -123,12 +123,16 @@ export default function OverrideDialog({
   const catalogModelsQuery = useQuery({
     ...queries.providers.catalogModels(selectedProviderModel?.slug ?? '', {
       limit: MODEL_OPTIONS_LIMIT,
+      // Disabled models are not routable and page 1 of a large catalog can
+      // hold none of the enabled ones — filter server-side.
+      state: 'active',
     }),
     enabled: !!selectedProviderModel && isCatalogProvider,
   })
   const customModelsQuery = useQuery({
     ...queries.providers.customModels(selectedProviderModel?.id ?? '', {
       limit: MODEL_OPTIONS_LIMIT,
+      state: 'active',
     }),
     enabled: !!selectedProviderModel && !isCatalogProvider,
   })
@@ -140,6 +144,9 @@ export default function OverrideDialog({
   ).map((model) => ({ value: model.id, label: model.id }))
 
   const saving = useSelector(form.store, (s) => s.isSubmitting)
+  // form.Subscribe in this form version always hands children the full
+  // FormState, so read the scope through the store instead.
+  const scope = useSelector(form.store, (s) => s.values.scope)
 
   return (
     <Dialog
@@ -201,33 +208,26 @@ export default function OverrideDialog({
                 )}
               </form.AppField>
 
-              <form.Subscribe selector={(s) => s.values.scope}>
-                {(scope) =>
-                  scope === 'model' ? (
-                    <form.AppField name="model">
-                      {(field) => (
-                        <field.ComboboxField
-                          label="Model"
-                          placeholder={
-                            selectedProviderModel
-                              ? 'Select a model...'
-                              : 'Select a provider first...'
-                          }
-                          options={modelOptions}
-                          defaultValues={override?.model ? [override.model] : []}
-                          disabled={!selectedProviderModel}
-                          asterisk
-                        />
-                      )}
-                    </form.AppField>
-                  ) : (
-                    <p className="text-xs text-muted-foreground">
-                      Blanket rate for every model on this provider without a more specific
-                      override.
-                    </p>
-                  )
-                }
-              </form.Subscribe>
+              {scope === 'model' ? (
+                <form.AppField name="model">
+                  {(field) => (
+                    <field.ComboboxField
+                      label="Model"
+                      placeholder={
+                        selectedProviderModel ? 'Select a model...' : 'Select a provider first...'
+                      }
+                      options={modelOptions}
+                      defaultValues={override?.model ? [override.model] : []}
+                      disabled={!selectedProviderModel}
+                      asterisk
+                    />
+                  )}
+                </form.AppField>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Blanket rate for every model on this provider without a more specific override.
+                </p>
+              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <form.AppField name="input_micros">

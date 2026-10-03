@@ -10,13 +10,23 @@ export const OAUTH_PROVIDERS: Record<string, string> = {
   codex: 'OpenAI (Codex)',
 }
 
+/** Catalog tiles that support BOTH API-key and official-website sign-in:
+ * Connect offers a choice between the key form and the OAuth popup flow. */
+export const DUAL_AUTH_PROVIDERS: Record<string, { name: string }> = {
+  openai: { name: 'OpenAI' },
+  anthropic: { name: 'Anthropic' },
+}
+
 /** API-key providers wired end-to-end: Connect opens the key form, and the
  * stored model catalog can be re-synced from the connected card. ollama-local
- * needs no credential at all. */
+ * needs no credential at all. Connecting one of these also persists the
+ * provider's custom_providers row server-side, so the connected card links to
+ * the DB-backed detail page instead of the prov-<slug> catalog view. */
 export const API_KEY_PROVIDERS: Record<string, { name: string; authKind?: 'none' }> = {
   openai: { name: 'OpenAI' },
   anthropic: { name: 'Anthropic' },
   openrouter: { name: 'OpenRouter' },
+  nvidia: { name: 'NVIDIA NIM' },
   ollama: { name: 'Ollama Cloud' },
   'ollama-local': { name: 'Ollama Local', authKind: 'none' },
   cline: { name: 'Cline' },

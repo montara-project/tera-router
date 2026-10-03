@@ -139,13 +139,21 @@ export default function AliasCard({
       // Catalog providers carry "prov-<slug>" ids; custom providers carry uuids.
       const isCatalog = provider?.id.startsWith('prov-') ?? true
       return isCatalog
-        ? queries.providers.catalogModels(provider?.slug ?? slug, { limit: MODEL_OPTIONS_LIMIT })
-        : queries.providers.customModels(provider?.id ?? '', { limit: MODEL_OPTIONS_LIMIT })
+        ? queries.providers.catalogModels(provider?.slug ?? slug, {
+            limit: MODEL_OPTIONS_LIMIT,
+            // Filter server-side so the one fetched page holds the enabled
+            // models even when the full catalog spans many pages.
+            state: 'active',
+          })
+        : queries.providers.customModels(provider?.id ?? '', {
+            limit: MODEL_OPTIONS_LIMIT,
+            state: 'active',
+          })
     }),
   })
   const modelOptionsBySlug = new Map<string, Option<string>[]>()
   targetProviders.forEach((slug, i) => {
-    // only active models are routable, so only they belong in the picker
+    // Keep the client filter as a guard for servers predating the state param.
     const models = (modelQueries[i]?.data?.data?.models ?? []).filter(
       (model) => model.state === 'active'
     )

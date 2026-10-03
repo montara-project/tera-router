@@ -1,4 +1,5 @@
 import { IconCheck, IconPalette, IconUpload } from '@tabler/icons-react'
+import { useTheme } from 'next-themes'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
@@ -16,96 +17,15 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { useThemePalette } from '@/lib/providers/themes'
+import { THEME_PALETTES } from '@/lib/theme-palettes'
+
+import { SegmentedControl } from './setting-row'
 
 interface BrandingTabProps {
   settings: AppSettings
   onUpdate: (patch: Partial<AppSettings>) => void
 }
-
-type ThemePalette = { value: string; label: string; rows: [string[], string[]] }
-
-const THEMES: ThemePalette[] = [
-  {
-    value: 'sage-terra',
-    label: 'Sage & Terra',
-    rows: [
-      ['#d9d9c9', '#b9c4a3', '#8ba07a', '#647d55', '#4c5f3d', '#3a4429'],
-      ['#e8b4a0', '#d1937f', '#a56a4e', '#7d4a35', '#5c3524', '#3d2418'],
-    ],
-  },
-  {
-    value: 'ocean-breeze',
-    label: 'Ocean Breeze',
-    rows: [
-      ['#cfe3f5', '#9cc3e8', '#5f9bd6', '#3a6fb0', '#274d80', '#18304f'],
-      ['#f5d9c8', '#e8a97e', '#d17f4e', '#a85a2d', '#7d3d1c', '#4f2610'],
-    ],
-  },
-  {
-    value: 'midnight-gold',
-    label: 'Midnight Gold',
-    rows: [
-      ['#cfc9f0', '#a99ee8', '#7a6ad1', '#5447a8', '#382e75', '#221c47'],
-      ['#f0e3b8', '#e8cf8a', '#d4ab52', '#a87f2e', '#75571c', '#473510'],
-    ],
-  },
-  {
-    value: 'forest-amber',
-    label: 'Forest Amber',
-    rows: [
-      ['#c9e8d5', '#96d4b0', '#5cb887', '#2e9663', '#1c6b45', '#0f4028'],
-      ['#f5dfb8', '#eac285', '#d99f4a', '#b87c26', '#7d5316', '#47300c'],
-    ],
-  },
-  {
-    value: 'rose-dusk',
-    label: 'Rose Dusk',
-    rows: [
-      ['#f5cfe0', '#e89cc4', '#d15f9e', '#a82d75', '#751c52', '#471031'],
-      ['#d9d0f5', '#b3a3e8', '#8a72d1', '#6247a8', '#422e75', '#291c47'],
-    ],
-  },
-  {
-    value: 'lavender-teal',
-    label: 'Lavender Teal',
-    rows: [
-      ['#e0ccf0', '#c39fe8', '#a06ad1', '#7a44a8', '#542e75', '#331c47'],
-      ['#b8e8e0', '#85d4c9', '#4ab8a8', '#269685', '#166b5e', '#0c4039'],
-    ],
-  },
-  {
-    value: 'monochrome',
-    label: 'Monochrome',
-    rows: [
-      ['#e0e0e0', '#c4c4c4', '#a3a3a3', '#7d7d7d', '#5c5c5c', '#3d3d3d'],
-      ['#d4d4d4', '#b0b0b0', '#8a8a8a', '#666666', '#474747', '#2e2e2e'],
-    ],
-  },
-  {
-    value: 'sunset-flame',
-    label: 'Sunset Flame',
-    rows: [
-      ['#f5d9c0', '#eab385', '#de8a4a', '#c2611f', '#8f4312', '#5c2a0a'],
-      ['#f0c0b8', '#e08a7d', '#cc5240', '#a82d1c', '#751c10', '#47100a'],
-    ],
-  },
-  {
-    value: 'arctic-frost',
-    label: 'Arctic Frost',
-    rows: [
-      ['#d0f0f5', '#9cdce8', '#5fb8d1', '#2d8ba8', '#1c5f75', '#103d47'],
-      ['#c8d0f5', '#9ca3e8', '#6a72d1', '#3d47a8', '#282e75', '#181c47'],
-    ],
-  },
-  {
-    value: 'cherry-navy',
-    label: 'Cherry Navy',
-    rows: [
-      ['#f5d0d4', '#e89ca6', '#d15f72', '#a82d44', '#751c2e', '#47101c'],
-      ['#d0dcf5', '#9cb0e8', '#5f7dd1', '#2d4ba8', '#1c2e75', '#101c47'],
-    ],
-  },
-]
 
 function UploadZone({ label, hint, id }: { label: string; hint: string; id: string }) {
   return (
@@ -137,13 +57,14 @@ function UploadZone({ label, hint, id }: { label: string; hint: string; id: stri
 export default function BrandingTab({ settings, onUpdate }: BrandingTabProps) {
   const [displayName, setDisplayName] = useState(settings.branding_display_name)
   const [tagline, setTagline] = useState(settings.branding_tagline)
-  const [theme, setTheme] = useState(settings.branding_theme)
+  const { palette, setPalette } = useThemePalette()
+  const { theme: mode, setTheme: setMode } = useTheme()
 
   const handleSave = () => {
     onUpdate({
       branding_display_name: displayName,
       branding_tagline: tagline,
-      branding_theme: theme,
+      branding_theme: palette,
     })
     toast.success('Branding saved')
   }
@@ -215,15 +136,34 @@ export default function BrandingTab({ settings, onUpdate }: BrandingTabProps) {
         </div>
 
         <div className="border-t border-border p-5">
+          <p className="text-xs font-medium text-muted-foreground">Appearance</p>
+          <p className="text-muted-foreground mt-1 text-xs">
+            Choose how the dashboard looks — light, dark, or follow your system setting. Saved in
+            this browser.
+          </p>
+          <div className="mt-3">
+            <SegmentedControl
+              value={mode ?? 'system'}
+              options={[
+                { value: 'light', label: 'Light' },
+                { value: 'dark', label: 'Dark' },
+                { value: 'system', label: 'System' },
+              ]}
+              onChange={setMode}
+            />
+          </div>
+        </div>
+
+        <div className="border-t border-border p-5">
           <p className="text-xs font-medium text-muted-foreground">Color Theme</p>
           <p className="text-muted-foreground mt-1 text-xs">
-            Choose a color palette for the entire dashboard. This changes the accent and highlight
-            colors across all UI elements.
+            Choose a color palette for the dashboard. Changes apply instantly across all UI elements
+            and are saved in this browser.
           </p>
 
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-            {THEMES.map((option) => {
-              const selected = option.value === theme
+            {THEME_PALETTES.map((option) => {
+              const selected = option.value === palette
 
               return (
                 <button
@@ -231,7 +171,7 @@ export default function BrandingTab({ settings, onUpdate }: BrandingTabProps) {
                   type="button"
                   aria-pressed={selected}
                   aria-label={`${option.label} theme`}
-                  onClick={() => setTheme(option.value)}
+                  onClick={() => setPalette(option.value)}
                   className={`bg-card relative flex cursor-pointer flex-col items-center gap-2.5 rounded-lg border px-4 py-4 transition-colors ${
                     selected
                       ? 'border-foreground ring-ring/30 ring-2'

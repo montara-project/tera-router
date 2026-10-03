@@ -24,10 +24,12 @@ func (r *UsageRepository) Insert(ctx context.Context, u models.UsageRecord) erro
 func (r *UsageRepository) insertExec(ctx context.Context, u models.UsageRecord) error {
 	_, err := r.execContext(ctx, r.DB, `
 		INSERT INTO usage_records (api_key_id, account_id, provider, model, client, client_ip,
+			request_id, chain,
 			prompt_tokens, completion_tokens, cached_tokens, cache_write_tokens, reasoning_tokens,
 			cost_micros, token_consumption_rate, cache_hit, latency_ms, ttft_ms, failed, error_kind, error_status, error_message, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)`,
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)`,
 		u.APIKeyID, u.AccountID, u.Provider, u.Model, u.Client, u.ClientIP,
+		u.RequestID, u.Chain,
 		u.PromptTokens, u.CompletionTokens, u.CachedTokens, u.CacheWriteTokens, u.ReasoningTokens,
 		u.CostMicros, u.TokenConsumptionRate, u.CacheHit, u.LatencyMS, u.TTFTMS, u.Failed, u.ErrorKind, u.ErrorStatus,
 		u.ErrorMessage, u.CreatedAt,
@@ -432,6 +434,40 @@ func (r *UsageRepository) recentExec(ctx context.Context, limit int) ([]models.U
 		}
 		if rate.Valid {
 			u.TokenConsumptionRate = &rate.V
+		}
+		out = append(out, u)
+	}
+	return out, errtrace.Wrap(rows.Err())
+}
+
+// UsageHealthRow is one attempt's outcome, the minimal projection provider
+// health aggregates over. Rows are grouped by RequestID to separate fallbacks
+// (the request later succeeded elsewhere) from final failures.
+type UsageHealthRow struct {
+	RequestID string
+	Chain     string
+	Provider  string
+	Model     string
+	Failed    bool
+	LatencyMS int
+}
+
+// HealthRows streams the outcome-relevant columns of every usage record in the
+// window, oldest first so request grouping sees the final attempt last.
+func (r *UsageRepository) HealthRows(ctx context.Context, from time.Time) ([]UsageHealthRow, error) {
+	rows, err := r.queryContext(ctx, r.DB, `
+		SELECT request_id, chain, provider, model, failed, latency_ms
+		FROM usage_records WHERE created_at >= $1 ORDER BY created_at`, from)
+	if err != nil {
+		return nil, errtrace.Wrap(err)
+	}
+	defer rows.Close()
+
+	out := make([]UsageHealthRow, 0, 64)
+	for rows.Next() {
+		var u UsageHealthRow
+		if err := rows.Scan(&u.RequestID, &u.Chain, &u.Provider, &u.Model, &u.Failed, &u.LatencyMS); err != nil {
+			return nil, errtrace.Wrap(err)
 		}
 		out = append(out, u)
 	}

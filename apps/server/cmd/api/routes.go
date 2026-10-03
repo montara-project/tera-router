@@ -123,6 +123,9 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	protected.Get("/oauth/providers", h.OAuth.ListProviders)
 	protected.Post("/oauth/:provider/authorize", h.OAuth.Authorize)
 	protected.Post("/oauth/:provider/exchange", h.OAuth.Exchange)
+	// Public: the OAuth provider's browser redirect lands here with only the
+	// code and state; the session keyed by state carries the auth context.
+	r.Get("/callback", h.OAuth.DashboardCallback)
 
 	// Budgets & usage
 	protected.Get("/budgets", h.Budgets.Index)
@@ -142,6 +145,9 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	protected.Get("/quota/overview", h.Quota.Overview)
 	protected.Patch("/quota/:id", h.Quota.Update)
 	protected.Delete("/quota/:id", h.Quota.Delete)
+
+	// Provider health (derived from gateway attempt outcomes)
+	protected.Get("/provider-health", h.ProviderHealth.Overview)
 
 	// Proxy pools
 	protected.Get("/proxy-pools", h.ProxyPools.Index)
