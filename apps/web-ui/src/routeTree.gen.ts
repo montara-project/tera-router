@@ -25,6 +25,7 @@ import { Route as protectedconnectionProvidersIndexRouteImport } from './routes/
 import { Route as protectedconnectionProvidersProviderIdRouteImport } from './routes/(protected)/(connection)/providers/$providerId'
 import { Route as protectedconnectionProxyPoolsIndexRouteImport } from './routes/(protected)/(connection)/proxy-pools/index'
 import { Route as protecteddeveloperCliToolsIndexRouteImport } from './routes/(protected)/(developer)/cli-tools/index'
+import { Route as protecteddeveloperCliToolsClaudeCodeRouteImport } from './routes/(protected)/(developer)/cli-tools/claude-code'
 import { Route as protecteddeveloperConsoleIndexRouteImport } from './routes/(protected)/(developer)/console/index'
 import { Route as protectedsafetyGuardrailsIndexRouteImport } from './routes/(protected)/(safety)/guardrails/index'
 import { Route as protectedsafetyProviderHealthIndexRouteImport } from './routes/(protected)/(safety)/provider-health/index'
@@ -125,6 +126,12 @@ const protecteddeveloperCliToolsIndexRoute =
     path: '/cli-tools/',
     getParentRoute: () => protectedRouteRoute,
   } as any)
+const protecteddeveloperCliToolsClaudeCodeRoute =
+  protecteddeveloperCliToolsClaudeCodeRouteImport.update({
+    id: '/(developer)/cli-tools/claude-code',
+    path: '/cli-tools/claude-code',
+    getParentRoute: () => protectedRouteRoute,
+  } as any)
 const protecteddeveloperConsoleIndexRoute =
   protecteddeveloperConsoleIndexRouteImport.update({
     id: '/(developer)/console/',
@@ -180,6 +187,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/': typeof protectedDashboardIndexRoute
   '/keys/$keyId': typeof protectedconnectionKeysKeyIdRoute
   '/providers/$providerId': typeof protectedconnectionProvidersProviderIdRoute
+  '/cli-tools/claude-code': typeof protecteddeveloperCliToolsClaudeCodeRoute
   '/plans/': typeof protectedanalyticsPlansIndexRoute
   '/quota/': typeof protectedanalyticsQuotaIndexRoute
   '/settings/': typeof protectedanalyticsSettingsIndexRoute
@@ -205,6 +213,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof protectedDashboardIndexRoute
   '/keys/$keyId': typeof protectedconnectionKeysKeyIdRoute
   '/providers/$providerId': typeof protectedconnectionProvidersProviderIdRoute
+  '/cli-tools/claude-code': typeof protecteddeveloperCliToolsClaudeCodeRoute
   '/plans': typeof protectedanalyticsPlansIndexRoute
   '/quota': typeof protectedanalyticsQuotaIndexRoute
   '/settings': typeof protectedanalyticsSettingsIndexRoute
@@ -232,6 +241,7 @@ export interface FileRoutesById {
   '/(protected)/dashboard/': typeof protectedDashboardIndexRoute
   '/(protected)/(connection)/keys/$keyId': typeof protectedconnectionKeysKeyIdRoute
   '/(protected)/(connection)/providers/$providerId': typeof protectedconnectionProvidersProviderIdRoute
+  '/(protected)/(developer)/cli-tools/claude-code': typeof protecteddeveloperCliToolsClaudeCodeRoute
   '/(protected)/(analytics)/plans/': typeof protectedanalyticsPlansIndexRoute
   '/(protected)/(analytics)/quota/': typeof protectedanalyticsQuotaIndexRoute
   '/(protected)/(analytics)/settings/': typeof protectedanalyticsSettingsIndexRoute
@@ -259,6 +269,7 @@ export interface FileRouteTypes {
     | '/dashboard/'
     | '/keys/$keyId'
     | '/providers/$providerId'
+    | '/cli-tools/claude-code'
     | '/plans/'
     | '/quota/'
     | '/settings/'
@@ -284,6 +295,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/keys/$keyId'
     | '/providers/$providerId'
+    | '/cli-tools/claude-code'
     | '/plans'
     | '/quota'
     | '/settings'
@@ -310,6 +322,7 @@ export interface FileRouteTypes {
     | '/(protected)/dashboard/'
     | '/(protected)/(connection)/keys/$keyId'
     | '/(protected)/(connection)/providers/$providerId'
+    | '/(protected)/(developer)/cli-tools/claude-code'
     | '/(protected)/(analytics)/plans/'
     | '/(protected)/(analytics)/quota/'
     | '/(protected)/(analytics)/settings/'
@@ -450,6 +463,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof protecteddeveloperCliToolsIndexRouteImport
       parentRoute: typeof protectedRouteRoute
     }
+    '/(protected)/(developer)/cli-tools/claude-code': {
+      id: '/(protected)/(developer)/cli-tools/claude-code'
+      path: '/cli-tools/claude-code'
+      fullPath: '/cli-tools/claude-code'
+      preLoaderRoute: typeof protecteddeveloperCliToolsClaudeCodeRouteImport
+      parentRoute: typeof protectedRouteRoute
+    }
     '/(protected)/(developer)/console/': {
       id: '/(protected)/(developer)/console/'
       path: '/console'
@@ -513,6 +533,7 @@ interface protectedRouteRouteChildren {
   protectedDashboardIndexRoute: typeof protectedDashboardIndexRoute
   protectedconnectionKeysKeyIdRoute: typeof protectedconnectionKeysKeyIdRoute
   protectedconnectionProvidersProviderIdRoute: typeof protectedconnectionProvidersProviderIdRoute
+  protecteddeveloperCliToolsClaudeCodeRoute: typeof protecteddeveloperCliToolsClaudeCodeRoute
   protectedanalyticsPlansIndexRoute: typeof protectedanalyticsPlansIndexRoute
   protectedanalyticsQuotaIndexRoute: typeof protectedanalyticsQuotaIndexRoute
   protectedanalyticsSettingsIndexRoute: typeof protectedanalyticsSettingsIndexRoute
@@ -538,6 +559,8 @@ const protectedRouteRouteChildren: protectedRouteRouteChildren = {
   protectedconnectionKeysKeyIdRoute: protectedconnectionKeysKeyIdRoute,
   protectedconnectionProvidersProviderIdRoute:
     protectedconnectionProvidersProviderIdRoute,
+  protecteddeveloperCliToolsClaudeCodeRoute:
+    protecteddeveloperCliToolsClaudeCodeRoute,
   protectedanalyticsPlansIndexRoute: protectedanalyticsPlansIndexRoute,
   protectedanalyticsQuotaIndexRoute: protectedanalyticsQuotaIndexRoute,
   protectedanalyticsSettingsIndexRoute: protectedanalyticsSettingsIndexRoute,

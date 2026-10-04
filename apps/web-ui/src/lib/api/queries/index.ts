@@ -3,6 +3,7 @@ import { aliasQueries } from './alias'
 import { authQueries } from './auth'
 import { backupQueries } from './backup'
 import { chainQueries } from './chain'
+import { cliToolQueries } from './cli-tool'
 import { consoleQueries } from './console'
 import { guardrailsQueries } from './guardrails'
 import { keyQueries } from './key'
@@ -24,6 +25,7 @@ export const queries = {
   auth: authQueries,
   backup: backupQueries,
   chains: chainQueries,
+  cliTools: cliToolQueries,
   console: consoleQueries,
   guardrails: guardrailsQueries,
   keys: keyQueries,

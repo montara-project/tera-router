@@ -4,6 +4,7 @@ import { authServices } from './auth'
 import { backupServices } from './backup'
 import { budgetServices } from './budget'
 import { chainServices } from './chain'
+import { cliToolServices } from './cli-tool'
 import { consoleServices } from './console'
 import { guardrailsServices } from './guardrails'
 import { keyServices } from './key'
@@ -27,6 +28,7 @@ export const services = {
   backup: backupServices,
   budgets: budgetServices,
   chains: chainServices,
+  cliTools: cliToolServices,
   console: consoleServices,
   guardrails: guardrailsServices,
   keys: keyServices,

@@ -38,7 +38,7 @@ The dashboard (`apps/web-ui`) is the only place you need for day-to-day router m
 ## Developer
 
 - **Console Log** — a live stream of recent server logs (500-entry ring buffer).
-- **CLI Tools** — one-click configuration for coding tools (Claude Code, Cursor, and others) pointing straight at your Tera Router instance.
+- **CLI Tools** — one-click configuration for coding tools (Claude Code, Cursor, and others) pointing straight at your Tera Router instance. The **Claude Code** page detects the `claude` CLI on the server host, lets you pick an endpoint, API key, and optional default model (`provider/model-id` or `chain:<name>`), and either writes them into `~/.claude/settings.json` on that host (**Apply**, merging with existing settings; honors `CLAUDE_CONFIG_DIR`) or copies a ready-to-paste snippet for another machine.
 
 <Callout type="idea" title="One page, one concept">
   If this is your first time: start with **Providers** (connect accounts), then **API Keys** (create
