@@ -137,6 +137,7 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	protected.Get("/usage/models", h.Usage.Models)
 	protected.Get("/usage/insights", h.Usage.Insights)
 	protected.Get("/usage/telemetry", h.Usage.Telemetry)
+	protected.Get("/usage/activity", h.Usage.Activity)
 
 	// Quota dashboard
 	protected.Get("/quota", h.Quota.Index)
