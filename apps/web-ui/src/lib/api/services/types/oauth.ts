@@ -8,14 +8,20 @@ export type OAuthFlowInfo = {
   loopback_host?: string
 }
 
+/** How an OAuth flow completes after the user approves access.
+ * - `redirect`: the provider calls the dashboard callback back directly.
+ * - `paste_code`: the popup ends on the provider's display-code page (Claude)
+ *   and the user pastes the shown code through the exchange endpoint.
+ * - `paste_callback_url`: the loopback redirect only lands on the machine
+ *   running the browser, so a remotely-served dashboard collects the callback
+ *   URL from the popup's address bar (Codex). */
+export type OAuthCompletion = 'redirect' | 'paste_code' | 'paste_callback_url'
+
 export type OAuthAuthorizeResponse = {
   authorize_url: string
   state: string
   redirect_uri: string
-  /** True when the provider cannot redirect back to the dashboard (Claude
-   * pins the redirect to Anthropic's console display-code callback) and the
-   * user must paste the shown code through the exchange endpoint. */
-  manual: boolean
+  completion: OAuthCompletion
 }
 
 export type OAuthExchangeResponse = {

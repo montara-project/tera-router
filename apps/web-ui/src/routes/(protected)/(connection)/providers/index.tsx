@@ -336,6 +336,7 @@ function RouteComponent() {
       <OAuthPasteCodeDialog
         open={pasteFlow !== null}
         providerName={pasteFlow?.name ?? ''}
+        mode={pasteFlow?.mode ?? 'code'}
         pending={pastePending}
         onCancel={cancelPaste}
         onSubmit={(code) => void submitPasteCode(code)}

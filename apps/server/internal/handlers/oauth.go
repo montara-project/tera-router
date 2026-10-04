@@ -106,6 +106,19 @@ func (h *oauthHandler) Authorize(c fiber.Ctx) error {
 	}
 	authURL := cfg.AuthURL(redirectURI, pkce.State, pkce.Challenge)
 
+	completion := "redirect"
+	switch {
+	case cfg.FixedRedirectURI != "":
+		completion = "paste_code"
+	default:
+		// The dashboard origin is where the browser actually is; when it is
+		// not the server's own machine, the loopback redirect cannot reach
+		// the server's listener and the user must hand over the callback URL.
+		if u, perr := url.Parse(req.RedirectURI); perr == nil && !isLoopbackHost(u.Hostname()) {
+			completion = "paste_callback_url"
+		}
+	}
+
 	h.sessions.Put(pkce.State, &oauth.Session{
 		Provider:    provider,
 		Flow:        cfg.Flow,
@@ -118,11 +131,13 @@ func (h *oauthHandler) Authorize(c fiber.Ctx) error {
 		"authorize_url": authURL,
 		"state":         pkce.State,
 		"redirect_uri":  redirectURI,
-		// True when the provider's OAuth app cannot redirect back to the
-		// dashboard (Claude pins the redirect to Anthropic's console
-		// display-code callback), so the dashboard must collect the shown
-		// code and finish through the exchange endpoint instead.
-		"manual": cfg.FixedRedirectURI != "",
+		// How the flow completes: claude's OAuth app pins the redirect to its
+		// console display-code callback, so the dashboard collects the shown
+		// code; codex's fixed loopback redirect only lands on the machine
+		// running the browser, so a dashboard served from a remote origin must
+		// collect the callback URL the popup ends on; a loopback dashboard
+		// receives the redirect through the server's listener directly.
+		"completion": completion,
 	})
 }
 
@@ -493,6 +508,14 @@ setTimeout(function () { window.close(); }, 800);
 </html>`, html.EscapeString(title), html.EscapeString(title), html.EscapeString(msg), payload)
 }
 
+// isLoopbackHost reports whether hostname points at the local machine — the
+// only hosts where the browser's fixed-loopback redirect can land on the
+// server's listener.
+func isLoopbackHost(hostname string) bool {
+	return hostname == "localhost" || hostname == "127.0.0.1" || hostname == "::1" ||
+		strings.HasSuffix(hostname, ".localhost")
+}
+
 // validateOAuthRedirect restricts the browser-facing callback target: https
 // anywhere, or plain http only on loopback hosts.
 func validateOAuthRedirect(raw string) error {
@@ -504,8 +527,7 @@ func validateOAuthRedirect(raw string) error {
 	case "https":
 		return nil
 	case "http":
-		host := u.Hostname()
-		if host == "localhost" || host == "127.0.0.1" || host == "::1" || strings.HasSuffix(host, ".localhost") {
+		if isLoopbackHost(u.Hostname()) {
 			return nil
 		}
 		return fmt.Errorf("http callbacks are only allowed on loopback hosts")
