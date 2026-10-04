@@ -43,6 +43,15 @@ type ProviderConfig struct {
 	FallbackPorts     []int
 	LoopbackHost      string
 
+	// FixedRedirectURI pins the redirect to the one URI the provider's OAuth
+	// app allow-lists, ignoring the dashboard-provided origin entirely.
+	// Claude/Anthropic reuse Anthropic's public client id, whose app only
+	// accepts its own console callback and loopback hosts — a deployed
+	// dashboard can never receive the browser redirect. The console page
+	// therefore displays the code for the user to paste into the exchange
+	// endpoint (SplitPastedCode), like a headless CLI sign-in.
+	FixedRedirectURI string
+
 	// UserInfoURL is the endpoint called after token exchange to retrieve the
 	// connected user's email and display name. When empty, no profile fetch
 	// is attempted and the account label falls back to the provider name.
@@ -73,13 +82,18 @@ func (c ProviderConfig) refreshURL() string {
 }
 
 // ResolveRedirectURI returns the redirect URI that should be registered for a
-// flow. CLI-mirrored providers such as Codex require an exact fixed loopback
-// URI; Claude rewrites the requested dashboard URI's path to the callback path
-// while preserving its origin.
+// flow. Providers with FixedRedirectURI always use it; CLI-mirrored providers
+// such as Codex require an exact fixed loopback URI; the remaining providers
+// rewrite the requested dashboard URI's path to the callback path while
+// preserving its origin.
 //
 // port overrides the configured fixed port when > 0: a busy preferred port may
 // have fallen back to an alternative the provider's OAuth app also allows.
 func (c ProviderConfig) ResolveRedirectURI(requested string, port int) string {
+	if c.FixedRedirectURI != "" {
+		return c.FixedRedirectURI
+	}
+
 	path := c.CallbackPath
 	if path == "" {
 		path = "/callback"
@@ -112,16 +126,17 @@ func (c ProviderConfig) ResolveRedirectURI(requested string, port int) string {
 // "sign in to official website" option. Both sets are accepted.
 var configs = map[string]ProviderConfig{
 	"claude": {
-		Provider:     "claude",
-		Flow:         FlowAuthCodePKCE,
-		ClientID:     "9d1c250a-e61b-44d9-88ed-5944d1962f5e",
-		AuthorizeURL: "https://claude.ai/oauth/authorize",
-		TokenURL:     "https://api.anthropic.com/v1/oauth/token",
-		Scopes:       []string{"org:create_api_key", "user:profile", "user:inference"},
+		Provider:         "claude",
+		Flow:             FlowAuthCodePKCE,
+		ClientID:         "9d1c250a-e61b-44d9-88ed-5944d1962f5e",
+		AuthorizeURL:     "https://claude.ai/oauth/authorize",
+		TokenURL:         "https://api.anthropic.com/v1/oauth/token",
+		Scopes:           []string{"org:create_api_key", "user:profile", "user:inference"},
 		// Claude's token endpoint expects a JSON body and echoes the state.
 		TokenContentType: "json",
 		ExtraAuthParams:  map[string]string{"code": "true"},
 		UserInfoURL:      "https://api.anthropic.com/v1/me",
+		FixedRedirectURI: "https://console.anthropic.com/oauth/code/callback",
 	},
 	"codex": {
 		Provider:                  "codex",
@@ -150,6 +165,7 @@ var configs = map[string]ProviderConfig{
 		TokenContentType: "json",
 		ExtraAuthParams:  map[string]string{"code": "true"},
 		UserInfoURL:      "https://api.anthropic.com/v1/me",
+		FixedRedirectURI: "https://console.anthropic.com/oauth/code/callback",
 	},
 	"openai": {
 		Provider:                  "openai",

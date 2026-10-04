@@ -5,11 +5,13 @@
 //
 // Both providers use Authorization Code + PKCE: the dashboard asks the server
 // for a provider authorize URL (POST /v1/oauth/:provider/authorize), the user
-// signs in on the provider's official web and is sent back with a code, and
-// the code is exchanged for tokens (POST /v1/oauth/:provider/exchange, or
-// automatically via the fixed loopback listener for Codex). Tokens are sealed
-// into an account record; expired access tokens are refreshed on demand from
-// the stored refresh token.
+// signs in on the provider's official web, and the code is exchanged for
+// tokens. Codex completes automatically through the fixed loopback listener;
+// Claude cannot redirect back to a deployed dashboard (Anthropic's OAuth app
+// only allow-lists its own console callback), so the console page displays the
+// code and the user pastes it into POST /v1/oauth/:provider/exchange. Tokens
+// are sealed into an account record; expired access tokens are refreshed on
+// demand from the stored refresh token.
 package oauth
 
 import (

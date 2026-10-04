@@ -118,6 +118,11 @@ func (h *oauthHandler) Authorize(c fiber.Ctx) error {
 		"authorize_url": authURL,
 		"state":         pkce.State,
 		"redirect_uri":  redirectURI,
+		// True when the provider's OAuth app cannot redirect back to the
+		// dashboard (Claude pins the redirect to Anthropic's console
+		// display-code callback), so the dashboard must collect the shown
+		// code and finish through the exchange endpoint instead.
+		"manual": cfg.FixedRedirectURI != "",
 	})
 }
 

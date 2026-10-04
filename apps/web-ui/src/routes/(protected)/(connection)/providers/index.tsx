@@ -19,6 +19,7 @@ import {
 import ConnectModeDialog from '@/components/block/providers/connect-mode-dialog'
 import { AddCustomProviderForm } from '@/components/block/providers/form'
 import { AddCustomProviderApiKeyForm } from '@/components/block/providers/form-provider-api-key'
+import OAuthPasteCodeDialog from '@/components/block/providers/oauth-paste-code-dialog'
 import ProviderGrid from '@/components/block/providers/provider-grid'
 import { useOAuthConnect } from '@/components/block/providers/use-oauth-connect'
 import { Badge } from '@/components/ui/badge'
@@ -136,7 +137,14 @@ function RouteComponent() {
   const [keyProvider, setKeyProvider] = useState<{ slug: string; name: string } | null>(null)
   const [modeProvider, setModeProvider] = useState<{ slug: string; name: string } | null>(null)
   const [syncingSlug, setSyncingSlug] = useState<string | null>(null)
-  const { connect: connectOAuth, connecting } = useOAuthConnect()
+  const {
+    connect: connectOAuth,
+    connecting,
+    pasteFlow,
+    pastePending,
+    submitPasteCode,
+    cancelPaste,
+  } = useOAuthConnect()
   const queryClient = useQueryClient()
 
   const { data } = useQuery(providerQueries.list())
@@ -323,6 +331,14 @@ function RouteComponent() {
         onApiKey={handleModeApiKey}
         onOAuth={handleModeOAuth}
         oauthPending={connecting !== null}
+      />
+
+      <OAuthPasteCodeDialog
+        open={pasteFlow !== null}
+        providerName={pasteFlow?.name ?? ''}
+        pending={pastePending}
+        onCancel={cancelPaste}
+        onSubmit={(code) => void submitPasteCode(code)}
       />
     </>
   )

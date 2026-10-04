@@ -36,8 +36,12 @@ func TestProviderConfigs(t *testing.T) {
 	if got := codex.ResolveRedirectURI("", 1457); got != "http://localhost:1457/auth/callback" {
 		t.Errorf("codex fallback redirect = %q, want the 1457 fallback", got)
 	}
-	if got := claude.ResolveRedirectURI("http://localhost:5173/whatever?x=1", 0); got != "http://localhost:5173/callback" {
-		t.Errorf("claude redirect = %q, want the dashboard origin with /callback", got)
+	// Claude's OAuth app only allow-lists Anthropic's own console callback
+	// (plus loopback hosts it can't use from a deployed dashboard), so the
+	// redirect is pinned to the console display-code URI regardless of what
+	// the dashboard requests.
+	if got := claude.ResolveRedirectURI("http://localhost:5173/whatever?x=1", 0); got != "https://console.anthropic.com/oauth/code/callback" {
+		t.Errorf("claude redirect = %q, want Anthropic's console display-code callback", got)
 	}
 
 	// The catalog-tile aliases reuse the subscription flows: OpenAI's

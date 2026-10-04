@@ -6,7 +6,9 @@ import "tera-router/server/internal/lib/validator"
 type OAuthAuthorize struct {
 	// RedirectURI is the dashboard callback the provider should redirect back
 	// to. Fixed-loopback providers (codex) resolve it to their own
-	// localhost:1455/1457 listener instead.
+	// localhost:1455/1457 listener instead; fixed-redirect providers (claude)
+	// ignore it — Anthropic's OAuth app only allow-lists its console callback,
+	// so the user pastes the displayed code into the exchange endpoint.
 	RedirectURI string `json:"redirect_uri"`
 }
 
