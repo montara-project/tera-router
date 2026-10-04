@@ -3,6 +3,21 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [0.5.0](https://github.com/montara-project/tera-router/compare/v0.4.3...v0.5.0) (2026-10-04)
+
+### Features
+
+* **oauth:** rescue remote Codex sign-in with pasted callback URL ([df48941](https://github.com/montara-project/tera-router/commit/df4894178b1108a8dfb719262390110d74db2d91))
+* **quota:** show Claude subscription session and weekly limits ([1aff1b4](https://github.com/montara-project/tera-router/commit/1aff1b46b9e81f3fac24939937f2ea699480e2dc))
+
+### Bug Fixes
+
+* **oauth:** echo state and use console token endpoint for Anthropic exchange ([ea0a89a](https://github.com/montara-project/tera-router/commit/ea0a89aa30a1a5292c6080d1664171b905ef1fe4))
+* **oauth:** pin Claude sign-in to Anthropic's console display-code callback ([962c661](https://github.com/montara-project/tera-router/commit/962c661a6a15d027d5c50f12e09c8f38a0281ab1)), references [code#state](https://github.com/code/issues/state)
+* update model prices list ([8bbf132](https://github.com/montara-project/tera-router/commit/8bbf1323b89014ab9b7631acbf44eb659389c3f8))
+* update oauth anthropic & codex and also custom providers ([2df3fea](https://github.com/montara-project/tera-router/commit/2df3fea1442894810541b4fda15b6d4ecb413fad))
+* update system prompt claude code ([df0ce32](https://github.com/montara-project/tera-router/commit/df0ce323df9d3d36d78cd7cd6a0a1382ed4a49f8))
+
 ## [0.4.3](https://github.com/montara-project/tera-router/compare/v0.4.2...v0.4.3) (2026-10-03)
 
 ### Features
