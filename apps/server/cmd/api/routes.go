@@ -176,7 +176,7 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	protected.Patch("/guardrails/:id", h.Guardrails.Update)
 	protected.Delete("/guardrails/:id", h.Guardrails.Delete)
 
-	// Settings, skills, console, system, media
+	// Settings, skills, console, system, media, CLI tools
 	protected.Get("/settings", h.Settings.Get)
 	protected.Put("/settings", h.Settings.Update)
 	protected.Patch("/settings", h.Settings.Update)
@@ -191,6 +191,9 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	protected.Get("/system/stats", h.System.Stats)
 
 	protected.Get("/media", h.Media.Index)
+
+	protected.Get("/cli-tools/claude-code", h.CliTools.ClaudeCode)
+	protected.Post("/cli-tools/claude-code/apply", h.CliTools.ClaudeCodeApply)
 
 	return gw
 }

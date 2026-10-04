@@ -26,6 +26,7 @@ type Handlers struct {
 	Console        *consoleHandler
 	System         *systemHandler
 	Media          *mediaHandler
+	CliTools       *cliToolsHandler
 	OAuth          *oauthHandler
 }
 
@@ -51,6 +52,7 @@ func New(app *app.Application) *Handlers {
 		Console:        &consoleHandler{app: app},
 		System:         &systemHandler{app: app},
 		Media:          &mediaHandler{app: app},
+		CliTools:       &cliToolsHandler{app: app},
 		OAuth: &oauthHandler{
 			app:      app,
 			sessions: oauth.NewSessionStore(),

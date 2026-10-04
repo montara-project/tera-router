@@ -38,7 +38,7 @@ Dashboard (`apps/web-ui`) adalah satu-satunya tempat kamu mengelola router sehar
 ## Developer
 
 - **Console Log** — aliran log server terbaru (ring buffer 500 entri).
-- **CLI Tools** — konfigurasi satu klik untuk coding tools (Claude Code, Cursor, dan lainnya) yang langsung mengarah ke instans Tera Router ini.
+- **CLI Tools** — konfigurasi satu klik untuk coding tools (Claude Code, Cursor, dan lainnya) yang langsung mengarah ke instans Tera Router ini. Halaman **Claude Code** mendeteksi CLI `claude` di host server, lalu kamu pilih endpoint, API key, dan model default opsional (`provider/model-id` atau `chain:<nama>`); hasilnya bisa langsung ditulis ke `~/.claude/settings.json` di host tersebut (**Apply**, digabung dengan pengaturan yang sudah ada; mengikuti `CLAUDE_CONFIG_DIR`) atau disalin sebagai snippet untuk mesin lain.
 
 <Callout type="idea" title="Satu halaman, satu konsep">
   Kalau baru pertama kali: mulai dari **Providers** (hubungkan akun), lalu **API Keys** (buat

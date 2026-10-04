@@ -3,6 +3,7 @@ import { aliasServices } from './alias'
 import { authServices } from './auth'
 import { budgetServices } from './budget'
 import { chainServices } from './chain'
+import { cliToolServices } from './cli-tool'
 import { consoleServices } from './console'
 import { guardrailsServices } from './guardrails'
 import { keyServices } from './key'
@@ -25,6 +26,7 @@ export const services = {
   auth: authServices,
   budgets: budgetServices,
   chains: chainServices,
+  cliTools: cliToolServices,
   console: consoleServices,
   guardrails: guardrailsServices,
   keys: keyServices,
