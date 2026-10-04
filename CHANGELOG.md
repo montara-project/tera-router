@@ -3,6 +3,16 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [0.5.1](https://github.com/montara-project/tera-router/compare/v0.5.0...v0.5.1) (2026-10-04)
+
+### Features
+
+* **pricing:** paginate pricing overrides server-side ([19adaa9](https://github.com/montara-project/tera-router/commit/19adaa925a8926539fa8052081775a2c95bea9d9))
+
+### Bug Fixes
+
+* update column ([f5971c4](https://github.com/montara-project/tera-router/commit/f5971c4ea0129008adf7423076e734ebb3cc6600))
+
 ## [0.5.0](https://github.com/montara-project/tera-router/compare/v0.4.3...v0.5.0) (2026-10-04)
 
 ### Features
