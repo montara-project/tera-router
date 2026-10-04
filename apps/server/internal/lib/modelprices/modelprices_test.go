@@ -13,11 +13,11 @@ func TestLookupKnownModels(t *testing.T) {
 		cacheRead       int64
 	}{
 		{name: "openai gpt-4o-mini", provider: "openai", model: "gpt-4o-mini", input: 150_000, output: 600_000, cacheRead: 75_000},
-		{name: "anthropic sonnet", provider: "anthropic", model: "claude-sonnet-4-6", input: 3_000_000, output: 15_000_000, cacheRead: 375_000},
-		{name: "codex oauth alias", provider: "codex", model: "gpt-5.3-codex", input: 2_500_000, output: 10_000_000, cacheRead: 1_250_000},
+		{name: "anthropic sonnet", provider: "anthropic", model: "claude-sonnet-4-6", input: 3_000_000, output: 15_000_000, cacheRead: 300_000},
+		{name: "codex oauth alias", provider: "codex", model: "gpt-5.3-codex", input: 1_750_000, output: 14_000_000, cacheRead: 175_000},
 		{name: "openrouter prefixed id", provider: "openrouter", model: "openai/gpt-4o-mini", input: 150_000, output: 600_000, cacheRead: 75_000},
-		{name: "kiro suffix variant", provider: "kiro", model: "claude-sonnet-4.5-thinking", input: 3_000_000, output: 15_000_000, cacheRead: 375_000},
-		{name: "sub-dollar rounding", provider: "gemini", model: "gemini-2.5-flash-lite", input: 75_000, output: 300_000, cacheRead: 18_750},
+		{name: "kiro suffix variant", provider: "kiro", model: "claude-sonnet-4.5-thinking", input: 3_000_000, output: 15_000_000, cacheRead: 300_000},
+		{name: "sub-dollar rounding", provider: "gemini", model: "gemini-2.5-flash-lite", input: 100_000, output: 400_000, cacheRead: 10_000},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

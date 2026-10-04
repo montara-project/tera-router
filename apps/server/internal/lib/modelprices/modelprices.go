@@ -53,12 +53,20 @@ func buildTable() map[string]cost.Rates {
 	entries := []entry{
 		// OpenAI — cache write = standard input (no separate charge).
 		// The "codex" OAuth provider serves the same upstream models.
-		{[]string{"openai", "codex"}, "gpt-5", rates(2.5, 10, 1.25, 2.5)},
-		{[]string{"openai", "codex"}, "gpt-5-mini", rates(0.4, 1.6, 0.2, 0.4)},
-		{[]string{"openai", "codex"}, "gpt-5-nano", rates(0.1, 0.4, 0.05, 0.1)},
-		{[]string{"openai", "codex"}, "gpt-5.4", rates(2.5, 10, 1.25, 2.5)},
+		{[]string{"openai", "codex"}, "gpt-5.6-sol", rates(4, 20, 0.4, 4)},
+		{[]string{"openai", "codex"}, "gpt-5.6-cyber", rates(12.5, 75, 1.25, 12.5)},
+		{[]string{"openai", "codex"}, "gpt-5.6-terra", rates(2.5, 15, 0.25, 2.5)},
+		{[]string{"openai", "codex"}, "gpt-5.6-luna", rates(0.2, 1.2, 0.02, 0.2)},
+		{[]string{"openai", "codex"}, "gpt-5.5-pro", rates(5, 30, 0.5, 5)},
+		{[]string{"openai", "codex"}, "gpt-5.5", rates(1.25, 5, 0.125, 1.25)},
+		{[]string{"openai", "codex"}, "gpt-5.4", rates(1.25, 7.5, 0.125, 1.25)},
 		{[]string{"openai", "codex"}, "gpt-5.4-mini", rates(0.4, 1.6, 0.2, 0.4)},
-		{[]string{"openai", "codex"}, "gpt-5.3-codex", rates(2.5, 10, 1.25, 2.5)},
+		{[]string{"openai", "codex"}, "gpt-5.3-codex", rates(1.75, 14, 0.175, 1.75)},
+		{[]string{"openai", "codex"}, "gpt-5-codex", rates(1.25, 10, 0.125, 1.25)},
+		{[]string{"openai", "codex"}, "gpt-5", rates(1.25, 10, 0.125, 1.25)},
+		{[]string{"openai", "codex"}, "gpt-5-mini", rates(0.25, 2, 0.025, 0.25)},
+		{[]string{"openai", "codex"}, "gpt-5-nano", rates(0.05, 0.4, 0.005, 0.05)},
+		{[]string{"openai", "codex"}, "chat-latest", rates(5, 30, 0.5, 5)},
 		{[]string{"openai", "codex"}, "gpt-4o", rates(2.5, 10, 1.25, 2.5)},
 		{[]string{"openai", "codex"}, "gpt-4o-2024-11-20", rates(2.5, 10, 1.25, 2.5)},
 		{[]string{"openai", "codex"}, "gpt-4o-2024-08-06", rates(2.5, 10, 1.25, 2.5)},
@@ -80,13 +88,26 @@ func buildTable() map[string]cost.Rates {
 		{[]string{"openai", "codex"}, "text-embedding-3-large", rates(0.13, 0, 0, 0)},
 		{[]string{"openai", "codex"}, "text-embedding-ada-002", rates(0.1, 0, 0, 0)},
 
-		// Anthropic — cache write = 1.25x standard input.
-		{[]string{"anthropic"}, "claude-sonnet-5", rates(3, 15, 0.375, 3.75)},
+		// Anthropic — cache write = 5m-write price (1.25x input); cache read =
+		// the published cache-hit rate. Fable/Mythos 5.x are the current flagships.
+		{[]string{"anthropic"}, "claude-fable-5.1", rates(10, 50, 0.25, 12.5)},
+		{[]string{"anthropic"}, "claude-mythos-5.1", rates(10, 50, 0.25, 12.5)},
+		{[]string{"anthropic"}, "claude-fable-5", rates(10, 50, 1, 12.5)},
+		{[]string{"anthropic"}, "claude-mythos-5", rates(10, 50, 1, 12.5)},
+		{[]string{"anthropic"}, "claude-opus-5.5", rates(4, 20, 0.2, 5)},
+		{[]string{"anthropic"}, "claude-opus-5", rates(5, 25, 0.5, 6.25)},
+		{[]string{"anthropic"}, "claude-opus-4-8", rates(5, 25, 0.5, 6.25)},
+		{[]string{"anthropic"}, "claude-opus-4-7", rates(5, 25, 0.5, 6.25)},
+		{[]string{"anthropic"}, "claude-opus-4-6", rates(5, 25, 0.5, 6.25)},
+		{[]string{"anthropic"}, "claude-opus-4-5", rates(5, 25, 0.5, 6.25)},
+		{[]string{"anthropic"}, "claude-sonnet-5", rates(2, 10, 0.2, 2.5)},
+		{[]string{"anthropic"}, "claude-sonnet-4-6", rates(3, 15, 0.3, 3.75)},
+		{[]string{"anthropic"}, "claude-sonnet-4-5", rates(3, 15, 0.3, 3.75)},
+		{[]string{"anthropic"}, "claude-haiku-4-5", rates(1, 5, 0.1, 1.25)},
+		// Retired ids stay in the table so historical usage still prices.
 		{[]string{"anthropic"}, "claude-opus-4-20250514", rates(15, 75, 1.875, 18.75)},
-		{[]string{"anthropic"}, "claude-opus-4-7", rates(15, 75, 1.875, 18.75)},
-		{[]string{"anthropic"}, "claude-sonnet-4-20250514", rates(3, 15, 0.375, 3.75)},
-		{[]string{"anthropic"}, "claude-sonnet-4-6", rates(3, 15, 0.375, 3.75)},
-		{[]string{"anthropic"}, "claude-haiku-4-5-20251001", rates(0.8, 4, 0.08, 1.0)},
+		{[]string{"anthropic"}, "claude-sonnet-4-20250514", rates(3, 15, 0.3, 3.75)},
+		{[]string{"anthropic"}, "claude-haiku-4-5-20251001", rates(1, 5, 0.1, 1.25)},
 		{[]string{"anthropic"}, "claude-3-5-sonnet-20241022", rates(3, 15, 0.375, 3.75)},
 		{[]string{"anthropic"}, "claude-3-5-sonnet-latest", rates(3, 15, 0.375, 3.75)},
 		{[]string{"anthropic"}, "claude-3-5-haiku-20241022", rates(0.8, 4, 0.08, 1.0)},
@@ -94,15 +115,29 @@ func buildTable() map[string]cost.Rates {
 		{[]string{"anthropic"}, "claude-3-sonnet-20240229", rates(3, 15, 0.375, 3.75)},
 		{[]string{"anthropic"}, "claude-3-haiku-20240307", rates(0.25, 1.25, 0.03, 0.3125)},
 
-		// DeepSeek.
+		// DeepSeek — V4 has peak/off-peak windows; the table holds peak (list)
+		// rates. Legacy aliases (deepseek-chat/reasoner) were retired 2026-07-24
+		// but stay here so historical usage still prices.
+		{[]string{"deepseek"}, "deepseek-flash", reasoning(rates(0.3, 1.2, 0.006, 0.3), 1.2)},
+		{[]string{"deepseek"}, "deepseek-v4-pro", reasoning(rates(1.32, 3.96, 0.044, 1.32), 3.96)},
 		{[]string{"deepseek"}, "deepseek-chat", rates(0.27, 1.1, 0.07, 0.27)},
 		{[]string{"deepseek"}, "deepseek-coder", rates(0.27, 1.1, 0.07, 0.27)},
 		{[]string{"deepseek"}, "deepseek-reasoner", reasoning(rates(0.55, 2.19, 0.14, 0.55), 2.19)},
 
-		// Gemini — cache write = standard input.
-		{[]string{"gemini"}, "gemini-2.5-pro", rates(1.25, 10, 0.3125, 1.25)},
-		{[]string{"gemini"}, "gemini-2.5-flash", rates(0.15, 0.6, 0.0375, 0.15)},
-		{[]string{"gemini"}, "gemini-2.5-flash-lite", rates(0.075, 0.3, 0.01875, 0.075)},
+		// Gemini — cache write = standard input. Prices are the <=200k-prompt
+		// tier; >200k prompts bill higher but a single rate per model is all
+		// the table can express.
+		{[]string{"gemini"}, "gemini-3.1-pro-preview", rates(2, 12, 0.2, 2)},
+		{[]string{"gemini"}, "gemini-3.8-flash", rates(0.75, 3.75, 0.075, 0.75)},
+		{[]string{"gemini"}, "gemini-3.7-flash", rates(0.75, 3.75, 0.075, 0.75)},
+		{[]string{"gemini"}, "gemini-3.6-flash", rates(0.75, 3.75, 0.075, 0.75)},
+		{[]string{"gemini"}, "gemini-3.5-flash", rates(1.5, 9, 0.15, 1.5)},
+		{[]string{"gemini"}, "gemini-3.5-flash-lite", rates(0.3, 2.5, 0.03, 0.3)},
+		{[]string{"gemini"}, "gemini-3.1-flash-lite", rates(0.25, 1.5, 0.025, 0.25)},
+		{[]string{"gemini"}, "gemini-3-flash-preview", rates(0.5, 3, 0.05, 0.5)},
+		{[]string{"gemini"}, "gemini-2.5-pro", rates(1.25, 10, 0.125, 1.25)},
+		{[]string{"gemini"}, "gemini-2.5-flash", rates(0.3, 2.5, 0.03, 0.3)},
+		{[]string{"gemini"}, "gemini-2.5-flash-lite", rates(0.1, 0.4, 0.01, 0.1)},
 		{[]string{"gemini"}, "gemini-2.0-flash", rates(0.1, 0.4, 0.025, 0.1)},
 		{[]string{"gemini"}, "gemini-2.0-flash-lite", rates(0.075, 0.3, 0.01875, 0.075)},
 		{[]string{"gemini"}, "gemini-1.5-pro", rates(1.25, 5, 0.3125, 1.25)},
@@ -116,13 +151,27 @@ func buildTable() map[string]cost.Rates {
 		{[]string{"groq"}, "whisper-large-v3", rates(0, 0, 0, 0)},
 		{[]string{"groq"}, "whisper-large-v3-turbo", rates(0, 0, 0, 0)},
 
-		// Mistral.
-		{[]string{"mistral"}, "mistral-large-latest", rates(2, 6, 0, 0)},
-		{[]string{"mistral"}, "mistral-small-latest", rates(0.1, 0.3, 0, 0)},
+		// Mistral — Large 3 is the flagship and cheaper than Medium 3.5.
+		{[]string{"mistral"}, "mistral-large-3", rates(0.5, 1.5, 0.05, 0.5)},
+		{[]string{"mistral"}, "mistral-large-latest", rates(0.5, 1.5, 0.05, 0.5)},
+		{[]string{"mistral"}, "mistral-medium-3.5", rates(1.5, 7.5, 0, 0)},
+		{[]string{"mistral"}, "mistral-small-4", rates(0.15, 0.6, 0, 0)},
+		{[]string{"mistral"}, "mistral-small-latest", rates(0.15, 0.6, 0, 0)},
+		{[]string{"mistral"}, "magistral-medium", reasoning(rates(2, 5, 0, 0), 5)},
 		{[]string{"mistral"}, "codestral-latest", rates(0.3, 0.9, 0, 0)},
 		{[]string{"mistral"}, "pixtral-large-latest", rates(2, 6, 0, 0)},
 
-		// xAI.
+		// xAI — <200k-prompt tier (long-context doubles the rates).
+		{[]string{"xai"}, "grok-4.7", rates(2, 6, 0.5, 2)},
+		{[]string{"xai"}, "grok-4.6", rates(2, 6, 0.5, 2)},
+		{[]string{"xai"}, "grok-4.5", rates(2, 6, 0.3, 2)},
+		{[]string{"xai"}, "grok-4.3", rates(1.25, 2.5, 0.2, 1.25)},
+		{[]string{"xai"}, "grok-4.20-0309-reasoning", reasoning(rates(1.25, 2.5, 0.2, 1.25), 2.5)},
+		{[]string{"xai"}, "grok-4.20-0309-non-reasoning", rates(1.25, 2.5, 0.2, 1.25)},
+		{[]string{"xai"}, "grok-4.20-multi-agent-0309", rates(1.25, 2.5, 0.2, 1.25)},
+		{[]string{"xai"}, "grok-build-0.1", rates(1, 2, 0.2, 1)},
+		{[]string{"xai"}, "grok-4.1", rates(0.2, 0.5, 0.05, 0.2)},
+		// Legacy grok-3/grok-2 stay for historical usage.
 		{[]string{"xai"}, "grok-3", rates(3, 15, 0.75, 3)},
 		{[]string{"xai"}, "grok-3-fast", rates(5, 25, 1.25, 5)},
 		{[]string{"xai"}, "grok-3-mini", reasoning(rates(0.3, 0.5, 0.075, 0.3), 0.5)},
@@ -144,14 +193,18 @@ func buildTable() map[string]cost.Rates {
 		{[]string{"nvidia"}, "nvidia/llama-3.1-nemotron-70b-instruct", rates(0.13, 0.13, 0, 0)},
 
 		// OpenRouter — pass-through with typical markups; exact prices vary.
-		{[]string{"openrouter"}, "anthropic/claude-opus-4-7", rates(15, 75, 1.875, 18.75)},
-		{[]string{"openrouter"}, "anthropic/claude-sonnet-4-6", rates(3, 15, 0.375, 3.75)},
-		{[]string{"openrouter"}, "openai/gpt-5", rates(2.5, 10, 1.25, 2.5)},
+		{[]string{"openrouter"}, "anthropic/claude-opus-5", rates(5, 25, 0.5, 6.25)},
+		{[]string{"openrouter"}, "anthropic/claude-sonnet-5", rates(2, 10, 0.2, 2.5)},
+		{[]string{"openrouter"}, "anthropic/claude-sonnet-4-6", rates(3, 15, 0.3, 3.75)},
+		{[]string{"openrouter"}, "openai/gpt-5.6-sol", rates(4, 20, 0.4, 4)},
+		{[]string{"openrouter"}, "openai/gpt-5", rates(1.25, 10, 0.125, 1.25)},
 		{[]string{"openrouter"}, "openai/gpt-4o", rates(2.5, 10, 1.25, 2.5)},
 		{[]string{"openrouter"}, "openai/gpt-4o-mini", rates(0.15, 0.6, 0.075, 0.15)},
+		{[]string{"openrouter"}, "deepseek/deepseek-v4-pro", rates(1.32, 3.96, 0.044, 1.32)},
 		{[]string{"openrouter"}, "deepseek/deepseek-chat", rates(0.27, 1.1, 0.07, 0.27)},
-		{[]string{"openrouter"}, "google/gemini-2.5-pro", rates(1.25, 10, 0.3125, 1.25)},
-		{[]string{"openrouter"}, "google/gemini-2.5-flash", rates(0.15, 0.6, 0.0375, 0.15)},
+		{[]string{"openrouter"}, "google/gemini-3.1-pro-preview", rates(2, 12, 0.2, 2)},
+		{[]string{"openrouter"}, "google/gemini-2.5-pro", rates(1.25, 10, 0.125, 1.25)},
+		{[]string{"openrouter"}, "google/gemini-2.5-flash", rates(0.3, 2.5, 0.03, 0.3)},
 		{[]string{"openrouter"}, "meta-llama/llama-3.3-70b-instruct", rates(0.1, 0.1, 0, 0)},
 
 		// MiniMax.
@@ -171,21 +224,22 @@ func buildTable() map[string]cost.Rates {
 	// usage statistics can display an approximate cost. The recorded model id
 	// keeps the synthetic suffixes (-thinking, -agentic), so each base model
 	// expands into every variant at the same rate.
-	sonnet := rates(3.0, 15.0, 0.375, 3.75)
-	opus := rates(15.0, 75.0, 1.875, 18.75)
+	sonnet := rates(3.0, 15.0, 0.3, 3.75)
+	opus := rates(5.0, 25.0, 0.5, 6.25)
 	kiroBases := []struct {
 		model string
 		r     cost.Rates
 	}{
+		{"claude-sonnet-5", rates(2.0, 10.0, 0.2, 2.5)},
+		{"claude-opus-5.5", rates(4.0, 20.0, 0.2, 5.0)},
+		{"claude-opus-5", opus},
 		{"claude-sonnet-4.5", sonnet},
 		{"claude-sonnet-4.6", sonnet},
-		{"claude-sonnet-4.7", sonnet},
-		{"claude-sonnet-4.8", sonnet},
 		{"claude-opus-4.6", opus},
 		{"claude-opus-4.7", opus},
 		{"claude-opus-4.8", opus},
-		{"claude-haiku-4.5", rates(0.8, 4.0, 0.08, 1.0)},
-		{"deepseek-3.2", rates(0.27, 1.1, 0.07, 0.27)},
+		{"claude-haiku-4.5", rates(1.0, 5.0, 0.1, 1.25)},
+		{"deepseek-v4-pro", rates(1.32, 3.96, 0.044, 1.32)},
 		{"glm-5", rates(0.6, 2.2, 0, 0)},
 		{"MiniMax-M2.5", rates(0.3, 1.1, 0, 0)},
 		{"qwen3-coder-next", rates(0.3, 1.2, 0, 0)},
