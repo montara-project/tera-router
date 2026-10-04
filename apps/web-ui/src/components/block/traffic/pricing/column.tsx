@@ -11,6 +11,7 @@ import { Badge, BadgeDot } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toastAxiosError } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
+import { formatRate } from '@/lib/currency'
 
 import { features } from '../../common/react-table'
 import RowColumnAction from '../../common/row-column-action'
@@ -21,12 +22,6 @@ type ColumnType = ColumnDef<typeof features, Models.PricingOverride, unknown>
 
 type PricingColumnProps = BaseColumnProps & {
   onEdit?: (override: Models.PricingOverride) => void
-}
-
-/** Render a USD-per-million rate; 0 shows "free" so a real zero is visible. */
-function formatRate(micros: number): string {
-  if (micros === 0) return 'free'
-  return `$${(micros / 1_000_000).toFixed(4).replace(/\.?0+$/, '')}`
 }
 
 function describeModel(model: string): string {
@@ -67,7 +62,7 @@ export function PricingColumn({ loading, onEdit }: PricingColumnProps) {
             </Badge>
           )
         },
-        size: 140,
+        size: 80,
       },
       {
         accessorKey: 'input_micros',
@@ -83,7 +78,7 @@ export function PricingColumn({ loading, onEdit }: PricingColumnProps) {
             </span>
           )
         },
-        size: 110,
+        size: 80,
       },
       {
         accessorKey: 'output_micros',
@@ -99,7 +94,7 @@ export function PricingColumn({ loading, onEdit }: PricingColumnProps) {
             </span>
           )
         },
-        size: 110,
+        size: 80,
       },
       {
         accessorKey: 'actions',

@@ -3,6 +3,7 @@ package repositories_test
 import (
 	"context"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"tera-router/server/internal/config"
@@ -133,5 +134,59 @@ func TestPricingOverrideUpsertReplacesAllFields(t *testing.T) {
 	}
 	if got.TokenConsumptionRate != nil {
 		t.Fatalf("TokenConsumptionRate = %v, want nil (cleared by second upsert)", got.TokenConsumptionRate)
+	}
+}
+
+// Page filters before paging: total counts the filtered set, search matches
+// "<provider> <model>" case-insensitively, and scope splits per-model from
+// provider-wide rows.
+func TestPricingPageFiltersAndCounts(t *testing.T) {
+	repo := newPricingRepo(t)
+	ctx := context.Background()
+	for i, row := range [][2]string{
+		{"anthropic", "claude-haiku-4-5"},
+		{"anthropic", "claude-sonnet-4-5"},
+		{"anthropic", ""},
+		{"openai", "gpt-4o"},
+		{"openai", ""},
+	} {
+		if err := repo.Upsert(ctx, models.PricingOverride{ID: "po-" + string(rune('a'+i)), Provider: row[0], Model: row[1]}); err != nil {
+			t.Fatalf("upsert: %v", err)
+		}
+	}
+
+	ids := func(rows []models.PricingOverride) []string {
+		out := []string{}
+		for _, r := range rows {
+			out = append(out, r.Provider+"/"+r.Model)
+		}
+		return out
+	}
+	for _, tc := range []struct {
+		name          string
+		filter        repositories.PricingFilter
+		offset, limit int
+		total         int
+		want          []string
+	}{
+		{"first page", repositories.PricingFilter{}, 0, 2, 5, []string{"anthropic/", "anthropic/claude-haiku-4-5"}},
+		{"second page", repositories.PricingFilter{}, 2, 2, 5, []string{"anthropic/claude-sonnet-4-5", "openai/"}},
+		{"search spans provider and model", repositories.PricingFilter{Search: "ANTHROPIC CLAUDE-S"}, 0, 10, 1, []string{"anthropic/claude-sonnet-4-5"}},
+		{"scope model", repositories.PricingFilter{Scope: "model"}, 0, 10, 3, []string{"anthropic/claude-haiku-4-5", "anthropic/claude-sonnet-4-5", "openai/gpt-4o"}},
+		{"scope provider", repositories.PricingFilter{Scope: "provider"}, 0, 10, 2, []string{"anthropic/", "openai/"}},
+		{"provider + scope", repositories.PricingFilter{Provider: "openai", Scope: "model"}, 0, 10, 1, []string{"openai/gpt-4o"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rows, total, err := repo.Page(ctx, tc.filter, tc.offset, tc.limit)
+			if err != nil {
+				t.Fatalf("page: %v", err)
+			}
+			if total != tc.total {
+				t.Errorf("total = %d, want %d", total, tc.total)
+			}
+			if got := ids(rows); len(got) != len(tc.want) || strings.Join(got, ",") != strings.Join(tc.want, ",") {
+				t.Errorf("rows = %v, want %v", got, tc.want)
+			}
+		})
 	}
 }

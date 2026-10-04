@@ -4,6 +4,8 @@ import { optionalNumber, requiredNumber, requiredString } from '@/lib/validation
 
 import type { CapabilityOverride, PricingOverride } from '../../models/override'
 
+import { PaginateSchema } from '../paginate'
+
 type PricingPayload = Omit<
   PricingOverride,
   'id' | 'created_at' | 'updated_at' | 'token_consumption_rate'
@@ -28,6 +30,16 @@ export const PricingSchema = z.object({
   token_consumption_rate: optionalNumber('token consumption rate').nullish(),
 }) satisfies z.ZodType<PricingPayload>
 
+/** Pricing overrides list query (GET /v1/model-pricing-overrides): paging
+ * plus the table filters, applied server-side before paging. */
+export const PricingListSchema = PaginateSchema.extend({
+  provider: z.string().optional(),
+  /** case-insensitive substring of "<provider> <model>" */
+  search: z.string().optional(),
+  /** model: per-model rows; provider: provider-wide rows (empty model) */
+  scope: z.enum(['all', 'model', 'provider']).optional(),
+})
+
 /** Capability override upsert body (PUT /v1/capability-overrides). */
 export const CapabilitySchema = z.object({
   provider: requiredString('provider'),
@@ -38,4 +50,5 @@ export const CapabilitySchema = z.object({
 }) satisfies z.ZodType<CapabilityPayload>
 
 export type PricingDto = z.infer<typeof PricingSchema>
+export type PricingListDto = z.infer<typeof PricingListSchema>
 export type CapabilityDto = z.infer<typeof CapabilitySchema>

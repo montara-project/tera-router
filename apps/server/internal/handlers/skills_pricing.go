@@ -1,11 +1,14 @@
 package handlers
 
 import (
+	"strings"
+
 	"tera-router/server/internal/app"
 	"tera-router/server/internal/dtos"
 	"tera-router/server/internal/lib"
 	"tera-router/server/internal/lib/apperr"
 	"tera-router/server/internal/models"
+	"tera-router/server/internal/repositories"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -63,13 +66,21 @@ type pricingHandler struct {
 	app *app.Application
 }
 
-// PricingIndex lists pricing overrides (?provider= filters one provider).
+// PricingIndex pages pricing overrides (?offset=&limit=), filtered by
+// ?provider=, ?search= and ?scope=model|provider.
 func (h *pricingHandler) PricingIndex(c fiber.Ctx) error {
-	rows, err := h.app.Repos.Pricing.List(c.Context(), c.Query("provider"))
+	var q dtos.PricingListQuery
+	if err := lib.ValidateRequestQuery(c, &q); err != nil {
+		return err
+	}
+	q.Clamp()
+
+	filter := repositories.PricingFilter{Provider: q.Provider, Search: strings.TrimSpace(q.Search), Scope: q.Scope}
+	rows, total, err := h.app.Repos.Pricing.Page(c.Context(), filter, q.Offset, q.Limit)
 	if err != nil {
 		return err
 	}
-	return dtos.List(c, rows, dtos.TotalMeta(len(rows)))
+	return dtos.List(c, rows, dtos.ListMeta(total, q.Offset, q.Limit))
 }
 
 func (h *pricingHandler) PricingUpsert(c fiber.Ctx) error {

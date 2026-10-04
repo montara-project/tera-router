@@ -1,28 +1,33 @@
-import { mutationOptions, queryOptions } from '@tanstack/react-query'
+import { keepPreviousData, mutationOptions, queryOptions } from '@tanstack/react-query'
 
 import { getQueryClient } from '@/lib/providers/react-query'
 
-import type { CapabilityDto, PricingDto } from '../dtos/override/schema'
+import type { CapabilityDto, PricingDto, PricingListDto } from '../dtos/override/schema'
 
 import { services } from '../services'
 
 export const OVERRIDE_QUERY_KEY = 'overrides'
 
-export const LIST_PRICING_OVERRIDE_QUERY_KEY = () => {
-  return [OVERRIDE_QUERY_KEY, 'pricing', 'list']
+/** Without params this is the prefix every pricing list page shares, so
+ * mutations invalidate all pages at once. */
+export const LIST_PRICING_OVERRIDE_QUERY_KEY = (params?: PricingListDto) => {
+  const key: unknown[] = [OVERRIDE_QUERY_KEY, 'pricing', 'list']
+  return params ? [...key, params] : key
 }
 
 export const LIST_CAPABILITY_OVERRIDE_QUERY_KEY = () => {
   return [OVERRIDE_QUERY_KEY, 'capability', 'list']
 }
 
-const pricingList = () =>
+const pricingList = (params?: PricingListDto) =>
   queryOptions({
-    queryKey: LIST_PRICING_OVERRIDE_QUERY_KEY(),
+    queryKey: LIST_PRICING_OVERRIDE_QUERY_KEY(params),
     queryFn: async () => {
-      const res = await services.overrides.pricingList()
+      const res = await services.overrides.pricingList(params)
       return res.data
     },
+    // Keep the current page on screen while the next page or filter loads.
+    placeholderData: keepPreviousData,
   })
 
 const pricingUpsert = () => {
