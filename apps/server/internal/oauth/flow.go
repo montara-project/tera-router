@@ -106,8 +106,9 @@ func SplitPastedCode(code string) (string, string) {
 
 // ExchangeCode swaps an authorization code for tokens. verifier is the PKCE
 // verifier; state is the original OAuth state value, used as a fallback when
-// the code doesn't carry an embedded #state fragment (Claude requires a state
-// on its token exchange — without it Anthropic answers 400 invalid_request).
+// the code doesn't carry an embedded #state fragment (Anthropic requires a
+// state on its token exchange — without it the endpoint answers 400
+// invalid_request "Invalid request format").
 func (c ProviderConfig) ExchangeCode(ctx context.Context, code, redirectURI, verifier, state string) (*Tokens, error) {
 	code, codeState := SplitPastedCode(code)
 
@@ -119,7 +120,7 @@ func (c ProviderConfig) ExchangeCode(ctx context.Context, code, redirectURI, ver
 	if verifier != "" {
 		form.Set("code_verifier", verifier)
 	}
-	if c.Provider == "claude" {
+	if c.EchoState {
 		if codeState == "" && state != "" {
 			codeState = state
 		}
@@ -319,8 +320,8 @@ func mapTokenResponse(raw []byte) (*Tokens, error) {
 // Tokens.Email and Tokens.DisplayName. Errors are swallowed — the account is
 // still usable, just missing a human-readable label.
 //
-// Claude's /v1/me answers { email, display_name }; OpenAI's OIDC userinfo
-// answers { email, name }.
+// Anthropic's /api/oauth/profile answers { email, display_name }; OpenAI's
+// OIDC userinfo answers { email, name }.
 func (c ProviderConfig) FetchUserInfo(ctx context.Context, t *Tokens) {
 	if c.UserInfoURL == "" || t.AccessToken == "" {
 		return

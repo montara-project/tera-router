@@ -57,6 +57,12 @@ type ProviderConfig struct {
 	// is attempted and the account label falls back to the provider name.
 	UserInfoURL string
 
+	// EchoState includes the OAuth state in the token-exchange body. The
+	// Anthropic token endpoint answers 400 invalid_request "Invalid request
+	// format" without it; the echoed state prefers the "#state" fragment of
+	// a pasted code and falls back to the state the flow started with.
+	EchoState bool
+
 	// AccountProvider is the catalog slug the connected account is attributed
 	// to when it differs from Provider — Codex tokens serve the ChatGPT
 	// backend, so an "openai" flow still stores its account under the hidden
@@ -126,16 +132,20 @@ func (c ProviderConfig) ResolveRedirectURI(requested string, port int) string {
 // "sign in to official website" option. Both sets are accepted.
 var configs = map[string]ProviderConfig{
 	"claude": {
-		Provider:         "claude",
-		Flow:             FlowAuthCodePKCE,
-		ClientID:         "9d1c250a-e61b-44d9-88ed-5944d1962f5e",
-		AuthorizeURL:     "https://claude.ai/oauth/authorize",
-		TokenURL:         "https://api.anthropic.com/v1/oauth/token",
+		Provider:     "claude",
+		Flow:         FlowAuthCodePKCE,
+		ClientID:     "9d1c250a-e61b-44d9-88ed-5944d1962f5e",
+		AuthorizeURL: "https://claude.ai/oauth/authorize",
+		// The claude.ai-issued grant validates against the console's OAuth
+		// service; api.anthropic.com hosts the separate API-workload OAuth
+		// and rejects these codes with invalid_grant.
+		TokenURL:         "https://console.anthropic.com/v1/oauth/token",
 		Scopes:           []string{"org:create_api_key", "user:profile", "user:inference"},
 		// Claude's token endpoint expects a JSON body and echoes the state.
 		TokenContentType: "json",
+		EchoState:        true,
 		ExtraAuthParams:  map[string]string{"code": "true"},
-		UserInfoURL:      "https://api.anthropic.com/v1/me",
+		UserInfoURL:      "https://api.anthropic.com/api/oauth/profile",
 		FixedRedirectURI: "https://console.anthropic.com/oauth/code/callback",
 	},
 	"codex": {
@@ -160,11 +170,12 @@ var configs = map[string]ProviderConfig{
 		Flow:             FlowAuthCodePKCE,
 		ClientID:         "9d1c250a-e61b-44d9-88ed-5944d1962f5e",
 		AuthorizeURL:     "https://claude.ai/oauth/authorize",
-		TokenURL:         "https://api.anthropic.com/v1/oauth/token",
+		TokenURL:         "https://console.anthropic.com/v1/oauth/token",
 		Scopes:           []string{"org:create_api_key", "user:profile", "user:inference"},
 		TokenContentType: "json",
+		EchoState:        true,
 		ExtraAuthParams:  map[string]string{"code": "true"},
-		UserInfoURL:      "https://api.anthropic.com/v1/me",
+		UserInfoURL:      "https://api.anthropic.com/api/oauth/profile",
 		FixedRedirectURI: "https://console.anthropic.com/oauth/code/callback",
 	},
 	"openai": {

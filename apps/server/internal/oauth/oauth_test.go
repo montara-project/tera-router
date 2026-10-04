@@ -1,7 +1,11 @@
 package oauth
 
 import (
+	"context"
 	"encoding/base64"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 )
@@ -18,6 +22,15 @@ func TestProviderConfigs(t *testing.T) {
 	}
 	if claude.TokenContentType != "json" {
 		t.Errorf("claude token content type = %q, want json", claude.TokenContentType)
+	}
+	// The claude.ai grant validates against the console's OAuth service, and
+	// the exchange must echo the state — api.anthropic.com answers 400
+	// "Invalid request format" without it.
+	if claude.TokenURL != "https://console.anthropic.com/v1/oauth/token" {
+		t.Errorf("claude token url = %q", claude.TokenURL)
+	}
+	if !claude.EchoState {
+		t.Errorf("claude echo state = false, want true")
 	}
 	if claude.refreshURL() != claude.TokenURL {
 		t.Errorf("claude refresh url = %q, want the token url", claude.refreshURL())
@@ -67,6 +80,58 @@ func TestProviderConfigs(t *testing.T) {
 	}
 	if anthropic.ClientID != claude.ClientID || anthropic.AuthorizeURL != claude.AuthorizeURL {
 		t.Errorf("anthropic flow drifts from claude: %+v", anthropic)
+	}
+	// The anthropic alias runs the same token endpoint contract: state echo
+	// is per-config, so the alias must opt in itself — a provider-slug check
+	// here once skipped the state for this exact alias.
+	if !anthropic.EchoState || anthropic.TokenURL != claude.TokenURL {
+		t.Errorf("anthropic flow drifts from claude token contract: %+v", anthropic)
+	}
+}
+
+// The token exchange must echo the state (the pasted "#state" fragment wins,
+// then the flow's state) only for configs that opt in — Anthropic answers 400
+// "Invalid request format" without it.
+func TestExchangeCodeEchoesState(t *testing.T) {
+	var got map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewDecoder(r.Body).Decode(&got)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"access_token":"at","refresh_token":"rt","expires_in":3600}`))
+	}))
+	defer srv.Close()
+
+	cfg := ProviderConfig{
+		Provider:         "anthropic",
+		Flow:             FlowAuthCodePKCE,
+		ClientID:         "client-1",
+		TokenURL:         srv.URL,
+		TokenContentType: "json",
+		EchoState:        true,
+	}
+	if _, err := cfg.ExchangeCode(context.Background(), "code-1#state-9", "https://console.example/cb", "verifier-1", "state-9"); err != nil {
+		t.Fatalf("exchange: %v", err)
+	}
+	for k, want := range map[string]any{
+		"grant_type":    "authorization_code",
+		"client_id":     "client-1",
+		"code":          "code-1",
+		"state":         "state-9",
+		"redirect_uri":  "https://console.example/cb",
+		"code_verifier": "verifier-1",
+	} {
+		if got[k] != want {
+			t.Errorf("exchange body[%q] = %v, want %v", k, got[k], want)
+		}
+	}
+
+	got = nil
+	cfg.EchoState = false
+	if _, err := cfg.ExchangeCode(context.Background(), "code-1", "https://console.example/cb", "verifier-1", "state-9"); err != nil {
+		t.Fatalf("exchange: %v", err)
+	}
+	if _, ok := got["state"]; ok {
+		t.Errorf("exchange body carried state without EchoState: %v", got)
 	}
 }
 
