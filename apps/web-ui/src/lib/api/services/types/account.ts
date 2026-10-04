@@ -2,7 +2,7 @@ import type { AxiosItemResponse, AxiosListResponse } from '@/types/api'
 
 import type { AccountDto, BulkAccountsDto, ValidateKeyDto } from '../../dtos/account/schema'
 import type { PaginateDto } from '../../dtos/paginate'
-import type { Account, TestResult } from '../../models/account'
+import type { Account, AccountQuota, TestResult } from '../../models/account'
 
 export type AccountResources = {
   list: (params?: PaginateDto) => Promise<AxiosListResponse<Account>>
@@ -14,10 +14,6 @@ export type AccountResources = {
   remove: (id: string) => Promise<AxiosItemResponse<{ id: string }>>
   test: (id: string) => Promise<AxiosItemResponse<TestResult>>
   reveal: (id: string) => Promise<AxiosItemResponse<{ id: string; api_key: string }>>
-  quota: (
-    id: string
-  ) => Promise<
-    AxiosItemResponse<{ account_id: string; quota_visibility: string; quota_note: string }>
-  >
+  quota: (id: string) => Promise<AxiosItemResponse<AccountQuota>>
   quotaReset: (id: string) => Promise<AxiosItemResponse<unknown>>
 }

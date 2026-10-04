@@ -9,6 +9,7 @@ import SimpleAlertDialog from '@/components/block/common/simple-alert-dialog'
 import AccountsPanel from '@/components/block/provider-detail/accounts-panel'
 import DetailSkeleton from '@/components/block/provider-detail/detail-skeleton'
 import ModelsPanel from '@/components/block/provider-detail/models-panel'
+import QuotaPanel from '@/components/block/provider-detail/quota-panel'
 import RoutingPanel from '@/components/block/provider-detail/routing-panel'
 import SummaryTile from '@/components/block/provider-detail/summary-tile'
 import { AddCustomProviderApiKeyForm } from '@/components/block/providers/form-provider-api-key'
@@ -83,6 +84,14 @@ function CustomProviderDetailRoute() {
   const accounts = useMemo(
     () => (accountQuery.data?.data ?? []).filter((account) => account.provider === slug),
     [accountQuery.data, slug]
+  )
+  // Claude subscription (OAuth) accounts expose live session/weekly limits.
+  const quotaAccounts = useMemo(
+    () =>
+      accounts.filter(
+        (account) => account.provider === 'anthropic' && account.auth_kind === 'oauth'
+      ),
+    [accounts]
   )
   const models = useMemo(() => {
     const rows = usageQuery.data?.modelAccounting ?? []
@@ -274,6 +283,9 @@ function CustomProviderDetailRoute() {
               <TabsTrigger value="overview">Accounts ({accounts.length})</TabsTrigger>
               <TabsTrigger value="routing">Routing ({chains.length})</TabsTrigger>
               <TabsTrigger value="models">Models ({models.length})</TabsTrigger>
+              {quotaAccounts.length > 0 ? (
+                <TabsTrigger value="quota">Quota ({quotaAccounts.length})</TabsTrigger>
+              ) : null}
             </TabsList>
 
             <TabsContent value="overview" className="mt-4 space-y-4">
@@ -308,6 +320,12 @@ function CustomProviderDetailRoute() {
             <TabsContent value="routing" className="mt-4">
               <RoutingPanel chains={chains} loading={chainsQuery.isLoading} slug={slug ?? ''} />
             </TabsContent>
+
+            {quotaAccounts.length > 0 ? (
+              <TabsContent value="quota" className="mt-4">
+                <QuotaPanel accounts={quotaAccounts} />
+              </TabsContent>
+            ) : null}
           </Tabs>
         </div>
       </SectionCard>

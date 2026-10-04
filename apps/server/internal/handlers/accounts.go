@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"tera-router/server/internal/app"
 	"tera-router/server/internal/catalog"
@@ -16,6 +17,7 @@ import (
 	"tera-router/server/internal/lib"
 	"tera-router/server/internal/lib/apperr"
 	"tera-router/server/internal/models"
+	"tera-router/server/internal/oauth"
 	"tera-router/server/internal/services"
 
 	"github.com/gofiber/fiber/v3"
@@ -450,22 +452,46 @@ func (h *accountsHandler) Reveal(c fiber.Ctx) error {
 	return dtos.OK(c, fiber.Map{"id": id.String(), "api_key": plaintext})
 }
 
-// AccountQuota reports the account's usage-based quota snapshot. Upstream
-// quota probing arrives with the gateway phase; until then visibility is
-// usage-only.
+// Quota reports an account's quota snapshot. Claude subscription (anthropic
+// OAuth) accounts read their live session (5-hour) and weekly windows from
+// Anthropic; every other account is usage-only.
 func (h *accountsHandler) Quota(c fiber.Ctx) error {
 	id, err := lib.ContextParamUUID(c, "id")
 	if err != nil {
 		return apperr.ErrBadRequest
 	}
 
-	if _, err := h.app.Repos.Accounts.Get(c.Context(), id.String()); err != nil {
+	account, err := h.app.Repos.Accounts.Get(c.Context(), id.String())
+	if err != nil {
 		return err
+	}
+	if account.Provider != "anthropic" || account.AuthKind != models.AuthOAuth {
+		return dtos.OK(c, fiber.Map{
+			"account_id":       id.String(),
+			"quota_visibility": "usage-only",
+			"quota_note":       "Provider does not expose upstream limits.",
+			"windows":          []oauth.UsageWindow{},
+		})
+	}
+
+	account, err = h.app.OAuth.EnsureFresh(c.Context(), account)
+	if err != nil {
+		return apperr.New(apperr.KindUnprocessable, "%s", err.Error())
+	}
+	token, err := h.app.Secrets.OpenString(account.Token)
+	if err != nil {
+		return err
+	}
+	windows, err := oauth.FetchClaudeUsage(c.Context(), token)
+	if err != nil {
+		return apperr.New(apperr.KindUnprocessable, "%s", err.Error())
 	}
 	return dtos.OK(c, fiber.Map{
 		"account_id":       id.String(),
-		"quota_visibility": "usage-only",
-		"quota_note":       "Provider does not expose upstream limits.",
+		"quota_visibility": "upstream",
+		"quota_note":       "Claude subscription limits reported by Anthropic.",
+		"windows":          windows,
+		"fetched_at":       time.Now().UTC(),
 	})
 }
 

@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 // The provider configs are the wire contract with the upstream OAuth apps —
@@ -121,6 +122,41 @@ func TestFetchUserInfoShapes(t *testing.T) {
 				t.Errorf("got email=%q display=%q, want %q/%q", tokens.Email, tokens.DisplayName, tc.email, tc.display)
 			}
 		})
+	}
+}
+
+// The usage payload mixes window objects with unrelated arrays/objects; only
+// the windows the plan has (non-null) come back, in a stable order.
+func TestFetchClaudeUsage(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer at" {
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte(`{"error":"bad token"}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"five_hour":{"utilization":26.0,"resets_at":"2026-10-04T06:50:00.286520+00:00"},"seven_day":{"utilization":4.0,"resets_at":"2026-10-05T15:00:00+00:00"},"seven_day_opus":null,"seven_day_sonnet":{"utilization":1.5,"resets_at":null},"limits":[{"kind":"session"}],"extra_usage":{"is_enabled":false}}`))
+	}))
+	defer srv.Close()
+	prev := claudeUsageURL
+	claudeUsageURL = srv.URL
+	t.Cleanup(func() { claudeUsageURL = prev })
+
+	got, err := FetchClaudeUsage(context.Background(), "at")
+	if err != nil {
+		t.Fatalf("FetchClaudeUsage: %v", err)
+	}
+	if len(got) != 3 || got[0].Key != "five_hour" || got[1].Key != "seven_day" || got[2].Key != "seven_day_sonnet" {
+		t.Fatalf("windows = %+v", got)
+	}
+	if got[0].Utilization != 26 || got[0].ResetsAt == nil || !got[0].ResetsAt.Equal(time.Date(2026, 10, 4, 6, 50, 0, 286520000, time.UTC)) {
+		t.Errorf("five_hour = %+v", got[0])
+	}
+	if got[2].ResetsAt != nil {
+		t.Errorf("null resets_at should stay nil, got %v", got[2].ResetsAt)
+	}
+
+	if _, err := FetchClaudeUsage(context.Background(), "wrong"); err == nil {
+		t.Error("401 must surface as an error")
 	}
 }
 
