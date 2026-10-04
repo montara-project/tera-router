@@ -65,26 +65,33 @@ func (c *connector) openAIHeaders(creds core.Credentials) map[string]string {
 	return mergeHeaders(h, creds.Headers)
 }
 
-// Anthropic API constants. AnthropicVersion is required on every call;
-// AnthropicOAuthBeta is required when the bearer is an OAuth access token
-// rather than an API key.
+// Anthropic API constants. AnthropicVersion is required on every call.
+// Subscription (OAuth) access tokens additionally need AnthropicOAuthBeta and
+// ClaudeCodeSystemPrompt as the leading system block: without the prompt,
+// Sonnet/Opus answer 429 rate_limit_error while Haiku still succeeds.
 const (
-	AnthropicVersion   = "2023-06-01"
-	AnthropicOAuthBeta = "oauth-2025-04-20"
+	AnthropicVersion       = "2023-06-01"
+	AnthropicOAuthBeta     = "oauth-2025-04-20"
+	ClaudeCodeSystemPrompt = "You are Claude Code, Anthropic's official CLI for Claude."
 )
+
+// anthropicOAuth reports whether an Anthropic attempt authenticates with an
+// OAuth access token rather than an API key.
+func anthropicOAuth(creds core.Credentials) bool {
+	return creds.APIKey == "" && creds.AccessToken != ""
+}
 
 // anthropicHeaders authenticates an Anthropic Messages call: API keys go in
 // x-api-key, OAuth access tokens in Authorization plus the oauth beta header
 // Anthropic requires for bearer tokens.
 func (c *connector) anthropicHeaders(creds core.Credentials) map[string]string {
 	h := map[string]string{"anthropic-version": AnthropicVersion}
-	oauth := false
+	oauth := anthropicOAuth(creds)
 	switch {
 	case creds.APIKey != "":
 		h["x-api-key"] = creds.APIKey
-	case creds.AccessToken != "":
+	case oauth:
 		h["Authorization"] = bearer(creds.AccessToken)
-		oauth = true
 	}
 	merged := mergeHeaders(h, creds.Headers)
 	if oauth {

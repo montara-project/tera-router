@@ -50,7 +50,7 @@ func (c *connector) Chat(ctx context.Context, req *core.ChatRequest, creds core.
 		return c.chatViaStream(ctx, req, creds)
 	}
 
-	body, err := c.render(req, false)
+	body, err := c.render(req, false, creds)
 	if err != nil {
 		return nil, cl.internal(err)
 	}
@@ -96,7 +96,7 @@ func (c *connector) Chat(ctx context.Context, req *core.ChatRequest, creds core.
 // chatViaStream serves a unary call by consuming the upstream's SSE stream.
 func (c *connector) chatViaStream(ctx context.Context, req *core.ChatRequest, creds core.Credentials) (*core.ChatResponse, error) {
 	cl := call{provider: c.id, model: req.Model, accountID: creds.AccountID, creds: creds}
-	body, err := c.render(req, true)
+	body, err := c.render(req, true, creds)
 	if err != nil {
 		return nil, cl.internal(err)
 	}
@@ -155,7 +155,7 @@ func (c *connector) parseStreamBody(ctx context.Context, cl call, body io.Reader
 // transport errors) are returned as err before any chunk is sent.
 func (c *connector) Stream(ctx context.Context, req *core.ChatRequest, creds core.Credentials, cfg core.StreamConfig) (<-chan core.StreamChunk, error) {
 	cl := call{provider: c.id, model: req.Model, accountID: creds.AccountID, creds: creds}
-	body, err := c.render(req, true)
+	body, err := c.render(req, true, creds)
 	if err != nil {
 		return nil, cl.internal(err)
 	}
@@ -248,7 +248,7 @@ func (c *connector) Stream(ctx context.Context, req *core.ChatRequest, creds cor
 // classified exactly like Stream.
 func (c *connector) StreamRaw(ctx context.Context, req *core.ChatRequest, creds core.Credentials) (io.ReadCloser, http.Header, error) {
 	cl := call{provider: c.id, model: req.Model, accountID: creds.AccountID, creds: creds}
-	body, err := c.render(req, true)
+	body, err := c.render(req, true, creds)
 	if err != nil {
 		return nil, nil, cl.internal(err)
 	}
@@ -260,10 +260,14 @@ func (c *connector) StreamRaw(ctx context.Context, req *core.ChatRequest, creds 
 }
 
 // render encodes the canonical request for this dialect. The caller's request
-// is never mutated: the stream flag is applied to a copy.
-func (c *connector) render(req *core.ChatRequest, stream bool) ([]byte, error) {
+// is never mutated: the stream flag and any credential-specific preamble (the
+// Claude Code system prompt Anthropic OAuth tokens require) go on a copy.
+func (c *connector) render(req *core.ChatRequest, stream bool, creds core.Credentials) ([]byte, error) {
 	clone := *req
 	clone.Stream = stream
+	if c.dialect == core.DialectAnthropic && anthropicOAuth(creds) {
+		clone.SystemPreamble = ClaudeCodeSystemPrompt
+	}
 	return c.codec.RenderRequest(&clone, c.id)
 }
 

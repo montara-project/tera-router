@@ -444,7 +444,18 @@ func (AnthropicCodec) RenderRequest(req *core.ChatRequest, _ string) ([]byte, er
 
 	out.ToolChoice = antRenderToolChoice(req.ToolChoice)
 
-	if req.System != "" {
+	switch {
+	case req.SystemPreamble != "":
+		// The preamble must be its own leading block: Anthropic does not
+		// recognize it when merged into one string with the caller's system.
+		// A caller that already sent it (e.g. Claude Code itself) is not
+		// duplicated.
+		blocks := []antBlock{{Type: "text", Text: req.SystemPreamble}}
+		if rest := strings.TrimSpace(strings.TrimPrefix(req.System, req.SystemPreamble)); rest != "" {
+			blocks = append(blocks, antBlock{Type: "text", Text: rest})
+		}
+		out.System = mustMarshal(blocks)
+	case req.System != "":
 		sys, err := json.Marshal(req.System)
 		if err == nil {
 			out.System = sys

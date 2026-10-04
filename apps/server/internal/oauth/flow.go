@@ -1,6 +1,7 @@
 package oauth
 
 import (
+	"cmp"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -280,8 +281,8 @@ func mapTokenResponse(raw []byte) (*Tokens, error) {
 // Tokens.Email and Tokens.DisplayName. Errors are swallowed — the account is
 // still usable, just missing a human-readable label.
 //
-// Anthropic's /api/oauth/profile answers { email, display_name }; OpenAI's
-// OIDC userinfo answers { email, name }.
+// Anthropic's /api/oauth/profile nests the user under "account" ({ account:
+// { email, display_name } }); OpenAI's OIDC userinfo answers { email, name }.
 func (c ProviderConfig) FetchUserInfo(ctx context.Context, t *Tokens) {
 	if c.UserInfoURL == "" || t.AccessToken == "" {
 		return
@@ -307,26 +308,20 @@ func (c ProviderConfig) FetchUserInfo(ctx context.Context, t *Tokens) {
 		return
 	}
 
-	var info struct {
+	type profile struct {
 		Email         string `json:"email"`
 		Name          string `json:"name"`
 		DisplayName   string `json:"display_name"`
 		PreferredUser string `json:"preferred_username"`
 	}
+	var info struct {
+		profile
+		Account profile `json:"account"`
+	}
 	_ = json.Unmarshal(body, &info)
 
-	if t.Email == "" {
-		t.Email = info.Email
-	}
-	if t.DisplayName == "" {
-		t.DisplayName = info.DisplayName
-		if t.DisplayName == "" {
-			t.DisplayName = info.Name
-		}
-		if t.DisplayName == "" {
-			t.DisplayName = info.PreferredUser
-		}
-	}
+	t.Email = cmp.Or(t.Email, info.Email, info.Account.Email)
+	t.DisplayName = cmp.Or(t.DisplayName, info.DisplayName, info.Account.DisplayName, info.Name, info.PreferredUser)
 }
 
 func truncate(b []byte, max int) string {

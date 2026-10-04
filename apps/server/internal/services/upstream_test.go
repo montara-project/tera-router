@@ -7,6 +7,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"tera-router/server/internal/dtos"
 )
 
 func mustRaw(t *testing.T, v string) json.RawMessage {
@@ -261,5 +263,44 @@ func TestProbeCredentialAuthHeaders(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestChatCompletionAnthropicOAuth(t *testing.T) {
+	var gotHeader http.Header
+	var gotBody map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotHeader = r.Header.Clone()
+		gotBody = nil
+		_ = json.NewDecoder(r.Body).Decode(&gotBody)
+		_, _ = w.Write([]byte(`{"content":[{"type":"text","text":"OK"}],"usage":{"input_tokens":3,"output_tokens":1}}`))
+	}))
+	defer srv.Close()
+
+	svc := &UpstreamService{}
+	msgs := []dtos.ModelTestMessage{{Role: "user", Content: "hi"}}
+
+	// Subscription (OAuth) tokens: Bearer + oauth beta, and the Claude Code
+	// system prompt Anthropic requires for Sonnet/Opus.
+	res, err := svc.ChatCompletion(context.Background(), srv.URL+"/v1", true, true, "tok", "claude-sonnet-4-5", msgs)
+	if err != nil || !res.OK || res.Content != "OK" {
+		t.Fatalf("oauth result = %+v, %v", res, err)
+	}
+	if gotHeader.Get("Authorization") != "Bearer tok" || gotHeader.Get("anthropic-beta") != "oauth-2025-04-20" {
+		t.Errorf("oauth headers: Authorization=%q anthropic-beta=%q", gotHeader.Get("Authorization"), gotHeader.Get("anthropic-beta"))
+	}
+	if gotBody["system"] != "You are Claude Code, Anthropic's official CLI for Claude." {
+		t.Errorf("oauth system = %v, want the Claude Code prompt", gotBody["system"])
+	}
+
+	// API keys keep x-api-key and send no system prompt.
+	if _, err := svc.ChatCompletion(context.Background(), srv.URL+"/v1", true, false, "sk-ant", "claude-sonnet-4-5", msgs); err != nil {
+		t.Fatal(err)
+	}
+	if gotHeader.Get("x-api-key") != "sk-ant" || gotHeader.Get("Authorization") != "" {
+		t.Errorf("api-key headers: x-api-key=%q Authorization=%q", gotHeader.Get("x-api-key"), gotHeader.Get("Authorization"))
+	}
+	if _, ok := gotBody["system"]; ok {
+		t.Errorf("api-key request must not carry a system prompt, got %v", gotBody["system"])
 	}
 }

@@ -450,10 +450,7 @@ func (h *providersHandler) CustomModelsSync(c fiber.Ctx) error {
 		if provider.BaseURL == "" {
 			return apperr.New(apperr.KindUnprocessable, "provider has no base_url configured")
 		}
-		apiKey, keyErr := h.customProviderSyncKey(c.Context(), provider.Slug)
-		if keyErr != nil {
-			return keyErr
-		}
+		apiKey, oauth := h.usableCredential(c.Context(), provider.Slug)
 		if apiKey == "" {
 			return apperr.New(apperr.KindUnprocessable, "no usable credential for this provider; add an API key first")
 		}
@@ -464,7 +461,7 @@ func (h *providersHandler) CustomModelsSync(c fiber.Ctx) error {
 		kind := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(provider.APIKind)), "custom-")
 		anthropic := kind == "anthropic"
 		endpoint := services.V1Join(provider.BaseURL, "models")
-		upstream, err = h.app.Services.Upstream.ListModels(c.Context(), endpoint, anthropic, apiKey)
+		upstream, err = h.app.Services.Upstream.ListModels(c.Context(), endpoint, anthropic, oauth, apiKey)
 	}
 	if err != nil {
 		return apperr.New(apperr.KindUnprocessable, "%s", err.Error())
@@ -487,28 +484,6 @@ func (h *providersHandler) CustomModelsSync(c fiber.Ctx) error {
 		auditRecord(c.Context(), h.app, actorFrom(c), "pricing.import_upstream", provider.Slug, map[string]string{"count": strconv.Itoa(priced)})
 	}
 	return dtos.OK(c, fiber.Map{"models": cat.Models, "fetched_at": cat.FetchedAt, "priced": priced})
-}
-
-// customProviderSyncKey opens the first usable credential of the provider's
-// accounts — API keys live in Secret, OAuth tokens in Token — mirroring the
-// account probe's lookup order. Empty when no account carries a credential.
-func (h *providersHandler) customProviderSyncKey(ctx context.Context, providerSlug string) (string, error) {
-	accounts, err := h.app.Repos.Accounts.ListUsable(ctx, providerSlug)
-	if err != nil {
-		return "", err
-	}
-	apiKey := ""
-	for _, account := range accounts {
-		if !account.Secret.Empty() {
-			apiKey, err = h.app.Secrets.OpenString(account.Secret)
-		} else if !account.Token.Empty() {
-			apiKey, err = h.app.Secrets.OpenString(account.Token)
-		}
-		if apiKey != "" || err != nil {
-			break
-		}
-	}
-	return apiKey, err
 }
 
 // importUpstreamPricing creates pricing overrides for synced models whose
@@ -548,9 +523,6 @@ func (h *providersHandler) importUpstreamPricing(ctx context.Context, providerSl
 	return imported, nil
 }
 
-// usableAPIKey opens the highest-priority usable credential of a provider:
-// API keys live in Secret, OAuth tokens in Token. Returns "" when none of the
-// provider's usable accounts yields a readable secret.
 // usableBaseURL returns the first usable account's metadata.base_url
 // override for a catalog provider. Providers whose endpoint embeds an
 // account-scoped segment (e.g. Cloudflare's /accounts/<id>/ai) keep only a
@@ -572,24 +544,36 @@ func (h *providersHandler) usableBaseURL(ctx context.Context, providerSlug strin
 	return ""
 }
 
-func (h *providersHandler) usableAPIKey(ctx context.Context, providerSlug string) string {
+// usableCredential opens the highest-priority usable credential of a
+// provider: API keys live in Secret, OAuth tokens in Token — refreshed first
+// when about to expire, so a dashboard sync or model test never sends a stale
+// token. oauth reports that the credential is an OAuth access token. Empty
+// when none of the provider's usable accounts yields a readable credential.
+func (h *providersHandler) usableCredential(ctx context.Context, providerSlug string) (key string, oauth bool) {
 	accounts, err := h.app.Repos.Accounts.ListUsable(ctx, providerSlug)
 	if err != nil {
-		return ""
+		return "", false
 	}
 	for _, account := range accounts {
 		if !account.Secret.Empty() {
 			if key, err := h.app.Secrets.OpenString(account.Secret); err == nil && key != "" {
-				return key
+				return key, false
 			}
 		}
-		if !account.Token.Empty() {
-			if key, err := h.app.Secrets.OpenString(account.Token); err == nil && key != "" {
-				return key
+		if account.Token.Empty() {
+			continue
+		}
+		isOAuth := account.AuthKind == models.AuthOAuth
+		if isOAuth {
+			if account, err = h.app.OAuth.EnsureFresh(ctx, account); err != nil {
+				continue // refresh failed; try the next account
 			}
+		}
+		if key, err := h.app.Secrets.OpenString(account.Token); err == nil && key != "" {
+			return key, isOAuth
 		}
 	}
-	return ""
+	return "", false
 }
 
 // modelsSyncProviders are the providers whose model list the dashboard can
@@ -617,13 +601,13 @@ var modelsSyncProviders = map[string]bool{
 // errors are client-facing 422s.
 func (h *providersHandler) syncProviderModels(ctx context.Context, slug string) ([]services.UpstreamModel, error) {
 	spec, _ := catalog.Lookup(slug)
-	apiKey := h.usableAPIKey(ctx, slug)
+	apiKey, oauth := h.usableCredential(ctx, slug)
 
 	const noCredential = "no usable credential for this provider; add an API key first"
 	switch slug {
 	case "openrouter":
 		// The list is public (a stored key is still sent for rate limiting).
-		return h.app.Services.Upstream.ListModels(ctx, spec.BaseURL+"/models", false, apiKey)
+		return h.app.Services.Upstream.ListModels(ctx, spec.BaseURL+"/models", false, oauth, apiKey)
 	case "ollama", "ollama-local":
 		return h.app.Services.Upstream.ListOllamaModels(ctx, spec.BaseURL, apiKey)
 	case "cline":
@@ -639,15 +623,15 @@ func (h *providersHandler) syncProviderModels(ctx context.Context, slug string) 
 		if u := h.usableBaseURL(ctx, slug); u != "" {
 			base = strings.TrimSuffix(u, "/")
 		}
-		return h.app.Services.Upstream.ListModels(ctx, base+"/models", false, apiKey)
+		return h.app.Services.Upstream.ListModels(ctx, base+"/models", false, oauth, apiKey)
 	case "openai", "anthropic", "nvidia":
 		if apiKey == "" {
 			return nil, apperr.New(apperr.KindUnprocessable, noCredential)
 		}
 		// The official /v1/models of each; the anthropic dialect only swaps
-		// the auth headers (x-api-key + anthropic-version) — the response
-		// envelope is the same {"data":[{id}]} shape.
-		return h.app.Services.Upstream.ListModels(ctx, services.V1Join(spec.BaseURL, "models"), slug == "anthropic", apiKey)
+		// the auth headers (x-api-key, or Bearer + oauth beta for an OAuth
+		// token) — the response envelope is the same {"data":[{id}]} shape.
+		return h.app.Services.Upstream.ListModels(ctx, services.V1Join(spec.BaseURL, "models"), slug == "anthropic", oauth, apiKey)
 	}
 	return nil, apperr.New(apperr.KindUnprocessable, "provider %s does not support model sync", slug)
 }
@@ -834,7 +818,7 @@ func validateModelTestMessages(msgs []dtos.ModelTestMessage) error {
 // the catalog and custom-provider handlers; the response carries the
 // assistant reply, latency, and token usage so the playground can render
 // them inline.
-func (h *providersHandler) runModelTest(c fiber.Ctx, baseURL, apiKey string, anthropic bool) error {
+func (h *providersHandler) runModelTest(c fiber.Ctx, baseURL string, anthropic bool, apiKey string, oauth bool) error {
 	var req dtos.ModelTestRequest
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
@@ -846,7 +830,7 @@ func (h *providersHandler) runModelTest(c fiber.Ctx, baseURL, apiKey string, ant
 		return apperr.New(apperr.KindUnprocessable, "no base_url configured for this provider; add an account with a base URL first")
 	}
 
-	result, err := h.app.Services.Upstream.ChatCompletion(c.Context(), baseURL, anthropic, apiKey, req.Model, req.Messages)
+	result, err := h.app.Services.Upstream.ChatCompletion(c.Context(), baseURL, anthropic, oauth, apiKey, req.Model, req.Messages)
 	if err != nil {
 		return err
 	}
@@ -868,7 +852,8 @@ func (h *providersHandler) CatalogModelTest(c fiber.Ctx) error {
 	if base == "" {
 		base = spec.BaseURL
 	}
-	return h.runModelTest(c, base, h.usableAPIKey(c.Context(), slug), spec.Dialect == "anthropic")
+	apiKey, oauth := h.usableCredential(c.Context(), slug)
+	return h.runModelTest(c, base, spec.Dialect == "anthropic", apiKey, oauth)
 }
 
 // CustomModelTest issues one test chat completion for a custom provider model
@@ -898,7 +883,8 @@ func (h *providersHandler) CustomModelTest(c fiber.Ctx) error {
 
 	kind := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(provider.APIKind)), "custom-")
 	anthropic := kind == "anthropic"
-	return h.runModelTest(c, base, h.usableAPIKey(c.Context(), provider.Slug), anthropic)
+	apiKey, oauth := h.usableCredential(c.Context(), provider.Slug)
+	return h.runModelTest(c, base, anthropic, apiKey, oauth)
 }
 
 // --- Provider-scoped bulk account operations ---

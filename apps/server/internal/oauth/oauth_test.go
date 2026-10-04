@@ -98,6 +98,32 @@ func TestExchangeCodeEchoesState(t *testing.T) {
 	}
 }
 
+// Anthropic's profile endpoint nests the user under "account"; OpenAI's OIDC
+// userinfo is flat. Both must yield the email used for labels and dedup.
+func TestFetchUserInfoShapes(t *testing.T) {
+	for name, tc := range map[string]struct{ body, email, display string }{
+		"anthropic": {`{"account":{"email":"a@x.dev","display_name":"Ann"},"organization":{"name":"Org"}}`, "a@x.dev", "Ann"},
+		"openai":    {`{"email":"o@x.dev","name":"Otto"}`, "o@x.dev", "Otto"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Header.Get("Authorization") != "Bearer at" {
+					w.WriteHeader(http.StatusUnauthorized)
+					return
+				}
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			defer srv.Close()
+
+			tokens := &Tokens{AccessToken: "at"}
+			ProviderConfig{UserInfoURL: srv.URL}.FetchUserInfo(context.Background(), tokens)
+			if tokens.Email != tc.email || tokens.DisplayName != tc.display {
+				t.Errorf("got email=%q display=%q, want %q/%q", tokens.Email, tokens.DisplayName, tc.email, tc.display)
+			}
+		})
+	}
+}
+
 // The anthropic authorize URL carries its quirks: the code=true param, the
 // space-joined scopes, and S256 PKCE.
 func TestAnthropicAuthURL(t *testing.T) {

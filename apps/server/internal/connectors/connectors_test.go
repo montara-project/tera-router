@@ -615,6 +615,57 @@ func TestAnthropicAuthHeaders(t *testing.T) {
 	}
 }
 
+// Anthropic subscription (OAuth) tokens need the Claude Code prompt as the
+// leading system block — merged into one string Anthropic still answers 429
+// for Sonnet/Opus. API-key calls keep the caller's system untouched.
+func TestAnthropicOAuthSystemPreamble(t *testing.T) {
+	var got capture
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = capture{}
+		got.record(r)
+		io.WriteString(w, `{"id":"msg_1","model":"m","role":"assistant","content":[{"type":"text","text":"hi"}],"stop_reason":"end_turn","usage":{"input_tokens":1,"output_tokens":1}}`)
+	}))
+	defer srv.Close()
+
+	conn, err := newTestRegistry(t).For("anthropic", core.DialectAnthropic, srv.URL+"/v1")
+	if err != nil {
+		t.Fatalf("For: %v", err)
+	}
+	const cc = "You are Claude Code, Anthropic's official CLI for Claude."
+	oauth := core.Credentials{AccessToken: "oauth-tok"}
+
+	cases := []struct {
+		name   string
+		system string
+		creds  core.Credentials
+		want   string
+	}{
+		{"oauth adds leading block", "Be brief.", oauth, `[{"type":"text","text":"` + cc + `"},{"type":"text","text":"Be brief."}]`},
+		{"oauth without caller system", "", oauth, `[{"type":"text","text":"` + cc + `"}]`},
+		{"oauth caller already sent it", cc + "\nBe brief.", oauth, `[{"type":"text","text":"` + cc + `"},{"type":"text","text":"Be brief."}]`},
+		{"api key untouched", "Be brief.", core.Credentials{APIKey: "sk-ant"}, `"Be brief."`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := testRequest()
+			req.System = tc.system
+			if _, err := conn.Chat(context.Background(), req, tc.creds); err != nil {
+				t.Fatalf("Chat: %v", err)
+			}
+			var body struct {
+				System json.RawMessage `json:"system"`
+			}
+			_ = json.Unmarshal(got.raw, &body)
+			if string(body.System) != tc.want {
+				t.Errorf("system = %s, want %s", body.System, tc.want)
+			}
+			if req.SystemPreamble != "" {
+				t.Error("render must not mutate the caller's request")
+			}
+		})
+	}
+}
+
 func TestClientForProxyCaching(t *testing.T) {
 	if c := clientFor(core.Credentials{}); c != sharedClient {
 		t.Error("no proxy configured should use the shared client")
