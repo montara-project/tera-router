@@ -56,7 +56,7 @@ export default function UsageSection({ range }: { range: UsageRange }) {
 
       <OptimizationBar optimization={data.optimization} />
 
-      <UsageHealthStrip />
+      <UsageHealthStrip range={range} />
 
       <ProviderAccountingTable rows={data.providerAccounting} />
 
