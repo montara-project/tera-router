@@ -2,14 +2,14 @@ import { mutationOptions, queryOptions } from '@tanstack/react-query'
 
 import { getQueryClient } from '@/lib/providers/react-query'
 
-import type { PaginateDto } from '../dtos/paginate'
+import type { QuotaListDto } from '../dtos/query/schema'
 import type { QuotaRange } from '../models/quota'
 
 import { services } from '../services'
 
 export const QUOTA_QUERY_KEY = 'quota'
 
-export const LIST_QUOTA_QUERY_KEY = (params?: PaginateDto) => {
+export const LIST_QUOTA_QUERY_KEY = (params?: QuotaListDto) => {
   return [QUOTA_QUERY_KEY, 'list', params]
 }
 
@@ -17,14 +17,14 @@ export const OVERVIEW_QUOTA_QUERY_KEY = (range?: QuotaRange) => {
   return [QUOTA_QUERY_KEY, 'overview', range]
 }
 
-const list = (params?: PaginateDto) =>
+const list = (params?: QuotaListDto) =>
   queryOptions({
     queryKey: LIST_QUOTA_QUERY_KEY(params),
     queryFn: async () => {
       const res = await services.quota.list(params)
       return res.data
     },
-    refetchInterval: 5000,
+    refetchInterval: 60_000,
   })
 
 const overview = (range: QuotaRange = '30d') =>
@@ -34,7 +34,7 @@ const overview = (range: QuotaRange = '30d') =>
       const res = await services.quota.overview(range)
       return res.data
     },
-    refetchInterval: 5000,
+    refetchInterval: 60_000,
   })
 
 const toggleStatus = () => {
