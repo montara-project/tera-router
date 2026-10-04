@@ -223,6 +223,34 @@ func (h *providersHandler) CustomIndex(c fiber.Ctx) error {
 	return dtos.List(c, providers, dtos.TotalMeta(len(providers)))
 }
 
+// CustomShowBySlug resolves a custom provider by its unique slug
+// (GET /v1/custom-providers/by-slug/:slug) — used by list cells that only
+// carry the slug, e.g. pricing overrides.
+func (h *providersHandler) CustomShowBySlug(c fiber.Ctx) error {
+	slug := c.Params("slug")
+	if slug == "" {
+		return apperr.ErrBadRequest
+	}
+	provider, err := h.app.Repos.Providers.GetBySlug(c.Context(), slug)
+	if err != nil {
+		return err
+	}
+	return dtos.OK(c, provider)
+}
+
+// CustomShow returns a single custom provider (GET /v1/custom-providers/:id).
+func (h *providersHandler) CustomShow(c fiber.Ctx) error {
+	id, err := lib.ContextParamUUID(c, "id")
+	if err != nil {
+		return apperr.ErrBadRequest
+	}
+	provider, err := h.app.Repos.Providers.Get(c.Context(), id.String())
+	if err != nil {
+		return err
+	}
+	return dtos.OK(c, provider)
+}
+
 func (h *providersHandler) CustomStore(c fiber.Ctx) error {
 	var req dtos.CustomProvider
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
@@ -435,7 +463,7 @@ func (h *providersHandler) CustomModelsSync(c fiber.Ctx) error {
 		// different casing the raw comparison would miss.
 		kind := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(provider.APIKind)), "custom-")
 		anthropic := kind == "anthropic"
-		endpoint := upstreamModelsEndpoint(provider.BaseURL, anthropic)
+		endpoint := services.V1Join(provider.BaseURL, "models")
 		upstream, err = h.app.Services.Upstream.ListModels(c.Context(), endpoint, anthropic, apiKey)
 	}
 	if err != nil {
@@ -472,9 +500,9 @@ func (h *providersHandler) customProviderSyncKey(ctx context.Context, providerSl
 	apiKey := ""
 	for _, account := range accounts {
 		if !account.Secret.Empty() {
-			apiKey, err = h.app.Secrets.OpenString(fromModelsSealed(account.Secret))
+			apiKey, err = h.app.Secrets.OpenString(account.Secret)
 		} else if !account.Token.Empty() {
-			apiKey, err = h.app.Secrets.OpenString(fromModelsSealed(account.Token))
+			apiKey, err = h.app.Secrets.OpenString(account.Token)
 		}
 		if apiKey != "" || err != nil {
 			break
@@ -551,12 +579,12 @@ func (h *providersHandler) usableAPIKey(ctx context.Context, providerSlug string
 	}
 	for _, account := range accounts {
 		if !account.Secret.Empty() {
-			if key, err := h.app.Secrets.OpenString(fromModelsSealed(account.Secret)); err == nil && key != "" {
+			if key, err := h.app.Secrets.OpenString(account.Secret); err == nil && key != "" {
 				return key
 			}
 		}
 		if !account.Token.Empty() {
-			if key, err := h.app.Secrets.OpenString(fromModelsSealed(account.Token)); err == nil && key != "" {
+			if key, err := h.app.Secrets.OpenString(account.Token); err == nil && key != "" {
 				return key
 			}
 		}
@@ -619,7 +647,7 @@ func (h *providersHandler) syncProviderModels(ctx context.Context, slug string) 
 		// The official /v1/models of each; the anthropic dialect only swaps
 		// the auth headers (x-api-key + anthropic-version) — the response
 		// envelope is the same {"data":[{id}]} shape.
-		return h.app.Services.Upstream.ListModels(ctx, spec.BaseURL+"/models", slug == "anthropic", apiKey)
+		return h.app.Services.Upstream.ListModels(ctx, services.V1Join(spec.BaseURL, "models"), slug == "anthropic", apiKey)
 	}
 	return nil, apperr.New(apperr.KindUnprocessable, "provider %s does not support model sync", slug)
 }

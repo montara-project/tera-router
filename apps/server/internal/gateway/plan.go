@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"tera-router/server/internal/core"
-	"tera-router/server/internal/lib/sealer"
 	"tera-router/server/internal/models"
 )
 
@@ -101,7 +100,7 @@ func (s *Server) plan(ctx context.Context, targets []target) []attempt {
 func (s *Server) credentials(ctx context.Context, acc models.Account) (core.Credentials, error) {
 	creds := core.Credentials{AccountID: acc.ID, Headers: map[string]string{}}
 
-	// OAuth accounts (claude, codex) refresh their access token just in time
+	// OAuth accounts (anthropic, codex) refresh their access token just in time
 	// when it is expired or about to expire; the rotated tokens are persisted
 	// so the next dispatch reuses them. A failed refresh skips the account so
 	// the dispatcher falls back to another one.
@@ -111,14 +110,14 @@ func (s *Server) credentials(ctx context.Context, acc models.Account) (core.Cred
 	}
 
 	if !acc.Secret.Empty() {
-		key, err := s.app.Secrets.OpenString(toSealerSealed(acc.Secret))
+		key, err := s.app.Secrets.OpenString(acc.Secret)
 		if err != nil {
 			return core.Credentials{}, err
 		}
 		creds.APIKey = key
 	}
 	if !acc.Token.Empty() {
-		token, err := s.app.Secrets.OpenString(toSealerSealed(acc.Token))
+		token, err := s.app.Secrets.OpenString(acc.Token)
 		if err != nil {
 			return core.Credentials{}, err
 		}
@@ -149,12 +148,6 @@ func (s *Server) credentials(ctx context.Context, acc models.Account) (core.Cred
 
 // proxyPoolActive is the proxy_pools.status value meaning "probe succeeded".
 const proxyPoolActive = "active"
-
-// toSealerSealed converts the persisted sealed pair into the sealer's own
-// type.
-func toSealerSealed(s models.Sealed) sealer.Sealed {
-	return sealer.Sealed{WrappedDEK: s.WrappedDEK, Ciphertext: s.Ciphertext}
-}
 
 // cooldownTracker parks accounts that recently failed in a way that will not
 // recover on an immediate retry: rate limits and rejected credentials. It is

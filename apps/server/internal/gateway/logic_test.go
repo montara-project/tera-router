@@ -194,8 +194,9 @@ func TestCostMicrosUnpricedModelIsFree(t *testing.T) {
 
 func TestMergeUsage(t *testing.T) {
 	// Anthropic splits accounting: input at message start, output at the end.
-	acc := mergeUsage(core.Usage{}, core.Usage{PromptTokens: 100})
-	acc = mergeUsage(acc, core.Usage{CompletionTokens: 50})
+	var acc core.Usage
+	acc.Merge(core.Usage{PromptTokens: 100})
+	acc.Merge(core.Usage{CompletionTokens: 50})
 	if acc.PromptTokens != 100 || acc.CompletionTokens != 50 {
 		t.Errorf("merged = %+v, want both fields retained", acc)
 	}
@@ -204,18 +205,18 @@ func TestMergeUsage(t *testing.T) {
 	}
 
 	// A later non-zero value wins.
-	acc = mergeUsage(acc, core.Usage{PromptTokens: 200})
+	acc.Merge(core.Usage{PromptTokens: 200})
 	if acc.PromptTokens != 200 {
 		t.Errorf("prompt = %d, want the later 200", acc.PromptTokens)
 	}
 	// A later zero must not erase an earlier value.
-	acc = mergeUsage(acc, core.Usage{PromptTokens: 0})
+	acc.Merge(core.Usage{PromptTokens: 0})
 	if acc.PromptTokens != 200 {
 		t.Errorf("prompt = %d, want 200 (zero must not overwrite)", acc.PromptTokens)
 	}
 
 	// An explicit total is honored.
-	acc = mergeUsage(acc, core.Usage{TotalTokens: 999})
+	acc.Merge(core.Usage{TotalTokens: 999})
 	if acc.TotalTokens != 999 {
 		t.Errorf("total = %d, want 999", acc.TotalTokens)
 	}

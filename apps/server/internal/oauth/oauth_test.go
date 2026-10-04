@@ -13,27 +13,29 @@ import (
 // The provider configs are the wire contract with the upstream OAuth apps —
 // the client ids, endpoints, and quirks below must not drift.
 func TestProviderConfigs(t *testing.T) {
-	claude, ok := ConfigFor("claude")
+	anthropic, ok := ConfigFor("anthropic")
 	if !ok {
-		t.Fatal("no config for claude")
+		t.Fatal("no config for anthropic")
 	}
-	if claude.ClientID != "9d1c250a-e61b-44d9-88ed-5944d1962f5e" {
-		t.Errorf("claude client id = %q", claude.ClientID)
+	if anthropic.ClientID != "9d1c250a-e61b-44d9-88ed-5944d1962f5e" {
+		t.Errorf("anthropic client id = %q", anthropic.ClientID)
 	}
-	if claude.TokenContentType != "json" {
-		t.Errorf("claude token content type = %q, want json", claude.TokenContentType)
+	if anthropic.TokenContentType != "json" {
+		t.Errorf("anthropic token content type = %q, want json", anthropic.TokenContentType)
 	}
 	// The claude.ai grant validates against the console's OAuth service, and
 	// the exchange must echo the state — api.anthropic.com answers 400
 	// "Invalid request format" without it.
-	if claude.TokenURL != "https://console.anthropic.com/v1/oauth/token" {
-		t.Errorf("claude token url = %q", claude.TokenURL)
+	if anthropic.TokenURL != "https://console.anthropic.com/v1/oauth/token" {
+		t.Errorf("anthropic token url = %q", anthropic.TokenURL)
 	}
-	if !claude.EchoState {
-		t.Errorf("claude echo state = false, want true")
+	if !anthropic.EchoState {
+		t.Errorf("anthropic echo state = false, want true")
 	}
-	if claude.refreshURL() != claude.TokenURL {
-		t.Errorf("claude refresh url = %q, want the token url", claude.refreshURL())
+	// Anthropic's OAuth app only allow-lists its own console callback, so the
+	// redirect is pinned to the console display-code URI.
+	if got := anthropic.ResolveRedirectURI(0); got != "https://console.anthropic.com/oauth/code/callback" {
+		t.Errorf("anthropic redirect = %q, want Anthropic's console display-code callback", got)
 	}
 
 	codex, ok := ConfigFor("codex")
@@ -43,49 +45,11 @@ func TestProviderConfigs(t *testing.T) {
 	if codex.FixedLoopbackPort != 1455 {
 		t.Errorf("codex fixed port = %d, want 1455", codex.FixedLoopbackPort)
 	}
-	if got := codex.ResolveRedirectURI("http://ignored.example/cb", 0); got != "http://localhost:1455/auth/callback" {
+	if got := codex.ResolveRedirectURI(0); got != "http://localhost:1455/auth/callback" {
 		t.Errorf("codex redirect = %q", got)
 	}
-	if got := codex.ResolveRedirectURI("", 1457); got != "http://localhost:1457/auth/callback" {
+	if got := codex.ResolveRedirectURI(1457); got != "http://localhost:1457/auth/callback" {
 		t.Errorf("codex fallback redirect = %q, want the 1457 fallback", got)
-	}
-	// Claude's OAuth app only allow-lists Anthropic's own console callback
-	// (plus loopback hosts it can't use from a deployed dashboard), so the
-	// redirect is pinned to the console display-code URI regardless of what
-	// the dashboard requests.
-	if got := claude.ResolveRedirectURI("http://localhost:5173/whatever?x=1", 0); got != "https://console.anthropic.com/oauth/code/callback" {
-		t.Errorf("claude redirect = %q, want Anthropic's console display-code callback", got)
-	}
-
-	// The catalog-tile aliases reuse the subscription flows: OpenAI's
-	// "sign in to official website" runs the Codex flow but must attribute
-	// its account to the hidden codex provider, while Anthropic's stays on
-	// the anthropic catalog provider.
-	openai, ok := ConfigFor("openai")
-	if !ok {
-		t.Fatal("no config for openai")
-	}
-	if openai.AccountSlug() != "codex" {
-		t.Errorf("openai account slug = %q, want codex", openai.AccountSlug())
-	}
-	if openai.ClientID != codex.ClientID || openai.FixedLoopbackPort != codex.FixedLoopbackPort {
-		t.Errorf("openai flow drifts from codex: %+v", openai)
-	}
-	anthropic, ok := ConfigFor("anthropic")
-	if !ok {
-		t.Fatal("no config for anthropic")
-	}
-	if anthropic.AccountSlug() != "anthropic" {
-		t.Errorf("anthropic account slug = %q, want anthropic", anthropic.AccountSlug())
-	}
-	if anthropic.ClientID != claude.ClientID || anthropic.AuthorizeURL != claude.AuthorizeURL {
-		t.Errorf("anthropic flow drifts from claude: %+v", anthropic)
-	}
-	// The anthropic alias runs the same token endpoint contract: state echo
-	// is per-config, so the alias must opt in itself — a provider-slug check
-	// here once skipped the state for this exact alias.
-	if !anthropic.EchoState || anthropic.TokenURL != claude.TokenURL {
-		t.Errorf("anthropic flow drifts from claude token contract: %+v", anthropic)
 	}
 }
 
@@ -103,7 +67,6 @@ func TestExchangeCodeEchoesState(t *testing.T) {
 
 	cfg := ProviderConfig{
 		Provider:         "anthropic",
-		Flow:             FlowAuthCodePKCE,
 		ClientID:         "client-1",
 		TokenURL:         srv.URL,
 		TokenContentType: "json",
@@ -135,17 +98,17 @@ func TestExchangeCodeEchoesState(t *testing.T) {
 	}
 }
 
-// The claude authorize URL carries its quirks: the code=true param, the
+// The anthropic authorize URL carries its quirks: the code=true param, the
 // space-joined scopes, and S256 PKCE.
-func TestClaudeAuthURL(t *testing.T) {
-	claude, _ := ConfigFor("claude")
-	u := claude.AuthURL("http://localhost:5173/callback", "state-1", "challenge-1")
+func TestAnthropicAuthURL(t *testing.T) {
+	anthropic, _ := ConfigFor("anthropic")
+	u := anthropic.AuthURL("https://console.anthropic.com/oauth/code/callback", "state-1", "challenge-1")
 
 	for _, want := range []string{
 		"https://claude.ai/oauth/authorize?",
 		"response_type=code",
 		"client_id=9d1c250a-e61b-44d9-88ed-5944d1962f5e",
-		"scope=org%3Acreate_api_key+user%3Aprofile+user%3Ainference",
+		"scope=org%3Acreate_api_key%20user%3Aprofile%20user%3Ainference",
 		"code_challenge=challenge-1",
 		"code_challenge_method=S256",
 		"code=true",
@@ -180,7 +143,7 @@ func TestCodexAuthURL(t *testing.T) {
 }
 
 func TestGeneratePKCE(t *testing.T) {
-	pkce, err := GeneratePKCE(32)
+	pkce, err := GeneratePKCE()
 	if err != nil {
 		t.Fatalf("generate: %v", err)
 	}

@@ -224,7 +224,7 @@ func TestStreamRenderingProducesValidEventSequence(t *testing.T) {
 				t.Fatalf("codec: %v", err)
 			}
 
-			state := streamState("my-alias")
+			state := &transform.StreamState{Model: "my-alias"}
 			var raw []byte
 			for _, chunk := range chunks {
 				events, err := codec.RenderStreamChunk(chunk, state)
@@ -264,7 +264,7 @@ func TestStreamRenderingProducesValidEventSequence(t *testing.T) {
 }
 
 func TestStreamStatePresetsEchoModel(t *testing.T) {
-	state := streamState("my-alias")
+	state := &transform.StreamState{Model: "my-alias"}
 	if state.Model != "my-alias" {
 		t.Errorf("state model = %q, want my-alias", state.Model)
 	}

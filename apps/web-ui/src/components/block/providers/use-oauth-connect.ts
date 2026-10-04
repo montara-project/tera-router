@@ -2,20 +2,13 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
-import { DUAL_AUTH_PROVIDERS, OAUTH_PROVIDERS } from '@/components/block/providers/catalog-connect'
-import { env } from '@/config/env'
 import { toastAxiosError } from '@/lib/api/axios-error'
 import { ACCOUNT_QUERY_KEY } from '@/lib/api/queries/account'
 import { PROVIDER_QUERY_KEY } from '@/lib/api/queries/provider'
 import { services } from '@/lib/api/services'
 
-/** Source marker every OAuth callback page reports with (the backend's
- * loopback listener for Codex and the SPA /callback route). */
+/** Source marker the backend's loopback callback page reports with (Codex). */
 export const OAUTH_MESSAGE_SOURCE = 'tera-router-oauth'
-
-// Where the started flow's provider is stashed so /callback can complete the
-// exchange — the provider's redirect carries only the code and state.
-const PROVIDER_STORAGE_KEY = 'tera-oauth-provider'
 
 /** A flow whose popup cannot hand the code back to the dashboard: the user
  * pastes what the popup ends on (the provider's displayed code, or the
@@ -28,12 +21,16 @@ interface PasteFlow {
   mode: 'code' | 'url'
 }
 
-// Slugs driving the OAuth flows: claude/codex are the subscription tiles,
-// anthropic/openai the dual-auth catalog tiles running the same flows.
-const oauthProviderName = (slug: string) =>
-  OAUTH_PROVIDERS[slug] ?? DUAL_AUTH_PROVIDERS[slug]?.name ?? slug
+/** Loopback hostnames the dashboard can be served from: only there does the
+ * browser share the machine with the server's Codex callback listener. */
+const isLoopbackHost = (hostname: string): boolean =>
+  hostname === 'localhost' ||
+  hostname === '127.0.0.1' ||
+  hostname === '::1' ||
+  hostname === '[::1]' ||
+  hostname.endsWith('.localhost')
 
-/** Accepts the pasted completion input in every shape it arrives: Claude's
+/** Accepts the pasted completion input in every shape it arrives: Anthropic's
  * displayed `code#state`, a bare code, or a full callback URL (Codex's
  * loopback redirect lands on the browser's own machine, where the dashboard
  * can only read the address bar). Returns null when no code is extractable. */
@@ -56,10 +53,10 @@ const resolvePastedCode = (raw: string): { code: string; state?: string } | null
 /**
  * Drives one OAuth connect flow: asks the server for the authorize URL and
  * opens it in a popup. The authorize response decides how the flow completes:
- * `redirect` waits for the callback page's postMessage (the backend's loopback
- * listener or the SPA /callback route); `paste_code` and `paste_callback_url`
- * open the paste dialog — the popup stays open for the user to copy from —
- * and finish through the exchange endpoint.
+ * `paste_code` opens the paste dialog (the popup stays open for the user to
+ * copy from) and finishes through the exchange endpoint; `loopback` waits for
+ * the server listener's postMessage when the dashboard runs on that same
+ * machine, and otherwise falls back to pasting the callback URL.
  */
 export function useOAuthConnect() {
   const queryClient = useQueryClient()
@@ -67,16 +64,13 @@ export function useOAuthConnect() {
   const [pasteFlow, setPasteFlow] = useState<PasteFlow | null>(null)
   const [pastePending, setPastePending] = useState(false)
 
-  const connect = async (provider: string) => {
+  const connect = async (provider: string, name: string) => {
     setConnecting(provider)
     // A paste flow hands control to the dialog, so `connecting` must survive
     // this function's finally until the dialog resolves or cancels.
     let paste = false
     try {
-      // The callback must follow the API origin: development splits dashboard
-      // and API across ports, while the shipped image serves both from the
-      // page origin (VITE_API_URL falls back to window.location.origin).
-      const res = await services.oauth.authorize(provider, `${env.VITE_API_URL}/callback`)
+      const res = await services.oauth.authorize(provider)
       const { authorize_url, state, completion } = res.data.data
 
       const popup = window.open(authorize_url, 'tera-oauth', 'width=560,height=760,popup=yes')
@@ -85,15 +79,19 @@ export function useOAuthConnect() {
         return
       }
 
-      const mode =
-        completion === 'paste_code' ? 'code' : completion === 'paste_callback_url' ? 'url' : null
-      if (mode) {
+      if (completion === 'paste_code') {
         paste = true
-        setPasteFlow({ provider, name: oauthProviderName(provider), state, popup, mode })
+        setPasteFlow({ provider, name, state, popup, mode: 'code' })
         return
       }
 
-      sessionStorage.setItem(PROVIDER_STORAGE_KEY, provider)
+      // Codex's loopback listener only reports back to a browser on the same
+      // machine; a remotely-served dashboard must paste the callback URL.
+      if (!isLoopbackHost(window.location.hostname)) {
+        paste = true
+        setPasteFlow({ provider, name, state, popup, mode: 'url' })
+        return
+      }
 
       const succeeded = await new Promise<boolean>((resolve) => {
         const finish = (result: boolean) => {
@@ -124,13 +122,12 @@ export function useOAuthConnect() {
       if (succeeded) {
         await queryClient.invalidateQueries({ queryKey: [ACCOUNT_QUERY_KEY] })
         await queryClient.invalidateQueries({ queryKey: [PROVIDER_QUERY_KEY] })
-        toast.success(`${oauthProviderName(provider)} connected`)
+        toast.success(`${name} connected`)
       }
     } catch (error) {
       toastAxiosError(error)
     } finally {
       if (!paste) {
-        sessionStorage.removeItem(PROVIDER_STORAGE_KEY)
         setConnecting(null)
       }
     }

@@ -24,10 +24,10 @@ import (
 //	"sent_delta"    bool  — message_delta already emitted
 //	"open_block"    int   — wire index of the currently open content block (-1 = none)
 //	"open_kind"     string— "text" | "thinking" | "tool_use"
+//	"open_tool_index" int — canonical index of the open tool_use block
 //	"next_index"    int   — next free content-block index
 //	"tool_by_index" map[int]int — upstream wire block index → tool-call index
 //	"usage"         core.Usage — cumulative usage (parse side)
-//	"usage_out"     int   — output tokens to report on message_delta (render side)
 
 // antStreamEvent is the union of every Anthropic stream event payload we read.
 type antStreamEvent struct {
@@ -156,7 +156,7 @@ func (AnthropicCodec) ParseStreamEvent(event string, data []byte, state *StreamS
 				// emitted usage always reports the full picture (input from
 				// message_start plus the final output count).
 				antAddUsage(state, *ev.Usage)
-				u := antStateUsage(state)
+				u, _ := state.Get("usage").(core.Usage)
 				chunks = append(chunks, core.StreamChunk{Type: core.ChunkUsage, Usage: &u})
 			} else {
 				u := antUsageToCanonical(*ev.Usage)
@@ -171,7 +171,7 @@ func (AnthropicCodec) ParseStreamEvent(event string, data []byte, state *StreamS
 			msg = ev.Error.Message
 		}
 		kind := core.ErrUpstream
-		if antLooksRateLimited(msg) {
+		if core.LooksRateLimited(msg) {
 			kind = core.ErrRateLimit
 		}
 		return []core.StreamChunk{{
@@ -185,30 +185,16 @@ func (AnthropicCodec) ParseStreamEvent(event string, data []byte, state *StreamS
 	}
 }
 
-// antLooksRateLimited recognizes the overload/quota wording Anthropic uses when
-// it rejects a stream mid-flight, so the dispatcher can cool the account down
-// instead of treating it as a transient upstream fault.
-func antLooksRateLimited(msg string) bool {
-	m := strings.ToLower(msg)
-	return strings.Contains(m, "rate limit") ||
-		strings.Contains(m, "overloaded") ||
-		strings.Contains(m, "quota") ||
-		strings.Contains(m, "too many requests")
-}
-
 // antToolIndexFor maps an upstream content-block index to a compact 0-based
 // tool-call index, allocating the next one on first sight.
 func antToolIndexFor(state *StreamState, blockIndex int) int {
 	if state == nil {
 		return blockIndex
 	}
-	if state.Custom == nil {
-		state.Custom = map[string]any{}
-	}
-	m, _ := state.Custom["tool_by_index"].(map[int]int)
+	m, _ := state.Get("tool_by_index").(map[int]int)
 	if m == nil {
 		m = map[int]int{}
-		state.Custom["tool_by_index"] = m
+		state.Set("tool_by_index", m)
 	}
 	if idx, ok := m[blockIndex]; ok {
 		return idx
@@ -219,18 +205,17 @@ func antToolIndexFor(state *StreamState, blockIndex int) int {
 }
 
 // antAddUsage accumulates a partial Anthropic usage record into the stream
-// state, overwriting only the fields the event actually reported.
+// state. Anthropic reports the input/cache counts as one cumulative group and
+// the output count separately, so the input group replaces the previous one
+// wholesale (a zero cache count clears a prior value) rather than overlaying
+// per field. The total is always recomputed from the merged counts.
 func antAddUsage(state *StreamState, u antUsage) {
 	if state == nil {
 		return
 	}
-	if state.Custom == nil {
-		state.Custom = map[string]any{}
-	}
-	cur, _ := state.Custom["usage"].(core.Usage)
+	cur, _ := state.Get("usage").(core.Usage)
 	if u.InputTokens > 0 || u.CacheReadInputTokens > 0 || u.CacheCreationInputTokens > 0 {
-		prompt := u.InputTokens + u.CacheReadInputTokens + u.CacheCreationInputTokens
-		cur.PromptTokens = prompt
+		cur.PromptTokens = u.InputTokens + u.CacheReadInputTokens + u.CacheCreationInputTokens
 		cur.CachedTokens = u.CacheReadInputTokens
 		cur.CacheWriteTokens = u.CacheCreationInputTokens
 	}
@@ -238,85 +223,28 @@ func antAddUsage(state *StreamState, u antUsage) {
 		cur.CompletionTokens = u.OutputTokens
 	}
 	cur.TotalTokens = cur.PromptTokens + cur.CompletionTokens
-	state.Custom["usage"] = cur
-}
-
-func antStateUsage(state *StreamState) core.Usage {
-	if state == nil || state.Custom == nil {
-		return core.Usage{}
-	}
-	u, _ := state.Custom["usage"].(core.Usage)
-	return u
+	state.Set("usage", cur)
 }
 
 // ---- stream rendering -------------------------------------------------------
-
-// antEvent formats a named Anthropic SSE event: "event: <name>\ndata: <json>\n\n".
-func antEvent(name string, payload map[string]any) []byte {
-	b, err := json.Marshal(payload)
-	if err != nil {
-		b = []byte(`{}`)
-	}
-	out := make([]byte, 0, len(name)+len(b)+20)
-	out = append(out, "event: "...)
-	out = append(out, name...)
-	out = append(out, '\n')
-	out = append(out, "data: "...)
-	out = append(out, b...)
-	out = append(out, '\n', '\n')
-	return out
-}
-
-// antStateInt reads an int bookkeeping value with a default.
-func antStateInt(state *StreamState, key string, def int) int {
-	if state == nil || state.Custom == nil {
-		return def
-	}
-	if v, ok := state.Custom[key].(int); ok {
-		return v
-	}
-	return def
-}
-
-func antSet(state *StreamState, key string, val any) {
-	if state == nil {
-		return
-	}
-	if state.Custom == nil {
-		state.Custom = map[string]any{}
-	}
-	state.Custom[key] = val
-}
-
-func antStateBool(state *StreamState, key string) bool {
-	if state == nil || state.Custom == nil {
-		return false
-	}
-	v, _ := state.Custom[key].(bool)
-	return v
-}
 
 // antRenderMessageStart emits the opening message_start event, once per stream.
 // Input tokens are reported from the accumulated usage when the upstream
 // supplied them, else 0.
 func antRenderMessageStart(state *StreamState) []byte {
-	antSet(state, "sent_start", true)
-	usage := antStateUsage(state)
+	state.Set("sent_start", true)
+	usage, _ := state.Get("usage").(core.Usage)
 	id := "msg_stream"
 	if state != nil && state.MessageID != "" {
 		id = state.MessageID
 	}
-	model := ""
-	if state != nil {
-		model = state.Model
-	}
-	return antEvent("message_start", map[string]any{
+	return sseJSON("message_start", map[string]any{
 		"type": "message_start",
 		"message": map[string]any{
 			"id":            id,
 			"type":          "message",
 			"role":          "assistant",
-			"model":         model,
+			"model":         stateModel(state),
 			"content":       []any{},
 			"stop_reason":   nil,
 			"stop_sequence": nil,
@@ -333,16 +261,16 @@ func antRenderMessageStart(state *StreamState) []byte {
 // antCloseOpenBlock emits content_block_stop for the currently open block and
 // allocates the next index.
 func antCloseOpenBlock(state *StreamState) [][]byte {
-	idx := antStateInt(state, "open_block", -1)
+	idx := state.Int("open_block", -1)
 	if idx < 0 {
 		return nil
 	}
-	events := [][]byte{antEvent("content_block_stop", map[string]any{
+	events := [][]byte{sseJSON("content_block_stop", map[string]any{
 		"type": "content_block_stop", "index": idx,
 	})}
-	antSet(state, "open_block", -1)
-	antSet(state, "open_kind", "")
-	antSet(state, "next_index", idx+1)
+	state.Set("open_block", -1)
+	state.Set("open_kind", "")
+	state.Set("next_index", idx+1)
 	return events
 }
 
@@ -350,16 +278,16 @@ func antCloseOpenBlock(state *StreamState) [][]byte {
 // closing whatever block was open first.
 func antOpenBlock(state *StreamState, kind string, extra map[string]any) [][]byte {
 	events := antCloseOpenBlock(state)
-	idx := antStateInt(state, "next_index", 0)
+	idx := state.Int("next_index", 0)
 	block := map[string]any{"type": kind}
 	for k, v := range extra {
 		block[k] = v
 	}
-	events = append(events, antEvent("content_block_start", map[string]any{
+	events = append(events, sseJSON("content_block_start", map[string]any{
 		"type": "content_block_start", "index": idx, "content_block": block,
 	}))
-	antSet(state, "open_block", idx)
-	antSet(state, "open_kind", kind)
+	state.Set("open_block", idx)
+	state.Set("open_kind", kind)
 	return events
 }
 
@@ -380,7 +308,7 @@ func (AnthropicCodec) RenderStreamChunk(chunk core.StreamChunk, state *StreamSta
 		if chunk.Err != nil {
 			msg = chunk.Err.Error()
 		}
-		return [][]byte{antEvent("error", map[string]any{
+		return [][]byte{sseJSON("error", map[string]any{
 			"type":  "error",
 			"error": map[string]any{"type": "api_error", "message": msg},
 		})}, nil
@@ -389,7 +317,7 @@ func (AnthropicCodec) RenderStreamChunk(chunk core.StreamChunk, state *StreamSta
 		// Usage is folded into the state; Anthropic reports it on
 		// message_start and message_delta, not as its own event.
 		if chunk.Usage != nil {
-			u := antStateUsage(state)
+			u, _ := state.Get("usage").(core.Usage)
 			if chunk.Usage.PromptTokens > 0 {
 				u.PromptTokens = chunk.Usage.PromptTokens
 				u.CachedTokens = chunk.Usage.CachedTokens
@@ -399,12 +327,12 @@ func (AnthropicCodec) RenderStreamChunk(chunk core.StreamChunk, state *StreamSta
 				u.CompletionTokens = chunk.Usage.CompletionTokens
 			}
 			u.TotalTokens = u.PromptTokens + u.CompletionTokens
-			antSet(state, "usage", u)
+			state.Set("usage", u)
 		}
 		return nil, nil
 	}
 
-	if !antStateBool(state, "sent_start") {
+	if !state.Bool("sent_start") {
 		events = append(events, antRenderMessageStart(state))
 	}
 
@@ -413,24 +341,24 @@ func (AnthropicCodec) RenderStreamChunk(chunk core.StreamChunk, state *StreamSta
 		if chunk.Delta == "" {
 			break
 		}
-		if antStateInt(state, "open_block", -1) < 0 || antStateString(state, "open_kind") != "text" {
+		if state.Int("open_block", -1) < 0 || state.String("open_kind") != "text" {
 			events = append(events, antOpenBlock(state, "text", map[string]any{"text": ""})...)
 		}
-		events = append(events, antEvent("content_block_delta", map[string]any{
+		events = append(events, sseJSON("content_block_delta", map[string]any{
 			"type":  "content_block_delta",
-			"index": antStateInt(state, "open_block", 0),
+			"index": state.Int("open_block", 0),
 			"delta": map[string]any{"type": "text_delta", "text": chunk.Delta},
 		}))
 
 	case core.ChunkThinking:
 		if chunk.Signature != "" {
 			// A signature delta only makes sense on an open thinking block.
-			if antStateInt(state, "open_block", -1) < 0 || antStateString(state, "open_kind") != "thinking" {
+			if state.Int("open_block", -1) < 0 || state.String("open_kind") != "thinking" {
 				events = append(events, antOpenBlock(state, "thinking", map[string]any{"thinking": ""})...)
 			}
-			events = append(events, antEvent("content_block_delta", map[string]any{
+			events = append(events, sseJSON("content_block_delta", map[string]any{
 				"type":  "content_block_delta",
-				"index": antStateInt(state, "open_block", 0),
+				"index": state.Int("open_block", 0),
 				"delta": map[string]any{"type": "signature_delta", "signature": chunk.Signature},
 			}))
 			break
@@ -438,12 +366,12 @@ func (AnthropicCodec) RenderStreamChunk(chunk core.StreamChunk, state *StreamSta
 		if chunk.Delta == "" {
 			break
 		}
-		if antStateInt(state, "open_block", -1) < 0 || antStateString(state, "open_kind") != "thinking" {
+		if state.Int("open_block", -1) < 0 || state.String("open_kind") != "thinking" {
 			events = append(events, antOpenBlock(state, "thinking", map[string]any{"thinking": ""})...)
 		}
-		events = append(events, antEvent("content_block_delta", map[string]any{
+		events = append(events, sseJSON("content_block_delta", map[string]any{
 			"type":  "content_block_delta",
-			"index": antStateInt(state, "open_block", 0),
+			"index": state.Int("open_block", 0),
 			"delta": map[string]any{"type": "thinking_delta", "thinking": chunk.Delta},
 		}))
 
@@ -451,14 +379,14 @@ func (AnthropicCodec) RenderStreamChunk(chunk core.StreamChunk, state *StreamSta
 		if chunk.ToolCall == nil {
 			break
 		}
-		openKind := antStateString(state, "open_kind")
+		openKind := state.String("open_kind")
 		// The first chunk of a tool call carries its id: open a fresh block.
 		if chunk.ToolCall.ID != "" {
-			if openKind != "tool_use" || chunk.Index != antStateInt(state, "open_tool_index", -1) {
+			if openKind != "tool_use" || chunk.Index != state.Int("open_tool_index", -1) {
 				events = append(events, antOpenBlock(state, "tool_use", map[string]any{
 					"id": chunk.ToolCall.ID, "name": chunk.ToolCall.Name, "input": map[string]any{},
 				})...)
-				antSet(state, "open_tool_index", chunk.Index)
+				state.Set("open_tool_index", chunk.Index)
 			}
 		} else if openKind != "tool_use" {
 			// Argument fragments for a call we never saw the header of: skip.
@@ -466,9 +394,9 @@ func (AnthropicCodec) RenderStreamChunk(chunk core.StreamChunk, state *StreamSta
 		}
 		args := strings.TrimSpace(string(chunk.ToolCall.Arguments))
 		if args != "" && args != "{}" && args != "[]" {
-			events = append(events, antEvent("content_block_delta", map[string]any{
+			events = append(events, sseJSON("content_block_delta", map[string]any{
 				"type":  "content_block_delta",
-				"index": antStateInt(state, "open_block", 0),
+				"index": state.Int("open_block", 0),
 				"delta": map[string]any{"type": "input_json_delta", "partial_json": args},
 			}))
 		}
@@ -477,7 +405,7 @@ func (AnthropicCodec) RenderStreamChunk(chunk core.StreamChunk, state *StreamSta
 		events = append(events, antCloseOpenBlock(state)...)
 		// A second finish chunk (defensive: some upstreams repeat it) must not
 		// emit a second message_delta.
-		if !antStateBool(state, "sent_delta") {
+		if !state.Bool("sent_delta") {
 			events = append(events, antRenderMessageDelta(state, renderAntStop(chunk.FinishReason)))
 		}
 
@@ -493,8 +421,8 @@ func (AnthropicCodec) RenderStreamChunk(chunk core.StreamChunk, state *StreamSta
 // (input tokens included), which matters because the canonical usage chunk
 // typically arrives after message_start was already flushed.
 func antRenderMessageDelta(state *StreamState, stopReason string) []byte {
-	antSet(state, "sent_delta", true)
-	usage := antStateUsage(state)
+	state.Set("sent_delta", true)
+	usage, _ := state.Get("usage").(core.Usage)
 	payload := map[string]any{
 		"type":  "message_delta",
 		"delta": map[string]any{"stop_reason": stopReason, "stop_sequence": nil},
@@ -509,15 +437,7 @@ func antRenderMessageDelta(state *StreamState, stopReason string) []byte {
 	if usage.CacheWriteTokens > 0 {
 		payload["usage"].(map[string]any)["cache_creation_input_tokens"] = usage.CacheWriteTokens
 	}
-	return antEvent("message_delta", payload)
-}
-
-func antStateString(state *StreamState, key string) string {
-	if state == nil || state.Custom == nil {
-		return ""
-	}
-	v, _ := state.Custom[key].(string)
-	return v
+	return sseJSON("message_delta", payload)
 }
 
 // RenderStreamDone closes the stream: it guarantees message_start and
@@ -527,13 +447,13 @@ func (AnthropicCodec) RenderStreamDone(state *StreamState) [][]byte {
 		return nil
 	}
 	var events [][]byte
-	if !antStateBool(state, "sent_start") {
+	if !state.Bool("sent_start") {
 		events = append(events, antRenderMessageStart(state))
 	}
 	events = append(events, antCloseOpenBlock(state)...)
-	if !antStateBool(state, "sent_delta") {
+	if !state.Bool("sent_delta") {
 		events = append(events, antRenderMessageDelta(state, renderAntStop(core.FinishStop)))
 	}
-	events = append(events, antEvent("message_stop", map[string]any{"type": "message_stop"}))
+	events = append(events, sseJSON("message_stop", map[string]any{"type": "message_stop"}))
 	return events
 }

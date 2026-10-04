@@ -1,17 +1,15 @@
 // Package oauth implements the OAuth flows tera-router uses to connect
-// subscription/OAuth providers — currently Anthropic (claude) and OpenAI
-// (codex) — without an API key, ported from the IDRouter reference
-// (internal/oauth).
+// subscription/OAuth providers — Anthropic and OpenAI (codex) — without an
+// API key, ported from the IDRouter reference (internal/oauth).
 //
 // Both providers use Authorization Code + PKCE: the dashboard asks the server
 // for a provider authorize URL (POST /v1/oauth/:provider/authorize), the user
 // signs in on the provider's official web, and the code is exchanged for
 // tokens. Codex completes automatically through the fixed loopback listener;
-// Claude cannot redirect back to a deployed dashboard (Anthropic's OAuth app
-// only allow-lists its own console callback), so the console page displays the
-// code and the user pastes it into POST /v1/oauth/:provider/exchange. Tokens
-// are sealed into an account record; expired access tokens are refreshed on
-// demand from the stored refresh token.
+// Anthropic's OAuth app only allow-lists its own console callback, so the
+// console page displays the code and the user pastes it into
+// POST /v1/oauth/:provider/exchange. Tokens are sealed into an account record;
+// expired access tokens are refreshed on demand from the stored refresh token.
 package oauth
 
 import (
@@ -21,12 +19,6 @@ import (
 	"fmt"
 )
 
-// FlowType discriminates the OAuth flow a provider uses.
-type FlowType string
-
-// FlowAuthCodePKCE is Authorization Code with PKCE (S256).
-const FlowAuthCodePKCE FlowType = "authorization_code_pkce"
-
 // PKCE holds a generated PKCE verifier/challenge pair plus a CSRF state.
 type PKCE struct {
 	Verifier  string
@@ -34,13 +26,9 @@ type PKCE struct {
 	State     string
 }
 
-// GeneratePKCE produces a PKCE pair using the S256 method. bytes controls the
-// verifier entropy (default 32).
-func GeneratePKCE(bytes int) (PKCE, error) {
-	if bytes <= 0 {
-		bytes = 32
-	}
-	verifier, err := randomBase64URL(bytes)
+// GeneratePKCE produces a PKCE pair using the S256 method.
+func GeneratePKCE() (PKCE, error) {
+	verifier, err := randomBase64URL(32)
 	if err != nil {
 		return PKCE{}, err
 	}

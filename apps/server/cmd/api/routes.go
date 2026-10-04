@@ -82,6 +82,8 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	protected.Get("/providers/rates", h.Providers.Rates)
 	protected.Get("/custom-providers", h.Providers.CustomIndex)
 	protected.Post("/custom-providers", h.Providers.CustomStore)
+	protected.Get("/custom-providers/by-slug/:slug", h.Providers.CustomShowBySlug)
+	protected.Get("/custom-providers/:id", h.Providers.CustomShow)
 	protected.Put("/custom-providers/:id", h.Providers.CustomUpdate)
 	protected.Patch("/custom-providers/:id", h.Providers.CustomUpdate)
 	protected.Delete("/custom-providers/:id", h.Providers.CustomDelete)
@@ -116,16 +118,12 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	protected.Delete("/providers/:id/accounts/disabled", h.Providers.AccountsBulkDeleteDisabled)
 	protected.Delete("/providers/:id/accounts/all", h.Providers.AccountsBulkDeleteAll)
 
-	// OAuth connection flows (claude, codex): start a PKCE flow against the
-	// provider's official web, then exchange the returned code for sealed
+	// OAuth connection flows (anthropic, codex): start a PKCE flow against
+	// the provider's official web, then exchange the returned code for sealed
 	// tokens. Codex additionally captures its fixed loopback redirect on
 	// localhost:1455/1457 via an in-process listener.
-	protected.Get("/oauth/providers", h.OAuth.ListProviders)
 	protected.Post("/oauth/:provider/authorize", h.OAuth.Authorize)
 	protected.Post("/oauth/:provider/exchange", h.OAuth.Exchange)
-	// Public: the OAuth provider's browser redirect lands here with only the
-	// code and state; the session keyed by state carries the auth context.
-	r.Get("/callback", h.OAuth.DashboardCallback)
 
 	// Budgets & usage
 	protected.Get("/budgets", h.Budgets.Index)

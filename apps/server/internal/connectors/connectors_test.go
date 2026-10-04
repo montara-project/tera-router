@@ -587,6 +587,9 @@ func TestAnthropicAuthHeaders(t *testing.T) {
 	if got.headers.Get("anthropic-version") != "2023-06-01" {
 		t.Errorf("anthropic-version = %q", got.headers.Get("anthropic-version"))
 	}
+	if got.headers.Get("anthropic-beta") != "" {
+		t.Errorf("API-key auth must not send the oauth beta, got %q", got.headers.Get("anthropic-beta"))
+	}
 
 	// OAuth tokens use the bearer scheme instead of x-api-key.
 	if _, err := conn.Chat(context.Background(), testRequest(), core.Credentials{AccessToken: "oauth-tok"}); err != nil {
@@ -597,6 +600,18 @@ func TestAnthropicAuthHeaders(t *testing.T) {
 	}
 	if got.headers.Get("x-api-key") != "" {
 		t.Errorf("OAuth auth must not send x-api-key, got %q", got.headers.Get("x-api-key"))
+	}
+	if got.headers.Get("anthropic-beta") != "oauth-2025-04-20" {
+		t.Errorf("OAuth anthropic-beta = %q, want oauth-2025-04-20", got.headers.Get("anthropic-beta"))
+	}
+
+	// An operator-configured beta is kept alongside the oauth flag.
+	creds := core.Credentials{AccessToken: "oauth-tok", Headers: map[string]string{"Anthropic-Beta": "prompt-caching-2024-07-31"}}
+	if _, err := conn.Chat(context.Background(), testRequest(), creds); err != nil {
+		t.Fatalf("Chat(oauth+beta): %v", err)
+	}
+	if got.headers.Get("anthropic-beta") != "oauth-2025-04-20,prompt-caching-2024-07-31" {
+		t.Errorf("merged anthropic-beta = %q", got.headers.Get("anthropic-beta"))
 	}
 }
 

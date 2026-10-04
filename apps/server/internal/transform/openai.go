@@ -2,8 +2,7 @@ package transform
 
 import (
 	"bytes"
-	"crypto/rand"
-	"encoding/hex"
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -91,6 +90,13 @@ func (OpenAICodec) ParseRequest(body []byte) (*core.ChatRequest, error) {
 		return nil, fmt.Errorf("openai: parse request: missing messages")
 	}
 
+	// A JSON null (which json.RawMessage preserves as the literal "null") must
+	// not be re-emitted, so it is normalized to an absent field.
+	responseFormat := raw.ResponseFormat
+	if string(bytes.TrimSpace(responseFormat)) == "null" {
+		responseFormat = nil
+	}
+
 	req := &core.ChatRequest{
 		Model:               raw.Model,
 		Temperature:         raw.Temperature,
@@ -100,7 +106,7 @@ func (OpenAICodec) ParseRequest(body []byte) (*core.ChatRequest, error) {
 		Stop:                parseOAIStop(raw.Stop),
 		Stream:              raw.Stream,
 		ToolChoice:          parseOAIToolChoice(raw.ToolChoice),
-		ResponseFormat:      oaiNonNullJSON(raw.ResponseFormat),
+		ResponseFormat:      responseFormat,
 		Reasoning:           parseOAIReasoning(raw.ReasoningEffort, raw.Reasoning),
 		Extra:               parseOAIExtra(body),
 	}
@@ -338,40 +344,11 @@ func decodeOAIContentParts(raw json.RawMessage) []core.ContentPart {
 		case "image_url":
 			parts = append(parts, core.ContentPart{
 				Type:  core.PartImage,
-				Media: parseOAIImageURL(p.ImageURL.URL),
+				Media: parseImageURL(p.ImageURL.URL),
 			})
 		}
 	}
 	return parts
-}
-
-// parseOAIImageURL decomposes an OpenAI image_url value into a MediaPayload.
-// If the URL is a data URI (data:<mime>;base64,<data>), MIMEType and Data are
-// populated; otherwise the URL is kept as-is for cross-dialect forwarding.
-func parseOAIImageURL(rawURL string) *core.MediaPayload {
-	if rest, ok := strings.CutPrefix(rawURL, "data:"); ok {
-		if idx := strings.Index(rest, ";base64,"); idx > 0 {
-			return &core.MediaPayload{
-				MIMEType: rest[:idx],
-				Data:     rest[idx+len(";base64,"):],
-			}
-		}
-	}
-	return &core.MediaPayload{URL: rawURL}
-}
-
-// oaiMediaToDataURL converts a MediaPayload into a URL suitable for the OpenAI
-// image_url format. Inline base64 data is wrapped in a data URI; a remote URL
-// is returned as-is.
-func oaiMediaToDataURL(m *core.MediaPayload) string {
-	if m.Data != "" {
-		mime := m.MIMEType
-		if mime == "" {
-			mime = "image/png"
-		}
-		return "data:" + mime + ";base64," + m.Data
-	}
-	return m.URL
 }
 
 // ---- request rendering ------------------------------------------------------
@@ -503,7 +480,7 @@ func renderOAIMessage(m core.Message) []oaiMessage {
 			if p.ToolResult.Media != nil {
 				content, _ := json.Marshal([]map[string]any{
 					{"type": "text", "text": p.ToolResult.Content},
-					{"type": "image_url", "image_url": map[string]any{"url": oaiMediaToDataURL(p.ToolResult.Media)}},
+					{"type": "image_url", "image_url": map[string]any{"url": mediaURL(p.ToolResult.Media)}},
 				})
 				msg.Content = content
 			} else {
@@ -530,7 +507,7 @@ func renderOAIMessage(m core.Message) []oaiMessage {
 			}
 			mediaParts = append(mediaParts, map[string]any{
 				"type":      "image_url",
-				"image_url": map[string]any{"url": oaiMediaToDataURL(p.Media)},
+				"image_url": map[string]any{"url": mediaURL(p.Media)},
 			})
 		case core.PartToolCall:
 			if p.ToolCall == nil {
@@ -613,7 +590,7 @@ func (c OpenAICodec) ParseResponse(body []byte, model string) (*core.ChatRespons
 func (OpenAICodec) buildResponse(raw oaiResponse, model string) *core.ChatResponse {
 	resp := &core.ChatResponse{
 		ID:           raw.ID,
-		Model:        oaiFirstNonEmpty(raw.Model, model),
+		Model:        cmp.Or(raw.Model, model),
 		Message:      core.Message{Role: core.RoleAssistant},
 		FinishReason: core.FinishStop,
 	}
@@ -675,7 +652,7 @@ func parseOAIUsage(u *oaiUsage) *core.Usage {
 
 func (OpenAICodec) RenderResponse(resp *core.ChatResponse) ([]byte, error) {
 	out := map[string]any{
-		"id":      oaiFirstNonEmpty(resp.ID, oaiRandomID("chatcmpl-")),
+		"id":      cmp.Or(resp.ID, randomID("chatcmpl-")),
 		"object":  "chat.completion",
 		"created": time.Now().Unix(),
 		"model":   resp.Model,
@@ -726,7 +703,7 @@ func renderOAIChoice(resp *core.ChatResponse) map[string]any {
 			}
 			mediaParts = append(mediaParts, map[string]any{
 				"type":      "image_url",
-				"image_url": map[string]any{"url": oaiMediaToDataURL(p.Media)},
+				"image_url": map[string]any{"url": mediaURL(p.Media)},
 			})
 		case core.PartToolCall:
 			if p.ToolCall == nil {
@@ -905,16 +882,10 @@ func oaiStreamErrorMessage(e *oaiStreamError) string {
 // oaiStreamErrorKind classifies an upstream stream error. Rate limiting and
 // capacity problems are retryable; everything else is a generic upstream fault.
 func oaiStreamErrorKind(e *oaiStreamError) core.ErrorKind {
-	s := strings.ToLower(e.Type + " " + e.Code + " " + e.Message)
-	switch {
-	case strings.Contains(s, "rate") && strings.Contains(s, "limit"),
-		strings.Contains(s, "overloaded"),
-		strings.Contains(s, "capacity"),
-		strings.Contains(s, "too many requests"):
+	if core.LooksRateLimited(e.Type + " " + e.Code + " " + e.Message) {
 		return core.ErrRateLimit
-	default:
-		return core.ErrUpstream
 	}
+	return core.ErrUpstream
 }
 
 // StreamState bookkeeping keys, stored in StreamState.Custom.
@@ -927,29 +898,22 @@ const (
 	oaiKeyUsage      = "openai.usage"
 )
 
-func oaiCustom(state *StreamState) map[string]any {
-	if state.Custom == nil {
-		state.Custom = map[string]any{}
-	}
-	return state.Custom
-}
-
 // oaiEnsureMessageID returns the message id echoed on every chunk, minting and
 // caching one when the caller did not preset it.
 func oaiEnsureMessageID(state *StreamState) string {
 	if state == nil {
-		return oaiRandomID("chatcmpl-")
+		return randomID("chatcmpl-")
 	}
 	if state.MessageID != "" {
 		return state.MessageID
 	}
-	if v, ok := state.Custom[oaiKeyMessageID].(string); ok && v != "" {
+	if v, ok := state.Get(oaiKeyMessageID).(string); ok && v != "" {
 		state.MessageID = v
 		return v
 	}
-	id := oaiRandomID("chatcmpl-")
+	id := randomID("chatcmpl-")
 	state.MessageID = id
-	oaiCustom(state)[oaiKeyMessageID] = id
+	state.Set(oaiKeyMessageID, id)
 	return id
 }
 
@@ -957,26 +921,11 @@ func oaiEnsureMessageID(state *StreamState) string {
 // the stream with the assistant role per the OpenAI contract.
 func oaiRoleDelta(state *StreamState) map[string]any {
 	delta := map[string]any{}
-	if state != nil && !oaiFlag(state, oaiKeySentRole) {
+	if state != nil && !state.Bool(oaiKeySentRole) {
 		delta["role"] = "assistant"
-		oaiSetFlag(state, oaiKeySentRole)
+		state.Set(oaiKeySentRole, true)
 	}
 	return delta
-}
-
-func oaiFlag(state *StreamState, key string) bool {
-	if state == nil {
-		return false
-	}
-	v, _ := state.Custom[key].(bool)
-	return v
-}
-
-func oaiSetFlag(state *StreamState, key string) {
-	if state == nil {
-		return
-	}
-	oaiCustom(state)[key] = true
 }
 
 // oaiStreamToolCallID keeps one stable id per tool-call index across the
@@ -986,19 +935,19 @@ func oaiStreamToolCallID(state *StreamState, index int, id, name string) string 
 		if id != "" {
 			return id
 		}
-		return oaiRandomID("call_")
+		return randomID("call_")
 	}
-	ids, _ := oaiCustom(state)[oaiKeyToolIDs].(map[int]string)
+	ids, _ := state.Get(oaiKeyToolIDs).(map[int]string)
 	if ids == nil {
 		ids = map[int]string{}
-		oaiCustom(state)[oaiKeyToolIDs] = ids
+		state.Set(oaiKeyToolIDs, ids)
 	}
 	if existing, ok := ids[index]; ok {
 		return existing
 	}
 	resolved := id
 	if resolved == "" {
-		resolved = oaiRandomID("call_")
+		resolved = randomID("call_")
 	}
 	ids[index] = resolved
 	return resolved
@@ -1022,7 +971,7 @@ func (OpenAICodec) RenderStreamChunk(chunk core.StreamChunk, state *StreamState)
 		if chunk.ToolCall == nil {
 			return nil, nil
 		}
-		oaiSetFlag(state, oaiKeyToolCalls)
+		state.Set(oaiKeyToolCalls, true)
 		delta := oaiRoleDelta(state)
 		// Arguments stream verbatim: an opening delta carries id+name with
 		// empty arguments, and the client accumulates the later fragments.
@@ -1038,15 +987,22 @@ func (OpenAICodec) RenderStreamChunk(chunk core.StreamChunk, state *StreamState)
 		return [][]byte{oaiChunkEvent(state, delta, nil)}, nil
 
 	case core.ChunkFinish:
-		oaiSetFlag(state, oaiKeyFinishSent)
+		state.Set(oaiKeyFinishSent, true)
 		return [][]byte{oaiChunkEvent(state, map[string]any{}, new(string(chunk.FinishReason)))}, nil
 
 	case core.ChunkUsage:
 		// OpenAI clients expect usage exactly once, in a trailing chunk after
 		// the finish. Upstreams (Anthropic) report usage piecemeal and before
 		// any content, so fold it into state and emit it from RenderStreamDone.
-		if chunk.Usage != nil {
-			oaiMergeStreamUsage(state, *chunk.Usage)
+		if chunk.Usage != nil && state != nil {
+			acc, _ := state.Get(oaiKeyUsage).(core.Usage)
+			acc.Merge(*chunk.Usage)
+			// Some upstreams state a total below prompt+completion; the larger
+			// figure wins so the trailing chunk is never an undercount.
+			if total := acc.PromptTokens + acc.CompletionTokens; acc.TotalTokens < total {
+				acc.TotalTokens = total
+			}
+			state.Set(oaiKeyUsage, acc)
 		}
 		return nil, nil
 
@@ -1064,48 +1020,17 @@ func (OpenAICodec) RenderStreamChunk(chunk core.StreamChunk, state *StreamState)
 // accumulated usage chunk (when any usage was seen), then the [DONE] sentinel.
 func (OpenAICodec) RenderStreamDone(state *StreamState) [][]byte {
 	var out [][]byte
-	if !oaiFlag(state, oaiKeyFinishSent) {
+	if !state.Bool(oaiKeyFinishSent) {
 		reason := string(core.FinishStop)
-		if oaiFlag(state, oaiKeyToolCalls) {
+		if state.Bool(oaiKeyToolCalls) {
 			reason = string(core.FinishToolCalls)
 		}
 		out = append(out, oaiChunkEvent(state, map[string]any{}, new(reason)))
 	}
-	if state != nil {
-		if u, ok := state.Custom[oaiKeyUsage].(core.Usage); ok {
-			out = append(out, oaiUsageEvent(state, &u))
-		}
+	if u, ok := state.Get(oaiKeyUsage).(core.Usage); ok {
+		out = append(out, oaiUsageEvent(state, &u))
 	}
 	return append(out, []byte("data: [DONE]\n\n"))
-}
-
-// oaiMergeStreamUsage folds a usage report into the stream state: the last
-// non-zero value per field wins and the total is recomputed unless stated.
-func oaiMergeStreamUsage(state *StreamState, next core.Usage) {
-	if state == nil {
-		return
-	}
-	acc, _ := oaiCustom(state)[oaiKeyUsage].(core.Usage)
-	if next.PromptTokens != 0 {
-		acc.PromptTokens = next.PromptTokens
-	}
-	if next.CompletionTokens != 0 {
-		acc.CompletionTokens = next.CompletionTokens
-	}
-	if next.CachedTokens != 0 {
-		acc.CachedTokens = next.CachedTokens
-	}
-	if next.CacheWriteTokens != 0 {
-		acc.CacheWriteTokens = next.CacheWriteTokens
-	}
-	if next.ReasoningTokens != 0 {
-		acc.ReasoningTokens = next.ReasoningTokens
-	}
-	acc.TotalTokens = acc.PromptTokens + acc.CompletionTokens
-	if next.TotalTokens > acc.TotalTokens {
-		acc.TotalTokens = next.TotalTokens
-	}
-	oaiCustom(state)[oaiKeyUsage] = acc
 }
 
 // oaiChunkEvent renders one chat.completion.chunk event.
@@ -1120,10 +1045,10 @@ func oaiChunkEvent(state *StreamState, delta map[string]any, finish *string) []b
 		"id":      oaiEnsureMessageID(state),
 		"object":  "chat.completion.chunk",
 		"created": time.Now().Unix(),
-		"model":   oaiStateModel(state),
+		"model":   stateModel(state),
 		"choices": []any{choice},
 	}
-	return oaiSSE(payload)
+	return sseJSON("", payload)
 }
 
 // oaiUsageEvent renders the trailing usage-only chunk (empty choices).
@@ -1132,11 +1057,11 @@ func oaiUsageEvent(state *StreamState, usage *core.Usage) []byte {
 		"id":      oaiEnsureMessageID(state),
 		"object":  "chat.completion.chunk",
 		"created": time.Now().Unix(),
-		"model":   oaiStateModel(state),
+		"model":   stateModel(state),
 		"choices": []any{},
 		"usage":   renderOAIUsage(usage),
 	}
-	return oaiSSE(payload)
+	return sseJSON("", payload)
 }
 
 // oaiErrorEvent renders a mid-stream error as an OpenAI-shaped error event.
@@ -1155,53 +1080,5 @@ func oaiErrorEvent(err error) []byte {
 			msg = err.Error()
 		}
 	}
-	return oaiSSE(map[string]any{"error": map[string]any{"message": msg, "type": typ}})
-}
-
-func oaiStateModel(state *StreamState) string {
-	if state == nil {
-		return ""
-	}
-	return state.Model
-}
-
-func oaiSSE(payload any) []byte {
-	b, err := json.Marshal(payload)
-	if err != nil {
-		b = []byte(`{}`)
-	}
-	return append([]byte("data: "), append(b, '\n', '\n')...)
-}
-
-// ---- small helpers ----------------------------------------------------------
-//
-// The generic-looking helpers below carry an oai prefix so sibling codec files
-// in this package can define their own without symbol collisions.
-
-// oaiFirstNonEmpty returns the first non-empty string, or "".
-func oaiFirstNonEmpty(vals ...string) string {
-	for _, v := range vals {
-		if v != "" {
-			return v
-		}
-	}
-	return ""
-}
-
-// oaiNonNullJSON normalizes a JSON null (which json.RawMessage preserves as
-// "null") into an empty raw message so it is never re-emitted.
-func oaiNonNullJSON(raw json.RawMessage) json.RawMessage {
-	if len(raw) == 0 || string(bytes.TrimSpace(raw)) == "null" {
-		return nil
-	}
-	return raw
-}
-
-// oaiRandomID mints an id with the given prefix (chatcmpl-, call_, ...).
-func oaiRandomID(prefix string) string {
-	var b [12]byte
-	if _, err := rand.Read(b[:]); err != nil {
-		return prefix + fmt.Sprintf("%x", time.Now().UnixNano())
-	}
-	return prefix + hex.EncodeToString(b[:])
+	return sseJSON("", map[string]any{"error": map[string]any{"message": msg, "type": typ}})
 }

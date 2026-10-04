@@ -63,7 +63,7 @@ export function getProviderBrand(slug: string, apiKind?: string): Brand {
   if (slug.includes('openai')) {
     return { icon: Icons.openai }
   }
-  if (slug.includes('anthropic') || slug === 'claude') {
+  if (slug.includes('anthropic')) {
     return { icon: Icons.anthropic }
   }
 

@@ -100,7 +100,7 @@ func (m *Manager) refresh(ctx context.Context, acc models.Account) (models.Accou
 		return acc, fmt.Errorf("oauth: no refresh token for account %s", acc.ID)
 	}
 
-	refreshToken, err := openModel(m.Secrets, acc.Refresh)
+	refreshToken, err := m.Secrets.OpenString(acc.Refresh)
 	if err != nil {
 		return acc, fmt.Errorf("oauth: open refresh token for account %s: %w", acc.ID, err)
 	}
@@ -129,11 +129,11 @@ func (m *Manager) refresh(ctx context.Context, acc models.Account) (models.Accou
 
 	// Seal the new tokens into the account. The refresh config keeps the old
 	// refresh token when the provider omits a new one, so it is always set.
-	sealedAccess, serr := sealModel(m.Secrets, tokens.AccessToken)
+	sealedAccess, serr := m.Secrets.SealString(tokens.AccessToken)
 	if serr != nil {
 		return acc, fmt.Errorf("oauth: seal access token: %w", serr)
 	}
-	sealedRefresh, serr := sealModel(m.Secrets, tokens.RefreshToken)
+	sealedRefresh, serr := m.Secrets.SealString(tokens.RefreshToken)
 	if serr != nil {
 		return acc, fmt.Errorf("oauth: seal refresh token: %w", serr)
 	}
@@ -145,16 +145,4 @@ func (m *Manager) refresh(ctx context.Context, acc models.Account) (models.Accou
 		return acc, fmt.Errorf("oauth: persist refreshed token: %w", err)
 	}
 	return acc, nil
-}
-
-func sealModel(s *sealer.Sealer, plaintext string) (models.Sealed, error) {
-	sealed, err := s.SealString(plaintext)
-	if err != nil {
-		return models.Sealed{}, err
-	}
-	return models.Sealed{WrappedDEK: sealed.WrappedDEK, Ciphertext: sealed.Ciphertext}, nil
-}
-
-func openModel(s *sealer.Sealer, sealed models.Sealed) (string, error) {
-	return s.OpenString(sealer.Sealed{WrappedDEK: sealed.WrappedDEK, Ciphertext: sealed.Ciphertext})
 }

@@ -225,3 +225,41 @@ func TestProbeOpenRouterKey(t *testing.T) {
 		t.Errorf("bad key result = %+v", result)
 	}
 }
+
+func TestProbeCredentialAuthHeaders(t *testing.T) {
+	var got http.Header
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = r.Header.Clone()
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	cases := []struct {
+		name                        string
+		anthropic, oauth            bool
+		auth, apiKey, version, beta string
+	}{
+		{name: "anthropic api key", anthropic: true, apiKey: "k", version: "2023-06-01"},
+		{name: "anthropic oauth", anthropic: true, oauth: true, auth: "Bearer k", version: "2023-06-01", beta: "oauth-2025-04-20"},
+		{name: "openai", auth: "Bearer k"},
+	}
+	svc := &UpstreamService{}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			res, err := svc.ProbeCredential(context.Background(), srv.URL+"/v1/models", tc.anthropic, tc.oauth, "k")
+			if err != nil || !res.OK {
+				t.Fatalf("probe = %+v, %v", res, err)
+			}
+			for header, want := range map[string]string{
+				"Authorization":     tc.auth,
+				"x-api-key":         tc.apiKey,
+				"anthropic-version": tc.version,
+				"anthropic-beta":    tc.beta,
+			} {
+				if v := got.Get(header); v != want {
+					t.Errorf("%s = %q, want %q", header, v, want)
+				}
+			}
+		})
+	}
+}

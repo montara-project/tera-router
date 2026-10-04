@@ -14,7 +14,6 @@ func TestLookupKnownModels(t *testing.T) {
 	}{
 		{name: "openai gpt-4o-mini", provider: "openai", model: "gpt-4o-mini", input: 150_000, output: 600_000, cacheRead: 75_000},
 		{name: "anthropic sonnet", provider: "anthropic", model: "claude-sonnet-4-6", input: 3_000_000, output: 15_000_000, cacheRead: 375_000},
-		{name: "claude oauth alias", provider: "claude", model: "claude-sonnet-4-6", input: 3_000_000, output: 15_000_000, cacheRead: 375_000},
 		{name: "codex oauth alias", provider: "codex", model: "gpt-5.3-codex", input: 2_500_000, output: 10_000_000, cacheRead: 1_250_000},
 		{name: "openrouter prefixed id", provider: "openrouter", model: "openai/gpt-4o-mini", input: 150_000, output: 600_000, cacheRead: 75_000},
 		{name: "kiro suffix variant", provider: "kiro", model: "claude-sonnet-4.5-thinking", input: 3_000_000, output: 15_000_000, cacheRead: 375_000},

@@ -24,6 +24,34 @@ type Usage struct {
 	ReasoningTokens int `json:"reasoning_tokens,omitempty"`
 }
 
+// Merge overlays the non-zero fields of a later usage event onto u. Upstreams
+// split accounting across events (Anthropic reports input tokens at message
+// start and output tokens at message end), so the last non-zero value for each
+// field wins. TotalTokens is taken from next when it states one, otherwise
+// recomputed from the merged prompt and completion counts.
+func (u *Usage) Merge(next Usage) {
+	if next.PromptTokens != 0 {
+		u.PromptTokens = next.PromptTokens
+	}
+	if next.CompletionTokens != 0 {
+		u.CompletionTokens = next.CompletionTokens
+	}
+	if next.CachedTokens != 0 {
+		u.CachedTokens = next.CachedTokens
+	}
+	if next.CacheWriteTokens != 0 {
+		u.CacheWriteTokens = next.CacheWriteTokens
+	}
+	if next.ReasoningTokens != 0 {
+		u.ReasoningTokens = next.ReasoningTokens
+	}
+	if next.TotalTokens != 0 {
+		u.TotalTokens = next.TotalTokens
+	} else {
+		u.TotalTokens = u.PromptTokens + u.CompletionTokens
+	}
+}
+
 // ChatResponse is the canonical non-streaming completion result.
 type ChatResponse struct {
 	ID           string       `json:"id"`

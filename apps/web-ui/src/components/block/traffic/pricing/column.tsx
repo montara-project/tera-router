@@ -1,6 +1,5 @@
 import type { ColumnDef } from '@tanstack/react-table'
 
-import { IconCoins } from '@tabler/icons-react'
 import { useMutation } from '@tanstack/react-query'
 import React, { useMemo, useState } from 'react'
 import { toast } from 'sonner'
@@ -16,7 +15,7 @@ import { queries } from '@/lib/api/queries'
 import { features } from '../../common/react-table'
 import RowColumnAction from '../../common/row-column-action'
 import SimpleAlertDialog from '../../common/simple-alert-dialog'
-import ChainGroup from '../chains/chain-group'
+import ModelGroup from './model-group'
 
 type ColumnType = ColumnDef<typeof features, Models.PricingOverride, unknown>
 
@@ -44,11 +43,10 @@ export function PricingColumn({ loading, onEdit }: PricingColumnProps) {
           return loading ? (
             <Skeleton className="h-5 w-full" />
           ) : (
-            <ChainGroup
+            <ModelGroup
+              slug={row.original.provider}
               title={row.original.provider}
               description={describeModel(row.original.model)}
-              icon={IconCoins}
-              tone="warning"
             />
           )
         },

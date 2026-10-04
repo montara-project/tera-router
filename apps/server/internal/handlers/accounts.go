@@ -16,6 +16,7 @@ import (
 	"tera-router/server/internal/lib"
 	"tera-router/server/internal/lib/apperr"
 	"tera-router/server/internal/models"
+	"tera-router/server/internal/services"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -75,7 +76,7 @@ func sealCredential(a *app.Application, account *models.Account, in accountInput
 		if err != nil {
 			return err
 		}
-		account.Secret = toModelsSealed(sealed)
+		account.Secret = sealed
 		account.KeyFingerprint = fingerprint(in.APIKey)
 		sum := sha256.Sum256([]byte(in.APIKey))
 		account.KeyHash = hex.EncodeToString(sum[:])
@@ -85,14 +86,14 @@ func sealCredential(a *app.Application, account *models.Account, in accountInput
 		if err != nil {
 			return err
 		}
-		account.Token = toModelsSealed(sealed)
+		account.Token = sealed
 	}
 	if in.Refresh != "" {
 		sealed, err := a.Secrets.SealString(in.Refresh)
 		if err != nil {
 			return err
 		}
-		account.Refresh = toModelsSealed(sealed)
+		account.Refresh = sealed
 	}
 	return nil
 }
@@ -247,7 +248,7 @@ func (h *accountsHandler) ValidateKey(c fiber.Ctx) error {
 		return err
 	}
 
-	result, err := h.probe(c.Context(), req.Provider, encodeMetadata(req.Metadata), req.APIKey)
+	result, err := h.probe(c.Context(), req.Provider, encodeMetadata(req.Metadata), req.APIKey, false)
 	if err != nil {
 		return err
 	}
@@ -349,19 +350,21 @@ func (h *accountsHandler) Test(c fiber.Ctx) error {
 	// OAuth accounts carry the credential in Token, not Secret; probe
 	// whichever one is populated so the test reflects the stored auth kind.
 	apiKey := ""
+	oauth := false
 	if !account.Secret.Empty() {
-		apiKey, err = h.app.Secrets.OpenString(fromModelsSealed(account.Secret))
+		apiKey, err = h.app.Secrets.OpenString(account.Secret)
 		if err != nil {
 			return err
 		}
 	}
 	if apiKey == "" && !account.Token.Empty() {
-		apiKey, err = h.app.Secrets.OpenString(fromModelsSealed(account.Token))
+		apiKey, err = h.app.Secrets.OpenString(account.Token)
 		if err != nil {
 			return err
 		}
+		oauth = true
 	}
-	result, err := h.probe(c.Context(), account.Provider, account.Metadata, apiKey)
+	result, err := h.probe(c.Context(), account.Provider, account.Metadata, apiKey, oauth)
 	if err != nil {
 		return err
 	}
@@ -373,7 +376,7 @@ func (h *accountsHandler) Test(c fiber.Ctx) error {
 // Providers with a dedicated integration flow (ported from IDRouter's
 // connectors) use their own probe: OpenRouter validates against /api/v1/key,
 // the Ollama family against /api/tags, and Cline skips validation entirely.
-func (h *accountsHandler) probe(ctx context.Context, providerSlug, metadataRaw, apiKey string) (dtos.TestResult, error) {
+func (h *accountsHandler) probe(ctx context.Context, providerSlug, metadataRaw, apiKey string, oauth bool) (dtos.TestResult, error) {
 	spec, ok := catalog.Lookup(providerSlug)
 	if !ok {
 		return dtos.TestResult{OK: true, Detail: "no probe available for provider"}, nil
@@ -419,27 +422,9 @@ func (h *accountsHandler) probe(ctx context.Context, providerSlug, metadataRaw, 
 		return dtos.TestResult{OK: true, Detail: "provider requires no authentication"}, nil
 	}
 
-	anthropic := providerSlug == "anthropic" || providerSlug == "claude" || strings.Contains(baseURL, "anthropic")
-	endpoint := upstreamModelsEndpoint(baseURL, anthropic)
-	return h.app.Services.Upstream.ProbeCredential(ctx, endpoint, anthropic, apiKey)
-}
-
-// upstreamModelsEndpoint normalizes the model-list URL for the two wire
-// dialects.
-func upstreamModelsEndpoint(baseURL string, anthropic bool) string {
-	base := strings.TrimSuffix(baseURL, "/")
-	if anthropic {
-		// Anthropic base URLs typically already carry /v1 — appending the full
-		// path again would produce /v1/v1/models.
-		if strings.HasSuffix(base, "/v1") {
-			return base + "/models"
-		}
-		return base + "/v1/models"
-	}
-	if strings.HasSuffix(base, "/v1") || strings.HasSuffix(base, "/openai/v1") {
-		return base + "/models"
-	}
-	return base + "/v1/models"
+	anthropic := spec.Dialect == "anthropic"
+	endpoint := services.V1Join(baseURL, "models")
+	return h.app.Services.Upstream.ProbeCredential(ctx, endpoint, anthropic, oauth, apiKey)
 }
 
 // Reveal decrypts the stored api key of an account (audit-logged).
@@ -457,7 +442,7 @@ func (h *accountsHandler) Reveal(c fiber.Ctx) error {
 		return apperr.New(apperr.KindUnprocessable, "account has no recoverable secret")
 	}
 
-	plaintext, err := h.app.Secrets.OpenString(fromModelsSealed(account.Secret))
+	plaintext, err := h.app.Secrets.OpenString(account.Secret)
 	if err != nil {
 		return err
 	}

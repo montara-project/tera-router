@@ -2,8 +2,6 @@ package transform
 
 import (
 	"bytes"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -337,7 +335,7 @@ func respParseContent(raw json.RawMessage) []core.ContentPart {
 			}
 		case "input_image":
 			if url := respImageURL(p.ImageURL); url != "" {
-				out = append(out, core.ContentPart{Type: core.PartImage, Media: respParseImageURL(url)})
+				out = append(out, core.ContentPart{Type: core.PartImage, Media: parseImageURL(url)})
 			}
 		}
 	}
@@ -361,30 +359,6 @@ func respImageURL(raw json.RawMessage) string {
 	}
 	_ = json.Unmarshal(trimmed, &obj)
 	return obj.URL
-}
-
-// respParseImageURL decomposes an image URL into a MediaPayload: data URIs are
-// split into MIMEType + base64 data, everything else stays a remote URL.
-func respParseImageURL(rawURL string) *core.MediaPayload {
-	if rest, ok := strings.CutPrefix(rawURL, "data:"); ok {
-		if i := strings.Index(rest, ";base64,"); i > 0 {
-			return &core.MediaPayload{MIMEType: rest[:i], Data: rest[i+len(";base64,"):]}
-		}
-	}
-	return &core.MediaPayload{URL: rawURL}
-}
-
-// respMediaURL renders a MediaPayload as a URL: inline base64 becomes a data
-// URI, a remote URL is returned as-is.
-func respMediaURL(m *core.MediaPayload) string {
-	if m.Data != "" {
-		mime := m.MIMEType
-		if mime == "" {
-			mime = "image/png"
-		}
-		return "data:" + mime + ";base64," + m.Data
-	}
-	return m.URL
 }
 
 // respExtractReasoning returns the summary text and encrypted_content of a
@@ -816,7 +790,7 @@ func respRenderMessage(m core.Message) []any {
 			}
 			content = append(content, map[string]any{
 				"type":      "input_image",
-				"image_url": respMediaURL(p.Media),
+				"image_url": mediaURL(p.Media),
 				"detail":    "auto",
 			})
 		}
@@ -998,7 +972,7 @@ func respRenderUsage(u *core.Usage) map[string]any {
 func (OpenAIResponsesCodec) RenderResponse(resp *core.ChatResponse) ([]byte, error) {
 	id := resp.ID
 	if id == "" {
-		id = respRandomID("resp_")
+		id = randomID("resp_")
 	}
 	status := "completed"
 	if resp.FinishReason == core.FinishLength {
@@ -1112,13 +1086,10 @@ func respToolIndexFor(state *StreamState, outputIndex int, itemID string) int {
 	if state == nil {
 		return outputIndex
 	}
-	if state.Custom == nil {
-		state.Custom = map[string]any{}
-	}
-	idx, _ := state.Custom[respKeyToolIndex].(*respToolIndexes)
+	idx, _ := state.Get(respKeyToolIndex).(*respToolIndexes)
 	if idx == nil {
 		idx = &respToolIndexes{byOutput: map[int]int{}, byItem: map[string]int{}}
-		state.Custom[respKeyToolIndex] = idx
+		state.Set(respKeyToolIndex, idx)
 	}
 	if itemID != "" {
 		if i, ok := idx.byItem[itemID]; ok {
@@ -1235,7 +1206,7 @@ func (OpenAIResponsesCodec) ParseStreamEvent(event string, data []byte, state *S
 			msg = ev.Response.Error.Message
 		}
 		kind := core.ErrUpstream
-		if respLooksRateLimited(msg) {
+		if core.LooksRateLimited(msg) {
 			kind = core.ErrRateLimit
 		}
 		return []core.StreamChunk{{
@@ -1248,18 +1219,6 @@ func (OpenAIResponsesCodec) ParseStreamEvent(event string, data []byte, state *S
 		// reasoning_summary_*_done: nothing canonical to emit.
 		return nil, nil
 	}
-}
-
-// respLooksRateLimited recognizes the quota/overload wording upstreams use when
-// they abort a stream, so the dispatcher cools the account down instead of
-// treating it as a transient fault.
-func respLooksRateLimited(msg string) bool {
-	m := strings.ToLower(msg)
-	return strings.Contains(m, "rate limit") ||
-		strings.Contains(m, "overloaded") ||
-		strings.Contains(m, "quota") ||
-		strings.Contains(m, "too many requests") ||
-		strings.Contains(m, "capacity")
 }
 
 // ---- stream rendering (client speaks Responses) -----------------------------
@@ -1319,10 +1278,7 @@ func respRenderStateFor(state *StreamState) *respRenderState {
 	if state == nil {
 		state = &StreamState{}
 	}
-	if state.Custom == nil {
-		state.Custom = map[string]any{}
-	}
-	if s, ok := state.Custom[respKeyRenderState].(*respRenderState); ok {
+	if s, ok := state.Get(respKeyRenderState).(*respRenderState); ok {
 		return s
 	}
 	s := &respRenderState{
@@ -1333,9 +1289,9 @@ func respRenderStateFor(state *StreamState) *respRenderState {
 	}
 	s.responseID = state.MessageID
 	if s.responseID == "" {
-		s.responseID = respRandomID("resp_")
+		s.responseID = randomID("resp_")
 	}
-	state.Custom[respKeyRenderState] = s
+	state.Set(respKeyRenderState, s)
 	return s
 }
 
@@ -1373,6 +1329,21 @@ func (s *respRenderState) outputItems() []any {
 		out = append(out, s.items[i])
 	}
 	return out
+}
+
+// emit returns a closure that frames and appends one sequence-numbered event
+// to events.
+func (s *respRenderState) emit(events *[][]byte) func(string, map[string]any) {
+	return func(eventType string, data map[string]any) {
+		s.seq++
+		data["type"] = eventType
+		data["sequence_number"] = s.seq
+		b, err := json.Marshal(data)
+		if err != nil {
+			b = []byte(`{}`)
+		}
+		*events = append(*events, SSEEvent(eventType, b))
+	}
 }
 
 // start emits the opening response.created / response.in_progress pair once.
@@ -1537,23 +1508,7 @@ func respMergeUsage(cur, next *core.Usage) *core.Usage {
 		merged := *next
 		return &merged
 	}
-	if next.PromptTokens > 0 {
-		cur.PromptTokens = next.PromptTokens
-	}
-	if next.CompletionTokens > 0 {
-		cur.CompletionTokens = next.CompletionTokens
-	}
-	if next.CachedTokens > 0 {
-		cur.CachedTokens = next.CachedTokens
-	}
-	if next.ReasoningTokens > 0 {
-		cur.ReasoningTokens = next.ReasoningTokens
-	}
-	if next.TotalTokens > 0 {
-		cur.TotalTokens = next.TotalTokens
-	} else {
-		cur.TotalTokens = cur.PromptTokens + cur.CompletionTokens
-	}
+	cur.Merge(*next)
 	return cur
 }
 
@@ -1564,16 +1519,7 @@ func respMergeUsage(cur, next *core.Usage) *core.Usage {
 func (OpenAIResponsesCodec) RenderStreamChunk(chunk core.StreamChunk, state *StreamState) ([][]byte, error) {
 	s := respRenderStateFor(state)
 	var events [][]byte
-	emit := func(eventType string, data map[string]any) {
-		s.seq++
-		data["type"] = eventType
-		data["sequence_number"] = s.seq
-		b, err := json.Marshal(data)
-		if err != nil {
-			b = []byte(`{}`)
-		}
-		events = append(events, SSEEvent(eventType, b))
-	}
+	emit := s.emit(&events)
 
 	switch chunk.Type {
 	case core.ChunkText:
@@ -1642,7 +1588,7 @@ func (OpenAIResponsesCodec) RenderStreamChunk(chunk core.StreamChunk, state *Str
 			t.added = true
 			t.outIdx = s.assignIdx()
 			if t.callID == "" {
-				t.callID = respRandomID("call_")
+				t.callID = randomID("call_")
 			}
 			t.itemID = "fc_" + t.callID
 			t.item = map[string]any{
@@ -1718,26 +1664,8 @@ func (OpenAIResponsesCodec) RenderStreamDone(state *StreamState) [][]byte {
 		return nil
 	}
 	var events [][]byte
-	emit := func(eventType string, data map[string]any) {
-		s.seq++
-		data["type"] = eventType
-		data["sequence_number"] = s.seq
-		b, err := json.Marshal(data)
-		if err != nil {
-			b = []byte(`{}`)
-		}
-		events = append(events, SSEEvent(eventType, b))
-	}
+	emit := s.emit(&events)
 	s.closeOpen(emit)
 	s.emitCompleted(emit)
 	return events
-}
-
-// respRandomID mints an id with the given prefix (resp_, call_, ...).
-func respRandomID(prefix string) string {
-	var b [12]byte
-	if _, err := rand.Read(b[:]); err != nil {
-		return prefix + "000000000000000000000000"
-	}
-	return prefix + hex.EncodeToString(b[:])
 }

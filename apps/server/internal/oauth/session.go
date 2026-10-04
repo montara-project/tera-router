@@ -11,7 +11,6 @@ import (
 // pending flows, which is acceptable — the user simply restarts the sign-in.
 type Session struct {
 	Provider    string
-	Flow        FlowType
 	State       string
 	Verifier    string
 	RedirectURI string

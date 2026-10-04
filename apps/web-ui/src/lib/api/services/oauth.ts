@@ -14,13 +14,9 @@ const api = new ClientFetchApi({
 
 const resources = (): OAuthResources => {
   return {
-    providers: () => {
-      const url = path + '/providers'
-      return api.get(url)
-    },
-    authorize: (provider, redirectURI) => {
+    authorize: (provider) => {
       const url = `${path}/${provider}/authorize`
-      return api.post(url, { redirect_uri: redirectURI })
+      return api.post(url)
     },
     exchange: (provider, payload) => {
       const url = `${path}/${provider}/exchange`

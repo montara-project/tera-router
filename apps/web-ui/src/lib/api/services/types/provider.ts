@@ -7,6 +7,8 @@ export type ProviderResources = {
   list: () => Promise<AxiosItemResponse<Models.ProvidersOverview>>
   rates: () => Promise<AxiosItemResponse<{ overrides: Models.PricingOverride[] }>>
   customList: () => Promise<AxiosListResponse<Models.CustomProvider>>
+  customGet: (id: string) => Promise<AxiosItemResponse<Models.CustomProvider>>
+  customGetBySlug: (slug: string) => Promise<AxiosItemResponse<Models.CustomProvider>>
   customStore: (payload: CustomProviderDto) => Promise<AxiosItemResponse<Models.CustomProvider>>
   customUpdate: (
     id: string,

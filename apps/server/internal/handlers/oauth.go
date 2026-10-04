@@ -7,7 +7,6 @@ import (
 	"html"
 	"net"
 	"net/http"
-	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -25,7 +24,7 @@ import (
 )
 
 // oauthHandler drives the OAuth connection flows for subscription providers
-// (claude, codex), ported from the IDRouter reference. Starting a flow and
+// (anthropic, codex), ported from the IDRouter reference. Starting a flow and
 // persisting tokens are privileged operations, so every route sits behind the
 // dashboard's JWT auth.
 type oauthHandler struct {
@@ -40,32 +39,6 @@ type oauthHandler struct {
 	loopbackPort int
 }
 
-// oauthProviderInfo is one entry of GET /v1/oauth/providers.
-type oauthProviderInfo struct {
-	Provider     string `json:"provider"`
-	Flow         string `json:"flow"`
-	CallbackPath string `json:"callback_path,omitempty"`
-	FixedPort    int    `json:"fixed_port,omitempty"`
-	LoopbackHost string `json:"loopback_host,omitempty"`
-}
-
-// ListProviders reports which catalog providers support an OAuth flow, so the
-// dashboard can render the OAuth connect UI.
-func (h *oauthHandler) ListProviders(c fiber.Ctx) error {
-	out := make([]oauthProviderInfo, 0, len(oauth.SupportedProviders()))
-	for _, id := range oauth.SupportedProviders() {
-		cfg, _ := oauth.ConfigFor(id)
-		out = append(out, oauthProviderInfo{
-			Provider:     id,
-			Flow:         string(cfg.Flow),
-			CallbackPath: cfg.CallbackPath,
-			FixedPort:    cfg.FixedLoopbackPort,
-			LoopbackHost: cfg.LoopbackHost,
-		})
-	}
-	return dtos.List(c, out, dtos.TotalMeta(len(out)))
-}
-
 // Authorize starts an authorization-code + PKCE flow. It returns the provider
 // authorize URL the dashboard should open, and stores the PKCE verifier +
 // state server-side keyed by state.
@@ -76,14 +49,6 @@ func (h *oauthHandler) Authorize(c fiber.Ctx) error {
 		return apperr.New(apperr.KindBadRequest, "no OAuth config for provider: %s", provider)
 	}
 
-	var req dtos.OAuthAuthorize
-	if err := lib.ValidateRequestBody(c, &req); err != nil {
-		return err
-	}
-	if req.RedirectURI == "" {
-		return apperr.New(apperr.KindBadRequest, "redirect_uri is required")
-	}
-
 	// Fixed-port providers must advertise the port this server actually owns,
 	// so bind before resolving: Codex's OAuth app also allow-lists 1457,
 	// letting a busy 1455 fall back instead of failing the flow.
@@ -91,37 +56,26 @@ func (h *oauthHandler) Authorize(c fiber.Ctx) error {
 	if err != nil {
 		return apperr.New(apperr.KindConflict, "%s", err.Error())
 	}
-	redirectURI := cfg.ResolveRedirectURI(req.RedirectURI, boundPort)
+	redirectURI := cfg.ResolveRedirectURI(boundPort)
 
-	// The callback target is opened in the user's browser; restrict it to
-	// loopback origins or https so the flow cannot be pointed at an arbitrary
-	// third-party host.
-	if err := validateOAuthRedirect(redirectURI); err != nil {
-		return apperr.New(apperr.KindBadRequest, "invalid redirect_uri: %s", err.Error())
-	}
-
-	pkce, err := oauth.GeneratePKCE(32)
+	pkce, err := oauth.GeneratePKCE()
 	if err != nil {
 		return err
 	}
 	authURL := cfg.AuthURL(redirectURI, pkce.State, pkce.Challenge)
 
-	completion := "redirect"
-	switch {
-	case cfg.FixedRedirectURI != "":
+	// How the flow completes: anthropic's OAuth app pins the redirect to its
+	// console display-code callback, so the dashboard collects the shown code
+	// (paste_code); codex's fixed loopback redirect lands on the server's own
+	// listener (loopback). The dashboard decides how to wait for the loopback
+	// result based on where it is served from.
+	completion := "loopback"
+	if cfg.FixedRedirectURI != "" {
 		completion = "paste_code"
-	default:
-		// The dashboard origin is where the browser actually is; when it is
-		// not the server's own machine, the loopback redirect cannot reach
-		// the server's listener and the user must hand over the callback URL.
-		if u, perr := url.Parse(req.RedirectURI); perr == nil && !isLoopbackHost(u.Hostname()) {
-			completion = "paste_callback_url"
-		}
 	}
 
 	h.sessions.Put(pkce.State, &oauth.Session{
 		Provider:    provider,
-		Flow:        cfg.Flow,
 		State:       pkce.State,
 		Verifier:    pkce.Verifier,
 		RedirectURI: redirectURI,
@@ -131,13 +85,7 @@ func (h *oauthHandler) Authorize(c fiber.Ctx) error {
 		"authorize_url": authURL,
 		"state":         pkce.State,
 		"redirect_uri":  redirectURI,
-		// How the flow completes: claude's OAuth app pins the redirect to its
-		// console display-code callback, so the dashboard collects the shown
-		// code; codex's fixed loopback redirect only lands on the machine
-		// running the browser, so a dashboard served from a remote origin must
-		// collect the callback URL the popup ends on; a loopback dashboard
-		// receives the redirect through the server's listener directly.
-		"completion": completion,
+		"completion":    completion,
 	})
 }
 
@@ -154,9 +102,6 @@ func (h *oauthHandler) Exchange(c fiber.Ctx) error {
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
 	}
-	if req.Code == "" || req.State == "" {
-		return apperr.New(apperr.KindBadRequest, "code and state are required")
-	}
 
 	sess, ok := h.sessions.Get(req.State)
 	if !ok || sess.Provider != provider {
@@ -168,18 +113,18 @@ func (h *oauthHandler) Exchange(c fiber.Ctx) error {
 	}
 	h.sessions.Delete(req.State)
 
-	id, email, perr := h.persistAccount(c.Context(), actorFrom(c), cfg.AccountSlug(), req.Label, tokens)
+	id, email, perr := h.persistAccount(c.Context(), actorFrom(c), cfg.Provider, tokens)
 	if perr != nil {
 		return perr
 	}
-	return dtos.Created(c, fiber.Map{"id": id, "provider": cfg.AccountSlug(), "email": email}, "OAuth account connected")
+	return dtos.Created(c, fiber.Map{"id": id, "provider": cfg.Provider, "email": email}, "OAuth account connected")
 }
 
 // persistAccount seals OAuth tokens into an account record, deduplicating on
 // the account identity (metadata email first, then the refresh-token
 // plaintext): reconnecting the same grant updates the existing row in place
 // instead of creating a duplicate.
-func (h *oauthHandler) persistAccount(ctx context.Context, actor, provider, label string, tokens *oauth.Tokens) (string, string, error) {
+func (h *oauthHandler) persistAccount(ctx context.Context, actor, provider string, tokens *oauth.Tokens) (string, string, error) {
 	// An OAuth connect on a seedable catalog provider persists its
 	// custom_providers row too (no-op for subscription-only slugs like codex).
 	if _, err := ensureCustomProviderRow(ctx, h.app, actor, provider); err != nil {
@@ -191,7 +136,7 @@ func (h *oauthHandler) persistAccount(ctx context.Context, actor, provider, labe
 	acc := models.Account{
 		ID:        uuid.NewString(),
 		Provider:  provider,
-		Label:     oauthLabel(label, provider, tokens),
+		Label:     oauthLabel(provider, tokens),
 		AuthKind:  models.AuthOAuth,
 		Priority:  100,
 		CreatedAt: now,
@@ -228,13 +173,13 @@ func (h *oauthHandler) persistAccount(ctx context.Context, actor, provider, labe
 	if serr != nil {
 		return "", "", apperr.New(apperr.KindInternal, "seal access token: %s", serr.Error())
 	}
-	acc.Token = toModelsSealed(sealedAccess)
+	acc.Token = sealedAccess
 	if tokens.RefreshToken != "" {
 		sealedRefresh, serr := h.app.Secrets.SealString(tokens.RefreshToken)
 		if serr != nil {
 			return "", "", apperr.New(apperr.KindInternal, "seal refresh token: %s", serr.Error())
 		}
-		acc.Refresh = toModelsSealed(sealedRefresh)
+		acc.Refresh = sealedRefresh
 	}
 
 	// Dedup: metadata email first, then the refresh-token plaintext (same
@@ -296,7 +241,7 @@ func (h *oauthHandler) findExistingOAuthAccount(ctx context.Context, provider st
 		if acc.AuthKind != models.AuthOAuth || acc.Refresh.Empty() {
 			continue
 		}
-		stored, err := h.app.Secrets.OpenString(fromModelsSealed(acc.Refresh))
+		stored, err := h.app.Secrets.OpenString(acc.Refresh)
 		if err != nil {
 			continue
 		}
@@ -320,10 +265,7 @@ func accountMetaValue(raw, key string) string {
 }
 
 // oauthLabel derives a human label for an OAuth account.
-func oauthLabel(label, provider string, tokens *oauth.Tokens) string {
-	if label != "" {
-		return label
-	}
+func oauthLabel(provider string, tokens *oauth.Tokens) string {
 	if tokens.DisplayName != "" {
 		return tokens.DisplayName
 	}
@@ -350,17 +292,9 @@ func (h *oauthHandler) ensureLoopback(cfg oauth.ProviderConfig) (int, error) {
 		return h.loopbackPort, nil
 	}
 
-	host := cfg.LoopbackHost
-	if host == "" {
-		host = "127.0.0.1"
-	}
 	ports := append([]int{cfg.FixedLoopbackPort}, cfg.FallbackPorts...)
 	mux := http.NewServeMux()
-	path := cfg.CallbackPath
-	if path == "" {
-		path = "/callback"
-	}
-	mux.HandleFunc("GET "+path, h.loopbackCallback)
+	mux.HandleFunc("GET "+cfg.CallbackPath, h.loopbackCallback)
 	// The callback handler can block up to httpClientTimeout in the token
 	// exchange before writing, so WriteTimeout must exceed it or slow/awkward
 	// clients would see the response cut off; the other limits just stop
@@ -381,7 +315,7 @@ func (h *oauthHandler) ensureLoopback(cfg oauth.ProviderConfig) (int, error) {
 
 	var lastErr error
 	for _, port := range ports {
-		ln, err := net.Listen("tcp", net.JoinHostPort(host, fmt.Sprintf("%d", port)))
+		ln, err := net.Listen("tcp", net.JoinHostPort(cfg.LoopbackHost, fmt.Sprintf("%d", port)))
 		if err != nil {
 			lastErr = err
 			continue
@@ -431,52 +365,11 @@ func (h *oauthHandler) loopbackCallback(w http.ResponseWriter, r *http.Request) 
 	}
 	h.sessions.Delete(state)
 
-	if _, _, perr := h.persistAccount(r.Context(), "system", cfg.AccountSlug(), "", tokens); perr != nil {
+	if _, _, perr := h.persistAccount(r.Context(), "system", cfg.Provider, tokens); perr != nil {
 		writeResult("error", perr.Error())
 		return
 	}
 	writeResult("success", "")
-}
-
-// DashboardCallback receives the browser redirect for dashboard-origin flows
-// (GET /callback, served by this backend itself): it completes the exchange +
-// persistence and answers with the same self-contained postMessage page as
-// the loopback listener. Development splits the dashboard and API across
-// origins — the callback must follow the API origin, not the page's — while
-// the shipped image serves both from one origin, where this route also wins
-// over the SPA's callback page.
-func (h *oauthHandler) DashboardCallback(c fiber.Ctx) error {
-	code := c.Query("code")
-	state := c.Query("state")
-
-	writeResult := func(status, msg string) error {
-		c.Set("Content-Type", "text/html; charset=utf-8")
-		c.Set("Cache-Control", "no-store")
-		return c.Status(http.StatusOK).SendString(renderOAuthPopupResult(status, msg))
-	}
-
-	if code == "" || state == "" {
-		return writeResult("error", "missing code or state parameter")
-	}
-	sess, ok := h.sessions.Get(state)
-	if !ok {
-		return writeResult("error", "session expired or invalid; please restart the sign-in flow")
-	}
-
-	cfg, ok := oauth.ConfigFor(sess.Provider)
-	if !ok {
-		return writeResult("error", "no OAuth config for provider: "+sess.Provider)
-	}
-	tokens, err := cfg.ExchangeCode(c.Context(), code, sess.RedirectURI, sess.Verifier, state)
-	if err != nil {
-		return writeResult("error", err.Error())
-	}
-	h.sessions.Delete(state)
-
-	if _, _, perr := h.persistAccount(c.Context(), "system", cfg.AccountSlug(), "", tokens); perr != nil {
-		return writeResult("error", perr.Error())
-	}
-	return writeResult("success", "")
 }
 
 // renderOAuthPopupResult renders the callback page shown inside the sign-in
@@ -506,32 +399,4 @@ setTimeout(function () { window.close(); }, 800);
 </script>
 </body>
 </html>`, html.EscapeString(title), html.EscapeString(title), html.EscapeString(msg), payload)
-}
-
-// isLoopbackHost reports whether hostname points at the local machine — the
-// only hosts where the browser's fixed-loopback redirect can land on the
-// server's listener.
-func isLoopbackHost(hostname string) bool {
-	return hostname == "localhost" || hostname == "127.0.0.1" || hostname == "::1" ||
-		strings.HasSuffix(hostname, ".localhost")
-}
-
-// validateOAuthRedirect restricts the browser-facing callback target: https
-// anywhere, or plain http only on loopback hosts.
-func validateOAuthRedirect(raw string) error {
-	u, err := url.Parse(raw)
-	if err != nil {
-		return fmt.Errorf("not a valid URL")
-	}
-	switch u.Scheme {
-	case "https":
-		return nil
-	case "http":
-		if isLoopbackHost(u.Hostname()) {
-			return nil
-		}
-		return fmt.Errorf("http callbacks are only allowed on loopback hosts")
-	default:
-		return fmt.Errorf("scheme must be http or https")
-	}
 }

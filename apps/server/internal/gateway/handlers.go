@@ -8,7 +8,6 @@ import (
 
 	"tera-router/server/internal/core"
 	"tera-router/server/internal/models"
-	"tera-router/server/internal/transform"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -228,10 +227,4 @@ func (s *Server) logCompletion(meta requestMeta, provider, model string, tokens 
 		"latency_ms", latency.Milliseconds(),
 		"client", meta.Client,
 	)
-}
-
-// streamState builds the codec stream state for one stream, presetting the
-// model name every chunk echoes.
-func streamState(echoModel string) *transform.StreamState {
-	return &transform.StreamState{Model: echoModel}
 }

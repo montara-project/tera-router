@@ -13,8 +13,8 @@ package modelprices
 import "tera-router/server/internal/lib/cost"
 
 // entry is one compiled-in model price. Providers carries every provider slug
-// that serves the model at these rates (e.g. the Anthropic price card also
-// backs the "claude" OAuth provider, which is the same upstream).
+// that serves the model at these rates (e.g. the OpenAI price card also backs
+// the "codex" OAuth provider, which is the same upstream).
 type entry struct {
 	providers []string
 	model     string
@@ -80,20 +80,19 @@ func buildTable() map[string]cost.Rates {
 		{[]string{"openai", "codex"}, "text-embedding-3-large", rates(0.13, 0, 0, 0)},
 		{[]string{"openai", "codex"}, "text-embedding-ada-002", rates(0.1, 0, 0, 0)},
 
-		// Anthropic — cache write = 1.25x standard input. The "claude"
-		// OAuth provider serves the same upstream models.
-		{[]string{"anthropic", "claude"}, "claude-sonnet-5", rates(3, 15, 0.375, 3.75)},
-		{[]string{"anthropic", "claude"}, "claude-opus-4-20250514", rates(15, 75, 1.875, 18.75)},
-		{[]string{"anthropic", "claude"}, "claude-opus-4-7", rates(15, 75, 1.875, 18.75)},
-		{[]string{"anthropic", "claude"}, "claude-sonnet-4-20250514", rates(3, 15, 0.375, 3.75)},
-		{[]string{"anthropic", "claude"}, "claude-sonnet-4-6", rates(3, 15, 0.375, 3.75)},
-		{[]string{"anthropic", "claude"}, "claude-haiku-4-5-20251001", rates(0.8, 4, 0.08, 1.0)},
-		{[]string{"anthropic", "claude"}, "claude-3-5-sonnet-20241022", rates(3, 15, 0.375, 3.75)},
-		{[]string{"anthropic", "claude"}, "claude-3-5-sonnet-latest", rates(3, 15, 0.375, 3.75)},
-		{[]string{"anthropic", "claude"}, "claude-3-5-haiku-20241022", rates(0.8, 4, 0.08, 1.0)},
-		{[]string{"anthropic", "claude"}, "claude-3-opus-20240229", rates(15, 75, 1.875, 18.75)},
-		{[]string{"anthropic", "claude"}, "claude-3-sonnet-20240229", rates(3, 15, 0.375, 3.75)},
-		{[]string{"anthropic", "claude"}, "claude-3-haiku-20240307", rates(0.25, 1.25, 0.03, 0.3125)},
+		// Anthropic — cache write = 1.25x standard input.
+		{[]string{"anthropic"}, "claude-sonnet-5", rates(3, 15, 0.375, 3.75)},
+		{[]string{"anthropic"}, "claude-opus-4-20250514", rates(15, 75, 1.875, 18.75)},
+		{[]string{"anthropic"}, "claude-opus-4-7", rates(15, 75, 1.875, 18.75)},
+		{[]string{"anthropic"}, "claude-sonnet-4-20250514", rates(3, 15, 0.375, 3.75)},
+		{[]string{"anthropic"}, "claude-sonnet-4-6", rates(3, 15, 0.375, 3.75)},
+		{[]string{"anthropic"}, "claude-haiku-4-5-20251001", rates(0.8, 4, 0.08, 1.0)},
+		{[]string{"anthropic"}, "claude-3-5-sonnet-20241022", rates(3, 15, 0.375, 3.75)},
+		{[]string{"anthropic"}, "claude-3-5-sonnet-latest", rates(3, 15, 0.375, 3.75)},
+		{[]string{"anthropic"}, "claude-3-5-haiku-20241022", rates(0.8, 4, 0.08, 1.0)},
+		{[]string{"anthropic"}, "claude-3-opus-20240229", rates(15, 75, 1.875, 18.75)},
+		{[]string{"anthropic"}, "claude-3-sonnet-20240229", rates(3, 15, 0.375, 3.75)},
+		{[]string{"anthropic"}, "claude-3-haiku-20240307", rates(0.25, 1.25, 0.03, 0.3125)},
 
 		// DeepSeek.
 		{[]string{"deepseek"}, "deepseek-chat", rates(0.27, 1.1, 0.07, 0.27)},

@@ -95,7 +95,7 @@ func (h *keysHandler) Store(c fiber.Ctx) error {
 		LookupHash: gen.Lookup,
 		Display:    gen.Display,
 		Scopes:     req.Scopes,
-		Secret:     toModelsSealed(sealed),
+		Secret:     sealed,
 	}
 	if req.AllowedModels != nil {
 		key.AllowedModels = *req.AllowedModels
@@ -222,7 +222,7 @@ func (h *keysHandler) Reveal(c fiber.Ctx) error {
 		return apperr.New(apperr.KindUnprocessable, "key has no recoverable secret")
 	}
 
-	plaintext, err := h.app.Secrets.OpenString(fromModelsSealed(key.Secret))
+	plaintext, err := h.app.Secrets.OpenString(key.Secret)
 	if err != nil {
 		return err
 	}

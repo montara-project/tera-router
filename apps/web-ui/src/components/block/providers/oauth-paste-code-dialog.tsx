@@ -26,8 +26,8 @@ interface OAuthPasteCodeDialogProps {
 
 /**
  * OAuthPasteCodeDialog completes OAuth flows whose popup cannot hand the code
- * back to the dashboard: Claude's popup ends on its display-code page, and
- * Codex's loopback redirect lands on the browser's own machine for a
+ * back to the dashboard: Anthropic's popup ends on its display-code page, and
+ * Codex's loopback redirect lands on the server's machine instead of a
  * remotely-served dashboard — either way the user pastes what the popup shows.
  */
 export default function OAuthPasteCodeDialog({

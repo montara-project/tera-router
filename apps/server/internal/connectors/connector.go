@@ -386,7 +386,14 @@ func (c call) aggregate(model string, chunks []core.StreamChunk) (*core.ChatResp
 			}
 		case core.ChunkUsage:
 			if ch.Usage != nil {
-				mergeUsage(&usage, *ch.Usage)
+				total := usage.TotalTokens
+				usage.Merge(*ch.Usage)
+				if ch.Usage.TotalTokens == 0 {
+					// The aggregate path keeps a total only when an upstream
+					// states one; it does not synthesise one from the partial
+					// counts.
+					usage.TotalTokens = total
+				}
 			}
 		case core.ChunkFinish:
 			if ch.FinishReason != "" {
@@ -446,27 +453,4 @@ func (c call) aggregate(model string, chunks []core.StreamChunk) (*core.ChatResp
 		FinishReason: finish,
 		Usage:        usage,
 	}, nil
-}
-
-// mergeUsage accumulates usage across chunks: non-zero fields from later
-// updates win, so a provider that reports usage incrementally is handled.
-func mergeUsage(dst *core.Usage, src core.Usage) {
-	if src.PromptTokens != 0 {
-		dst.PromptTokens = src.PromptTokens
-	}
-	if src.CompletionTokens != 0 {
-		dst.CompletionTokens = src.CompletionTokens
-	}
-	if src.TotalTokens != 0 {
-		dst.TotalTokens = src.TotalTokens
-	}
-	if src.CachedTokens != 0 {
-		dst.CachedTokens = src.CachedTokens
-	}
-	if src.CacheWriteTokens != 0 {
-		dst.CacheWriteTokens = src.CacheWriteTokens
-	}
-	if src.ReasoningTokens != 0 {
-		dst.ReasoningTokens = src.ReasoningTokens
-	}
 }

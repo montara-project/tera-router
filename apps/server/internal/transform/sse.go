@@ -3,6 +3,7 @@ package transform
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"io"
 )
 
@@ -76,4 +77,15 @@ func SSEEvent(name string, data []byte) []byte {
 	b.Write(data)
 	b.WriteString("\n\n")
 	return b.Bytes()
+}
+
+// sseJSON renders one SSE event whose data is the JSON encoding of payload.
+// A payload that cannot be marshalled degrades to an empty object so the client
+// never receives a malformed frame.
+func sseJSON(name string, payload any) []byte {
+	b, err := json.Marshal(payload)
+	if err != nil {
+		b = []byte(`{}`)
+	}
+	return SSEEvent(name, b)
 }
