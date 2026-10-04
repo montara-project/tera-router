@@ -11,7 +11,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 
-const SQLITE_PATH = '/data/tera-router.db'
+const SQLITE_PATH = '/data/terarouter.db'
 
 export default function ImportExportTab() {
   return (
