@@ -13,8 +13,10 @@ import { PricingColumn } from '@/components/block/traffic/pricing/column'
 import FilterPricing from '@/components/block/traffic/pricing/filter'
 import OverrideDialog from '@/components/block/traffic/pricing/override-dialog'
 import { Button } from '@/components/ui/button'
+import { useDebounce } from '@/hooks/use-debounce'
 import { usePaginationQuery } from '@/hooks/use-pagination-query'
 import { queries } from '@/lib/api/queries'
+import { getTotal } from '@/lib/constants/paginate'
 
 export const Route = createFileRoute('/(protected)/(traffic)/pricing/')({
   component: PricingRoute,
@@ -42,7 +44,17 @@ function PricingRoute() {
     resetPage()
   }
 
-  const { data, isFetching, isLoading, isError, error } = useQuery(queries.overrides.pricingList())
+  // Search and scope filter server-side before paging; the debounce keeps
+  // typing from firing one request per keystroke.
+  const debouncedSearch = useDebounce({ value: search.trim(), delay: 300 })
+  const { data, isFetching, isLoading, isError, error } = useQuery(
+    queries.overrides.pricingList({
+      offset,
+      limit,
+      search: debouncedSearch || undefined,
+      scope: scope === 'model' || scope === 'provider' ? scope : undefined,
+    })
+  )
   const loading = isFetching || isLoading
 
   useEffect(() => {
@@ -57,32 +69,14 @@ function PricingRoute() {
   const overview = providersQuery.data?.data
   const providers = [...(overview?.connected ?? []), ...(overview?.available ?? [])]
 
-  const allOverrides = useMemo(() => data?.data ?? [], [data])
+  const overrides = useMemo(() => {
+    if (data?.data && data?.data.length > 0) {
+      return data.data
+    }
+    return []
+  }, [data])
 
-  const filteredOverrides = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    return allOverrides.filter((row) => {
-      if (q && !`${row.provider} ${row.model}`.toLowerCase().includes(q)) {
-        return false
-      }
-      if (scope === 'model' && row.model === '') {
-        return false
-      }
-      if (scope === 'provider' && row.model !== '') {
-        return false
-      }
-      return true
-    })
-  }, [allOverrides, search, scope])
-
-  const total = filteredOverrides.length
-  // The overrides endpoint returns the full list, so search/scope filtering
-  // and page slicing run here.
-  const pageOverrides = useMemo(
-    () => filteredOverrides.slice(offset, offset + limit),
-    [filteredOverrides, offset, limit]
-  )
-
+  const total = getTotal(data)
   const columns = PricingColumn({ loading, onEdit: setEditing })
 
   const dialogOpen = createOpen || Boolean(editing)
@@ -111,7 +105,7 @@ function PricingRoute() {
 
         <ReactTable
           total={total}
-          data={pageOverrides}
+          data={overrides}
           pageIndex={pageIndex}
           pageSize={limit}
           columns={columns}

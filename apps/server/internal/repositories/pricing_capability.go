@@ -102,6 +102,56 @@ func (r *PricingRepository) listExec(ctx context.Context, provider string) ([]mo
 	return out, errtrace.Wrap(rows.Err())
 }
 
+// PricingFilter narrows a pricing overrides page. Search is a
+// case-insensitive substring of "<provider> <model>"; Scope "model" keeps
+// per-model rows and "provider" keeps provider-wide rows (empty model).
+type PricingFilter struct {
+	Provider string
+	Search   string
+	Scope    string
+}
+
+// Page returns one page of overrides ordered by provider/model, plus the
+// filtered total.
+func (r *PricingRepository) Page(ctx context.Context, f PricingFilter, offset, limit int) ([]models.PricingOverride, int, error) {
+	return r.pageExec(ctx, f, offset, limit)
+}
+
+func (r *PricingRepository) pageExec(ctx context.Context, f PricingFilter, offset, limit int) ([]models.PricingOverride, int, error) {
+	query := `SELECT` + pricingColumns + `, count(*) OVER () AS total
+		FROM model_pricing_overrides
+		WHERE ($1 = '' OR provider = $1)
+		AND ($2 = '' OR instr(lower(provider || ' ' || model), lower($2)) > 0)
+		AND ($3 <> 'model' OR model <> '')
+		AND ($3 <> 'provider' OR model = '')
+		ORDER BY provider, model
+		LIMIT $5 OFFSET $4`
+	rows, err := r.queryContext(ctx, r.DB, query, f.Provider, f.Search, f.Scope, offset, limit)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	out := []models.PricingOverride{}
+	total := 0
+	for rows.Next() {
+		var p models.PricingOverride
+		var rate sql.Null[float64]
+		if err := rows.Scan(
+			&p.ID, &p.Provider, &p.Model, &p.InputMicros, &p.OutputMicros,
+			&p.CacheReadMicros, &p.CacheWriteMicros, &p.ReasoningMicros, &rate,
+			&p.CreatedAt, &p.UpdatedAt, &total,
+		); err != nil {
+			return nil, 0, errtrace.Wrap(err)
+		}
+		if rate.Valid {
+			p.TokenConsumptionRate = &rate.V
+		}
+		out = append(out, p)
+	}
+	return out, total, errtrace.Wrap(rows.Err())
+}
+
 // Delete removes the override for one (provider, model) pair.
 func (r *PricingRepository) Delete(ctx context.Context, provider, model string) error {
 	return r.deleteExec(ctx, provider, model)

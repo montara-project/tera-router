@@ -4,7 +4,7 @@ import { AUTH_STORAGE_KEYS } from '@/lib/constants/auth'
 import type { OverrideResources } from './types/override'
 
 import { ClientFetchApi } from '../client-fetch'
-import { CapabilitySchema, PricingSchema } from '../dtos/override/schema'
+import { CapabilitySchema, PricingListSchema, PricingSchema } from '../dtos/override/schema'
 import { parseDto } from '../dtos/parse'
 
 const pricingPath = '/v1/model-pricing-overrides'
@@ -17,10 +17,10 @@ const api = new ClientFetchApi({
 
 const resources = (): OverrideResources => {
   return {
-    /** micros of a dollar per million tokens */
-    pricingList: (provider) => {
+    /** micros of a dollar per million tokens; paged and filtered server-side */
+    pricingList: (params) => {
       const url = pricingPath
-      return api.get(url, { params: provider ? { provider } : undefined })
+      return api.get(url, { params: parseDto(PricingListSchema, params ?? {}) })
     },
     pricingUpsert: (payload) => {
       const url = pricingPath
