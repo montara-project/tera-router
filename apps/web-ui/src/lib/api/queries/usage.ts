@@ -21,6 +21,20 @@ const telemetry = (range?: Models.UsageRange) =>
     },
   })
 
+export const ACTIVITY_USAGE_QUERY_KEY = () => {
+  return [USAGE_QUERY_KEY, 'activity']
+}
+
+const activity = () =>
+  queryOptions({
+    queryKey: ACTIVITY_USAGE_QUERY_KEY(),
+    queryFn: async () => {
+      const res = await services.usage.activity()
+      return res.data.data
+    },
+  })
+
 export const usageQueries = {
   telemetry,
+  activity,
 } as const

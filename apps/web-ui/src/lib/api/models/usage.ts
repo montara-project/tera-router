@@ -25,6 +25,31 @@ export type UsageDaily = {
   tokens: number
 }
 
+/** One model's share of an activity day, busiest first. */
+export type UsageActivityModel = {
+  provider: string
+  provider_name: string
+  model: string
+  requests: number
+}
+
+/** One UTC day with traffic in the activity calendar. */
+export type UsageActivityDay = {
+  day: string
+  requests: number
+  failed: number
+  models: UsageActivityModel[]
+}
+
+/** Activity calendar: the last 53 weeks (from is a Sunday, to is today, UTC). */
+export type UsageActivity = {
+  from: string
+  to: string
+  total_requests: number
+  active_days: number
+  days: UsageActivityDay[]
+}
+
 export type UsageProviderAccountingRow = {
   id: string
   provider: string

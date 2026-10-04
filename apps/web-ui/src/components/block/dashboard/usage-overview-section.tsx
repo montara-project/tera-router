@@ -7,6 +7,7 @@ import OverviewProviderMix from '@/components/block/dashboard/overview-provider-
 import OverviewRecentRequests from '@/components/block/dashboard/overview-recent-requests'
 import OverviewStatCards from '@/components/block/dashboard/overview-stat-cards'
 import OverviewTokenComposition from '@/components/block/dashboard/overview-token-composition'
+import OverviewUsageActivity from '@/components/block/dashboard/overview-usage-activity'
 import { Skeleton } from '@/components/ui/skeleton'
 import { usageQueries } from '@/lib/api/queries/usage'
 
@@ -23,6 +24,7 @@ function OverviewSkeleton() {
         <Skeleton className="h-96 rounded-xl xl:col-span-2" />
       </div>
       <Skeleton className="h-32 rounded-xl" />
+      <Skeleton className="h-64 rounded-xl" />
       <Skeleton className="h-96 rounded-xl" />
     </div>
   )
@@ -49,6 +51,8 @@ export default function UsageOverviewSection({ range }: { range: UsageRange }) {
       </div>
 
       <OverviewTokenComposition telemetry={data} />
+
+      <OverviewUsageActivity />
 
       <OverviewRecentRequests rows={data.recentRequests} />
     </div>

@@ -35,6 +35,11 @@ const resources = (): UsageResources => {
       const url = `${path}/telemetry`
       return api.get(url, { params: parseDto(UsageQuerySchema, { range }) })
     },
+    /** activity calendar: requests per day for the last 53 weeks, per model */
+    activity: () => {
+      const url = `${path}/activity`
+      return api.get(url)
+    },
   }
 }
 
