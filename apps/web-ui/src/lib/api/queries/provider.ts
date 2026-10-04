@@ -29,6 +29,10 @@ export const GET_CUSTOM_PROVIDER_MODELS_QUERY_KEY = (id: string) => {
   return [CUSTOM_PROVIDER_QUERY_KEY, 'models', id]
 }
 
+export const GET_CUSTOM_PROVIDER_BY_SLUG_QUERY_KEY = (slug: string) => {
+  return [CUSTOM_PROVIDER_QUERY_KEY, 'by-slug', slug]
+}
+
 export const GET_PROVIDER_MODELS_QUERY_KEY = (slug: string) => {
   return [PROVIDER_QUERY_KEY, 'models', slug]
 }
@@ -61,10 +65,20 @@ const customGet = (id: string) =>
   queryOptions({
     queryKey: GET_CUSTOM_PROVIDER_QUERY_KEY(id),
     queryFn: async () => {
-      const res = await services.providers.customList()
-      const provider = res.data.data.find((item) => item.id === id)
-      if (!provider) throw new Error('Custom provider not found')
-      return provider
+      const res = await services.providers.customGet(id)
+      return res.data.data
+    },
+  })
+
+// Row-level lookups (pricing cells carry only the slug). A 404 just means the
+// slug belongs to a catalog provider, not a transient failure — no retries.
+const customGetBySlug = (slug: string) =>
+  queryOptions({
+    queryKey: GET_CUSTOM_PROVIDER_BY_SLUG_QUERY_KEY(slug),
+    retry: false,
+    queryFn: async () => {
+      const res = await services.providers.customGetBySlug(slug)
+      return res.data.data
     },
   })
 
@@ -262,6 +276,7 @@ export const providerQueries = {
   list,
   customList,
   customGet,
+  customGetBySlug,
   customCreate,
   customUpdate,
   customDelete,

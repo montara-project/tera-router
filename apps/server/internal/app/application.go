@@ -25,7 +25,7 @@ type Application struct {
 	Repos    *repositories.Repositories
 	Secrets  *sealer.Sealer
 	Services *services.Services
-	// OAuth refreshes expiring OAuth access tokens (claude, codex) just in
+	// OAuth refreshes expiring OAuth access tokens (anthropic, codex) just in
 	// time; nil in tools that never dispatch through the gateway.
 	OAuth *oauth.Manager
 }

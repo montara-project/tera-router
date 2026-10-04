@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -148,4 +149,33 @@ func AsProviderError(err error) *ProviderError {
 // NewProviderError constructs a ProviderError with the given kind and message.
 func NewProviderError(kind ErrorKind, msg string) *ProviderError {
 	return &ProviderError{Kind: kind, Message: msg}
+}
+
+// rateLimitNeedles match, case-insensitively, the rate-limit and
+// capacity/overload wording providers use both in HTTP error bodies and in
+// mid-stream error events. Quota exhaustion is deliberately absent: it is a
+// distinct condition with its own needles and error kind.
+var rateLimitNeedles = []string{
+	"rate limit",
+	"rate_limit",
+	"rate-limited",
+	"ratelimit",
+	"too many requests",
+	"request limit",
+	"request_limit",
+	"throttl",
+	"overloaded",
+	"capacity",
+}
+
+// LooksRateLimited reports whether msg carries rate-limit, overload, or
+// capacity wording.
+func LooksRateLimited(msg string) bool {
+	low := strings.ToLower(msg)
+	for _, n := range rateLimitNeedles {
+		if strings.Contains(low, n) {
+			return true
+		}
+	}
+	return false
 }

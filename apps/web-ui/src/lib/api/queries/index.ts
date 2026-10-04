@@ -6,7 +6,6 @@ import { consoleQueries } from './console'
 import { guardrailsQueries } from './guardrails'
 import { keyQueries } from './key'
 import { mediaQueries } from './media'
-import { oauthQueries } from './oauth'
 import { overrideQueries } from './override'
 import { planQueries } from './plan'
 import { providerQueries } from './provider'
@@ -27,7 +26,6 @@ export const queries = {
   guardrails: guardrailsQueries,
   keys: keyQueries,
   media: mediaQueries,
-  oauth: oauthQueries,
   overrides: overrideQueries,
   plans: planQueries,
   providerHealth: providerHealthQueries,

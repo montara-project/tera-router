@@ -16,19 +16,13 @@ func (c *connector) endpoint(creds core.Credentials) string {
 	case core.DialectOpenAIResponses:
 		// The Codex catalog entry already points at ".../responses"; a plain
 		// "https://api.openai.com/v1" base must gain the suffix.
-		if hasResponsesSuffix(base) {
+		if strings.HasSuffix(strings.TrimRight(base, "/"), "/responses") {
 			return base
 		}
 		return joinURL(base, "responses")
 	default:
 		return joinURL(base, "chat/completions")
 	}
-}
-
-// hasResponsesSuffix reports whether a base URL already targets /responses.
-func hasResponsesSuffix(u string) bool {
-	const suf = "/responses"
-	return strings.HasSuffix(strings.TrimRight(u, "/"), suf)
 }
 
 // headers returns the upstream auth and identification headers for an attempt.
@@ -71,20 +65,54 @@ func (c *connector) openAIHeaders(creds core.Credentials) map[string]string {
 	return mergeHeaders(h, creds.Headers)
 }
 
-// anthropicVersion is the API version Anthropic requires on every call.
-const anthropicVersion = "2023-06-01"
+// Anthropic API constants. AnthropicVersion is required on every call.
+// Subscription (OAuth) access tokens additionally need AnthropicOAuthBeta and
+// ClaudeCodeSystemPrompt as the leading system block: without the prompt,
+// Sonnet/Opus answer 429 rate_limit_error while Haiku still succeeds.
+const (
+	AnthropicVersion       = "2023-06-01"
+	AnthropicOAuthBeta     = "oauth-2025-04-20"
+	ClaudeCodeSystemPrompt = "You are Claude Code, Anthropic's official CLI for Claude."
+)
+
+// anthropicOAuth reports whether an Anthropic attempt authenticates with an
+// OAuth access token rather than an API key.
+func anthropicOAuth(creds core.Credentials) bool {
+	return creds.APIKey == "" && creds.AccessToken != ""
+}
 
 // anthropicHeaders authenticates an Anthropic Messages call: API keys go in
-// x-api-key, OAuth access tokens in Authorization.
+// x-api-key, OAuth access tokens in Authorization plus the oauth beta header
+// Anthropic requires for bearer tokens.
 func (c *connector) anthropicHeaders(creds core.Credentials) map[string]string {
-	h := map[string]string{"anthropic-version": anthropicVersion}
+	h := map[string]string{"anthropic-version": AnthropicVersion}
+	oauth := anthropicOAuth(creds)
 	switch {
 	case creds.APIKey != "":
 		h["x-api-key"] = creds.APIKey
-	case creds.AccessToken != "":
+	case oauth:
 		h["Authorization"] = bearer(creds.AccessToken)
 	}
-	return mergeHeaders(h, creds.Headers)
+	merged := mergeHeaders(h, creds.Headers)
+	if oauth {
+		// Anthropic requires the oauth beta flag for bearer tokens. An
+		// operator-supplied anthropic-beta (any casing) is combined, not
+		// clobbered.
+		key, existing := "", ""
+		for k, v := range merged {
+			if strings.EqualFold(k, "anthropic-beta") {
+				key, existing = k, v
+				break
+			}
+		}
+		switch {
+		case key == "":
+			merged["anthropic-beta"] = AnthropicOAuthBeta
+		case !strings.Contains(existing, AnthropicOAuthBeta):
+			merged[key] = AnthropicOAuthBeta + "," + existing
+		}
+	}
+	return merged
 }
 
 // responsesHeaders authenticates an OpenAI Responses call. The Codex backend

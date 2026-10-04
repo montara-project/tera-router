@@ -78,6 +78,20 @@ const del = () => {
   })
 }
 
+export const ACCOUNT_QUOTA_QUERY_KEY = (id: string) => {
+  return [ACCOUNT_QUERY_KEY, 'quota', id]
+}
+
+/** Live upstream quota windows (Claude subscription accounts). */
+const quota = (id: string) =>
+  queryOptions({
+    queryKey: ACCOUNT_QUOTA_QUERY_KEY(id),
+    queryFn: async () => {
+      const res = await services.accounts.quota(id)
+      return res.data
+    },
+  })
+
 const test = () => {
   const qc = getQueryClient()
 
@@ -99,4 +113,5 @@ export const accountQueries = {
   update,
   delete: del,
   test,
+  quota,
 } as const

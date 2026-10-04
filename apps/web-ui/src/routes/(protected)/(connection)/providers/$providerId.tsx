@@ -9,9 +9,9 @@ import SimpleAlertDialog from '@/components/block/common/simple-alert-dialog'
 import AccountsPanel from '@/components/block/provider-detail/accounts-panel'
 import DetailSkeleton from '@/components/block/provider-detail/detail-skeleton'
 import ModelsPanel from '@/components/block/provider-detail/models-panel'
+import QuotaPanel from '@/components/block/provider-detail/quota-panel'
 import RoutingPanel from '@/components/block/provider-detail/routing-panel'
 import SummaryTile from '@/components/block/provider-detail/summary-tile'
-import { API_KEY_PROVIDERS, OAUTH_PROVIDERS } from '@/components/block/providers/catalog-connect'
 import { AddCustomProviderApiKeyForm } from '@/components/block/providers/form-provider-api-key'
 import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
 import { Badge, BadgeDot } from '@/components/ui/badge'
@@ -69,8 +69,6 @@ function CustomProviderDetailRoute() {
   const slug = isCatalogProvider ? catalogSlug : provider?.slug
   const apiKind = isCatalogProvider ? catalogView?.api_kind : provider?.api_kind
   const dialectLabel = apiKind === 'anthropic' ? 'Anthropic-compatible' : 'OpenAI-compatible'
-  const isOAuthProvider = isCatalogProvider && OAUTH_PROVIDERS[catalogSlug] !== undefined
-  const catalogAuthKind = isCatalogProvider ? API_KEY_PROVIDERS[catalogSlug]?.authKind : undefined
 
   const accountQuery = useQuery(queries.accounts.list({ offset: 0, limit: 100 }))
   const chainsQuery = useQuery(queries.chains.list({ offset: 0, limit: 100 }))
@@ -86,6 +84,14 @@ function CustomProviderDetailRoute() {
   const accounts = useMemo(
     () => (accountQuery.data?.data ?? []).filter((account) => account.provider === slug),
     [accountQuery.data, slug]
+  )
+  // Claude subscription (OAuth) accounts expose live session/weekly limits.
+  const quotaAccounts = useMemo(
+    () =>
+      accounts.filter(
+        (account) => account.provider === 'anthropic' && account.auth_kind === 'oauth'
+      ),
+    [accounts]
   )
   const models = useMemo(() => {
     const rows = usageQuery.data?.modelAccounting ?? []
@@ -229,11 +235,9 @@ function CustomProviderDetailRoute() {
               </span>
             </div>
             <div className="ml-auto flex flex-wrap items-center gap-2">
-              {!isOAuthProvider ? (
-                <Button className={AMBER_BUTTON_CLASS} onClick={() => setAccountOpen(true)}>
-                  <IconPlus /> Add API key
-                </Button>
-              ) : null}
+              <Button className={AMBER_BUTTON_CLASS} onClick={() => setAccountOpen(true)}>
+                <IconPlus /> Add API key
+              </Button>
               {!isCatalogProvider && provider ? (
                 <>
                   <Button
@@ -256,12 +260,7 @@ function CustomProviderDetailRoute() {
             {isCatalogProvider ? (
               <>
                 <SummaryTile label="Dialect" value={dialectLabel} />
-                <SummaryTile
-                  label="Auth"
-                  value={
-                    isOAuthProvider ? 'OAuth' : catalogAuthKind === 'none' ? 'None' : 'API key'
-                  }
-                />
+                <SummaryTile label="Auth" value="API key" />
                 <SummaryTile
                   label="Accounts"
                   value={`${activeAccounts} active · ${accounts.length - activeAccounts} disabled`}
@@ -284,13 +283,16 @@ function CustomProviderDetailRoute() {
               <TabsTrigger value="overview">Accounts ({accounts.length})</TabsTrigger>
               <TabsTrigger value="routing">Routing ({chains.length})</TabsTrigger>
               <TabsTrigger value="models">Models ({models.length})</TabsTrigger>
+              {quotaAccounts.length > 0 ? (
+                <TabsTrigger value="quota">Quota ({quotaAccounts.length})</TabsTrigger>
+              ) : null}
             </TabsList>
 
             <TabsContent value="overview" className="mt-4 space-y-4">
               <AccountsPanel
                 accounts={accounts}
                 loading={accountQuery.isLoading}
-                canManageKeys={!isOAuthProvider}
+                canManageKeys
                 onAddKey={() => setAccountOpen(true)}
                 onChanged={invalidate}
               />
@@ -318,6 +320,12 @@ function CustomProviderDetailRoute() {
             <TabsContent value="routing" className="mt-4">
               <RoutingPanel chains={chains} loading={chainsQuery.isLoading} slug={slug ?? ''} />
             </TabsContent>
+
+            {quotaAccounts.length > 0 ? (
+              <TabsContent value="quota" className="mt-4">
+                <QuotaPanel accounts={quotaAccounts} />
+              </TabsContent>
+            ) : null}
           </Tabs>
         </div>
       </SectionCard>
@@ -326,7 +334,6 @@ function CustomProviderDetailRoute() {
         open={accountOpen}
         onOpenChange={setAccountOpen}
         provider={{ slug: slug ?? '', name: providerName ?? '' }}
-        authKind={catalogAuthKind}
       />
 
       {!isCatalogProvider ? (

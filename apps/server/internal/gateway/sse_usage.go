@@ -108,7 +108,7 @@ func extractUsageFromCapture(codec transform.Codec, capture *safeBuffer) core.Us
 		}
 		for _, chunk := range chunks {
 			if chunk.Type == core.ChunkUsage && chunk.Usage != nil {
-				usage = mergeUsage(usage, *chunk.Usage)
+				usage.Merge(*chunk.Usage)
 			}
 		}
 		return nil

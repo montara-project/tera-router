@@ -25,6 +25,12 @@ type ChatRequest struct {
 	// dialects that carry them separately (Anthropic, Responses instructions).
 	System string `json:"system,omitempty"`
 
+	// SystemPreamble is a router-injected instruction rendered as its own
+	// system block ahead of System (Anthropic). Never parsed from clients;
+	// connectors set it for upstream quirks such as the Claude Code prompt
+	// Anthropic requires on subscription (OAuth) tokens.
+	SystemPreamble string `json:"-"`
+
 	Tools      []Tool      `json:"tools,omitempty"`
 	ToolChoice *ToolChoice `json:"tool_choice,omitempty"`
 	Stop       []string    `json:"stop,omitempty"`

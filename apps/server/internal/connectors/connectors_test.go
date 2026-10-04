@@ -587,6 +587,9 @@ func TestAnthropicAuthHeaders(t *testing.T) {
 	if got.headers.Get("anthropic-version") != "2023-06-01" {
 		t.Errorf("anthropic-version = %q", got.headers.Get("anthropic-version"))
 	}
+	if got.headers.Get("anthropic-beta") != "" {
+		t.Errorf("API-key auth must not send the oauth beta, got %q", got.headers.Get("anthropic-beta"))
+	}
 
 	// OAuth tokens use the bearer scheme instead of x-api-key.
 	if _, err := conn.Chat(context.Background(), testRequest(), core.Credentials{AccessToken: "oauth-tok"}); err != nil {
@@ -597,6 +600,69 @@ func TestAnthropicAuthHeaders(t *testing.T) {
 	}
 	if got.headers.Get("x-api-key") != "" {
 		t.Errorf("OAuth auth must not send x-api-key, got %q", got.headers.Get("x-api-key"))
+	}
+	if got.headers.Get("anthropic-beta") != "oauth-2025-04-20" {
+		t.Errorf("OAuth anthropic-beta = %q, want oauth-2025-04-20", got.headers.Get("anthropic-beta"))
+	}
+
+	// An operator-configured beta is kept alongside the oauth flag.
+	creds := core.Credentials{AccessToken: "oauth-tok", Headers: map[string]string{"Anthropic-Beta": "prompt-caching-2024-07-31"}}
+	if _, err := conn.Chat(context.Background(), testRequest(), creds); err != nil {
+		t.Fatalf("Chat(oauth+beta): %v", err)
+	}
+	if got.headers.Get("anthropic-beta") != "oauth-2025-04-20,prompt-caching-2024-07-31" {
+		t.Errorf("merged anthropic-beta = %q", got.headers.Get("anthropic-beta"))
+	}
+}
+
+// Anthropic subscription (OAuth) tokens need the Claude Code prompt as the
+// leading system block — merged into one string Anthropic still answers 429
+// for Sonnet/Opus. API-key calls keep the caller's system untouched.
+func TestAnthropicOAuthSystemPreamble(t *testing.T) {
+	var got capture
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = capture{}
+		got.record(r)
+		io.WriteString(w, `{"id":"msg_1","model":"m","role":"assistant","content":[{"type":"text","text":"hi"}],"stop_reason":"end_turn","usage":{"input_tokens":1,"output_tokens":1}}`)
+	}))
+	defer srv.Close()
+
+	conn, err := newTestRegistry(t).For("anthropic", core.DialectAnthropic, srv.URL+"/v1")
+	if err != nil {
+		t.Fatalf("For: %v", err)
+	}
+	const cc = "You are Claude Code, Anthropic's official CLI for Claude."
+	oauth := core.Credentials{AccessToken: "oauth-tok"}
+
+	cases := []struct {
+		name   string
+		system string
+		creds  core.Credentials
+		want   string
+	}{
+		{"oauth adds leading block", "Be brief.", oauth, `[{"type":"text","text":"` + cc + `"},{"type":"text","text":"Be brief."}]`},
+		{"oauth without caller system", "", oauth, `[{"type":"text","text":"` + cc + `"}]`},
+		{"oauth caller already sent it", cc + "\nBe brief.", oauth, `[{"type":"text","text":"` + cc + `"},{"type":"text","text":"Be brief."}]`},
+		{"api key untouched", "Be brief.", core.Credentials{APIKey: "sk-ant"}, `"Be brief."`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := testRequest()
+			req.System = tc.system
+			if _, err := conn.Chat(context.Background(), req, tc.creds); err != nil {
+				t.Fatalf("Chat: %v", err)
+			}
+			var body struct {
+				System json.RawMessage `json:"system"`
+			}
+			_ = json.Unmarshal(got.raw, &body)
+			if string(body.System) != tc.want {
+				t.Errorf("system = %s, want %s", body.System, tc.want)
+			}
+			if req.SystemPreamble != "" {
+				t.Error("render must not mutate the caller's request")
+			}
+		})
 	}
 }
 

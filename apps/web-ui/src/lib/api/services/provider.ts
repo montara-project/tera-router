@@ -33,6 +33,14 @@ const resources = (): ProviderResources => {
       const url = customPath
       return api.get(url)
     },
+    customGet: (id) => {
+      const url = `${customPath}/${id}`
+      return api.get(url)
+    },
+    customGetBySlug: (slug) => {
+      const url = `${customPath}/by-slug/${encodeURIComponent(slug)}`
+      return api.get(url)
+    },
     customStore: (payload) => {
       const url = customPath
       return api.post(url, parseDto(CustomProviderSchema, payload))

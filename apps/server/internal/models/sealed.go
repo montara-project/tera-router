@@ -1,10 +1,7 @@
 package models
 
-// Sealed holds the envelope-encrypted pair for one secret blob.
-type Sealed struct {
-	WrappedDEK string `json:"wrapped_dek"`
-	Ciphertext string `json:"ciphertext"`
-}
+import "tera-router/server/internal/lib/sealer"
 
-// Empty reports whether the pair carries no recoverable secret.
-func (s Sealed) Empty() bool { return s.WrappedDEK == "" || s.Ciphertext == "" }
+// Sealed is the persisted envelope-encrypted secret pair. It is the sealer's
+// own type so credentials need no conversion at the persistence boundary.
+type Sealed = sealer.Sealed

@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"tera-router/server/internal/connectors"
 	"tera-router/server/internal/dtos"
 )
 
@@ -130,10 +131,38 @@ func (s *UpstreamService) TestProxy(ctx context.Context, proxyURL string) (bool,
 	return resp.StatusCode < 500, nil
 }
 
+// setUpstreamAuth sets the auth headers for an upstream credential: the
+// Anthropic dialect uses x-api-key, or Bearer plus the oauth beta header when
+// the credential is an OAuth access token; every other dialect uses Bearer.
+func setUpstreamAuth(req *http.Request, anthropic bool, oauth bool, apiKey string) {
+	if !anthropic {
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+		return
+	}
+	if oauth {
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+		req.Header.Set("anthropic-beta", connectors.AnthropicOAuthBeta)
+	} else {
+		req.Header.Set("x-api-key", apiKey)
+	}
+	req.Header.Set("anthropic-version", connectors.AnthropicVersion)
+}
+
+// V1Join resolves a path against an OpenAI/Anthropic base URL, avoiding the
+// /v1/v1 double when the base already ends in /v1.
+func V1Join(base, path string) string {
+	base = strings.TrimSuffix(base, "/")
+	if strings.HasSuffix(base, "/v1") {
+		return base + "/" + strings.TrimLeft(path, "/")
+	}
+	return base + "/v1/" + strings.TrimLeft(path, "/")
+}
+
 // ProbeCredential performs a lightweight authenticated GET against the
 // provider's model-list endpoint to verify a credential before it is stored.
-// The caller decides the endpoint and wire dialect.
-func (s *UpstreamService) ProbeCredential(ctx context.Context, endpoint string, anthropicDialect bool, apiKey string) (dtos.TestResult, error) {
+// The caller decides the endpoint and wire dialect; oauth marks a credential
+// that is an OAuth access token rather than an API key.
+func (s *UpstreamService) ProbeCredential(ctx context.Context, endpoint string, anthropicDialect, oauth bool, apiKey string) (dtos.TestResult, error) {
 	if err := validateEndpoint(endpoint); err != nil {
 		return dtos.TestResult{OK: false, Detail: err.Error()}, nil
 	}
@@ -142,12 +171,7 @@ func (s *UpstreamService) ProbeCredential(ctx context.Context, endpoint string, 
 	if err != nil {
 		return dtos.TestResult{}, err
 	}
-	if anthropicDialect {
-		req.Header.Set("x-api-key", apiKey)
-		req.Header.Set("anthropic-version", "2023-06-01")
-	} else {
-		req.Header.Set("Authorization", "Bearer "+apiKey)
-	}
+	setUpstreamAuth(req, anthropicDialect, oauth, apiKey)
 
 	start := time.Now()
 	client := probeClient()
@@ -173,11 +197,12 @@ func (s *UpstreamService) ProbeCredential(ctx context.Context, endpoint string, 
 }
 
 // ListModels fetches the model catalog from the provider's model-list
-// endpoint using the given credential. Both wire dialects answer with the
-// same {"data":[{"id":...}]} shape; the ids come back sorted for a stable
-// listing. When an entry carries a pricing object (the OpenRouter convention
-// some OpenAI-compatible upstreams follow), its rates are parsed too.
-func (s *UpstreamService) ListModels(ctx context.Context, endpoint string, anthropicDialect bool, apiKey string) ([]UpstreamModel, error) {
+// endpoint using the given credential; oauth marks an OAuth access token
+// rather than an API key. Both wire dialects answer with the same
+// {"data":[{"id":...}]} shape; the ids come back sorted for a stable listing.
+// When an entry carries a pricing object (the OpenRouter convention some
+// OpenAI-compatible upstreams follow), its rates are parsed too.
+func (s *UpstreamService) ListModels(ctx context.Context, endpoint string, anthropicDialect, oauth bool, apiKey string) ([]UpstreamModel, error) {
 	if err := validateEndpoint(endpoint); err != nil {
 		return nil, err
 	}
@@ -186,12 +211,7 @@ func (s *UpstreamService) ListModels(ctx context.Context, endpoint string, anthr
 	if err != nil {
 		return nil, err
 	}
-	if anthropicDialect {
-		req.Header.Set("x-api-key", apiKey)
-		req.Header.Set("anthropic-version", "2023-06-01")
-	} else {
-		req.Header.Set("Authorization", "Bearer "+apiKey)
-	}
+	setUpstreamAuth(req, anthropicDialect, oauth, apiKey)
 
 	client := probeClient()
 	resp, err := client.Do(req)
@@ -496,26 +516,17 @@ func chatCompletionClient() *http.Client {
 	}
 }
 
-// anthropicMessagesEndpoint resolves the /v1/messages URL for an Anthropic
-// base URL, avoiding the /v1/v1 double when the base already ends in /v1.
-func anthropicMessagesEndpoint(baseURL string) string {
-	base := strings.TrimSuffix(baseURL, "/")
-	if strings.HasSuffix(base, "/v1") {
-		return base + "/messages"
-	}
-	return base + "/v1/messages"
-}
-
 // ChatCompletion sends one small chat completion to the upstream to verify a
 // model actually answers — the dashboard's model test. The caller resolves
-// the base URL, wire dialect, and credential exactly like the gateway would.
+// the base URL, wire dialect, and credential exactly like the gateway would;
+// oauth marks an OAuth access token rather than an API key.
 // Upstream failures (non-2xx, unparseable body, empty answer) are reported in
 // the result rather than as a Go error, so the dashboard can render the
 // reason inline; only context/transport setup problems return an error.
-func (s *UpstreamService) ChatCompletion(ctx context.Context, baseURL string, anthropicDialect bool, apiKey, model string, messages []dtos.ModelTestMessage) (dtos.ModelTestResult, error) {
+func (s *UpstreamService) ChatCompletion(ctx context.Context, baseURL string, anthropicDialect, oauth bool, apiKey, model string, messages []dtos.ModelTestMessage) (dtos.ModelTestResult, error) {
 	endpoint := strings.TrimSuffix(baseURL, "/") + "/chat/completions"
 	if anthropicDialect {
-		endpoint = anthropicMessagesEndpoint(baseURL)
+		endpoint = V1Join(baseURL, "messages")
 	}
 	if err := validateEndpoint(endpoint); err != nil {
 		return dtos.ModelTestResult{OK: false, Detail: err.Error()}, nil
@@ -526,8 +537,11 @@ func (s *UpstreamService) ChatCompletion(ctx context.Context, baseURL string, an
 		msgs = append(msgs, map[string]string{"role": m.Role, "content": m.Content})
 	}
 	payload := map[string]any{"model": model, "max_tokens": modelTestMaxTokens, "messages": msgs}
-	if !anthropicDialect {
+	switch {
+	case !anthropicDialect:
 		payload["stream"] = false
+	case oauth:
+		payload["system"] = connectors.ClaudeCodeSystemPrompt
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
@@ -538,12 +552,7 @@ func (s *UpstreamService) ChatCompletion(ctx context.Context, baseURL string, an
 	if err != nil {
 		return dtos.ModelTestResult{}, err
 	}
-	if anthropicDialect {
-		req.Header.Set("x-api-key", apiKey)
-		req.Header.Set("anthropic-version", "2023-06-01")
-	} else {
-		req.Header.Set("Authorization", "Bearer "+apiKey)
-	}
+	setUpstreamAuth(req, anthropicDialect, oauth, apiKey)
 	req.Header.Set("Content-Type", "application/json")
 
 	start := time.Now()

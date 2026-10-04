@@ -12,13 +12,12 @@ import CapabilityChips, { CAPABILITIES } from '@/components/block/providers/capa
 import {
   API_KEY_PROVIDERS,
   CUSTOM_CONNECT_PRESETS,
-  DUAL_AUTH_PROVIDERS,
-  OAUTH_PROVIDERS,
-  SYNCABLE_PROVIDERS,
+  OAUTH_FLOW_FOR,
 } from '@/components/block/providers/catalog-connect'
 import ConnectModeDialog from '@/components/block/providers/connect-mode-dialog'
 import { AddCustomProviderForm } from '@/components/block/providers/form'
 import { AddCustomProviderApiKeyForm } from '@/components/block/providers/form-provider-api-key'
+import OAuthPasteCodeDialog from '@/components/block/providers/oauth-paste-code-dialog'
 import ProviderGrid from '@/components/block/providers/provider-grid'
 import { useOAuthConnect } from '@/components/block/providers/use-oauth-connect'
 import { Badge } from '@/components/ui/badge'
@@ -136,7 +135,14 @@ function RouteComponent() {
   const [keyProvider, setKeyProvider] = useState<{ slug: string; name: string } | null>(null)
   const [modeProvider, setModeProvider] = useState<{ slug: string; name: string } | null>(null)
   const [syncingSlug, setSyncingSlug] = useState<string | null>(null)
-  const { connect: connectOAuth, connecting } = useOAuthConnect()
+  const {
+    connect: connectOAuth,
+    connecting,
+    pasteFlow,
+    pastePending,
+    submitPasteCode,
+    cancelPaste,
+  } = useOAuthConnect()
   const queryClient = useQueryClient()
 
   const { data } = useQuery(providerQueries.list())
@@ -180,10 +186,6 @@ function RouteComponent() {
   }
 
   const handleConnect = (provider: Models.Provider) => {
-    if (OAUTH_PROVIDERS[provider.slug]) {
-      void connectOAuth(provider.slug)
-      return
-    }
     const preset = CUSTOM_CONNECT_PRESETS[provider.slug]
     if (preset) {
       setCreatePreset(preset)
@@ -192,7 +194,7 @@ function RouteComponent() {
     }
     // OpenAI and Anthropic support both paths: official-website sign-in or a
     // pasted API key — offer the choice before opening either form.
-    if (DUAL_AUTH_PROVIDERS[provider.slug]) {
+    if (OAUTH_FLOW_FOR[provider.slug]) {
       setModeProvider({ slug: provider.slug, name: provider.name })
       return
     }
@@ -204,9 +206,9 @@ function RouteComponent() {
   }
 
   const handleModeOAuth = () => {
-    const slug = modeProvider?.slug
+    const provider = modeProvider
     setModeProvider(null)
-    if (slug) void connectOAuth(slug)
+    if (provider) void connectOAuth(OAUTH_FLOW_FOR[provider.slug], provider.name)
   }
 
   const handleModeApiKey = () => {
@@ -223,7 +225,7 @@ function RouteComponent() {
     // (OpenRouter also imports its per-model pricing).
     await queryClient.invalidateQueries({ queryKey: [PROVIDER_QUERY_KEY] })
     await queryClient.invalidateQueries({ queryKey: [ACCOUNT_QUERY_KEY] })
-    if (SYNCABLE_PROVIDERS.has(slug)) {
+    if (API_KEY_PROVIDERS[slug]) {
       await syncModels(slug)
     }
   }
@@ -279,15 +281,11 @@ function RouteComponent() {
             title="Connected providers"
             variant="connected"
             detailBasePath="/providers"
-            onSync={
-              SYNCABLE_PROVIDERS.size > 0
-                ? (provider) => {
-                    if (SYNCABLE_PROVIDERS.has(provider.slug)) {
-                      void syncModels(provider.slug)
-                    }
-                  }
-                : undefined
-            }
+            onSync={(provider) => {
+              if (API_KEY_PROVIDERS[provider.slug]) {
+                void syncModels(provider.slug)
+              }
+            }}
             syncingSlug={syncingSlug}
           />
 
@@ -313,7 +311,6 @@ function RouteComponent() {
           }
         }}
         provider={keyProvider ?? { slug: '', name: '' }}
-        authKind={keyProvider ? API_KEY_PROVIDERS[keyProvider.slug]?.authKind : undefined}
         onSuccess={handleKeyConnected}
       />
 
@@ -323,6 +320,15 @@ function RouteComponent() {
         onApiKey={handleModeApiKey}
         onOAuth={handleModeOAuth}
         oauthPending={connecting !== null}
+      />
+
+      <OAuthPasteCodeDialog
+        open={pasteFlow !== null}
+        providerName={pasteFlow?.name ?? ''}
+        mode={pasteFlow?.mode ?? 'code'}
+        pending={pastePending}
+        onCancel={cancelPaste}
+        onSubmit={(code) => void submitPasteCode(code)}
       />
     </>
   )

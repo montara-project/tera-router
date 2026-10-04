@@ -1,6 +1,7 @@
 package oauth
 
 import (
+	"cmp"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -8,7 +9,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"sort"
 	"strings"
 	"time"
 )
@@ -22,18 +22,11 @@ var httpClient = &http.Client{
 // AuthURL builds the provider authorize URL for the authorization-code + PKCE
 // flow. challenge is the S256 code challenge.
 func (c ProviderConfig) AuthURL(redirectURI, state, challenge string) string {
-	params := c.authParams(redirectURI, state, challenge)
-	if c.EncodeAuthSpacesAsPercent {
-		return c.AuthorizeURL + "?" + encodeAuthParams(params, true)
-	}
-
-	q := url.Values{}
-	for _, p := range params {
-		q.Set(p.key, p.value)
-	}
-	return c.AuthorizeURL + "?" + q.Encode()
+	return c.AuthorizeURL + "?" + encodeAuthParams(c.authParams(redirectURI, state, challenge))
 }
 
+// authParam is one authorize-URL query parameter; the slice order is the
+// order the URL carries, mirroring the upstream CLIs.
 type authParam struct {
 	key   string
 	value string
@@ -44,51 +37,22 @@ func (c ProviderConfig) authParams(redirectURI, state, challenge string) []authP
 		{"response_type", "code"},
 		{"client_id", c.ClientID},
 		{"redirect_uri", redirectURI},
+		{"scope", strings.Join(c.Scopes, " ")},
+		{"code_challenge", challenge},
+		{"code_challenge_method", "S256"},
 	}
-	if len(c.Scopes) > 0 {
-		params = append(params, authParam{"scope", strings.Join(c.Scopes, " ")})
-	}
-	if challenge != "" {
-		params = append(params,
-			authParam{"code_challenge", challenge},
-			authParam{"code_challenge_method", "S256"},
-		)
-	}
-
-	c.appendExtraAuthParams(&params)
+	params = append(params, c.ExtraAuthParams...)
 	params = append(params, authParam{"state", state})
 	return params
 }
 
-func (c ProviderConfig) appendExtraAuthParams(params *[]authParam) {
-	seen := map[string]bool{}
-	for _, key := range c.ExtraAuthParamOrder {
-		if value, ok := c.ExtraAuthParams[key]; ok {
-			*params = append(*params, authParam{key, value})
-			seen[key] = true
-		}
-	}
-	rest := make([]string, 0, len(c.ExtraAuthParams))
-	for key := range c.ExtraAuthParams {
-		if !seen[key] {
-			rest = append(rest, key)
-		}
-	}
-	sort.Strings(rest)
-	for _, key := range rest {
-		*params = append(*params, authParam{key, c.ExtraAuthParams[key]})
-	}
-}
-
-func encodeAuthParams(params []authParam, spacesAsPercent bool) string {
+// encodeAuthParams joins params as a query string, encoding spaces as %20
+// (like the CLIs' encodeURIComponent) rather than "+".
+func encodeAuthParams(params []authParam) string {
 	parts := make([]string, 0, len(params))
 	for _, p := range params {
-		key := url.QueryEscape(p.key)
-		value := url.QueryEscape(p.value)
-		if spacesAsPercent {
-			key = strings.ReplaceAll(key, "+", "%20")
-			value = strings.ReplaceAll(value, "+", "%20")
-		}
+		key := strings.ReplaceAll(url.QueryEscape(p.key), "+", "%20")
+		value := strings.ReplaceAll(url.QueryEscape(p.value), "+", "%20")
 		parts = append(parts, key+"="+value)
 	}
 	return strings.Join(parts, "&")
@@ -106,8 +70,9 @@ func SplitPastedCode(code string) (string, string) {
 
 // ExchangeCode swaps an authorization code for tokens. verifier is the PKCE
 // verifier; state is the original OAuth state value, used as a fallback when
-// the code doesn't carry an embedded #state fragment (Claude requires a state
-// on its token exchange — without it Anthropic answers 400 invalid_request).
+// the code doesn't carry an embedded #state fragment (Anthropic requires a
+// state on its token exchange — without it the endpoint answers 400
+// invalid_request "Invalid request format").
 func (c ProviderConfig) ExchangeCode(ctx context.Context, code, redirectURI, verifier, state string) (*Tokens, error) {
 	code, codeState := SplitPastedCode(code)
 
@@ -119,7 +84,7 @@ func (c ProviderConfig) ExchangeCode(ctx context.Context, code, redirectURI, ver
 	if verifier != "" {
 		form.Set("code_verifier", verifier)
 	}
-	if c.Provider == "claude" {
+	if c.EchoState {
 		if codeState == "" && state != "" {
 			codeState = state
 		}
@@ -156,7 +121,7 @@ func (c ProviderConfig) Refresh(ctx context.Context, refreshToken string) (*Toke
 	form.Set("client_id", c.ClientID)
 	form.Set("refresh_token", refreshToken)
 
-	raw, status, err := c.tokenRequestStatus(ctx, c.refreshURL(), form)
+	raw, status, err := c.tokenRequestStatus(ctx, c.TokenURL, form)
 	if err != nil {
 		return nil, err
 	}
@@ -221,10 +186,7 @@ func decodeJWTPayload(token string) map[string]any {
 	}
 	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
 	if err != nil {
-		payload, err = base64.URLEncoding.DecodeString(parts[1])
-		if err != nil {
-			return nil
-		}
+		return nil
 	}
 	var out map[string]any
 	if err := json.Unmarshal(payload, &out); err != nil {
@@ -319,8 +281,8 @@ func mapTokenResponse(raw []byte) (*Tokens, error) {
 // Tokens.Email and Tokens.DisplayName. Errors are swallowed — the account is
 // still usable, just missing a human-readable label.
 //
-// Claude's /v1/me answers { email, display_name }; OpenAI's OIDC userinfo
-// answers { email, name }.
+// Anthropic's /api/oauth/profile nests the user under "account" ({ account:
+// { email, display_name } }); OpenAI's OIDC userinfo answers { email, name }.
 func (c ProviderConfig) FetchUserInfo(ctx context.Context, t *Tokens) {
 	if c.UserInfoURL == "" || t.AccessToken == "" {
 		return
@@ -346,26 +308,20 @@ func (c ProviderConfig) FetchUserInfo(ctx context.Context, t *Tokens) {
 		return
 	}
 
-	var info struct {
+	type profile struct {
 		Email         string `json:"email"`
 		Name          string `json:"name"`
 		DisplayName   string `json:"display_name"`
 		PreferredUser string `json:"preferred_username"`
 	}
+	var info struct {
+		profile
+		Account profile `json:"account"`
+	}
 	_ = json.Unmarshal(body, &info)
 
-	if t.Email == "" {
-		t.Email = info.Email
-	}
-	if t.DisplayName == "" {
-		t.DisplayName = info.DisplayName
-		if t.DisplayName == "" {
-			t.DisplayName = info.Name
-		}
-		if t.DisplayName == "" {
-			t.DisplayName = info.PreferredUser
-		}
-	}
+	t.Email = cmp.Or(t.Email, info.Email, info.Account.Email)
+	t.DisplayName = cmp.Or(t.DisplayName, info.DisplayName, info.Account.DisplayName, info.Name, info.PreferredUser)
 }
 
 func truncate(b []byte, max int) string {

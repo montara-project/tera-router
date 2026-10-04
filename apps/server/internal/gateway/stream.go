@@ -73,7 +73,7 @@ func (s *Server) streamChat(
 		cancel:   cancel,
 		release:  release,
 		codec:    codec,
-		state:    streamState(echo),
+		state:    &transform.StreamState{Model: echo},
 		meta:     meta,
 		provider: conn.at.Target.Provider,
 		model:    conn.at.Target.Model,
@@ -372,7 +372,7 @@ func (sw *streamWriter) runRendered(ctx context.Context, w *bufio.Writer) {
 		}
 
 		if chunk.Type == core.ChunkUsage && chunk.Usage != nil {
-			sw.usage = mergeUsage(sw.usage, *chunk.Usage)
+			sw.usage.Merge(*chunk.Usage)
 		}
 		if chunk.Type == core.ChunkError {
 			sw.renderError(w, chunk)

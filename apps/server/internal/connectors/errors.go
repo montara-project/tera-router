@@ -224,15 +224,6 @@ var (
 		"not subscribed",
 		"no active subscription",
 	}
-	rateLimitNeedles = []string{
-		"rate limit",
-		"rate_limit",
-		"rate-limited",
-		"too many requests",
-		"request limit",
-		"request_limit",
-		"throttl",
-	}
 	quotaExhaustedNeedles = []string{
 		"quota exhausted",
 		"quota_exhausted",
@@ -331,7 +322,7 @@ func bodyKindOverride(kind core.ErrorKind, body []byte) core.ErrorKind {
 		return core.ErrQuotaExhausted
 	case containsAny(low, accountSuspendedNeedles):
 		return core.ErrAccountSuspended
-	case containsAny(low, rateLimitNeedles):
+	case core.LooksRateLimited(low):
 		return core.ErrRateLimit
 	}
 	return ""

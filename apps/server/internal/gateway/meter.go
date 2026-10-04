@@ -90,9 +90,9 @@ type usageRecord struct {
 	CostMicros int64
 	// TokenRate snapshots the model's budget-drain multiplier (nil = 1:1) so
 	// budget sums stay stable across override retunes.
-	TokenRate  *float64
-	Latency    time.Duration
-	TTFT       time.Duration
+	TokenRate *float64
+	Latency   time.Duration
+	TTFT      time.Duration
 
 	Failed       bool
 	ErrorKind    string
@@ -105,28 +105,28 @@ type usageRecord struct {
 // cannot cancel the accounting for work the upstream already performed.
 func (s *Server) recordUsage(rec usageRecord) {
 	model := models.UsageRecord{
-		APIKeyID:         optionalID(rec.APIKeyID),
-		AccountID:        optionalID(rec.AccountID),
-		Provider:         rec.Provider,
-		Model:            rec.Model,
-		Client:           rec.Client,
-		ClientIP:         rec.ClientIP,
-		RequestID:        rec.RequestID,
-		Chain:            rec.Chain,
-		PromptTokens:     rec.Usage.PromptTokens,
-		CompletionTokens: rec.Usage.CompletionTokens,
-		CachedTokens:     rec.Usage.CachedTokens,
-		CacheWriteTokens: rec.Usage.CacheWriteTokens,
-		ReasoningTokens:  rec.Usage.ReasoningTokens,
-		CostMicros:       rec.CostMicros,
+		APIKeyID:             optionalID(rec.APIKeyID),
+		AccountID:            optionalID(rec.AccountID),
+		Provider:             rec.Provider,
+		Model:                rec.Model,
+		Client:               rec.Client,
+		ClientIP:             rec.ClientIP,
+		RequestID:            rec.RequestID,
+		Chain:                rec.Chain,
+		PromptTokens:         rec.Usage.PromptTokens,
+		CompletionTokens:     rec.Usage.CompletionTokens,
+		CachedTokens:         rec.Usage.CachedTokens,
+		CacheWriteTokens:     rec.Usage.CacheWriteTokens,
+		ReasoningTokens:      rec.Usage.ReasoningTokens,
+		CostMicros:           rec.CostMicros,
 		TokenConsumptionRate: rec.TokenRate,
-		LatencyMS:        int(rec.Latency.Milliseconds()),
-		TTFTMS:           int(rec.TTFT.Milliseconds()),
-		Failed:           rec.Failed,
-		ErrorKind:        rec.ErrorKind,
-		ErrorStatus:      rec.ErrorStatus,
-		ErrorMessage:     sanitizeErrorMessage(rec.ErrorMessage),
-		CreatedAt:        time.Now(),
+		LatencyMS:            int(rec.Latency.Milliseconds()),
+		TTFTMS:               int(rec.TTFT.Milliseconds()),
+		Failed:               rec.Failed,
+		ErrorKind:            rec.ErrorKind,
+		ErrorStatus:          rec.ErrorStatus,
+		ErrorMessage:         sanitizeErrorMessage(rec.ErrorMessage),
+		CreatedAt:            time.Now(),
 	}
 
 	s.metering.Add(1)
@@ -170,36 +170,4 @@ func optionalID(id string) *string {
 		return nil
 	}
 	return &id
-}
-
-// mergeUsage overlays the non-zero fields of a later usage event onto the
-// accumulated one. Upstreams split accounting across events (Anthropic reports
-// input tokens at message start and output tokens at message end), so the last
-// non-zero value for each field wins.
-//
-// TotalTokens is only taken from the event when the upstream states it;
-// otherwise it is recomputed, so a stream that reports prompt and completion
-// tokens in separate events still totals correctly.
-func mergeUsage(acc, next core.Usage) core.Usage {
-	if next.PromptTokens != 0 {
-		acc.PromptTokens = next.PromptTokens
-	}
-	if next.CompletionTokens != 0 {
-		acc.CompletionTokens = next.CompletionTokens
-	}
-	if next.CachedTokens != 0 {
-		acc.CachedTokens = next.CachedTokens
-	}
-	if next.CacheWriteTokens != 0 {
-		acc.CacheWriteTokens = next.CacheWriteTokens
-	}
-	if next.ReasoningTokens != 0 {
-		acc.ReasoningTokens = next.ReasoningTokens
-	}
-	if next.TotalTokens != 0 {
-		acc.TotalTokens = next.TotalTokens
-	} else {
-		acc.TotalTokens = acc.PromptTokens + acc.CompletionTokens
-	}
-	return acc
 }

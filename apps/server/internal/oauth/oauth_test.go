@@ -1,26 +1,42 @@
 package oauth
 
 import (
+	"context"
 	"encoding/base64"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 // The provider configs are the wire contract with the upstream OAuth apps —
 // the client ids, endpoints, and quirks below must not drift.
 func TestProviderConfigs(t *testing.T) {
-	claude, ok := ConfigFor("claude")
+	anthropic, ok := ConfigFor("anthropic")
 	if !ok {
-		t.Fatal("no config for claude")
+		t.Fatal("no config for anthropic")
 	}
-	if claude.ClientID != "9d1c250a-e61b-44d9-88ed-5944d1962f5e" {
-		t.Errorf("claude client id = %q", claude.ClientID)
+	if anthropic.ClientID != "9d1c250a-e61b-44d9-88ed-5944d1962f5e" {
+		t.Errorf("anthropic client id = %q", anthropic.ClientID)
 	}
-	if claude.TokenContentType != "json" {
-		t.Errorf("claude token content type = %q, want json", claude.TokenContentType)
+	if anthropic.TokenContentType != "json" {
+		t.Errorf("anthropic token content type = %q, want json", anthropic.TokenContentType)
 	}
-	if claude.refreshURL() != claude.TokenURL {
-		t.Errorf("claude refresh url = %q, want the token url", claude.refreshURL())
+	// The claude.ai grant validates against the console's OAuth service, and
+	// the exchange must echo the state — api.anthropic.com answers 400
+	// "Invalid request format" without it.
+	if anthropic.TokenURL != "https://console.anthropic.com/v1/oauth/token" {
+		t.Errorf("anthropic token url = %q", anthropic.TokenURL)
+	}
+	if !anthropic.EchoState {
+		t.Errorf("anthropic echo state = false, want true")
+	}
+	// Anthropic's OAuth app only allow-lists its own console callback, so the
+	// redirect is pinned to the console display-code URI.
+	if got := anthropic.ResolveRedirectURI(0); got != "https://console.anthropic.com/oauth/code/callback" {
+		t.Errorf("anthropic redirect = %q, want Anthropic's console display-code callback", got)
 	}
 
 	codex, ok := ConfigFor("codex")
@@ -30,53 +46,131 @@ func TestProviderConfigs(t *testing.T) {
 	if codex.FixedLoopbackPort != 1455 {
 		t.Errorf("codex fixed port = %d, want 1455", codex.FixedLoopbackPort)
 	}
-	if got := codex.ResolveRedirectURI("http://ignored.example/cb", 0); got != "http://localhost:1455/auth/callback" {
+	if got := codex.ResolveRedirectURI(0); got != "http://localhost:1455/auth/callback" {
 		t.Errorf("codex redirect = %q", got)
 	}
-	if got := codex.ResolveRedirectURI("", 1457); got != "http://localhost:1457/auth/callback" {
+	if got := codex.ResolveRedirectURI(1457); got != "http://localhost:1457/auth/callback" {
 		t.Errorf("codex fallback redirect = %q, want the 1457 fallback", got)
-	}
-	if got := claude.ResolveRedirectURI("http://localhost:5173/whatever?x=1", 0); got != "http://localhost:5173/callback" {
-		t.Errorf("claude redirect = %q, want the dashboard origin with /callback", got)
-	}
-
-	// The catalog-tile aliases reuse the subscription flows: OpenAI's
-	// "sign in to official website" runs the Codex flow but must attribute
-	// its account to the hidden codex provider, while Anthropic's stays on
-	// the anthropic catalog provider.
-	openai, ok := ConfigFor("openai")
-	if !ok {
-		t.Fatal("no config for openai")
-	}
-	if openai.AccountSlug() != "codex" {
-		t.Errorf("openai account slug = %q, want codex", openai.AccountSlug())
-	}
-	if openai.ClientID != codex.ClientID || openai.FixedLoopbackPort != codex.FixedLoopbackPort {
-		t.Errorf("openai flow drifts from codex: %+v", openai)
-	}
-	anthropic, ok := ConfigFor("anthropic")
-	if !ok {
-		t.Fatal("no config for anthropic")
-	}
-	if anthropic.AccountSlug() != "anthropic" {
-		t.Errorf("anthropic account slug = %q, want anthropic", anthropic.AccountSlug())
-	}
-	if anthropic.ClientID != claude.ClientID || anthropic.AuthorizeURL != claude.AuthorizeURL {
-		t.Errorf("anthropic flow drifts from claude: %+v", anthropic)
 	}
 }
 
-// The claude authorize URL carries its quirks: the code=true param, the
+// The token exchange must echo the state (the pasted "#state" fragment wins,
+// then the flow's state) only for configs that opt in — Anthropic answers 400
+// "Invalid request format" without it.
+func TestExchangeCodeEchoesState(t *testing.T) {
+	var got map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewDecoder(r.Body).Decode(&got)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"access_token":"at","refresh_token":"rt","expires_in":3600}`))
+	}))
+	defer srv.Close()
+
+	cfg := ProviderConfig{
+		Provider:         "anthropic",
+		ClientID:         "client-1",
+		TokenURL:         srv.URL,
+		TokenContentType: "json",
+		EchoState:        true,
+	}
+	if _, err := cfg.ExchangeCode(context.Background(), "code-1#state-9", "https://console.example/cb", "verifier-1", "state-9"); err != nil {
+		t.Fatalf("exchange: %v", err)
+	}
+	for k, want := range map[string]any{
+		"grant_type":    "authorization_code",
+		"client_id":     "client-1",
+		"code":          "code-1",
+		"state":         "state-9",
+		"redirect_uri":  "https://console.example/cb",
+		"code_verifier": "verifier-1",
+	} {
+		if got[k] != want {
+			t.Errorf("exchange body[%q] = %v, want %v", k, got[k], want)
+		}
+	}
+
+	got = nil
+	cfg.EchoState = false
+	if _, err := cfg.ExchangeCode(context.Background(), "code-1", "https://console.example/cb", "verifier-1", "state-9"); err != nil {
+		t.Fatalf("exchange: %v", err)
+	}
+	if _, ok := got["state"]; ok {
+		t.Errorf("exchange body carried state without EchoState: %v", got)
+	}
+}
+
+// Anthropic's profile endpoint nests the user under "account"; OpenAI's OIDC
+// userinfo is flat. Both must yield the email used for labels and dedup.
+func TestFetchUserInfoShapes(t *testing.T) {
+	for name, tc := range map[string]struct{ body, email, display string }{
+		"anthropic": {`{"account":{"email":"a@x.dev","display_name":"Ann"},"organization":{"name":"Org"}}`, "a@x.dev", "Ann"},
+		"openai":    {`{"email":"o@x.dev","name":"Otto"}`, "o@x.dev", "Otto"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Header.Get("Authorization") != "Bearer at" {
+					w.WriteHeader(http.StatusUnauthorized)
+					return
+				}
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			defer srv.Close()
+
+			tokens := &Tokens{AccessToken: "at"}
+			ProviderConfig{UserInfoURL: srv.URL}.FetchUserInfo(context.Background(), tokens)
+			if tokens.Email != tc.email || tokens.DisplayName != tc.display {
+				t.Errorf("got email=%q display=%q, want %q/%q", tokens.Email, tokens.DisplayName, tc.email, tc.display)
+			}
+		})
+	}
+}
+
+// The usage payload mixes window objects with unrelated arrays/objects; only
+// the windows the plan has (non-null) come back, in a stable order.
+func TestFetchClaudeUsage(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer at" {
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte(`{"error":"bad token"}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"five_hour":{"utilization":26.0,"resets_at":"2026-10-04T06:50:00.286520+00:00"},"seven_day":{"utilization":4.0,"resets_at":"2026-10-05T15:00:00+00:00"},"seven_day_opus":null,"seven_day_sonnet":{"utilization":1.5,"resets_at":null},"limits":[{"kind":"session"}],"extra_usage":{"is_enabled":false}}`))
+	}))
+	defer srv.Close()
+	prev := claudeUsageURL
+	claudeUsageURL = srv.URL
+	t.Cleanup(func() { claudeUsageURL = prev })
+
+	got, err := FetchClaudeUsage(context.Background(), "at")
+	if err != nil {
+		t.Fatalf("FetchClaudeUsage: %v", err)
+	}
+	if len(got) != 3 || got[0].Key != "five_hour" || got[1].Key != "seven_day" || got[2].Key != "seven_day_sonnet" {
+		t.Fatalf("windows = %+v", got)
+	}
+	if got[0].Utilization != 26 || got[0].ResetsAt == nil || !got[0].ResetsAt.Equal(time.Date(2026, 10, 4, 6, 50, 0, 286520000, time.UTC)) {
+		t.Errorf("five_hour = %+v", got[0])
+	}
+	if got[2].ResetsAt != nil {
+		t.Errorf("null resets_at should stay nil, got %v", got[2].ResetsAt)
+	}
+
+	if _, err := FetchClaudeUsage(context.Background(), "wrong"); err == nil {
+		t.Error("401 must surface as an error")
+	}
+}
+
+// The anthropic authorize URL carries its quirks: the code=true param, the
 // space-joined scopes, and S256 PKCE.
-func TestClaudeAuthURL(t *testing.T) {
-	claude, _ := ConfigFor("claude")
-	u := claude.AuthURL("http://localhost:5173/callback", "state-1", "challenge-1")
+func TestAnthropicAuthURL(t *testing.T) {
+	anthropic, _ := ConfigFor("anthropic")
+	u := anthropic.AuthURL("https://console.anthropic.com/oauth/code/callback", "state-1", "challenge-1")
 
 	for _, want := range []string{
 		"https://claude.ai/oauth/authorize?",
 		"response_type=code",
 		"client_id=9d1c250a-e61b-44d9-88ed-5944d1962f5e",
-		"scope=org%3Acreate_api_key+user%3Aprofile+user%3Ainference",
+		"scope=org%3Acreate_api_key%20user%3Aprofile%20user%3Ainference",
 		"code_challenge=challenge-1",
 		"code_challenge_method=S256",
 		"code=true",
@@ -111,7 +205,7 @@ func TestCodexAuthURL(t *testing.T) {
 }
 
 func TestGeneratePKCE(t *testing.T) {
-	pkce, err := GeneratePKCE(32)
+	pkce, err := GeneratePKCE()
 	if err != nil {
 		t.Fatalf("generate: %v", err)
 	}

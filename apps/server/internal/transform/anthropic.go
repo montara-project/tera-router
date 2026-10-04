@@ -2,8 +2,7 @@ package transform
 
 import (
 	"bytes"
-	"crypto/rand"
-	"encoding/hex"
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -445,7 +444,18 @@ func (AnthropicCodec) RenderRequest(req *core.ChatRequest, _ string) ([]byte, er
 
 	out.ToolChoice = antRenderToolChoice(req.ToolChoice)
 
-	if req.System != "" {
+	switch {
+	case req.SystemPreamble != "":
+		// The preamble must be its own leading block: Anthropic does not
+		// recognize it when merged into one string with the caller's system.
+		// A caller that already sent it (e.g. Claude Code itself) is not
+		// duplicated.
+		blocks := []antBlock{{Type: "text", Text: req.SystemPreamble}}
+		if rest := strings.TrimSpace(strings.TrimPrefix(req.System, req.SystemPreamble)); rest != "" {
+			blocks = append(blocks, antBlock{Type: "text", Text: rest})
+		}
+		out.System = mustMarshal(blocks)
+	case req.System != "":
 		sys, err := json.Marshal(req.System)
 		if err == nil {
 			out.System = sys
@@ -464,8 +474,11 @@ func (AnthropicCodec) RenderRequest(req *core.ChatRequest, _ string) ([]byte, er
 	// results as user-message blocks. Render each canonical message to a block
 	// array and merge consecutive same-role messages.
 	for _, m := range antEnsureLeadingUser(req.Messages) {
-		role, blocks := antRenderMessage(m)
-		out.Messages = append(out.Messages, antMessage{Role: role, Content: mustMarshal(blocks)})
+		role := "user"
+		if m.Role == core.RoleAssistant {
+			role = "assistant"
+		}
+		out.Messages = append(out.Messages, antMessage{Role: role, Content: mustMarshal(antRenderBlocks(m))})
 	}
 	out.Messages = antMergeMessages(out.Messages)
 
@@ -479,15 +492,6 @@ func (AnthropicCodec) RenderRequest(req *core.ChatRequest, _ string) ([]byte, er
 	}
 
 	return json.Marshal(out)
-}
-
-// antRenderMessage maps one canonical message to its Anthropic role and blocks.
-func antRenderMessage(m core.Message) (string, []antBlock) {
-	role := "user"
-	if m.Role == core.RoleAssistant {
-		role = "assistant"
-	}
-	return role, antRenderBlocks(m)
 }
 
 func antRenderBlocks(m core.Message) []antBlock {
@@ -666,7 +670,7 @@ func antFillMissingToolSchemaTypes(raw json.RawMessage) json.RawMessage {
 }
 
 func antWalkSchemaTypes(node any) {
-	if m, ok := antAsObj(node); ok {
+	if m, ok := node.(map[string]any); ok {
 		if _, hasType := m["type"]; !hasType {
 			if _, hasProps := m["properties"]; hasProps {
 				m["type"] = "object"
@@ -676,11 +680,6 @@ func antWalkSchemaTypes(node any) {
 		}
 	}
 	antWalkChildren(node, antWalkSchemaTypes)
-}
-
-func antAsObj(node any) (map[string]any, bool) {
-	m, ok := node.(map[string]any)
-	return m, ok
 }
 
 func antWalkChildren(node any, fn func(any)) {
@@ -761,7 +760,7 @@ func (AnthropicCodec) ParseResponse(body []byte, model string) (*core.ChatRespon
 
 	return &core.ChatResponse{
 		ID:           raw.ID,
-		Model:        antFirstNonEmpty(raw.Model, model),
+		Model:        cmp.Or(raw.Model, model),
 		Message:      msg,
 		FinishReason: mapAntStop(raw.StopReason),
 		Usage:        antUsageToCanonical(raw.Usage),
@@ -810,7 +809,7 @@ func (AnthropicCodec) RenderResponse(resp *core.ChatResponse) ([]byte, error) {
 	}
 
 	out := map[string]any{
-		"id":            antFirstNonEmpty(resp.ID, antRandomID("msg_")),
+		"id":            cmp.Or(resp.ID, randomID("msg_")),
 		"type":          "message",
 		"role":          "assistant",
 		"model":         resp.Model,
@@ -872,23 +871,4 @@ func renderAntStop(r core.FinishReason) string {
 	default:
 		return "end_turn"
 	}
-}
-
-// ---- shared small helpers ---------------------------------------------------
-
-func antFirstNonEmpty(vals ...string) string {
-	for _, v := range vals {
-		if v != "" {
-			return v
-		}
-	}
-	return ""
-}
-
-func antRandomID(prefix string) string {
-	var b [12]byte
-	if _, err := rand.Read(b[:]); err != nil {
-		return prefix + "000000000000000000000000"
-	}
-	return prefix + hex.EncodeToString(b[:])
 }

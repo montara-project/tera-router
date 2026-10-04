@@ -799,7 +799,7 @@ func TestStreamChatSendsHeartbeatWhileWaiting(t *testing.T) {
 	sw := &streamWriter{
 		srv:      &Server{},
 		codec:    mustCodec(t, core.DialectOpenAI),
-		state:    streamState("m"),
+		state:    &transform.StreamState{Model: "m"},
 		provider: "p",
 		model:    "m",
 	}
