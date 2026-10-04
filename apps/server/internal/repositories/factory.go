@@ -43,6 +43,7 @@ type Repositories struct {
 	Guardrails *GuardrailRepository
 	Pricing    *PricingRepository
 	Capability *CapabilityRepository
+	Backup     *BackupRepository
 }
 
 // New builds every repository on top of the shared connection pool, handing
@@ -69,5 +70,6 @@ func New(db *sql.DB, cfg *config.ConfigApp) *Repositories {
 		Guardrails: &GuardrailRepository{base},
 		Pricing:    &PricingRepository{base},
 		Capability: &CapabilityRepository{base},
+		Backup:     &BackupRepository{base},
 	}
 }

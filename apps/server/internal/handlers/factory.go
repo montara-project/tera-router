@@ -27,6 +27,8 @@ type Handlers struct {
 	System         *systemHandler
 	Media          *mediaHandler
 	OAuth          *oauthHandler
+	Backup         *backupHandler
+	LegacyImport   *legacyImportHandler
 }
 
 // New builds every handler group on top of the shared application container.
@@ -51,6 +53,8 @@ func New(app *app.Application) *Handlers {
 		Console:        &consoleHandler{app: app},
 		System:         &systemHandler{app: app},
 		Media:          &mediaHandler{app: app},
+		Backup:         &backupHandler{app: app},
+		LegacyImport:   &legacyImportHandler{app: app},
 		OAuth: &oauthHandler{
 			app:      app,
 			sessions: oauth.NewSessionStore(),

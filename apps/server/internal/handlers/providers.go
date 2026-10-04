@@ -28,31 +28,15 @@ type providersHandler struct {
 
 // The custom-<kind>- slug marker (e.g. "custom-openai-vllm") is a naming
 // convention owned by callers: the web UI composes it, API clients may omit
-// it entirely. The server stores the slug verbatim (normalized by slugify)
-// and never parses it — the gateway resolves providers by exact lookup.
-
-// slugify folds a display name into a slug segment: lowercase, non-alnum runs
-// become single dashes.
-func slugify(s string) string {
-	var b strings.Builder
-	dash := true
-	for _, r := range strings.ToLower(strings.TrimSpace(s)) {
-		if r >= 'a' && r <= 'z' || r >= '0' && r <= '9' {
-			b.WriteRune(r)
-			dash = false
-		} else if !dash {
-			b.WriteByte('-')
-			dash = true
-		}
-	}
-	return strings.TrimSuffix(b.String(), "-")
-}
+// it entirely. The server stores the slug verbatim (normalized by
+// lib.Slugify) and never parses it — the gateway resolves providers by exact
+// lookup.
 
 // customProviderFrom converts a CustomProvider DTO into the stored model.
 func customProviderFrom(d dtos.CustomProvider) models.CustomProvider {
 	p := models.CustomProvider{
 		Name:     d.Name,
-		Slug:     slugify(cmp.Or(d.Slug, d.Name)),
+		Slug:     lib.Slugify(cmp.Or(d.Slug, d.Name)),
 		BaseURL:  d.BaseURL,
 		APIKind:  cmp.Or(d.APIKind, "openai"),
 		Pricing:  encodeJSON(d.Pricing),

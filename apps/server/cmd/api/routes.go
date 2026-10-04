@@ -181,6 +181,15 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	protected.Put("/settings", h.Settings.Update)
 	protected.Patch("/settings", h.Settings.Update)
 
+	// Backup & migration: JSON configuration backup (optionally passphrase
+	// portable), raw SQLite snapshot/restore, and 9router/OmniRoute imports.
+	protected.Post("/backup/config/export", h.Backup.ConfigExport)
+	protected.Post("/backup/config/import", h.Backup.ConfigImport)
+	protected.Get("/backup/database", h.Backup.DatabaseInfo)
+	protected.Get("/backup/database/download", h.Backup.DatabaseDownload)
+	protected.Post("/backup/database/restore", h.Backup.DatabaseRestore)
+	protected.Post("/import/:source", h.LegacyImport.Import)
+
 	protected.Get("/skills", h.Skills.Index)
 	protected.Post("/skills", h.Skills.Store)
 	protected.Delete("/skills/:id", h.Skills.Delete)
