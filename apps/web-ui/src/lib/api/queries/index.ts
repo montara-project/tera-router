@@ -1,6 +1,7 @@
 import { accountQueries } from './account'
 import { aliasQueries } from './alias'
 import { authQueries } from './auth'
+import { backupQueries } from './backup'
 import { chainQueries } from './chain'
 import { consoleQueries } from './console'
 import { guardrailsQueries } from './guardrails'
@@ -21,6 +22,7 @@ export const queries = {
   accounts: accountQueries,
   aliases: aliasQueries,
   auth: authQueries,
+  backup: backupQueries,
   chains: chainQueries,
   console: consoleQueries,
   guardrails: guardrailsQueries,

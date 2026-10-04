@@ -1,6 +1,7 @@
 import { accountServices } from './account'
 import { aliasServices } from './alias'
 import { authServices } from './auth'
+import { backupServices } from './backup'
 import { budgetServices } from './budget'
 import { chainServices } from './chain'
 import { consoleServices } from './console'
@@ -23,6 +24,7 @@ export const services = {
   accounts: accountServices,
   aliases: aliasServices,
   auth: authServices,
+  backup: backupServices,
   budgets: budgetServices,
   chains: chainServices,
   console: consoleServices,
