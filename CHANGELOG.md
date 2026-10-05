@@ -3,6 +3,24 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [0.5.2](https://github.com/montara-project/tera-router/compare/v0.5.1...v0.5.2) (2026-10-05)
+
+### Features
+
+* **backup:** add config backup, sqlite snapshot/restore and 9router/omniroute import endpoints ([6ed571b](https://github.com/montara-project/tera-router/commit/6ed571b5a705e352e000977c1edabf5476a2f998))
+* **cli-tools:** add Claude Code configuration page ([46e20d1](https://github.com/montara-project/tera-router/commit/46e20d1ef87cd6ab1ba534108b7d6278f0cd8e37))
+* **dashboard:** add github-style usage activity calendar ([219d330](https://github.com/montara-project/tera-router/commit/219d3302baf62c2fe4de2d4c82b7850b1e936e11))
+* **settings:** wire the import/export tab to the backup endpoints ([8a0b234](https://github.com/montara-project/tera-router/commit/8a0b234497e2da2015e814c1bdf235959f4381cf))
+* **usage:** add per-day request activity endpoint with model breakdown ([944b01e](https://github.com/montara-project/tera-router/commit/944b01e95aec415619812dd0cad63ca48e284ca5))
+* **usage:** render the providers health table on the usage page ([17340d8](https://github.com/montara-project/tera-router/commit/17340d8a93ec815243c47462b81cf14914d88e9f))
+* **usage:** wire the terminal request details dialog ([6342ab8](https://github.com/montara-project/tera-router/commit/6342ab8220cb63aea543b5eaa7736019190dda38))
+
+### Bug Fixes
+
+* implementation guardrails ([cadda79](https://github.com/montara-project/tera-router/commit/cadda797d717f1919c8c9837fe5529cd8afef3b3))
+* **quota:** page the account table client-side and refresh every minute ([06f512c](https://github.com/montara-project/tera-router/commit/06f512c794533238c8f3e836fed84d7b026214b0))
+* **settings:** correct the sqlite path in the import-export card ([43de677](https://github.com/montara-project/tera-router/commit/43de677de8e95081f476337b95ef8a54a13f8c2c))
+
 ## [0.5.1](https://github.com/montara-project/tera-router/compare/v0.5.0...v0.5.1) (2026-10-04)
 
 ### Features
