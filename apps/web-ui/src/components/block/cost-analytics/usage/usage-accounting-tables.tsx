@@ -18,8 +18,15 @@ function AvatarCell({ slug, apiKind }: { slug: string; apiKind?: string }) {
 
 const PROVIDER_COLUMNS =
   'grid grid-cols-[1.8fr_0.9fr_1.25fr_1.15fr_1fr_0.9fr_1.5fr] items-center gap-4'
+const PAGE_SIZE = 10
 
 export function ProviderAccountingTable({ rows }: { rows: UsageProviderAccountingRow[] }) {
+  const [page, setPage] = useState(1)
+
+  const pageCount = Math.max(Math.ceil(rows.length / PAGE_SIZE), 1)
+  const safePage = Math.min(page, pageCount)
+  const visible = rows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
+
   return (
     <Card className="bg-background">
       <CardContent className="p-5">
@@ -53,7 +60,7 @@ export function ProviderAccountingTable({ rows }: { rows: UsageProviderAccountin
             </div>
 
             <div className="divide-y divide-border/60">
-              {rows.map((row) => (
+              {visible.map((row) => (
                 <div key={row.id} className={`${PROVIDER_COLUMNS} gap-4 py-4`}>
                   <div className="flex items-center gap-3">
                     <AvatarCell slug={row.slug} apiKind={row.api_kind} />
@@ -128,13 +135,37 @@ export function ProviderAccountingTable({ rows }: { rows: UsageProviderAccountin
             </div>
           </div>
         </div>
+
+        <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
+          <p className="text-muted-foreground text-xs">{rows.length} total</p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={safePage <= 1}
+              onClick={() => setPage((current) => Math.max(current - 1, 1))}
+            >
+              Previous
+            </Button>
+            <span className="text-muted-foreground text-xs tabular-nums">
+              {safePage} / {pageCount}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={safePage >= pageCount}
+              onClick={() => setPage((current) => Math.min(current + 1, pageCount))}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
       </CardContent>
     </Card>
   )
 }
 
 const MODEL_COLUMNS = 'grid grid-cols-[1.8fr_0.9fr_1.35fr_1fr_0.9fr_1.5fr] items-center gap-4'
-const PAGE_SIZE = 10
 
 export function ModelAccountingTable({ rows }: { rows: UsageModelAccountingRow[] }) {
   const [search, setSearch] = useState('')

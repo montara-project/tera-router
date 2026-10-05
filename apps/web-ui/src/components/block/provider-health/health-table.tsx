@@ -1,8 +1,10 @@
 import { IconActivity, IconChevronRight } from '@tabler/icons-react'
+import { useState } from 'react'
 
 import type { HealthEntry, HealthStatus } from '@/lib/api/models/provider-health'
 
 import { Badge, BadgeDot } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 
@@ -25,73 +27,112 @@ interface HealthTableProps {
   entries: HealthEntry[]
   /** Per-row drill-down; renders the chevron action column when provided. */
   onView?: (name: string) => void
+  /** Rows per page; the full list renders when omitted. */
+  pageSize?: number
 }
 
-export default function HealthTable({ entityLabel, entries, onView }: HealthTableProps) {
+export default function HealthTable({ entityLabel, entries, onView, pageSize }: HealthTableProps) {
+  const [page, setPage] = useState(1)
+
+  const pageCount = pageSize ? Math.max(Math.ceil(entries.length / pageSize), 1) : 1
+  const safePage = Math.min(page, pageCount)
+  const visibleEntries = pageSize
+    ? entries.slice((safePage - 1) * pageSize, safePage * pageSize)
+    : entries
+
   return (
     <Card className="bg-background">
-      <CardContent className="overflow-x-auto p-0">
-        <div className="min-w-180">
-          <div className={`${COLUMNS} border-b border-border px-5 py-3`}>
-            <p className="text-muted-foreground text-xs">{entityLabel}</p>
-            <p className="text-muted-foreground text-xs">Status</p>
-            <p className="text-muted-foreground text-right text-xs">Requests</p>
-            <p className="text-muted-foreground text-right text-xs">Fallback Rate</p>
-            <p className="text-muted-foreground text-right text-xs">Final Failures</p>
-            <p className="text-muted-foreground text-xs">Affected</p>
-            <span />
-          </div>
-
-          {entries.length === 0 ? (
-            <EmptyState
-              icon={IconActivity}
-              title={`No ${entityLabel.toLowerCase()} entries`}
-              description="Health telemetry for this scope will appear here."
-            />
-          ) : (
-            <div className="divide-y divide-border/60">
-              {entries.map((entry) => {
-                const meta = STATUS_META[entry.status]
-
-                return (
-                  <div
-                    key={entry.id}
-                    className={cn(
-                      `${COLUMNS} px-5 py-3.5 transition-colors hover:bg-muted/40`,
-                      entry.status === 'down' && 'bg-red-50/50 dark:bg-red-950/10'
-                    )}
-                  >
-                    <p className="truncate text-sm font-medium text-foreground">{entry.name}</p>
-                    <div>
-                      <Badge variant={meta.variant} appearance="light" size="sm">
-                        <BadgeDot />
-                        {meta.label}
-                      </Badge>
-                    </div>
-                    <p className={NUMERIC}>{entry.requests}</p>
-                    <p className={NUMERIC}>{entry.fallbackRate.toFixed(1)}%</p>
-                    <p className={NUMERIC}>{entry.finalFailures}</p>
-                    <p className="truncate text-sm text-muted-foreground">
-                      {entry.affected ?? '—'}
-                    </p>
-                    <div className="flex justify-end">
-                      {onView ? (
-                        <button
-                          type="button"
-                          aria-label={`View ${entry.name}`}
-                          onClick={() => onView(entry.name)}
-                          className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                        >
-                          <IconChevronRight className="h-4 w-4" />
-                        </button>
-                      ) : null}
-                    </div>
-                  </div>
-                )
-              })}
+      <CardContent className="p-0">
+        <div className="overflow-x-auto">
+          <div className="min-w-180">
+            <div className={`${COLUMNS} border-b border-border px-5 py-3`}>
+              <p className="text-muted-foreground text-xs">{entityLabel}</p>
+              <p className="text-muted-foreground text-xs">Status</p>
+              <p className="text-muted-foreground text-right text-xs">Requests</p>
+              <p className="text-muted-foreground text-right text-xs">Fallback Rate</p>
+              <p className="text-muted-foreground text-right text-xs">Final Failures</p>
+              <p className="text-muted-foreground text-xs">Affected</p>
+              <span />
             </div>
-          )}
+
+            {entries.length === 0 ? (
+              <EmptyState
+                icon={IconActivity}
+                title={`No ${entityLabel.toLowerCase()} entries`}
+                description="Health telemetry for this scope will appear here."
+              />
+            ) : (
+              <div className="divide-y divide-border/60">
+                {visibleEntries.map((entry) => {
+                  const meta = STATUS_META[entry.status]
+
+                  return (
+                    <div
+                      key={entry.id}
+                      className={cn(
+                        `${COLUMNS} px-5 py-3.5 transition-colors hover:bg-muted/40`,
+                        entry.status === 'down' && 'bg-red-50/50 dark:bg-red-950/10'
+                      )}
+                    >
+                      <p className="truncate text-sm font-medium text-foreground">{entry.name}</p>
+                      <div>
+                        <Badge variant={meta.variant} appearance="light" size="sm">
+                          <BadgeDot />
+                          {meta.label}
+                        </Badge>
+                      </div>
+                      <p className={NUMERIC}>{entry.requests}</p>
+                      <p className={NUMERIC}>{entry.fallbackRate.toFixed(1)}%</p>
+                      <p className={NUMERIC}>{entry.finalFailures}</p>
+                      <p className="truncate text-sm text-muted-foreground">
+                        {entry.affected ?? '—'}
+                      </p>
+                      <div className="flex justify-end">
+                        {onView ? (
+                          <button
+                            type="button"
+                            aria-label={`View ${entry.name}`}
+                            onClick={() => onView(entry.name)}
+                            className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                          >
+                            <IconChevronRight className="h-4 w-4" />
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
         </div>
+
+        {pageSize && entries.length > 0 ? (
+          <div className="flex items-center justify-between border-t border-border px-5 py-3">
+            <p className="text-muted-foreground text-xs">{entries.length} total</p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={safePage <= 1}
+                onClick={() => setPage((current) => Math.max(current - 1, 1))}
+              >
+                Previous
+              </Button>
+              <span className="text-muted-foreground text-xs tabular-nums">
+                {safePage} / {pageCount}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={safePage >= pageCount}
+                onClick={() => setPage((current) => Math.min(current + 1, pageCount))}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   )

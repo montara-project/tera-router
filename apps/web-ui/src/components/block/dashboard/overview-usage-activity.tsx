@@ -4,16 +4,25 @@ import { useQuery } from '@tanstack/react-query'
 import { CalendarDays } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-import type { UsageActivity, UsageActivityDay } from '@/lib/api/models/usage'
+import type { UsageActivity } from '@/lib/api/models/usage'
 
 import { fmtCompact } from '@/components/block/cost-analytics/usage/format'
 import { Card, CardContent } from '@/components/ui/card'
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
 import { Skeleton } from '@/components/ui/skeleton'
-import { usageQueries } from '@/lib/api/queries/usage'
+import { queries } from '@/lib/api/queries'
+import {
+  activityCellLabel,
+  activityLevelRange,
+  buildActivityCalendar,
+  DAY_MS,
+  emptyActivity,
+  formatActivityDay,
+  formatCount,
+  type ActivityCell,
+} from '@/lib/date'
 import { cn } from '@/lib/utils'
 
-const DAY_MS = 86_400_000
 const MAX_MODELS = 5
 
 /** Arrow keys move one day (rows) or one week (columns). */
@@ -35,119 +44,34 @@ const LEVEL_CLASSES = [
 
 const WEEKDAY_LABELS = ['', 'Mon', '', 'Wed', '', 'Fri', '']
 
-const dateFormat = new Intl.DateTimeFormat('en-US', {
-  weekday: 'short',
-  month: 'short',
-  day: 'numeric',
-  year: 'numeric',
-  timeZone: 'UTC',
-})
-const longDateFormat = new Intl.DateTimeFormat('en-US', {
-  weekday: 'long',
-  month: 'long',
-  day: 'numeric',
-  year: 'numeric',
-  timeZone: 'UTC',
-})
-const monthFormat = new Intl.DateTimeFormat('en-US', { month: 'short', timeZone: 'UTC' })
-const countFormat = new Intl.NumberFormat('en-US')
-
-type Cell = {
-  key: string
-  time: number
-  requests: number
-  level: number
-  day?: UsageActivityDay
-}
-
-/**
- * Lay the calendar out as week columns (Sunday → Saturday rows), GitHub
- * style. Days are UTC, matching the server's aggregation. Intensity is the
- * day's share of the busiest day, in quarters.
- */
-function buildCalendar(activity: UsageActivity) {
-  const byDay = new Map(activity.days.map((d) => [d.day, d]))
-  const max = activity.days.reduce((m, d) => Math.max(m, d.requests), 0)
-  const start = Date.parse(`${activity.from}T00:00:00Z`)
-  const end = Date.parse(`${activity.to}T00:00:00Z`)
-
-  const weeks: (Cell | null)[][] = []
-  for (let time = start; time <= end; time += DAY_MS) {
-    const key = new Date(time).toISOString().slice(0, 10)
-    const day = byDay.get(key)
-    const requests = day?.requests ?? 0
-    const week = Math.floor((time - start) / (7 * DAY_MS))
-    weeks[week] ??= Array.from({ length: 7 }, () => null)
-    weeks[week][new Date(time).getUTCDay()] = {
-      key,
-      time,
-      requests,
-      level: requests === 0 ? 0 : Math.max(1, Math.ceil((requests / max) * 4)),
-      day,
-    }
-  }
-
-  // A month label sits over the first week whose Sunday falls in a new
-  // month; the first column is labelled only if the next label is far
-  // enough away not to overlap it.
-  const months: { week: number; label: string }[] = []
-  weeks.forEach((week, i) => {
-    const first = week.find((cell) => cell !== null)
-    if (!first) return
-    const month = new Date(first.time).getUTCMonth()
-    const prev = i > 0 ? weeks[i - 1].find((cell) => cell !== null) : undefined
-    if (prev && new Date(prev.time).getUTCMonth() === month) return
-    months.push({ week: i, label: monthFormat.format(first.time) })
-  })
-  if (months.length > 1 && months[1].week - months[0].week < 3) months.shift()
-
-  const busiest = activity.days.reduce<UsageActivityDay | undefined>(
-    (best, d) => (!best || d.requests > best.requests ? d : best),
-    undefined
-  )
-
-  return { weeks, months, max, busiest }
-}
-
-function cellLabel(cell: Cell): string {
-  const count =
-    cell.requests === 0 ? 'No requests' : `${countFormat.format(cell.requests)} requests`
-  return `${count} on ${longDateFormat.format(cell.time)}`
-}
-
-/** Legend ranges for each level, from the max-based quarters. */
-function levelRange(level: number, max: number): string {
-  if (level === 0) return 'No requests'
-  const lo = Math.floor(((level - 1) / 4) * max) + 1
-  const hi = Math.floor((level / 4) * max)
-  return lo >= hi
-    ? `${countFormat.format(hi)} requests`
-    : `${countFormat.format(lo)}–${countFormat.format(hi)} requests`
-}
-
 export default function OverviewUsageActivity() {
-  const { data } = useQuery(usageQueries.activity())
+  const { data, isLoading } = useQuery(queries.usage.activity())
+
+  // A stable fallback keeps buildCalendar's memo intact across renders.
+  const activity = useMemo(() => data ?? emptyActivity(), [data])
+
+  const renderActivity = () => {
+    if (isLoading) {
+      return <Skeleton className="h-52 w-full rounded-lg" />
+    }
+
+    return <ActivityCalendar activity={activity} />
+  }
 
   return (
     <Card className="bg-background">
-      <CardContent className="space-y-4 p-5">
-        {data ? (
-          <ActivityCalendar activity={data} />
-        ) : (
-          <Skeleton className="h-52 w-full rounded-lg" />
-        )}
-      </CardContent>
+      <CardContent className="space-y-4 p-5">{renderActivity()}</CardContent>
     </Card>
   )
 }
 
 function ActivityCalendar({ activity }: { activity: UsageActivity }) {
-  const { weeks, months, max, busiest } = useMemo(() => buildCalendar(activity), [activity])
+  const { weeks, months, max, busiest } = useMemo(() => buildActivityCalendar(activity), [activity])
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const gridRef = useRef<HTMLDivElement>(null)
   const anchorRef = useRef<HTMLElement | null>(null)
-  const [active, setActive] = useState<Cell | null>(null)
+  const [active, setActive] = useState<ActivityCell | null>(null)
   const [focusKey, setFocusKey] = useState(activity.to)
 
   // Newest weeks matter most: start scrolled to today on narrow screens.
@@ -156,7 +80,7 @@ function ActivityCalendar({ activity }: { activity: UsageActivity }) {
     if (el) el.scrollLeft = el.scrollWidth
   }, [])
 
-  const show = (cell: Cell, el: HTMLElement) => {
+  const show = (cell: ActivityCell, el: HTMLElement) => {
     anchorRef.current = el
     setActive(cell)
   }
@@ -199,7 +123,7 @@ function ActivityCalendar({ activity }: { activity: UsageActivity }) {
             <p className="text-muted-foreground text-xs">
               {activity.active_days} active {activity.active_days === 1 ? 'day' : 'days'}
               {busiest &&
-                ` · busiest ${dateFormat.format(Date.parse(`${busiest.day}T00:00:00Z`))} (${countFormat.format(busiest.requests)})`}
+                ` · busiest ${formatActivityDay(Date.parse(`${busiest.day}T00:00:00Z`))} (${formatCount(busiest.requests)})`}
             </p>
           </div>
         </div>
@@ -212,7 +136,7 @@ function ActivityCalendar({ activity }: { activity: UsageActivity }) {
           ref={gridRef}
           role="group"
           aria-label="Requests per day over the last 53 weeks. Use arrow keys to move between days."
-          className="grid min-w-[640px] gap-[3px]"
+          className="grid min-w-160 gap-0.75"
           style={{ gridTemplateColumns: `1.75rem repeat(${weeks.length}, minmax(0, 1fr))` }}
           onPointerLeave={() => setActive(null)}
         >
@@ -246,7 +170,7 @@ function ActivityCalendar({ activity }: { activity: UsageActivity }) {
                   type="button"
                   data-day={cell.key}
                   tabIndex={cell.key === focusKey ? 0 : -1}
-                  aria-label={cellLabel(cell)}
+                  aria-label={activityCellLabel(cell)}
                   style={{ gridRow: d + 2, gridColumn: w + 2 }}
                   className={cn(
                     'aspect-square w-full cursor-pointer rounded-[3px] outline-offset-1 transition-shadow hover:ring-1 hover:ring-foreground/40 focus-visible:outline-2 focus-visible:outline-emerald-400 motion-reduce:transition-none',
@@ -274,9 +198,9 @@ function ActivityCalendar({ activity }: { activity: UsageActivity }) {
           {LEVEL_CLASSES.map((cls, level) => (
             <span
               key={level}
-              className={cn('size-[11px] rounded-[2px]', cls)}
-              title={levelRange(level, max)}
-              aria-label={levelRange(level, max)}
+              className={cn('size-2.75 rounded-[2px]', cls)}
+              title={activityLevelRange(level, max)}
+              aria-label={activityLevelRange(level, max)}
               role="img"
             />
           ))}
@@ -300,7 +224,7 @@ function ActivityCalendar({ activity }: { activity: UsageActivity }) {
   )
 }
 
-function DayDetails({ cell }: { cell: Cell }) {
+function DayDetails({ cell }: { cell: ActivityCell }) {
   const models = cell.day?.models ?? []
   const shown = models.slice(0, MAX_MODELS)
   const failed = cell.day?.failed ?? 0
@@ -308,14 +232,14 @@ function DayDetails({ cell }: { cell: Cell }) {
   return (
     <div className="space-y-2.5">
       <div>
-        <p className="text-muted-foreground text-xs">{dateFormat.format(cell.time)}</p>
+        <p className="text-muted-foreground text-xs">{formatActivityDay(cell.time)}</p>
         <p className="text-sm font-semibold text-foreground">
           {cell.requests === 0
             ? 'No requests'
-            : `${countFormat.format(cell.requests)} ${cell.requests === 1 ? 'request' : 'requests'}`}
+            : `${formatCount(cell.requests)} ${cell.requests === 1 ? 'request' : 'requests'}`}
           {failed > 0 && (
             <span className="text-destructive ml-1.5 text-xs font-medium">
-              {countFormat.format(failed)} failed
+              {formatCount(failed)} failed
             </span>
           )}
         </p>
@@ -333,7 +257,7 @@ function DayDetails({ cell }: { cell: Cell }) {
                   {m.model}
                 </span>
                 <span className="shrink-0 text-xs font-medium tabular-nums text-foreground">
-                  {countFormat.format(m.requests)}
+                  {formatCount(m.requests)}
                 </span>
               </div>
               <div className="flex items-center gap-2">

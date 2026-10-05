@@ -51,6 +51,7 @@ export default function UsageHealthStrip({ range }: { range: UsageRange }) {
         <HealthTable
           entityLabel="Provider"
           entries={data?.providers ?? []}
+          pageSize={10}
           onView={(name) => {
             // TODO: Navigate to provider detail page
             console.log('View provider:', name)
