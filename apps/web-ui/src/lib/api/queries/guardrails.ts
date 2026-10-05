@@ -2,7 +2,7 @@ import { mutationOptions, queryOptions } from '@tanstack/react-query'
 
 import { getQueryClient } from '@/lib/providers/react-query'
 
-import type { GuardrailsSettingsDto, PolicyDto } from '../dtos/guardrails/schema'
+import type { EvaluateDto, GuardrailsSettingsDto, PolicyDto } from '../dtos/guardrails/schema'
 
 import { services } from '../services'
 
@@ -77,10 +77,38 @@ const updateSettings = () => {
   })
 }
 
+/** Creates every policy in order; the list refreshes even when one fails midway. */
+const importPolicies = () => {
+  const qc = getQueryClient()
+
+  return mutationOptions({
+    mutationFn: async (policies: PolicyDto[]) => {
+      for (const policy of policies) {
+        await services.guardrails.store(policy)
+      }
+      return policies.length
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: [GUARDRAILS_QUERY_KEY] })
+    },
+  })
+}
+
+/** Dry-runs sample text against a draft detector config. */
+const evaluate = () =>
+  mutationOptions({
+    mutationFn: async (reqBody: EvaluateDto) => {
+      const res = await services.guardrails.evaluate(reqBody)
+      return res.data
+    },
+  })
+
 export const guardrailsQueries = {
   overview,
   create,
   update,
   delete: del,
   updateSettings,
+  importPolicies,
+  evaluate,
 } as const

@@ -405,6 +405,41 @@ func (r *UsageRepository) dailyWithFailuresExec(ctx context.Context, from time.T
 	return out, errtrace.Wrap(rows.Err())
 }
 
+// UsageActivityRow is one day × model cell of the activity calendar.
+type UsageActivityRow struct {
+	Day      string
+	Provider string
+	Model    string
+	Requests int64
+	Failed   int64
+}
+
+// Activity counts requests per UTC day and model since from, ordered by day
+// and then by request count (busiest model first).
+func (r *UsageRepository) Activity(ctx context.Context, from time.Time) ([]UsageActivityRow, error) {
+	rows, err := r.queryContext(ctx, r.DB, `
+		SELECT strftime('%Y-%m-%d', created_at) AS day, provider, model,
+		       count(*), COALESCE(SUM(failed), 0)
+		FROM usage_records
+		WHERE created_at >= $1
+		GROUP BY 1, 2, 3
+		ORDER BY 1, 4 DESC, 3`, from)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := []UsageActivityRow{}
+	for rows.Next() {
+		var a UsageActivityRow
+		if err := rows.Scan(&a.Day, &a.Provider, &a.Model, &a.Requests, &a.Failed); err != nil {
+			return nil, errtrace.Wrap(err)
+		}
+		out = append(out, a)
+	}
+	return out, errtrace.Wrap(rows.Err())
+}
+
 // Recent returns the newest usage rows for the request log.
 func (r *UsageRepository) Recent(ctx context.Context, limit int) ([]models.UsageRecord, error) {
 	return r.recentExec(ctx, limit)

@@ -1,7 +1,8 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { RefreshCw } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useQueryState } from 'nuqs'
+import { useEffect, useMemo, useState } from 'react'
 
 import type { Models } from '@/lib/api/models'
 
@@ -21,7 +22,6 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { usePaginationQuery } from '@/hooks/use-pagination-query'
 import { QUOTA_QUERY_KEY, quotaQueries } from '@/lib/api/queries/quota'
-import { getTotal } from '@/lib/constants/paginate'
 
 export const Route = createFileRoute('/(protected)/(analytics)/quota/')({
   component: RouteComponent,
@@ -32,6 +32,8 @@ const RANGE_ITEMS: SimpleButtonGroupItem[] = [
   { value: '7d', label: '7D' },
   { value: '30d', label: '30D' },
 ]
+
+const AUTO_REFRESH_MS = 60_000
 
 function RouteSkeleton() {
   return (
@@ -52,30 +54,48 @@ function RouteComponent() {
   const queryClient = useQueryClient()
   const [range, setRange] = useState<Models.QuotaRange>('30d')
   const [filters, setFilters] = useState<QuotaFilters>(DEFAULT_QUOTA_FILTERS)
+  const [now, setNow] = useState(() => Date.now())
 
   const { offset, limit, pageIndex } = usePaginationQuery()
+  // The pager writes ?page=<n> directly; clearing it returns to page 1.
+  const [, setPageParam] = useQueryState('page')
 
   const {
     data: overviewData,
     isFetching: overviewFetching,
     isLoading: overviewLoading,
+    dataUpdatedAt: overviewUpdatedAt,
   } = useQuery(quotaQueries.overview(range))
   const {
     data: accountsData,
     isFetching: accountsFetching,
     isLoading: accountsLoading,
-  } = useQuery(quotaQueries.list({ offset, limit }))
+    dataUpdatedAt: accountsUpdatedAt,
+  } = useQuery(quotaQueries.list({ offset, limit, range }))
+
+  // Ticks once a second so the auto-refresh countdown stays live.
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000)
+    return () => window.clearInterval(timer)
+  }, [])
 
   const overview = overviewData?.data
   const loading = accountsFetching || accountsLoading
-  const total = getTotal(accountsData)
-
-  const columns = QuotaAccountColumn({ loading })
 
   const accounts = useMemo(
     () => applyQuotaFilters(accountsData?.data ?? [], filters),
     [accountsData, filters]
   )
+
+  // The API returns every account regardless of offset/limit, so page the
+  // filtered set client-side.
+  const pagedAccounts = useMemo(
+    () => accounts.slice(offset, offset + limit),
+    [accounts, offset, limit]
+  )
+  const total = accounts.length
+
+  const columns = QuotaAccountColumn({ loading })
 
   const providerOptions = useMemo(() => {
     const names = Array.from(
@@ -94,12 +114,22 @@ function RouteComponent() {
 
   const refreshing = (overviewFetching || accountsFetching) && !(overviewLoading && accountsLoading)
 
+  // Counted from the last successful fetch so the badge resets on both the
+  // interval and manual refreshes.
+  const lastRefreshAt = Math.max(overviewUpdatedAt, accountsUpdatedAt)
+  const secondsLeft = lastRefreshAt
+    ? Math.max(0, Math.round((AUTO_REFRESH_MS - (now - lastRefreshAt)) / 1000))
+    : AUTO_REFRESH_MS / 1000
+
   const refresh = () => queryClient.invalidateQueries({ queryKey: [QUOTA_QUERY_KEY] })
 
   const handleRangeChange = (value: string) => setRange(value as Models.QuotaRange)
 
-  const handleFilterChange = (patch: Partial<QuotaFilters>) =>
+  const handleFilterChange = (patch: Partial<QuotaFilters>) => {
+    // Filters re-page the client-side set, so drop a stale page index.
     setFilters((previous) => ({ ...previous, ...patch }))
+    void setPageParam(null)
+  }
 
   return (
     <SectionCard
@@ -107,9 +137,9 @@ function RouteComponent() {
       description="Monitor account capacity, reported upstream limits, and period usage."
       toolbar={
         <div className="flex items-center gap-2.5">
-          <span className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+          <span className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-emerald-600 tabular-nums dark:text-emerald-400">
             <span className="size-1.5 rounded-full bg-emerald-500" />
-            Auto refresh · 5s
+            Auto refresh · {secondsLeft}s
           </span>
           <SimpleButtonGroup
             defaultValue={range}
@@ -141,7 +171,7 @@ function RouteComponent() {
 
         <ReactTable
           total={total}
-          data={accounts}
+          data={pagedAccounts}
           pageIndex={pageIndex}
           pageSize={limit}
           columns={columns}

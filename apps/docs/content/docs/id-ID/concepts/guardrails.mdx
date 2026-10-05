@@ -3,13 +3,24 @@ title: Guardrails
 description: Kebijakan berlapis untuk PII, prompt injection, topik, toksisitas, dan bias.
 ---
 
-Guardrails memeriksa request (dan opsional respons) sebelum/menjelang keluar ke provider. Kebijakan dikelola dari halaman **Guardrails**.
+Guardrails menyaring setiap request inferensi (`/v1/chat/completions`, `/v1/messages`, `/v1/responses`) setelah routing dan sebelum provider mana pun melihatnya. Kebijakan dikelola dari halaman **Guardrails**.
+
+Hanya teks yang ditulis pengguna yang diperiksa: bagian teks dari pesan `user`. System prompt, giliran asisten, hasil tool, dan keluaran model tidak diperiksa.
 
 ## Berlapis dan paling spesifik menang
 
-Kebijakan bisa dipasang di lima scope — `global`, `provider`, `model`, `chain`, dan `key`. Untuk satu request, router menentukan kebijakan efektif per detektor dengan aturan _paling spesifik menang_: kebijakan di scope `key` mengalahkan `chain`, yang mengalahkan `model`, dst.
+Kebijakan bisa dipasang di lima scope — `global`, `provider`, `model`, `chain`, dan `key`. Kebijakan non-global hanya berlaku bila target-nya cocok dengan request:
 
-Konsekuensinya: guardrail global tidak bisa dimatikan dari key — key hanya bisa memperketat, tidak melonggarkan lapisan di atasnya.
+| Scope      | Target cocok dengan                                                                       |
+| ---------- | ----------------------------------------------------------------------------------------- |
+| `key`      | id API key                                                                                |
+| `chain`    | nama chain yang dilalui request                                                           |
+| `model`    | model yang diminta, atau `model` / `provider/model` / alias dari target kandidat mana pun |
+| `provider` | slug provider dari target kandidat mana pun                                               |
+
+Untuk satu request, router menentukan pengaturan efektif per detektor dengan aturan _paling spesifik menang_: `key` mengalahkan `chain`, yang mengalahkan `model`, lalu `provider`, lalu `global`. Kebijakan paling spesifik yang mengaktifkan sebuah detektor menentukan pengaturannya.
+
+Konsekuensinya: guardrail global tidak bisa dimatikan dari key — key hanya bisa memperketat atau menyetel, tidak melonggarkan lapisan di atasnya. Kebijakan provider dan model berlaku bila cocok dengan target fallback _mana pun_, jadi fallback tidak bisa lolos darinya.
 
 ## Detektor
 
@@ -23,23 +34,29 @@ Konsekuensinya: guardrail global tidak bisa dimatikan dari key — key hanya bis
 
 Setiap detektor punya `enabled` dan `action`:
 
-- `block` — tolak request (error `403`).
-- `warn` — teruskan tapi tandai.
-- `log` — catat saja.
+- `block` — tolak request dengan `400` sebelum dikirim.
+- `warn` — teruskan dan tandai respons.
+- `log` — teruskan dan catat saja.
 
-Pemeriksaan keluaran model diaktifkan per kebijakan (`scan_output`) — berguna untuk mencegah PII bocor lewat respons.
+PII memakai strategi masking (`redact` → `<PII>`, `mask` → `****`, `hash` → `[hash:…]`). Temuan ditulis ulang di teks pengguna sebelum diteruskan, meskipun `warn` dari detektor lain lebih kuat.
+
+Setiap keputusan selain allow menambahkan header respons `X-TeraRouter-Guardrails: <keputusan>` dan entri `guardrail.<keputusan>` di tab **Audit Logs**. Kegagalan membaca kebijakan ditolak dengan `500` (fail closed).
 
 ## Menguji tanpa risiko
 
-Halaman **Guardrails** punya mode uji (`POST /v1/guardrails/evaluate`): kirim teks contoh, lihat kebijakan mana yang terpicu dan keputusannya apa — tanpa benar-benar memblokir apa pun.
+Editor kebijakan punya panel **Test Policy** (`POST /v1/guardrails/evaluate`): kirim teks contoh, lihat detektor mana yang terpicu, keputusannya, dan teks hasil masking — tanpa mengirim apa pun ke provider. Hilangkan `config` untuk menguji terhadap gabungan semua kebijakan aktif.
 
 ```bash
 curl -X POST http://localhost:8080/v1/guardrails/evaluate \
   -H "Authorization: Bearer <jwt-dashboard>" \
   -H "Content-Type: application/json" \
-  -d '{ "input": "email saya budi@example.com", "scope": "global" }'
+  -d '{ "text": "email saya budi@example.com" }'
 ```
+
+## Impor dan ekspor
+
+**Export all** mengunduh `guardrails-policies.json` (`{ "policies": [...] }`). **Import** memvalidasi seluruh file terlebih dahulu, lalu membuat setiap kebijakan di dalamnya di samping kebijakan yang sudah ada.
 
 ## Kredibilitas deteksi
 
-Detektor bawaan bersifat deterministik (regex/kamus). Ada toggle `external_detectors` di settings untuk mengaktifkan detektor eksternal bila tersedia.
+Detektor bawaan bersifat deterministik (regex/kamus) dan berjalan di dalam proses router. Belum ada engine eksternal (Presidio, OpenAI moderation) yang terpasang, jadi toggle `external_detectors` saat ini hanya mengubah catatan engine di panel uji.

@@ -181,7 +181,7 @@ func (h *guardrailsHandler) UpdateSettings(c fiber.Ctx) error {
 }
 
 // Evaluate dry-runs the sample text against a detector config (or, when no
-// config is posted, against every enabled policy merged together).
+// config is posted, against every enabled policy merged most specific first).
 func (h *guardrailsHandler) Evaluate(c fiber.Ctx) error {
 	var req dtos.EvaluateRequest
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
@@ -203,24 +203,7 @@ func (h *guardrailsHandler) Evaluate(c fiber.Ctx) error {
 		if err != nil {
 			return err
 		}
-		for _, policy := range policies {
-			policyCfg := guardrails.ParseConfig(policy.Config)
-			if policyCfg.Pii.Enabled {
-				cfg.Pii = policyCfg.Pii
-			}
-			if policyCfg.Injection.Enabled {
-				cfg.Injection = policyCfg.Injection
-			}
-			if policyCfg.Topics.Enabled {
-				cfg.Topics = policyCfg.Topics
-			}
-			if policyCfg.Toxicity.Enabled {
-				cfg.Toxicity = policyCfg.Toxicity
-			}
-			if policyCfg.Bias.Enabled {
-				cfg.Bias = policyCfg.Bias
-			}
-		}
+		cfg = guardrails.Merge(policies)
 	}
 
 	result := guardrails.Evaluate(cfg, settings.ExternalDetectors, req.Text)

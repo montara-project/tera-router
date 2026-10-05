@@ -1,11 +1,12 @@
-import { IconActivity, IconArrowRight } from '@tabler/icons-react'
+import { IconActivity, IconChevronRight } from '@tabler/icons-react'
 
 import type { HealthEntry, HealthStatus } from '@/lib/api/models/provider-health'
 
 import { Badge, BadgeDot } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { cn } from '@/lib/utils'
+
+import EmptyState from '../common/empty-state'
 
 const STATUS_META: Record<
   HealthStatus,
@@ -16,20 +17,21 @@ const STATUS_META: Record<
   down: { label: 'Down', variant: 'destructive' },
 }
 
-const COLUMNS = 'grid grid-cols-[1.5fr_1fr_0.8fr_1fr_1fr_0.9fr_0.6fr] items-center gap-4'
+const COLUMNS = 'grid grid-cols-[1.5fr_1fr_0.8fr_1fr_1fr_0.9fr_0.4fr] items-center gap-4'
 const NUMERIC = 'text-sm tabular-nums text-foreground text-right'
 
 interface HealthTableProps {
   entityLabel: string
   entries: HealthEntry[]
-  onView: (name: string) => void
+  /** Per-row drill-down; renders the chevron action column when provided. */
+  onView?: (name: string) => void
 }
 
 export default function HealthTable({ entityLabel, entries, onView }: HealthTableProps) {
   return (
     <Card className="bg-background">
       <CardContent className="overflow-x-auto p-0">
-        <div className="min-w-[720px]">
+        <div className="min-w-180">
           <div className={`${COLUMNS} border-b border-border px-5 py-3`}>
             <p className="text-muted-foreground text-xs">{entityLabel}</p>
             <p className="text-muted-foreground text-xs">Status</p>
@@ -37,21 +39,15 @@ export default function HealthTable({ entityLabel, entries, onView }: HealthTabl
             <p className="text-muted-foreground text-right text-xs">Fallback Rate</p>
             <p className="text-muted-foreground text-right text-xs">Final Failures</p>
             <p className="text-muted-foreground text-xs">Affected</p>
-            <p className="text-muted-foreground text-right text-xs">Action</p>
+            <span />
           </div>
 
           {entries.length === 0 ? (
-            <Empty className="border-0 py-14">
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <IconActivity />
-                </EmptyMedia>
-                <EmptyTitle>No {entityLabel.toLowerCase()} entries</EmptyTitle>
-                <EmptyDescription>
-                  Health telemetry for this scope will appear here.
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
+            <EmptyState
+              icon={IconActivity}
+              title={`No ${entityLabel.toLowerCase()} entries`}
+              description="Health telemetry for this scope will appear here."
+            />
           ) : (
             <div className="divide-y divide-border/60">
               {entries.map((entry) => {
@@ -78,15 +74,17 @@ export default function HealthTable({ entityLabel, entries, onView }: HealthTabl
                     <p className="truncate text-sm text-muted-foreground">
                       {entry.affected ?? '—'}
                     </p>
-                    <div className="text-right">
-                      <button
-                        type="button"
-                        onClick={() => onView(entry.name)}
-                        className="group inline-flex cursor-pointer items-center justify-end gap-1 text-xs font-medium text-emerald-500 transition-colors hover:text-emerald-400"
-                      >
-                        View
-                        <IconArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-                      </button>
+                    <div className="flex justify-end">
+                      {onView ? (
+                        <button
+                          type="button"
+                          aria-label={`View ${entry.name}`}
+                          onClick={() => onView(entry.name)}
+                          className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                        >
+                          <IconChevronRight className="h-4 w-4" />
+                        </button>
+                      ) : null}
                     </div>
                   </div>
                 )

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"tera-router/server/internal/core"
@@ -191,6 +192,29 @@ func (s *Server) handleChat(c fiber.Ctx, dialect core.Dialect) error {
 		}
 		s.log.Error("gateway budget check failed", "key", meta.KeyName, "error", err)
 		return s.fail(c, dialect, http.StatusInternalServerError, "budget check failed")
+	}
+
+	// Content-safety policies screen the user text before any upstream sees
+	// it. A failed policy lookup fails closed rather than skipping protection.
+	verdict, err := s.screen(routeCtx, req, resolved, meta)
+	if err != nil {
+		routeCancel()
+		release()
+		s.log.Error("gateway guardrail check failed", "key", meta.KeyName, "error", err)
+		return s.fail(c, dialect, http.StatusInternalServerError, "guardrail check failed")
+	}
+	if verdict.Decision != "allow" {
+		s.recordGuardrail(meta, req.Model, verdict)
+	}
+	if verdict.Decision == "block" {
+		routeCancel()
+		release()
+		s.log.Warn("gateway guardrail blocked", "key", meta.KeyName, "model", req.Model, "detectors", verdict.Triggered)
+		return s.fail(c, dialect, http.StatusBadRequest,
+			"request blocked by guardrails: "+strings.Join(verdict.Triggered, ", "))
+	}
+	if verdict.Decision != "allow" {
+		c.Set(guardrailHeader, verdict.Decision)
 	}
 
 	attempts := s.plan(routeCtx, resolved.Targets)

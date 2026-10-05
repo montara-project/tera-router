@@ -28,6 +28,8 @@ type Handlers struct {
 	Media          *mediaHandler
 	CliTools       *cliToolsHandler
 	OAuth          *oauthHandler
+	Backup         *backupHandler
+	LegacyImport   *legacyImportHandler
 }
 
 // New builds every handler group on top of the shared application container.
@@ -52,6 +54,8 @@ func New(app *app.Application) *Handlers {
 		Console:        &consoleHandler{app: app},
 		System:         &systemHandler{app: app},
 		Media:          &mediaHandler{app: app},
+		Backup:         &backupHandler{app: app},
+		LegacyImport:   &legacyImportHandler{app: app},
 		CliTools:       &cliToolsHandler{app: app},
 		OAuth: &oauthHandler{
 			app:      app,

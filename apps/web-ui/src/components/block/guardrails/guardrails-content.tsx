@@ -1,8 +1,11 @@
+import type { ChangeEvent } from 'react'
+
 import { IconDownload, IconLock, IconPlus, IconUpload } from '@tabler/icons-react'
 import { useMutation } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { toast } from 'sonner'
 
+import type { PolicyDto } from '@/lib/api/dtos/guardrails/schema'
 import type {
   GuardrailPolicy,
   GuardrailsOverview,
@@ -11,7 +14,11 @@ import type {
 
 import SectionCard from '@/components/block/common/section-card'
 import { Button } from '@/components/ui/button'
+import { toastAxiosError } from '@/lib/api/axios-error'
+import { PolicySchema } from '@/lib/api/dtos/guardrails/schema'
+import { parseDto } from '@/lib/api/dtos/parse'
 import { queries } from '@/lib/api/queries'
+import { readJsonObject, saveFile } from '@/lib/file'
 
 import AuditList from './audit-list'
 import EditPolicyDialog, { defaultGuardrailsConfig } from './edit-policy-dialog'
@@ -34,6 +41,20 @@ const SCOPE_HINTS: Record<GuardrailsScope, string> = {
   key: 'Policies scoped to an API key apply to that credential only, overriding everything upstream.',
 }
 
+const EXPORT_FILE_NAME = 'guardrails-policies.json'
+
+/** The create/update body for a policy; also the shape of one exported policy. */
+function toPolicyDto(policy: GuardrailPolicy, enabled = policy.enabled): PolicyDto {
+  return {
+    name: policy.name,
+    scope: policy.scope,
+    target: policy.target ?? '',
+    protections: policy.protections,
+    enabled,
+    config: policy.config ?? defaultGuardrailsConfig(),
+  }
+}
+
 export default function GuardrailsContent({ overview }: { overview: GuardrailsOverview }) {
   const [tab, setTab] = useState<GuardrailsScope | 'audit'>('global')
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -43,18 +64,43 @@ export default function GuardrailsContent({ overview }: { overview: GuardrailsOv
   const updateMutation = useMutation(queries.guardrails.update())
   const deleteMutation = useMutation(queries.guardrails.delete())
   const updateSettingsMutation = useMutation(queries.guardrails.updateSettings())
+  const importMutation = useMutation(queries.guardrails.importPolicies())
+  const importInput = useRef<HTMLInputElement>(null)
 
   const policies = overview.policies.filter((policy) => policy.scope === tab)
   const editingPolicy = overview.policies.find((policy) => policy.id === editingId) ?? null
   const dialogPolicy = editingPolicy ?? draftPolicy
   const dialogMode = editingPolicy ? 'edit' : 'create'
 
-  const handleImport = () => {
-    toast.info('Policy import is not wired to the backend yet')
+  const handleExportAll = () => {
+    const policies = overview.policies.map((policy) => toPolicyDto(policy))
+    saveFile(
+      new Blob([JSON.stringify({ policies }, null, 2)], { type: 'application/json' }),
+      EXPORT_FILE_NAME
+    )
+    toast.success(`Exported ${policies.length} policies`)
   }
 
-  const handleExportAll = () => {
-    toast.info('Policy export is not wired to the backend yet')
+  // Imports are additive: every policy in the file is created alongside the
+  // existing ones. The whole file is validated before the first create.
+  const handleImportFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+
+    try {
+      const backup = await readJsonObject(file)
+      if (!Array.isArray(backup.policies)) {
+        throw new Error(`${file.name} has no "policies" list.`)
+      }
+      const policies = backup.policies.map((policy) => parseDto(PolicySchema, policy))
+      importMutation.mutate(policies, {
+        onSuccess: (count) => toast.success(`Imported ${count} policies`),
+        onError: toastAxiosError,
+      })
+    } catch (err) {
+      toastAxiosError(err)
+    }
   }
 
   const handleNewPolicy = (scope: GuardrailsScope) => {
@@ -75,14 +121,7 @@ export default function GuardrailsContent({ overview }: { overview: GuardrailsOv
 
   const handleSavePolicy = (updated: GuardrailPolicy) => {
     const exists = overview.policies.some((policy) => policy.id === updated.id)
-    const reqBody = {
-      name: updated.name,
-      scope: updated.scope,
-      target: updated.target ?? '',
-      protections: updated.protections,
-      enabled: updated.enabled,
-      config: updated.config ?? defaultGuardrailsConfig(),
-    }
+    const reqBody = toPolicyDto(updated)
     const options = {
       onSuccess: () => {
         handleDialogClose()
@@ -115,17 +154,7 @@ export default function GuardrailsContent({ overview }: { overview: GuardrailsOv
       return
     }
     updateMutation.mutate(
-      {
-        id,
-        reqBody: {
-          name: policy.name,
-          scope: policy.scope,
-          target: policy.target ?? '',
-          protections: policy.protections,
-          enabled,
-          config: policy.config ?? defaultGuardrailsConfig(),
-        },
-      },
+      { id, reqBody: toPolicyDto(policy, enabled) },
       { onError: () => toast.error('Failed to update policy') }
     )
   }
@@ -139,12 +168,23 @@ export default function GuardrailsContent({ overview }: { overview: GuardrailsOv
 
   return (
     <>
+      <input
+        ref={importInput}
+        type="file"
+        accept=".json,application/json"
+        className="hidden"
+        onChange={handleImportFile}
+      />
       <SectionCard
         title="Guardrails"
         description="Content-safety policies layered global → provider → model → chain → API key. Most specific wins."
         toolbar={
           <>
-            <Button className={PRIMARY_BUTTON_CLASS} onClick={handleImport}>
+            <Button
+              className={PRIMARY_BUTTON_CLASS}
+              disabled={importMutation.isPending}
+              onClick={() => importInput.current?.click()}
+            >
               <IconUpload />
               <span>Import</span>
             </Button>
