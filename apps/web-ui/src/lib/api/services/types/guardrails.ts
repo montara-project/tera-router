@@ -16,6 +16,8 @@ export type GuardrailsDetectorResult = {
   key: string
   label: string
   enabled: boolean
+  /** the detector's action fed the decision (scoring detectors can match below threshold) */
+  triggered: boolean
   action: string
   engine: string
   note?: string

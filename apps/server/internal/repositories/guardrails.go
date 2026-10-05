@@ -35,14 +35,14 @@ func (r *GuardrailRepository) List(ctx context.Context) ([]models.GuardrailPolic
 
 // ListEnabled returns the enabled policies used for evaluation, ordered by
 // scope specificity: key first, then chain, model, provider, and global as
-// the last-resort master policy.
+// the last-resort master policy. Within a scope the oldest policy wins.
 func (r *GuardrailRepository) ListEnabled(ctx context.Context) ([]models.GuardrailPolicy, error) {
 	return r.listExec(ctx, `
 		SELECT `+guardrailColumns+` FROM guardrail_policies
 		WHERE enabled = 1
 		ORDER BY CASE scope
 			WHEN 'key' THEN 0 WHEN 'chain' THEN 1 WHEN 'model' THEN 2
-			WHEN 'provider' THEN 3 ELSE 4 END ASC`)
+			WHEN 'provider' THEN 3 ELSE 4 END ASC, created_at ASC, id ASC`)
 }
 
 func (r *GuardrailRepository) listExec(ctx context.Context, query string) ([]models.GuardrailPolicy, error) {

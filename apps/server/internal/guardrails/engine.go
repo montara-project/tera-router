@@ -100,14 +100,17 @@ type Match struct {
 }
 
 // DetectorResult is the outcome of one detector against the sample text.
+// Triggered marks a detector whose action fed the decision; a scoring
+// detector can match words yet stay below its threshold.
 type DetectorResult struct {
-	Key     string  `json:"key"`
-	Label   string  `json:"label"`
-	Enabled bool    `json:"enabled"`
-	Action  string  `json:"action"`
-	Engine  string  `json:"engine"`
-	Note    string  `json:"note,omitempty"`
-	Matches []Match `json:"matches"`
+	Key       string  `json:"key"`
+	Label     string  `json:"label"`
+	Enabled   bool    `json:"enabled"`
+	Triggered bool    `json:"triggered"`
+	Action    string  `json:"action"`
+	Engine    string  `json:"engine"`
+	Note      string  `json:"note,omitempty"`
+	Matches   []Match `json:"matches"`
 }
 
 // Result is the full evaluation outcome: the strongest triggered action, the
@@ -195,29 +198,12 @@ func Evaluate(cfg Config, externalDetectors bool, text string) Result {
 	piiAction := piiActionLabel(cfg.Pii.MaskingStrategy)
 	piiMatches := []Match{}
 	if cfg.Pii.Enabled {
-		selected := map[string]bool{}
-		for _, entity := range cfg.Pii.Entities {
-			selected[strings.ToLower(entity)] = true
-		}
-		useAll := len(selected) == 0
-		for _, pattern := range piiPatterns {
-			if !useAll && !selected[strings.ToLower(pattern.entity)] {
-				continue
-			}
-			for _, loc := range pattern.re.FindAllStringIndex(text, -1) {
-				piiMatches = append(piiMatches, Match{
-					Entity: pattern.entity,
-					Value:  text[loc[0]:loc[1]],
-					Start:  loc[0],
-					End:    loc[1],
-				})
-			}
-		}
-		result.MaskedText = maskText(text, dedupePIIMatches(piiMatches), cfg.Pii.MaskingStrategy)
+		piiMatches = detectPII(cfg.Pii, text)
+		result.MaskedText = maskText(text, piiMatches, cfg.Pii.MaskingStrategy)
 	}
 	result.Detectors = append(result.Detectors, DetectorResult{
-		Key: "pii", Label: "PII Detection", Enabled: cfg.Pii.Enabled,
-		Action: piiAction, Engine: piiEngine, Note: piiNote, Matches: dedupePIIMatches(piiMatches),
+		Key: "pii", Label: "PII Detection", Enabled: cfg.Pii.Enabled, Triggered: len(piiMatches) > 0,
+		Action: piiAction, Engine: piiEngine, Note: piiNote, Matches: piiMatches,
 	})
 	if len(piiMatches) > 0 {
 		result.Decision = strongest(result.Decision, piiAction)
@@ -248,7 +234,7 @@ func Evaluate(cfg Config, externalDetectors bool, text string) Result {
 	}
 	result.Detectors = append(result.Detectors, DetectorResult{
 		Key: "injection", Label: "Prompt Injection Detection", Enabled: cfg.Injection.Enabled,
-		Action: cfg.Injection.Action, Engine: "native", Matches: injMatches,
+		Triggered: len(injMatches) > 0, Action: cfg.Injection.Action, Engine: "native", Matches: injMatches,
 	})
 	if len(injMatches) > 0 {
 		result.Decision = strongest(result.Decision, cfg.Injection.Action)
@@ -276,7 +262,7 @@ func Evaluate(cfg Config, externalDetectors bool, text string) Result {
 		}
 	}
 	result.Detectors = append(result.Detectors, DetectorResult{
-		Key: "topics", Label: "Topic Boundaries", Enabled: cfg.Topics.Enabled,
+		Key: "topics", Label: "Topic Boundaries", Enabled: cfg.Topics.Enabled, Triggered: len(topMatches) > 0,
 		Action: cfg.Topics.Action, Engine: topEngine, Note: topNote, Matches: topMatches,
 	})
 	if len(topMatches) > 0 {
@@ -284,64 +270,86 @@ func Evaluate(cfg Config, externalDetectors bool, text string) Result {
 	}
 
 	// Toxicity scoring.
-	toxMatches := []Match{}
-	if cfg.Toxicity.Enabled {
-		for _, category := range cfg.Toxicity.Categories {
-			words := toxicityCatalog[category]
-			if words == nil {
-				continue
-			}
-			hits := 0
-			for _, word := range words {
-				if containsFold(text, word) {
-					hits++
-					toxMatches = append(toxMatches, Match{Entity: category, Value: word, Start: 0, End: 0})
-				}
-			}
-			if hits > 0 {
-				score := min(100, hits*25)
-				if score >= cfg.Toxicity.Threshold {
-					result.Decision = strongest(result.Decision, cfg.Toxicity.Action)
-					break
-				}
-			}
-		}
+	toxMatches, toxTriggered := scoreKeywords(cfg.Toxicity.Enabled, cfg.Toxicity.Categories, toxicityCatalog, cfg.Toxicity.Threshold, text)
+	if toxTriggered {
+		result.Decision = strongest(result.Decision, cfg.Toxicity.Action)
 	}
 	result.Detectors = append(result.Detectors, DetectorResult{
-		Key: "toxicity", Label: "Toxicity Detection", Enabled: cfg.Toxicity.Enabled,
+		Key: "toxicity", Label: "Toxicity Detection", Enabled: cfg.Toxicity.Enabled, Triggered: toxTriggered,
 		Action: cfg.Toxicity.Action, Engine: toxEngine, Note: toxNote, Matches: toxMatches,
 	})
 
 	// Bias scoring.
-	biasMatches := []Match{}
-	if cfg.Bias.Enabled {
-		for _, category := range cfg.Bias.Categories {
-			words := biasCatalog[category]
-			if words == nil {
-				continue
-			}
-			hits := 0
-			for _, word := range words {
-				if containsFold(text, word) {
-					hits++
-					biasMatches = append(biasMatches, Match{Entity: category, Value: word, Start: 0, End: 0})
-				}
-			}
-			if hits > 0 {
-				score := min(100, hits*25)
-				if score >= cfg.Bias.Threshold {
-					result.Decision = strongest(result.Decision, cfg.Bias.Action)
-					break
-				}
-			}
-		}
+	biasMatches, biasTriggered := scoreKeywords(cfg.Bias.Enabled, cfg.Bias.Categories, biasCatalog, cfg.Bias.Threshold, text)
+	if biasTriggered {
+		result.Decision = strongest(result.Decision, cfg.Bias.Action)
 	}
 	result.Detectors = append(result.Detectors, DetectorResult{
-		Key: "bias", Label: "Bias Detection", Enabled: cfg.Bias.Enabled,
+		Key: "bias", Label: "Bias Detection", Enabled: cfg.Bias.Enabled, Triggered: biasTriggered,
 		Action: cfg.Bias.Action, Engine: "native", Matches: biasMatches,
 	})
 
 	return result
+}
+
+// scoreKeywords runs a keyword-catalog detector: each selected category
+// scores 25 per catalog word found, and the detector triggers once one
+// category reaches the threshold. Scanning stops at the first triggering
+// category, so its matches end the list.
+func scoreKeywords(enabled bool, categories []string, catalog map[string][]string, threshold int, text string) ([]Match, bool) {
+	matches := []Match{}
+	if !enabled {
+		return matches, false
+	}
+	for _, category := range categories {
+		hits := 0
+		for _, word := range catalog[category] {
+			if containsFold(text, word) {
+				hits++
+				matches = append(matches, Match{Entity: category, Value: word})
+			}
+		}
+		if hits > 0 && min(100, hits*25) >= threshold {
+			return matches, true
+		}
+	}
+	return matches, false
+}
+
+// Redact applies the PII detector's masking strategy to text, returning it
+// unchanged when the detector is disabled or finds nothing.
+func Redact(cfg PiiConfig, text string) string {
+	if !cfg.Enabled {
+		return text
+	}
+	return maskText(text, detectPII(cfg, text), cfg.MaskingStrategy)
+}
+
+// detectPII returns every selected PII entity found in text (all entities when
+// none are selected), with credit-card shapes shadowed by a more specific
+// entity dropped.
+func detectPII(cfg PiiConfig, text string) []Match {
+	selected := map[string]bool{}
+	for _, entity := range cfg.Entities {
+		selected[strings.ToLower(entity)] = true
+	}
+	useAll := len(selected) == 0
+
+	matches := []Match{}
+	for _, pattern := range piiPatterns {
+		if !useAll && !selected[strings.ToLower(pattern.entity)] {
+			continue
+		}
+		for _, loc := range pattern.re.FindAllStringIndex(text, -1) {
+			matches = append(matches, Match{
+				Entity: pattern.entity,
+				Value:  text[loc[0]:loc[1]],
+				Start:  loc[0],
+				End:    loc[1],
+			})
+		}
+	}
+	return dedupePIIMatches(matches)
 }
 
 // resolveEngine maps an engine selection to the effective engine, falling

@@ -316,6 +316,7 @@ export default function KeyGuardrailsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
       <EditPolicyDialog
         mode={dialog?.mode ?? 'create'}
         policy={dialog?.policy ?? null}
+        targetLocked
         onOpenChange={(open) => !open && setDialog(null)}
         onSave={handleSave}
       />
@@ -336,7 +337,7 @@ export default function KeyGuardrailsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
 /**
  * Resolves the detectors that apply to a key.
  *
- * This mirrors the server's merge in the guardrails Evaluate path: layers are
+ * This mirrors the server's `guardrails.Merge`, which the gateway enforces: layers are
  * walked most-specific-first, a detector counts as active if ANY applicable
  * layer enables it (a key override cannot switch off upstream protection), and
  * the settings shown come from the most specific layer that enables it.

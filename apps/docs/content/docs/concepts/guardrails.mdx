@@ -3,13 +3,24 @@ title: Guardrails
 description: Layered policies for PII, prompt injection, topics, toxicity, and bias.
 ---
 
-Guardrails inspect requests (and optionally responses) before/as they leave for the provider. Policies are managed from the **Guardrails** page.
+Guardrails screen every inference request (`/v1/chat/completions`, `/v1/messages`, `/v1/responses`) after routing and before any provider sees it. Policies are managed from the **Guardrails** page.
+
+Only user-authored text is scanned: the text parts of `user` messages. System prompts, assistant turns, tool results, and model output are not.
 
 ## Layered, most-specific-wins
 
-Policies can be attached at five scopes — `global`, `provider`, `model`, `chain`, and `key`. For a single request, the router resolves the effective policy per detector with a _most-specific-wins_ rule: a policy on the `key` scope beats `chain`, which beats `model`, and so on.
+Policies can be attached at five scopes — `global`, `provider`, `model`, `chain`, and `key`. A non-global policy applies only when its target matches the request:
 
-The consequence: a global guardrail cannot be turned off from a key — keys can only tighten, never loosen the layers above them.
+| Scope      | Target matches                                                                    |
+| ---------- | --------------------------------------------------------------------------------- |
+| `key`      | the API key's id                                                                  |
+| `chain`    | the chain name the request resolved through                                       |
+| `model`    | the requested model, or any candidate target's `model` / `provider/model` / alias |
+| `provider` | any candidate target's provider slug                                              |
+
+For a single request, the router resolves the effective setting per detector with a _most-specific-wins_ rule: `key` beats `chain`, which beats `model`, then `provider`, then `global`. The most specific policy that enables a detector supplies its settings.
+
+The consequence: a global guardrail cannot be turned off from a key — keys can only tighten or tune, never loosen the layers above them. Provider and model policies apply when they match _any_ fallback target, so fallback never escapes them.
 
 ## Detectors
 
@@ -23,23 +34,29 @@ The consequence: a global guardrail cannot be turned off from a key — keys can
 
 Each detector has `enabled` and `action`:
 
-- `block` — reject the request (`403` error).
-- `warn` — forward but flag it.
-- `log` — just record it.
+- `block` — reject the request with `400` before dispatch.
+- `warn` — forward it and flag the response.
+- `log` — forward it and only record it.
 
-Model output scanning is enabled per policy (`scan_output`) — useful for preventing PII leaks through responses.
+PII has a masking strategy instead (`redact` → `<PII>`, `mask` → `****`, `hash` → `[hash:…]`). Matches are rewritten in the user text before it is forwarded, even when another detector's `warn` outranks it.
+
+Any decision other than allow adds an `X-TeraRouter-Guardrails: <decision>` response header and a `guardrail.<decision>` entry to the **Audit Logs** tab. A failed policy lookup fails closed with `500`.
 
 ## Testing without risk
 
-The **Guardrails** page has an evaluation mode (`POST /v1/guardrails/evaluate`): send a sample text, see which policies would trigger and what they'd decide — without actually blocking anything.
+The policy editor has a **Test Policy** panel (`POST /v1/guardrails/evaluate`): send a sample text, see which detectors trigger, the decision, and the masked text — without sending anything to a provider. Omit `config` to test against every enabled policy merged together.
 
 ```bash
 curl -X POST http://localhost:8080/v1/guardrails/evaluate \
   -H "Authorization: Bearer <dashboard-jwt>" \
   -H "Content-Type: application/json" \
-  -d '{ "input": "my email is budi@example.com", "scope": "global" }'
+  -d '{ "text": "my email is budi@example.com" }'
 ```
+
+## Import and export
+
+**Export all** downloads `guardrails-policies.json` (`{ "policies": [...] }`). **Import** validates the whole file first, then creates every policy in it alongside the existing ones.
 
 ## Detection credibility
 
-The built-in detectors are deterministic (regex/lexicons). There is an `external_detectors` toggle in settings to enable external detectors when available.
+The built-in detectors are deterministic (regex/lexicons) and run inside the router process. No external engine (Presidio, OpenAI moderation) is wired in, so the `external_detectors` toggle currently only changes the engine notes shown by the test panel.
