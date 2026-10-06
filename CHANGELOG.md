@@ -3,6 +3,12 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [0.5.3](https://github.com/montara-project/tera-router/compare/v0.5.2...v0.5.3) (2026-10-05)
+
+### Features
+
+* **usage:** paginate provider health and provider accounting sections ([75d5db7](https://github.com/montara-project/tera-router/commit/75d5db7e149070df4606af8d815e4d84507d0525))
+
 ## [0.5.2](https://github.com/montara-project/tera-router/compare/v0.5.1...v0.5.2) (2026-10-05)
 
 ### Features
