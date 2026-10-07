@@ -149,13 +149,28 @@ func setUpstreamAuth(req *http.Request, anthropic bool, oauth bool, apiKey strin
 }
 
 // V1Join resolves a path against an OpenAI/Anthropic base URL, avoiding the
-// /v1/v1 double when the base already ends in /v1.
+// /v1/v1 double when the base already carries the version segment: either
+// ending in /v1 or holding a /v1/ step mid-path (e.g. a gateway mounted
+// under https://host/api/v1/<name>). Bases without any version segment —
+// bare hosts like https://api.openai.com — still get /v1 inserted.
 func V1Join(base, path string) string {
 	base = strings.TrimSuffix(base, "/")
-	if strings.HasSuffix(base, "/v1") {
+	if strings.HasSuffix(base, "/v1") || strings.Contains(base, "/v1/") {
 		return base + "/" + strings.TrimLeft(path, "/")
 	}
 	return base + "/v1/" + strings.TrimLeft(path, "/")
+}
+
+// looksLikeHTML reports whether a response is an HTML document rather than
+// the JSON the model-list endpoints answer with: an explicit text/html
+// Content-Type, or a body whose first non-whitespace byte is '<' (catches
+// servers that omit or mislabel the content type). JSON never starts with '<'.
+func looksLikeHTML(body []byte, contentType string) bool {
+	if ct, _, _ := strings.Cut(contentType, ";"); strings.EqualFold(strings.TrimSpace(ct), "text/html") {
+		return true
+	}
+	trimmed := bytes.TrimSpace(body)
+	return len(trimmed) > 0 && trimmed[0] == '<'
 }
 
 // ProbeCredential performs a lightweight authenticated GET against the
@@ -181,11 +196,17 @@ func (s *UpstreamService) ProbeCredential(ctx context.Context, endpoint string, 
 		return dtos.TestResult{OK: false, LatencyMS: latency, Detail: err.Error()}, nil
 	}
 	defer resp.Body.Close()
-	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 512))
+	sniff, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
 
 	result := dtos.TestResult{Status: resp.StatusCode, LatencyMS: latency}
 	switch {
 	case resp.StatusCode >= 200 && resp.StatusCode < 300:
+		// A base_url pointing at a website instead of the API root usually
+		// answers 200 with an HTML soft-404, which used to read as "accepted".
+		if looksLikeHTML(sniff, resp.Header.Get("Content-Type")) {
+			result.Detail = "endpoint returned an HTML page instead of JSON; check that base_url points to the API endpoint, not a website"
+			return result, nil
+		}
 		result.OK = true
 		result.Detail = "credential accepted"
 	case resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden:
@@ -226,6 +247,12 @@ func (s *UpstreamService) ListModels(ctx context.Context, endpoint string, anthr
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("upstream responded with status %d", resp.StatusCode)
+	}
+	// The most common wrong-base_url failure mode: a website (or the SPA in
+	// front of a gateway) soft-404s /v1/models with a 200 HTML page, which a
+	// plain JSON error cannot distinguish from a malformed API answer.
+	if looksLikeHTML(body, resp.Header.Get("Content-Type")) {
+		return nil, fmt.Errorf("upstream returned an HTML page instead of a JSON model list (status %d); check that base_url points to the API endpoint, not a website", resp.StatusCode)
 	}
 
 	var payload struct {
