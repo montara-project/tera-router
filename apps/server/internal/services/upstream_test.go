@@ -266,6 +266,86 @@ func TestProbeCredentialAuthHeaders(t *testing.T) {
 	}
 }
 
+// A wrong base_url (a website instead of the API root) usually answers with
+// an HTML soft-404 at status 200 — ListModels must reject it with a
+// base_url-mentioning error instead of the raw json unparseable error.
+func TestListModelsRejectsHTMLPage(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		contentType string
+		body        string
+	}{
+		{name: "text/html content type", contentType: "text/html; charset=utf-8", body: "<!DOCTYPE html><html><body>not found</body></html>"},
+		{name: "unset content type", contentType: "", body: "<html><body>spa fallback</body></html>"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				if tc.contentType != "" {
+					w.Header().Set("Content-Type", tc.contentType)
+				}
+				w.WriteHeader(http.StatusOK)
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			defer srv.Close()
+
+			svc := &UpstreamService{}
+			_, err := svc.ListModels(context.Background(), srv.URL+"/v1/models", false, false, "k")
+			if err == nil {
+				t.Fatal("an HTML page must not parse as a model list")
+			}
+			for _, want := range []string{"HTML", "base_url"} {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("error %q missing %q", err.Error(), want)
+				}
+			}
+		})
+	}
+}
+
+func TestListModelsParsesJSONWithPricing(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"data":[{"id":"m-b","pricing":{"prompt":"0.0000025","completion":"0.00001"}},{"id":"m-a"}]}`))
+	}))
+	defer srv.Close()
+
+	svc := &UpstreamService{}
+	models, err := svc.ListModels(context.Background(), srv.URL+"/v1/models", false, false, "k")
+	if err != nil {
+		t.Fatalf("ListModels: %v", err)
+	}
+	if len(models) != 2 || models[0].ID != "m-a" || models[1].ID != "m-b" {
+		t.Errorf("models = %+v, want m-a,m-b sorted", models)
+	}
+	if models[1].Pricing == nil || models[1].Pricing.InputMicros != 2_500_000 {
+		t.Errorf("m-b pricing = %+v, want parsed input rate", models[1].Pricing)
+	}
+}
+
+// A credential probe against a website root answers 200 with an HTML page;
+// that must not count as "credential accepted".
+func TestProbeCredentialFlagsHTMLPage(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("<!DOCTYPE html><html><body>Just a moment…</body></html>"))
+	}))
+	defer srv.Close()
+
+	svc := &UpstreamService{}
+	res, err := svc.ProbeCredential(context.Background(), srv.URL+"/v1/models", false, false, "k")
+	if err != nil {
+		t.Fatalf("ProbeCredential: %v", err)
+	}
+	if res.OK {
+		t.Errorf("result = %+v, want not ok for an HTML page", res)
+	}
+	for _, want := range []string{"HTML", "base_url"} {
+		if !strings.Contains(res.Detail, want) {
+			t.Errorf("detail %q missing %q", res.Detail, want)
+		}
+	}
+}
+
 func TestChatCompletionAnthropicOAuth(t *testing.T) {
 	var gotHeader http.Header
 	var gotBody map[string]any
