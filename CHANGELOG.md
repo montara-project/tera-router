@@ -3,6 +3,13 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [0.5.4](https://github.com/montara-project/tera-router/compare/v0.5.3...v0.5.4) (2026-10-07)
+
+### Bug Fixes
+
+* **server:** stop V1Join from double-versioning gateway base urls ([95d12d2](https://github.com/montara-project/tera-router/commit/95d12d28c8138a3049eb8b3dee0f635f20ebd3cd))
+* **server:** surface HTML upstream pages in model sync and credential probe ([e357cb4](https://github.com/montara-project/tera-router/commit/e357cb4cac7ec78d07c62b7c8a215342a5adf5b5))
+
 ## [0.5.3](https://github.com/montara-project/tera-router/compare/v0.5.2...v0.5.3) (2026-10-05)
 
 ### Features
