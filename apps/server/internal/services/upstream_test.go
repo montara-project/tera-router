@@ -346,6 +346,27 @@ func TestProbeCredentialFlagsHTMLPage(t *testing.T) {
 	}
 }
 
+// V1Join must not double-version a base that already carries /v1: both the
+// trailing form and a /v1/ step mid-path (a gateway mounted under
+// https://host/api/v1/<name>) join as-is; bare hosts still get /v1 inserted.
+func TestV1Join(t *testing.T) {
+	cases := []struct{ base, path, want string }{
+		{"https://api.openai.com", "models", "https://api.openai.com/v1/models"},
+		{"https://api.openai.com/", "models", "https://api.openai.com/v1/models"},
+		{"https://api.openai.com/v1", "models", "https://api.openai.com/v1/models"},
+		{"https://api.openai.com/v1/", "models", "https://api.openai.com/v1/models"},
+		{"https://koma.run/api/v1/koma-gateway", "models", "https://koma.run/api/v1/koma-gateway/models"},
+		{"https://koma.run/api/v1/koma-gateway/", "models", "https://koma.run/api/v1/koma-gateway/models"},
+		{"https://api.anthropic.com", "messages", "https://api.anthropic.com/v1/messages"},
+		{"https://v1.example.com", "models", "https://v1.example.com/v1/models"},
+	}
+	for _, tc := range cases {
+		if got := V1Join(tc.base, tc.path); got != tc.want {
+			t.Errorf("V1Join(%q, %q) = %q, want %q", tc.base, tc.path, got, tc.want)
+		}
+	}
+}
+
 func TestChatCompletionAnthropicOAuth(t *testing.T) {
 	var gotHeader http.Header
 	var gotBody map[string]any

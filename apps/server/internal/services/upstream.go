@@ -149,10 +149,13 @@ func setUpstreamAuth(req *http.Request, anthropic bool, oauth bool, apiKey strin
 }
 
 // V1Join resolves a path against an OpenAI/Anthropic base URL, avoiding the
-// /v1/v1 double when the base already ends in /v1.
+// /v1/v1 double when the base already carries the version segment: either
+// ending in /v1 or holding a /v1/ step mid-path (e.g. a gateway mounted
+// under https://host/api/v1/<name>). Bases without any version segment —
+// bare hosts like https://api.openai.com — still get /v1 inserted.
 func V1Join(base, path string) string {
 	base = strings.TrimSuffix(base, "/")
-	if strings.HasSuffix(base, "/v1") {
+	if strings.HasSuffix(base, "/v1") || strings.Contains(base, "/v1/") {
 		return base + "/" + strings.TrimLeft(path, "/")
 	}
 	return base + "/v1/" + strings.TrimLeft(path, "/")
