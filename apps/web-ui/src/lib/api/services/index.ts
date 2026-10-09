@@ -19,6 +19,7 @@ import { quotaServices } from './quota'
 import { settingsServices } from './settings'
 import { skillServices } from './skill'
 import { systemServices } from './system'
+import { tunnelServices } from './tunnel'
 import { usageServices } from './usage'
 
 export const services = {
@@ -43,5 +44,6 @@ export const services = {
   settings: settingsServices,
   skills: skillServices,
   system: systemServices,
+  tunnels: tunnelServices,
   usage: usageServices,
 } as const

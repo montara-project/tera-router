@@ -27,6 +27,7 @@ type Handlers struct {
 	System         *systemHandler
 	Media          *mediaHandler
 	CliTools       *cliToolsHandler
+	Tunnels        *tunnelsHandler
 	OAuth          *oauthHandler
 	Backup         *backupHandler
 	LegacyImport   *legacyImportHandler
@@ -57,6 +58,7 @@ func New(app *app.Application) *Handlers {
 		Backup:         &backupHandler{app: app},
 		LegacyImport:   &legacyImportHandler{app: app},
 		CliTools:       &cliToolsHandler{app: app},
+		Tunnels:        &tunnelsHandler{app: app},
 		OAuth: &oauthHandler{
 			app:      app,
 			sessions: oauth.NewSessionStore(),

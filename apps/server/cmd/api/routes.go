@@ -205,5 +205,10 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	protected.Get("/cli-tools/claude-code", h.CliTools.ClaudeCode)
 	protected.Post("/cli-tools/claude-code/apply", h.CliTools.ClaudeCodeApply)
 
+	// Tunnels (cloudflared quick tunnel exposing this server publicly)
+	protected.Get("/tunnels/cloudflare", h.Tunnels.Cloudflare)
+	protected.Post("/tunnels/cloudflare/enable", h.Tunnels.CloudflareEnable)
+	protected.Post("/tunnels/cloudflare/disable", h.Tunnels.CloudflareDisable)
+
 	return gw
 }

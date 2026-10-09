@@ -134,6 +134,9 @@ func serve(app *app.Application) error {
 	<-c
 	app.Logger.Info("Received interrupt signal, shutting down...")
 
+	// The tunnel is a child process; it must not outlive the server.
+	app.Services.Tunnel.Stop()
+
 	// Stop server
 	if err := server.Shutdown(); err != nil {
 		app.Logger.Error("failed to stop server", "error", err)
