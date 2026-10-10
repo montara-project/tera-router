@@ -37,6 +37,12 @@ func (c *connector) headers(creds core.Credentials) map[string]string {
 	}
 }
 
+// clineClientVersion is the Cline release the gateway identifies as, kept in
+// step with the current `cline` npm release. Cline's gateway answers 403
+// ("only available via Cline product surfaces") to clients it does not
+// recognise as current.
+const clineClientVersion = "3.0.70"
+
 // openAIHeaders authenticates an OpenAI Chat Completions call. An empty token
 // (AuthNone providers) sends no auth header at all.
 func (c *connector) openAIHeaders(creds core.Credentials) map[string]string {
@@ -50,14 +56,15 @@ func (c *connector) openAIHeaders(creds core.Credentials) map[string]string {
 				tok = "workos:" + tok
 			}
 			h["Authorization"] = bearer(tok)
+			h["User-Agent"] = "Cline/" + clineClientVersion
 			h["HTTP-Referer"] = "https://cline.bot"
 			h["X-Title"] = "Cline"
 			h["X-CLIENT-TYPE"] = "cline-sdk"
 			h["X-PLATFORM"] = "web"
 			h["X-IS-MULTIROOT"] = "false"
-			h["X-CLIENT-VERSION"] = "3.0.46"
-			h["X-CORE-VERSION"] = "3.0.46"
-			h["X-PLATFORM-VERSION"] = "unknown"
+			h["X-CLIENT-VERSION"] = clineClientVersion
+			h["X-CORE-VERSION"] = clineClientVersion
+			h["X-PLATFORM-VERSION"] = clineClientVersion
 			return mergeHeaders(h, creds.Headers)
 		}
 		h["Authorization"] = bearer(tok)
