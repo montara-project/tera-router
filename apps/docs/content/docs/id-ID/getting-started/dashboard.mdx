@@ -11,7 +11,7 @@ Dashboard (`apps/web-ui`) adalah satu-satunya tempat kamu mengelola router sehar
 
 ## Traffic
 
-- **Endpoints** — cara menghubungkan aplikasi: base URL + API key, plus setup tunnel untuk dibagikan.
+- **Endpoints** — cara menghubungkan aplikasi: base URL + API key, plus Cloudflare quick tunnel sekali klik untuk dibagikan (butuh `cloudflared` di host server; image Docker sudah menyertakannya).
 - **Chains** — susun rantai model: langkah berurutan, strategi (`priority`, `round-robin`, `load-balanced`), dan fallback.
 - **Skills** — potongan prompt yang bisa dipakai ulang, plus _reference skills_ yang bisa dicopy ke coding agent agar paham cara memakai router.
 
