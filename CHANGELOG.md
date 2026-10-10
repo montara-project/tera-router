@@ -3,6 +3,19 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [0.5.6](https://github.com/montara-project/tera-router/compare/v0.5.5...v0.5.6) (2026-10-10)
+
+### Features
+
+* **web-ui:** show connection status and detail links on media providers ([0d1ccba](https://github.com/montara-project/tera-router/commit/0d1ccba3ebd5df8f77ae31f93d62e16364ffda61))
+
+### Bug Fixes
+
+* **server:** identify as the current cline release upstream ([08e9292](https://github.com/montara-project/tera-router/commit/08e9292a527c9c22dc350ffc04f1cf958f10093b))
+* **server:** send cline identification headers on dashboard model tests ([851c26a](https://github.com/montara-project/tera-router/commit/851c26a3e0b1aa8c550b04496a16338a05853cf3))
+* **server:** serve unary cline calls from the upstream stream ([0c4f8d1](https://github.com/montara-project/tera-router/commit/0c4f8d10f71fac2f3d31f736e5f50ad9f0c6b42f))
+* **web-ui:** format billions and trillions in fmtCompact ([7b3c7c9](https://github.com/montara-project/tera-router/commit/7b3c7c9aa9e030ca2fac5eb55a8af720b654b189))
+
 ## [0.5.5](https://github.com/montara-project/tera-router/compare/v0.5.4...v0.5.5) (2026-10-10)
 
 ### Features
