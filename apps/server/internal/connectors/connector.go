@@ -271,9 +271,11 @@ func (c *connector) render(req *core.ChatRequest, stream bool, creds core.Creden
 	return c.codec.RenderRequest(&clone, c.id)
 }
 
-// requiresStream reports whether the upstream only accepts stream=true.
+// requiresStream reports whether unary calls must be served from the
+// upstream's stream: Codex only accepts stream=true, and Cline wraps its
+// non-streaming body in a {"data": …} envelope the codec does not read.
 func (c *connector) requiresStream() bool {
-	return c.id == "codex"
+	return c.id == "codex" || c.id == "cline"
 }
 
 // hasCompletionEnvelope reports whether a body is a well-formed completion
