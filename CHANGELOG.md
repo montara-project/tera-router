@@ -3,6 +3,20 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [0.5.5](https://github.com/montara-project/tera-router/compare/v0.5.4...v0.5.5) (2026-10-10)
+
+### Features
+
+* **endpoints:** poll cloudflare tunnel status while it is running ([346dd1b](https://github.com/montara-project/tera-router/commit/346dd1bf1dafa3529271dbf5f704022b7d807e38))
+* **endpoints:** wire cloudflare quick tunnel to cloudflared on the server ([9bc667a](https://github.com/montara-project/tera-router/commit/9bc667a2cf0a77746f8138aeecaa11031763cb1d))
+* **server:** restore cloudflare tunnel on boot and rate limit its visitors ([8798ba8](https://github.com/montara-project/tera-router/commit/8798ba846f4b9abac264d8a3700e5aac272a705d))
+* **server:** serve skill documents and inject skills into gateway requests ([d1344e6](https://github.com/montara-project/tera-router/commit/d1344e6956295834a721fd968d765b8fc69caf06))
+* **skills:** wire skill toggles, per-key selection, and SKILL.md upload ([163690c](https://github.com/montara-project/tera-router/commit/163690cc593e1949f80ba8e881f8a9583753fd1f))
+
+### Bug Fixes
+
+* update readme ([bafb3ae](https://github.com/montara-project/tera-router/commit/bafb3aea7c424c9ba899560b12b4e0e85da1d055))
+
 ## [0.5.4](https://github.com/montara-project/tera-router/compare/v0.5.3...v0.5.4) (2026-10-07)
 
 ### Bug Fixes
