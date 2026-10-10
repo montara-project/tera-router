@@ -17,6 +17,8 @@ const cloudflare = () =>
       const res = await services.tunnels.cloudflare()
       return res.data.data
     },
+    // cloudflared can exit on its own; poll while up so the card notices.
+    refetchInterval: (query) => (query.state.data?.running ? 15_000 : false),
   })
 
 const enableCloudflare = () => {
