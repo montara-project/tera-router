@@ -1,6 +1,7 @@
 package middlewares
 
 import (
+	"net/netip"
 	"strings"
 	"time"
 
@@ -36,7 +37,16 @@ const (
 // checks or an uptime monitor) that skip the limiter outright. Beware that
 // c.IP() is the direct TCP peer: when every request arrives through a reverse
 // proxy, exempting the proxy's address disables the limiter for all traffic.
-func RateLimit(exemptLoopback bool, skipPaths func(string) bool, exemptIPs string) fiber.Handler {
+//
+// tunnelActive, when non-nil, reports whether the Cloudflare tunnel is up.
+// While it is, requests from loopback carrying Cf-Connecting-IP are keyed —
+// and matched against the exemptions — by that visitor address instead of
+// cloudflared's, so tunnel traffic is always limited per visitor, even in
+// development. The header is ignored whenever the tunnel is down.
+func RateLimit(exemptLoopback bool, skipPaths func(string) bool, exemptIPs string, tunnelActive func() bool) fiber.Handler {
+	ipOf := func(c fiber.Ctx) string {
+		return clientIP(c.IP(), c.Get("Cf-Connecting-IP"), tunnelActive != nil && tunnelActive())
+	}
 	exempt := map[string]struct{}{}
 	for _, ip := range strings.Split(exemptIPs, ",") {
 		if ip = strings.TrimSpace(ip); ip != "" {
@@ -48,15 +58,35 @@ func RateLimit(exemptLoopback bool, skipPaths func(string) bool, exemptIPs strin
 			if skipPaths != nil && skipPaths(c.Path()) {
 				return true
 			}
-			if _, ok := exempt[c.IP()]; ok {
+			ip := ipOf(c)
+			if _, ok := exempt[ip]; ok {
 				return true
 			}
-			return exemptLoopback && c.IP() == "127.0.0.1"
+			return exemptLoopback && ip == "127.0.0.1"
 		},
-		Max:        rateLimitMax,
-		Expiration: rateLimitExpiration,
+		KeyGenerator: ipOf,
+		Max:          rateLimitMax,
+		Expiration:   rateLimitExpiration,
 		LimitReached: func(c fiber.Ctx) error {
 			return apperr.ErrTooManyRequests
 		},
 	})
+}
+
+// clientIP resolves the address a request is rate-limited by. cloudflared
+// connects from loopback and reports the visitor in Cf-Connecting-IP; that
+// header is trusted only from a loopback peer while the tunnel is running, so
+// a direct remote client cannot forge it. Anything else keeps the peer address.
+func clientIP(peer, cfConnectingIP string, tunnelActive bool) string {
+	if !tunnelActive || cfConnectingIP == "" {
+		return peer
+	}
+	if addr, err := netip.ParseAddr(peer); err != nil || !addr.IsLoopback() {
+		return peer
+	}
+	visitor, err := netip.ParseAddr(strings.TrimSpace(cfConnectingIP))
+	if err != nil {
+		return peer
+	}
+	return visitor.String()
 }

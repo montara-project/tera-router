@@ -50,6 +50,14 @@ func (s *TunnelService) Status() TunnelStatus {
 	return TunnelStatus{Installed: err == nil, Running: s.url != "", URL: s.url}
 }
 
+// Running reports whether the tunnel is up. Unlike Status it never touches
+// the filesystem, so the rate limiter can call it on every request.
+func (s *TunnelService) Running() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.url != ""
+}
+
 // Start launches a quick tunnel to the local port and waits for its public
 // URL. Starting while a tunnel is already up (or coming up) is a no-op.
 func (s *TunnelService) Start(port int) (TunnelStatus, error) {

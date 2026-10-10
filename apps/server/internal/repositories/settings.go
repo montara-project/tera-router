@@ -19,6 +19,10 @@ func ProviderModelsSettingsKey(providerSlug string) string {
 	return "provider_models_" + providerSlug
 }
 
+// CloudflareTunnelSettingsKey holds a JSON boolean: whether the Cloudflare
+// tunnel was left enabled, so the server brings it back on the next boot.
+const CloudflareTunnelSettingsKey = "tunnel_cloudflare_enabled"
+
 // Get returns the raw JSON value for a settings key.
 func (r *SettingRepository) Get(ctx context.Context, key string) (string, error) {
 	return r.getExec(ctx, key)

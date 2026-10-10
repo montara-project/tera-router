@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/signal"
@@ -13,6 +14,7 @@ import (
 	"tera-router/server/internal/config"
 	"tera-router/server/internal/gateway"
 	"tera-router/server/internal/middlewares"
+	"tera-router/server/internal/repositories"
 
 	sentryfiber "github.com/gofiber/contrib/v3/sentry"
 	"github.com/gofiber/fiber/v3"
@@ -89,6 +91,7 @@ func serve(app *app.Application) error {
 		app.Config.App.Env == config.EnvDevelopment,
 		gateway.IsGatewayPath,
 		app.Config.App.RateLimitExemptIPs,
+		app.Services.Tunnel.Running,
 	))
 
 	server.Use(static.New("./public"))
@@ -128,6 +131,21 @@ func serve(app *app.Application) error {
 		if err := server.Listen(listenAddr); err != nil {
 			app.Logger.Error("failed to start server", "error", err)
 		}
+	}()
+
+	// Bring the Cloudflare tunnel back if it was enabled when the server last
+	// stopped. Off the main path: cloudflared takes seconds to register and a
+	// failure must not keep the server from serving.
+	go func() {
+		if v, _ := app.Repos.Settings.Get(context.Background(), repositories.CloudflareTunnelSettingsKey); v != "true" {
+			return
+		}
+		status, err := app.Services.Tunnel.Start(app.Config.App.Port)
+		if err != nil {
+			app.Logger.Error("failed to restore cloudflare tunnel", "error", err)
+			return
+		}
+		app.Logger.Info("cloudflare tunnel restored", "url", status.URL)
 	}()
 
 	// Wait for interrupt signal
