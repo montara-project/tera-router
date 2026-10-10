@@ -37,6 +37,10 @@ func keyView(k repositories.APIKeyWithPlan) fiber.Map {
 	if allowedModels == nil {
 		allowedModels = []string{}
 	}
+	skillIDs := k.SkillIDs
+	if skillIDs == nil {
+		skillIDs = []string{}
+	}
 	return fiber.Map{
 		"id":             k.ID,
 		"name":           k.Name,
@@ -48,6 +52,7 @@ func keyView(k repositories.APIKeyWithPlan) fiber.Map {
 		"plan_id":        k.PlanID,
 		"last_used_at":   k.LastUsedAt,
 		"allowed_models": allowedModels,
+		"skill_ids":      skillIDs,
 	}
 }
 
@@ -99,6 +104,9 @@ func (h *keysHandler) Store(c fiber.Ctx) error {
 	}
 	if req.AllowedModels != nil {
 		key.AllowedModels = *req.AllowedModels
+	}
+	if req.SkillIDs != nil {
+		key.SkillIDs = *req.SkillIDs
 	}
 	if req.PlanID != "" {
 		if _, err := h.app.Repos.Plans.Get(c.Context(), req.PlanID); err != nil {
@@ -180,6 +188,9 @@ func (h *keysHandler) Update(c fiber.Ctx) error {
 	}
 	if req.AllowedModels != nil {
 		key.AllowedModels = *req.AllowedModels
+	}
+	if req.SkillIDs != nil {
+		key.SkillIDs = *req.SkillIDs
 	}
 
 	if err := h.app.Repos.APIKeys.Update(c.Context(), key); err != nil {

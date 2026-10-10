@@ -153,6 +153,7 @@ Pagination memakai query `offset` (0-based) dan `limit` (default 10, maks 100).
 | ----------------- | ------------------ | -------------------------------------------- |
 | GET / PUT / PATCH | `/v1/settings`     | Settings router (timeout, round-robin, dst.) |
 | GET / POST        | `/v1/skills`       | Daftar / buat skill                          |
+| PATCH             | `/v1/skills/:id`   | Nyalakan/matikan injeksi gateway (`enabled`) |
 | DELETE            | `/v1/skills/:id`   | Hapus skill                                  |
 | GET / DELETE      | `/v1/console`      | Log ring buffer (500 entri) / bersihkan      |
 | GET               | `/v1/system/stats` | Metrik host & proses                         |

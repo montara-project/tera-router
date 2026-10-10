@@ -16,8 +16,11 @@ type APIKey struct {
 	LastUsedAt *time.Time `json:"last_used_at"`
 	// AllowedModels narrows the assigned plan's allowlist for this key alone.
 	// Empty means the key follows its plan.
-	AllowedModels []string  `json:"allowed_models"`
-	Secret        Sealed    `json:"-"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	AllowedModels []string `json:"allowed_models"`
+	// SkillIDs are the skills injected into this key's requests, on top of
+	// the globally enabled ones.
+	SkillIDs  []string  `json:"skill_ids"`
+	Secret    Sealed    `json:"-"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }

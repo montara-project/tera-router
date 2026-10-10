@@ -14,6 +14,14 @@ func (d *CreateSkill) Validate(v *validator.MapValidator) {
 	v.Field("prompt").Required().String()
 }
 
+// UpdateSkill is the skill patch body (PATCH /v1/skills/:id). Enabled switches
+// gateway injection of the skill's prompt on or off.
+type UpdateSkill struct {
+	Enabled *bool `json:"enabled"`
+}
+
+func (d *UpdateSkill) Validate(v *validator.MapValidator) {}
+
 // Pricing is the per-model pricing override upsert body
 // (POST /v1/model-pricing-overrides). Rates are micros of a dollar per
 // million tokens. TokenConsumptionRate is optional: omitted leaves the

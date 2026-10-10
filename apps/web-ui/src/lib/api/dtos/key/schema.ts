@@ -16,6 +16,7 @@ export const CreateKeySchema = z.object({
   plan_id: optionalString('plan'),
   scopes: optionalString('scopes'),
   allowed_models: optionalStringArray('allowed models'),
+  skill_ids: optionalStringArray('skills'),
 })
 
 /**
@@ -28,6 +29,7 @@ export const UpdateKeySchema = z.object({
   scopes: optionalString('scopes'),
   disabled: optionalBoolean('disabled'),
   allowed_models: optionalStringArray('allowed models'),
+  skill_ids: optionalStringArray('skills'),
 })
 
 export type CreateKeyDto = z.infer<typeof CreateKeySchema>

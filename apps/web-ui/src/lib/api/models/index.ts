@@ -48,6 +48,7 @@ export namespace Models {
   export type SourceCodeFilterMode = import('./settings').SourceCodeFilterMode
   export type SystemHealth = import('./system').SystemHealth
   export type SystemStats = import('./system').SystemStats
+  export type TunnelStatus = import('./tunnel').TunnelStatus
   export type UpstreamModels = import('./provider-catalog').UpstreamModels
   export type UsageByModel = import('./usage').UsageByModel
   export type UsageDaily = import('./usage').UsageDaily

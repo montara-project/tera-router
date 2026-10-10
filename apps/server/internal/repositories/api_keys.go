@@ -24,13 +24,13 @@ type APIKeyWithPlan struct {
 
 const apiKeyColumns = `
 	id, user_id, plan_id, name, key_hash, lookup_hash, display, scopes, disabled, last_used_at,
-	allowed_models, secret_wrapped_dek, secret_ciphertext, created_at, updated_at`
+	allowed_models, skill_ids, secret_wrapped_dek, secret_ciphertext, created_at, updated_at`
 
 func scanAPIKey(row rowScanner) (models.APIKey, error) {
 	var k models.APIKey
 	err := row.Scan(
 		&k.ID, &k.UserID, &k.PlanID, &k.Name, &k.KeyHash, &k.LookupHash, &k.Display, &k.Scopes, &k.Disabled,
-		&k.LastUsedAt, (*jsonStrings)(&k.AllowedModels), &k.Secret.WrappedDEK, &k.Secret.Ciphertext,
+		&k.LastUsedAt, (*jsonStrings)(&k.AllowedModels), (*jsonStrings)(&k.SkillIDs), &k.Secret.WrappedDEK, &k.Secret.Ciphertext,
 		&k.CreatedAt, &k.UpdatedAt,
 	)
 	return k, translateNotFound(err)
@@ -43,10 +43,10 @@ func (r *APIKeyRepository) Insert(ctx context.Context, k models.APIKey) error {
 
 func (r *APIKeyRepository) insertExec(ctx context.Context, k models.APIKey) error {
 	_, err := r.execContext(ctx, r.DB, `
-		INSERT INTO api_keys (id, user_id, plan_id, name, key_hash, lookup_hash, display, scopes, disabled, allowed_models, secret_wrapped_dek, secret_ciphertext)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+		INSERT INTO api_keys (id, user_id, plan_id, name, key_hash, lookup_hash, display, scopes, disabled, allowed_models, skill_ids, secret_wrapped_dek, secret_ciphertext)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
 		k.ID, k.UserID, k.PlanID, k.Name, k.KeyHash, k.LookupHash, k.Display, k.Scopes, k.Disabled,
-		jsonStrings(k.AllowedModels), k.Secret.WrappedDEK, k.Secret.Ciphertext,
+		jsonStrings(k.AllowedModels), jsonStrings(k.SkillIDs), k.Secret.WrappedDEK, k.Secret.Ciphertext,
 	)
 	return err
 }
@@ -60,7 +60,7 @@ func (r *APIKeyRepository) List(ctx context.Context, offset, limit int) ([]APIKe
 func (r *APIKeyRepository) listExec(ctx context.Context, offset, limit int) ([]APIKeyWithPlan, int, error) {
 	rows, err := r.queryContext(ctx, r.DB, `
 		SELECT k.id, k.user_id, k.plan_id, k.name, k.display, k.scopes, k.disabled, k.last_used_at,
-		       k.allowed_models, k.secret_wrapped_dek, k.secret_ciphertext, k.created_at, k.updated_at,
+		       k.allowed_models, k.skill_ids, k.secret_wrapped_dek, k.secret_ciphertext, k.created_at, k.updated_at,
 		       p.name, p.description,
 		       count(*) OVER () AS total
 		FROM api_keys k
@@ -81,7 +81,7 @@ func (r *APIKeyRepository) listExec(ctx context.Context, offset, limit int) ([]A
 		)
 		if err := rows.Scan(
 			&k.ID, &k.UserID, &k.PlanID, &k.Name, &k.Display, &k.Scopes, &k.Disabled, &k.LastUsedAt,
-			(*jsonStrings)(&k.AllowedModels), &k.Secret.WrappedDEK, &k.Secret.Ciphertext,
+			(*jsonStrings)(&k.AllowedModels), (*jsonStrings)(&k.SkillIDs), &k.Secret.WrappedDEK, &k.Secret.Ciphertext,
 			&k.CreatedAt, &k.UpdatedAt,
 			&k.PlanName, &k.PlanNote, &totalRows,
 		); err != nil {
@@ -114,13 +114,13 @@ func (r *APIKeyRepository) getWithPlanExec(ctx context.Context, id string) (APIK
 	var k APIKeyWithPlan
 	err := r.queryRowContext(ctx, r.DB, `
 		SELECT k.id, k.user_id, k.plan_id, k.name, k.display, k.scopes, k.disabled, k.last_used_at,
-		       k.allowed_models, k.secret_wrapped_dek, k.secret_ciphertext, k.created_at, k.updated_at,
+		       k.allowed_models, k.skill_ids, k.secret_wrapped_dek, k.secret_ciphertext, k.created_at, k.updated_at,
 		       p.name, p.description
 		FROM api_keys k
 		LEFT JOIN plans p ON p.id = k.plan_id
 		WHERE k.id = $1`, id).Scan(
 		&k.ID, &k.UserID, &k.PlanID, &k.Name, &k.Display, &k.Scopes, &k.Disabled, &k.LastUsedAt,
-		(*jsonStrings)(&k.AllowedModels), &k.Secret.WrappedDEK, &k.Secret.Ciphertext,
+		(*jsonStrings)(&k.AllowedModels), (*jsonStrings)(&k.SkillIDs), &k.Secret.WrappedDEK, &k.Secret.Ciphertext,
 		&k.CreatedAt, &k.UpdatedAt,
 		&k.PlanName, &k.PlanNote,
 	)
@@ -147,9 +147,9 @@ func (r *APIKeyRepository) Update(ctx context.Context, k models.APIKey) error {
 func (r *APIKeyRepository) updateExec(ctx context.Context, k models.APIKey) error {
 	_, err := r.execContext(ctx, r.DB, `
 		UPDATE api_keys
-		SET name = $2, plan_id = $3, scopes = $4, disabled = $5, allowed_models = $6, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now')
+		SET name = $2, plan_id = $3, scopes = $4, disabled = $5, allowed_models = $6, skill_ids = $7, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now')
 		WHERE id = $1`,
-		k.ID, k.Name, k.PlanID, k.Scopes, k.Disabled, jsonStrings(k.AllowedModels),
+		k.ID, k.Name, k.PlanID, k.Scopes, k.Disabled, jsonStrings(k.AllowedModels), jsonStrings(k.SkillIDs),
 	)
 	return err
 }

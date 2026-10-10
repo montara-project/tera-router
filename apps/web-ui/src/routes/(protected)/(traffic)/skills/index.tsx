@@ -10,6 +10,7 @@ import SectionCard from '@/components/block/common/section-card'
 import CreateSkillCard from '@/components/block/traffic/skills/create-skill-card'
 import CustomSkillsCard from '@/components/block/traffic/skills/custom-skills-card'
 import ReferenceSkillsCard from '@/components/block/traffic/skills/reference-skills-card'
+import { toastAxiosError } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
 
 export const Route = createFileRoute('/(protected)/(traffic)/skills/')({
@@ -18,16 +19,31 @@ export const Route = createFileRoute('/(protected)/(traffic)/skills/')({
 
 function RouteComponent() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [togglingId, setTogglingId] = useState<string | null>(null)
 
   const { data, isFetching, isLoading } = useQuery(queries.skills.list())
   const skills = data?.data ?? []
 
   const createMutation = useMutation(queries.skills.create())
+  const toggleMutation = useMutation(queries.skills.setEnabled())
   const deleteMutation = useMutation(queries.skills.delete())
 
   const handleCreate = async (payload: CreateSkillDto) => {
     await createMutation.mutateAsync(payload)
     toast.success('Skill created')
+  }
+
+  const handleToggle = async (skill: Models.Skill, enabled: boolean) => {
+    setTogglingId(skill.id)
+
+    try {
+      await toggleMutation.mutateAsync({ id: skill.id, enabled })
+      toast.success(enabled ? 'Skill switched on for every request' : 'Skill switched off')
+    } catch (error) {
+      toastAxiosError(error)
+    } finally {
+      setTogglingId(null)
+    }
   }
 
   const handleDelete = async (skill: Models.Skill) => {
@@ -36,6 +52,8 @@ function RouteComponent() {
     try {
       await deleteMutation.mutateAsync(skill.id)
       toast.success('Skill deleted')
+    } catch (error) {
+      toastAxiosError(error)
     } finally {
       setDeletingId(null)
     }
@@ -53,6 +71,8 @@ function RouteComponent() {
           skills={skills}
           loading={isFetching || isLoading}
           deletingId={deletingId}
+          togglingId={togglingId}
+          onToggle={handleToggle}
           onDelete={handleDelete}
         />
       </div>

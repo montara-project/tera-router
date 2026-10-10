@@ -49,6 +49,32 @@ func (h *skillsHandler) Store(c fiber.Ctx) error {
 	return dtos.Created(c, skill, "Skill created")
 }
 
+// Update switches gateway injection for a skill on or off.
+func (h *skillsHandler) Update(c fiber.Ctx) error {
+	id, err := lib.ContextParamUUID(c, "id")
+	if err != nil {
+		return apperr.ErrBadRequest
+	}
+
+	var req dtos.UpdateSkill
+	if err := lib.ValidateRequestBody(c, &req); err != nil {
+		return err
+	}
+	if req.Enabled == nil {
+		return apperr.New(apperr.KindUnprocessable, "enabled is required")
+	}
+
+	if err := h.app.Repos.Skills.SetEnabled(c.Context(), id.String(), *req.Enabled); err != nil {
+		return err
+	}
+	skill, err := h.app.Repos.Skills.Get(c.Context(), id.String())
+	if err != nil {
+		return err
+	}
+	auditRecord(c.Context(), h.app, actorFrom(c), "skill.update", skill.ID, map[string]bool{"enabled": skill.Enabled})
+	return dtos.Item(c, fiber.StatusOK, skill, "Skill updated")
+}
+
 func (h *skillsHandler) Delete(c fiber.Ctx) error {
 	id, err := lib.ContextParamUUID(c, "id")
 	if err != nil {

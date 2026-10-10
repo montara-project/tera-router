@@ -7,7 +7,22 @@ description: Potongan prompt yang bisa dipakai ulang, reference skills untuk age
 
 Skill adalah potongan prompt yang dikelola dari dashboard dan bisa dipanggil ulang — cara rapi memusatkan instruksi yang berulang (gaya jawaban, aturan proyek, format keluaran) tanpa menyebar di banyak klien.
 
-Kelola dari halaman **Skills**: nama, deskripsi, dan isi prompt. Endpoint API-nya sederhana — `GET /v1/skills`, `POST /v1/skills`, `DELETE /v1/skills/:id`.
+Kelola dari halaman **Skills**: nama, deskripsi, dan isi prompt. Endpoint API-nya sederhana — `GET /v1/skills`, `POST /v1/skills`, `PATCH /v1/skills/:id`, `DELETE /v1/skills/:id`.
+
+Selain mengetik, skill bisa dibuat dengan **mengunggah `SKILL.md`**: `name` dan `description` di frontmatter serta isi file-nya mengisi form pembuatan, jadi prompt-nya bisa diperiksa dulu sebelum disimpan. Formatnya sama dengan format skill disajikan, sehingga skill dari satu instalasi bisa diunggah ke instalasi lain.
+
+Skill bisa dipakai dengan tiga cara:
+
+- **Nyalakan saklarnya** — gateway menambahkan prompt-nya ke system prompt setiap request inference, untuk semua API key, chain, dan model. Skill baru selalu mulai dalam keadaan mati.
+- **Pilih di API key** — di tab **Skills** milik sebuah key, pilih skill yang hanya ditambahkan ke request yang memakai key itu (`skill_ids` pada `PATCH /v1/keys/:id`). Skill ini ditambahkan di atas skill yang saklarnya menyala, dan perubahannya berlaku mulai request berikutnya.
+- **Salin URL-nya** — tiap skill disajikan sebagai dokumen Markdown di `/skills/<id>/SKILL.md` yang bisa dibaca agent saat dibutuhkan.
+
+Skill yang disuntikkan ditambahkan setelah system prompt dari klien, sesuai urutan pembuatan, masing-masing paling banyak sekali.
+
+<Callout type="warn" title="URL skill bersifat publik">
+  Dokumen skill tidak butuh API key agar agent bisa mengambilnya. Id di URL-nya acak, tapi siapa pun
+  yang punya link-nya bisa membaca prompt-nya — jangan taruh rahasia di dalam skill.
+</Callout>
 
 ## Reference skills
 

@@ -66,6 +66,11 @@ WORKDIR /app
 COPY --from=server /build/tera-server ./tera-server
 COPY --from=web-ui /build/apps/web-ui/dist ./public
 
+# cloudflared backs the dashboard's Cloudflare Tunnel toggle (Endpoints page);
+# the server spawns it from PATH. The upstream image ships a static binary for
+# amd64 and arm64, pinned here so image builds stay reproducible.
+COPY --from=cloudflare/cloudflared:2026.10.0 /usr/local/bin/cloudflared /usr/local/bin/cloudflared
+
 # The migrator resolves ./migrations relative to the working directory, so the
 # SQL files must ship alongside the binary for --migrate-on-boot.
 COPY apps/server/migrations ./migrations

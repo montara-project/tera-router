@@ -24,6 +24,10 @@ const resources = (): SkillResources => {
       const url = path
       return api.post(url, parseDto(CreateSkillSchema, payload))
     },
+    setEnabled: (id, enabled) => {
+      const url = `${path}/${id}`
+      return api.patch(url, { enabled })
+    },
     remove: (id) => {
       const url = `${path}/${id}`
       return api.delete(url)

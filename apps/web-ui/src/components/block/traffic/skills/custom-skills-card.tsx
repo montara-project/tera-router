@@ -7,15 +7,25 @@ import type { Models } from '@/lib/api/models'
 import IconBadge from '@/components/block/common/icon-badge'
 import CopySkillButton from '@/components/block/traffic/skills/copy-skill-button'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardHeading,
+  CardTitle,
+} from '@/components/ui/card'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Switch } from '@/components/ui/switch'
 import { skillUrl } from '@/lib/constants/skill'
 
 interface CustomSkillsCardProps {
   skills: Models.Skill[]
   loading?: boolean
   deletingId?: string | null
+  togglingId?: string | null
+  onToggle: (skill: Models.Skill, enabled: boolean) => void
   onDelete: (skill: Models.Skill) => void
 }
 
@@ -31,10 +41,14 @@ function CustomSkillsLoading() {
 function CustomSkillRow({
   skill,
   deleting,
+  toggling,
+  onToggle,
   onDelete,
 }: {
   skill: Models.Skill
   deleting: boolean
+  toggling: boolean
+  onToggle: (skill: Models.Skill, enabled: boolean) => void
   onDelete: (skill: Models.Skill) => void
 }) {
   return (
@@ -44,6 +58,14 @@ function CustomSkillRow({
         {skill.description && <p className="text-sm text-muted-foreground">{skill.description}</p>}
       </div>
       <div className="flex shrink-0 items-center gap-1.5">
+        <Switch
+          size="sm"
+          className="me-1.5"
+          aria-label={`Inject ${skill.name} into every request`}
+          checked={skill.enabled}
+          disabled={toggling}
+          onCheckedChange={(checked) => onToggle(skill, checked)}
+        />
         <CopySkillButton value={skillUrl(skill.id)} label={`Copy ${skill.name} skill URL`} />
         <Button
           type="button"
@@ -65,6 +87,8 @@ export default function CustomSkillsCard({
   skills,
   loading = false,
   deletingId = null,
+  togglingId = null,
+  onToggle,
   onDelete,
 }: CustomSkillsCardProps) {
   const isEmpty = skills.length === 0
@@ -79,7 +103,13 @@ export default function CustomSkillsCard({
             className="h-10 w-10"
             iconClassName="h-5 w-5"
           />
-          <CardTitle>Custom skills</CardTitle>
+          <CardHeading>
+            <CardTitle>Custom skills</CardTitle>
+            <CardDescription>
+              Switch a skill on to append its prompt to every gateway request, pick it per API key
+              on that key's Skills tab, or copy its URL for an agent to read.
+            </CardDescription>
+          </CardHeading>
         </div>
       </CardHeader>
       <CardContent className="p-0">
@@ -95,7 +125,7 @@ export default function CustomSkillsCard({
               </EmptyMedia>
               <EmptyTitle>No custom skills yet</EmptyTitle>
               <EmptyDescription>
-                Create a skill to augment matching requests with a system prompt.
+                Create a skill, then switch it on to add its prompt to every request.
               </EmptyDescription>
             </EmptyHeader>
           </Empty>
@@ -106,6 +136,8 @@ export default function CustomSkillsCard({
                 key={skill.id}
                 skill={skill}
                 deleting={deletingId === skill.id}
+                toggling={togglingId === skill.id}
+                onToggle={onToggle}
                 onDelete={onDelete}
               />
             ))}

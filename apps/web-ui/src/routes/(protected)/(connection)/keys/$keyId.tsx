@@ -7,6 +7,7 @@ import {
   IconEye,
   IconEyeOff,
   IconKey,
+  IconPuzzle,
   IconSettings,
   IconShield,
   IconStack2,
@@ -20,6 +21,7 @@ import SectionCard from '@/components/block/common/section-card'
 import KeyGeneralTab, { KeyStatusBadge } from '@/components/block/keys/key-general-tab'
 import KeyGuardrailsTab from '@/components/block/keys/key-guardrails-tab'
 import KeyModelsTab from '@/components/block/keys/key-models-tab'
+import KeySkillsTab from '@/components/block/keys/key-skills-tab'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -39,6 +41,7 @@ const ACTIVE_TAB_CLASS =
 const TABS = [
   { value: 'general', label: 'General', icon: IconSettings },
   { value: 'models', label: 'Models', icon: IconCpu },
+  { value: 'skills', label: 'Skills', icon: IconPuzzle },
   { value: 'guardrails', label: 'Guardrails', icon: IconShield },
 ] as const
 
@@ -214,6 +217,10 @@ function KeyDetailRoute() {
 
         <TabsContent value="models" className="mt-4">
           <KeyModelsTab apiKey={key} />
+        </TabsContent>
+
+        <TabsContent value="skills" className="mt-4">
+          <KeySkillsTab apiKey={key} />
         </TabsContent>
 
         <TabsContent value="guardrails" className="mt-4">
