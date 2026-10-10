@@ -546,11 +546,13 @@ func chatCompletionClient() *http.Client {
 // ChatCompletion sends one small chat completion to the upstream to verify a
 // model actually answers — the dashboard's model test. The caller resolves
 // the base URL, wire dialect, and credential exactly like the gateway would;
-// oauth marks an OAuth access token rather than an API key.
+// oauth marks an OAuth access token rather than an API key; headers, when
+// set, are the provider's own identification headers and override the auth
+// ones.
 // Upstream failures (non-2xx, unparseable body, empty answer) are reported in
 // the result rather than as a Go error, so the dashboard can render the
 // reason inline; only context/transport setup problems return an error.
-func (s *UpstreamService) ChatCompletion(ctx context.Context, baseURL string, anthropicDialect, oauth bool, apiKey, model string, messages []dtos.ModelTestMessage) (dtos.ModelTestResult, error) {
+func (s *UpstreamService) ChatCompletion(ctx context.Context, baseURL string, anthropicDialect, oauth bool, apiKey, model string, messages []dtos.ModelTestMessage, headers map[string]string) (dtos.ModelTestResult, error) {
 	endpoint := strings.TrimSuffix(baseURL, "/") + "/chat/completions"
 	if anthropicDialect {
 		endpoint = V1Join(baseURL, "messages")
@@ -581,6 +583,9 @@ func (s *UpstreamService) ChatCompletion(ctx context.Context, baseURL string, an
 	}
 	setUpstreamAuth(req, anthropicDialect, oauth, apiKey)
 	req.Header.Set("Content-Type", "application/json")
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
 
 	start := time.Now()
 	resp, err := chatCompletionClient().Do(req)
@@ -628,6 +633,13 @@ func (s *UpstreamService) ChatCompletion(ctx context.Context, baseURL string, an
 		result.InputTokens = parsed.Usage.InputTokens
 		result.OutputTokens = parsed.Usage.OutputTokens
 	} else {
+		// Cline wraps the completion in a {"data": {…}} envelope.
+		var envelope struct {
+			Data json.RawMessage `json:"data"`
+		}
+		if json.Unmarshal(raw, &envelope) == nil && len(envelope.Data) > 0 && envelope.Data[0] == '{' {
+			raw = envelope.Data
+		}
 		var parsed struct {
 			Choices []struct {
 				Message struct {

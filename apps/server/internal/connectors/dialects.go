@@ -43,29 +43,36 @@ func (c *connector) headers(creds core.Credentials) map[string]string {
 // recognise as current.
 const clineClientVersion = "3.0.70"
 
+// ClineHeaders returns the auth and identification headers for a Cline call.
+// Cline's gateway requires its SDK's identification headers — without them
+// every cline-free model answers 403 "only available via Cline product
+// surfaces" — and a workos: token prefix (WorkOS-backed auth) unless the
+// operator stored an already-prefixed or native sk_ key.
+func ClineHeaders(tok string) map[string]string {
+	if !strings.HasPrefix(tok, "workos:") && !strings.HasPrefix(tok, "sk_") {
+		tok = "workos:" + tok
+	}
+	return map[string]string{
+		"Authorization":      bearer(tok),
+		"User-Agent":         "Cline/" + clineClientVersion,
+		"HTTP-Referer":       "https://cline.bot",
+		"X-Title":            "Cline",
+		"X-CLIENT-TYPE":      "cline-sdk",
+		"X-PLATFORM":         "web",
+		"X-IS-MULTIROOT":     "false",
+		"X-CLIENT-VERSION":   clineClientVersion,
+		"X-CORE-VERSION":     clineClientVersion,
+		"X-PLATFORM-VERSION": clineClientVersion,
+	}
+}
+
 // openAIHeaders authenticates an OpenAI Chat Completions call. An empty token
 // (AuthNone providers) sends no auth header at all.
 func (c *connector) openAIHeaders(creds core.Credentials) map[string]string {
 	h := map[string]string{}
 	if tok := creds.Token(); tok != "" {
 		if c.id == "cline" {
-			// Cline's gateway requires its SDK's identification headers and a
-			// workos: token prefix (WorkOS-backed auth) unless the operator
-			// stored an already-prefixed or native sk_ key.
-			if !strings.HasPrefix(tok, "workos:") && !strings.HasPrefix(tok, "sk_") {
-				tok = "workos:" + tok
-			}
-			h["Authorization"] = bearer(tok)
-			h["User-Agent"] = "Cline/" + clineClientVersion
-			h["HTTP-Referer"] = "https://cline.bot"
-			h["X-Title"] = "Cline"
-			h["X-CLIENT-TYPE"] = "cline-sdk"
-			h["X-PLATFORM"] = "web"
-			h["X-IS-MULTIROOT"] = "false"
-			h["X-CLIENT-VERSION"] = clineClientVersion
-			h["X-CORE-VERSION"] = clineClientVersion
-			h["X-PLATFORM-VERSION"] = clineClientVersion
-			return mergeHeaders(h, creds.Headers)
+			return mergeHeaders(ClineHeaders(tok), creds.Headers)
 		}
 		h["Authorization"] = bearer(tok)
 	}
