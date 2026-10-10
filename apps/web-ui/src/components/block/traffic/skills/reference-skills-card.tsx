@@ -4,6 +4,7 @@ import { IconBook2 } from '@tabler/icons-react'
 
 import IconBadge from '@/components/block/common/icon-badge'
 import CopySkillButton from '@/components/block/traffic/skills/copy-skill-button'
+import { Badge } from '@/components/ui/badge'
 import {
   Card,
   CardContent,
@@ -27,7 +28,13 @@ function ReferenceSkillRow({ skill }: { skill: ReferenceSkill }) {
             {skill.endpoint}
           </code>
         )}
-        <CopySkillButton value={skillUrl(skill.slug)} label={`Copy ${skill.name} skill URL`} />
+        {skill.comingSoon ? (
+          <Badge variant="secondary" size="sm">
+            Coming soon
+          </Badge>
+        ) : (
+          <CopySkillButton value={skillUrl(skill.slug)} label={`Copy ${skill.name} skill URL`} />
+        )}
       </div>
     </div>
   )

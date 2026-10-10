@@ -1,7 +1,8 @@
 'use client'
 
-import { IconPlus } from '@tabler/icons-react'
-import { useState } from 'react'
+import { IconPlus, IconUpload } from '@tabler/icons-react'
+import { useRef, useState, type ChangeEvent } from 'react'
+import { toast } from 'sonner'
 
 import type { CreateSkillDto } from '@/lib/api/dtos/skill/schema'
 
@@ -16,7 +17,9 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { useAppForm } from '@/hooks/form'
+import { toastAxiosError } from '@/lib/api/axios-error'
 import { CreateSkillSchema } from '@/lib/api/dtos/skill/schema'
+import { MAX_SKILL_FILE_BYTES, parseSkillFile } from '@/lib/skill-file'
 
 interface CreateSkillCardProps {
   onSubmit: (payload: CreateSkillDto) => Promise<void>
@@ -24,6 +27,7 @@ interface CreateSkillCardProps {
 
 export default function CreateSkillCard({ onSubmit }: CreateSkillCardProps) {
   const [submitting, setSubmitting] = useState(false)
+  const fileInput = useRef<HTMLInputElement>(null)
 
   const form = useAppForm({
     defaultValues: {
@@ -40,11 +44,39 @@ export default function CreateSkillCard({ onSubmit }: CreateSkillCardProps) {
       try {
         await onSubmit(value)
         form.reset()
+      } catch (error) {
+        // Keep what the user typed so a failed create can be retried.
+        toastAxiosError(error)
       } finally {
         setSubmitting(false)
       }
     },
   })
+
+  // An uploaded file only fills the form: the skill is saved when the user
+  // submits, so the prompt can be read first — an enabled skill ends up in
+  // the system prompt of real requests.
+  const handleFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+
+    if (file.size > MAX_SKILL_FILE_BYTES) {
+      toast.error(`${file.name} is larger than ${MAX_SKILL_FILE_BYTES / 1024} KB.`)
+      return
+    }
+
+    const skill = parseSkillFile(await file.text(), file.name)
+    if (!skill.prompt) {
+      toast.error(`${file.name} has no prompt text.`)
+      return
+    }
+
+    form.setFieldValue('name', skill.name)
+    form.setFieldValue('description', skill.description)
+    form.setFieldValue('prompt', skill.prompt)
+    toast.success(`Loaded ${file.name} — review it, then create the skill`)
+  }
 
   return (
     <Card className="bg-background">
@@ -54,7 +86,8 @@ export default function CreateSkillCard({ onSubmit }: CreateSkillCardProps) {
           <CardHeading>
             <CardTitle>Create skill</CardTitle>
             <CardDescription>
-              Give the skill a name and the instruction it should inject.
+              Give the skill a name and its instruction, or upload a SKILL.md to fill the form. New
+              skills start switched off.
             </CardDescription>
           </CardHeading>
         </div>
@@ -91,7 +124,7 @@ export default function CreateSkillCard({ onSubmit }: CreateSkillCardProps) {
             )}
           />
 
-          <div>
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               type="submit"
               disabled={submitting}
@@ -99,6 +132,22 @@ export default function CreateSkillCard({ onSubmit }: CreateSkillCardProps) {
             >
               <IconPlus />
               <span>{submitting ? 'Creating...' : 'Create skill'}</span>
+            </Button>
+            <input
+              ref={fileInput}
+              type="file"
+              accept=".md,.markdown,.txt,text/markdown,text/plain"
+              className="hidden"
+              onChange={handleFile}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              disabled={submitting}
+              onClick={() => fileInput.current?.click()}
+            >
+              <IconUpload />
+              <span>Upload SKILL.md</span>
             </Button>
           </div>
         </form>

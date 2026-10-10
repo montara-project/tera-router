@@ -15,6 +15,8 @@ export type ApiKey = {
   last_used_at?: string | null
   /** per-key narrowing of the plan allowlist; empty follows the plan */
   allowed_models: string[]
+  /** skills injected into this key's requests, on top of the globally enabled ones */
+  skill_ids: string[]
 }
 
 /** GET /v1/keys/:id — the list payload plus the fields only the detail page

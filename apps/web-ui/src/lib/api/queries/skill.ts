@@ -35,6 +35,20 @@ const create = () => {
   })
 }
 
+const setEnabled = () => {
+  const qc = getQueryClient()
+
+  return mutationOptions({
+    mutationFn: async ({ id, enabled }: { id: string; enabled: boolean }) => {
+      const res = await services.skills.setEnabled(id, enabled)
+      return res.data
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [SKILL_QUERY_KEY] })
+    },
+  })
+}
+
 const del = () => {
   const qc = getQueryClient()
 
@@ -52,5 +66,6 @@ const del = () => {
 export const skillQueries = {
   list,
   create,
+  setEnabled,
   delete: del,
 } as const
