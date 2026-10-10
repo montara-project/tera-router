@@ -7,7 +7,22 @@ description: Reusable prompt snippets, reference skills for agents, and the medi
 
 A skill is a prompt snippet managed from the dashboard and reusable anywhere — a tidy way to centralize repeated instructions (answer style, project rules, output formats) without scattering them across clients.
 
-Manage them from the **Skills** page: name, description, and prompt content. The API endpoints are simple — `GET /v1/skills`, `POST /v1/skills`, `DELETE /v1/skills/:id`.
+Manage them from the **Skills** page: name, description, and prompt content. The API endpoints are simple — `GET /v1/skills`, `POST /v1/skills`, `PATCH /v1/skills/:id`, `DELETE /v1/skills/:id`.
+
+Instead of typing a skill in, you can **upload a `SKILL.md`**: its frontmatter `name` and `description` and its body fill the create form, so you can review the prompt before saving. This is the same format skills are served in, so a skill copied from one install can be uploaded to another.
+
+A skill can be used three ways:
+
+- **Switch it on** — the gateway appends its prompt to the system prompt of every inference request, for every API key, chain, and model. New skills start switched off.
+- **Pick it on an API key** — on a key's **Skills** tab, choose the skills appended only to requests made with that key (`skill_ids` on `PATCH /v1/keys/:id`). They are added on top of the switched-on ones, and a change applies from the next request.
+- **Copy its URL** — each skill is served as a Markdown document at `/skills/<id>/SKILL.md` that an agent can read on demand.
+
+Injected skills are appended after the client's own system prompt, in creation order, each at most once.
+
+<Callout type="warn" title="Skill URLs are public">
+  A skill document needs no API key, so agents can fetch it. The id in the URL is random, but anyone
+  who has the link can read the prompt — keep secrets out of skills.
+</Callout>
 
 ## Reference skills
 

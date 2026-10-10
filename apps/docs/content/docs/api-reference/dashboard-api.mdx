@@ -153,6 +153,7 @@ Pagination uses the `offset` (0-based) and `limit` (default 10, max 100) query p
 | ----------------- | ------------------ | -------------------------------------------- |
 | GET / PUT / PATCH | `/v1/settings`     | Router settings (timeout, round-robin, etc.) |
 | GET / POST        | `/v1/skills`       | List / create skills                         |
+| PATCH             | `/v1/skills/:id`   | Switch gateway injection (`enabled`)         |
 | DELETE            | `/v1/skills/:id`   | Delete skill                                 |
 | GET / DELETE      | `/v1/console`      | Ring buffer log (500 entries) / clear        |
 | GET               | `/v1/system/stats` | Host & process metrics                       |
