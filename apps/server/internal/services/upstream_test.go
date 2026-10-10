@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"tera-router/server/internal/connectors"
 	"tera-router/server/internal/dtos"
 )
 
@@ -383,7 +384,7 @@ func TestChatCompletionAnthropicOAuth(t *testing.T) {
 
 	// Subscription (OAuth) tokens: Bearer + oauth beta, and the Claude Code
 	// system prompt Anthropic requires for Sonnet/Opus.
-	res, err := svc.ChatCompletion(context.Background(), srv.URL+"/v1", true, true, "tok", "claude-sonnet-4-5", msgs)
+	res, err := svc.ChatCompletion(context.Background(), srv.URL+"/v1", true, true, "tok", "claude-sonnet-4-5", msgs, nil)
 	if err != nil || !res.OK || res.Content != "OK" {
 		t.Fatalf("oauth result = %+v, %v", res, err)
 	}
@@ -395,7 +396,7 @@ func TestChatCompletionAnthropicOAuth(t *testing.T) {
 	}
 
 	// API keys keep x-api-key and send no system prompt.
-	if _, err := svc.ChatCompletion(context.Background(), srv.URL+"/v1", true, false, "sk-ant", "claude-sonnet-4-5", msgs); err != nil {
+	if _, err := svc.ChatCompletion(context.Background(), srv.URL+"/v1", true, false, "sk-ant", "claude-sonnet-4-5", msgs, nil); err != nil {
 		t.Fatal(err)
 	}
 	if gotHeader.Get("x-api-key") != "sk-ant" || gotHeader.Get("Authorization") != "" {
@@ -403,5 +404,24 @@ func TestChatCompletionAnthropicOAuth(t *testing.T) {
 	}
 	if _, ok := gotBody["system"]; ok {
 		t.Errorf("api-key request must not carry a system prompt, got %v", gotBody["system"])
+	}
+}
+
+func TestChatCompletionClineEnvelopeAndHeaders(t *testing.T) {
+	var gotHeader http.Header
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotHeader = r.Header.Clone()
+		_, _ = w.Write([]byte(`{"data":{"choices":[{"message":{"content":"hi"}}],"usage":{"prompt_tokens":2,"completion_tokens":1}}}`))
+	}))
+	defer srv.Close()
+
+	svc := &UpstreamService{}
+	msgs := []dtos.ModelTestMessage{{Role: "user", Content: "hi"}}
+	res, err := svc.ChatCompletion(context.Background(), srv.URL+"/v1", false, false, "sk_x", "cline-free/m", msgs, connectors.ClineHeaders("sk_x"))
+	if err != nil || !res.OK || res.Content != "hi" || res.OutputTokens != 1 {
+		t.Fatalf("result = %+v, %v", res, err)
+	}
+	if gotHeader.Get("X-CLIENT-TYPE") == "" || gotHeader.Get("Authorization") != "Bearer sk_x" {
+		t.Errorf("headers: X-CLIENT-TYPE=%q Authorization=%q", gotHeader.Get("X-CLIENT-TYPE"), gotHeader.Get("Authorization"))
 	}
 }

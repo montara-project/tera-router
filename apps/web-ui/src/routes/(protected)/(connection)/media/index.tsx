@@ -3,6 +3,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
 
 import type { MediaCategory } from '@/lib/api/models/media'
+import type { Provider } from '@/lib/api/models/provider'
 
 import IconBadge from '@/components/block/common/icon-badge'
 import SectionCard from '@/components/block/common/section-card'
@@ -20,6 +21,7 @@ import {
 } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { mediaQueries } from '@/lib/api/queries/media'
+import { providerQueries } from '@/lib/api/queries/provider'
 
 export const Route = createFileRoute('/(protected)/(connection)/media/')({
   component: RouteComponent,
@@ -58,6 +60,18 @@ function RouteComponent() {
   const [category, setCategory] = useState<MediaCategory>('embeddings')
 
   const { data } = useQuery(mediaQueries.list())
+  const { data: providerData } = useQuery(providerQueries.list())
+
+  const connections = useMemo(() => {
+    const overview = providerData?.data
+    const map: Record<string, Provider> = {}
+
+    for (const provider of [...(overview?.connected ?? []), ...(overview?.available ?? [])]) {
+      map[provider.slug] = provider
+    }
+
+    return map
+  }, [providerData])
 
   const counts = useMemo(() => {
     const providers = data?.data.providers ?? []
@@ -116,7 +130,11 @@ function RouteComponent() {
             </CardToolbar>
           </CardHeader>
           <CardContent className="p-0">
-            <MediaProviderGrid providers={filtered} emptyIcon={active?.icon} />
+            <MediaProviderGrid
+              providers={filtered}
+              connections={connections}
+              emptyIcon={active?.icon}
+            />
           </CardContent>
         </Card>
       </div>

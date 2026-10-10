@@ -11,6 +11,7 @@ import (
 
 	"tera-router/server/internal/app"
 	"tera-router/server/internal/catalog"
+	"tera-router/server/internal/connectors"
 	"tera-router/server/internal/dtos"
 	"tera-router/server/internal/lib"
 	"tera-router/server/internal/lib/apperr"
@@ -802,7 +803,7 @@ func validateModelTestMessages(msgs []dtos.ModelTestMessage) error {
 // the catalog and custom-provider handlers; the response carries the
 // assistant reply, latency, and token usage so the playground can render
 // them inline.
-func (h *providersHandler) runModelTest(c fiber.Ctx, baseURL string, anthropic bool, apiKey string, oauth bool) error {
+func (h *providersHandler) runModelTest(c fiber.Ctx, baseURL string, anthropic bool, apiKey string, oauth bool, headers map[string]string) error {
 	var req dtos.ModelTestRequest
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
@@ -814,7 +815,7 @@ func (h *providersHandler) runModelTest(c fiber.Ctx, baseURL string, anthropic b
 		return apperr.New(apperr.KindUnprocessable, "no base_url configured for this provider; add an account with a base URL first")
 	}
 
-	result, err := h.app.Services.Upstream.ChatCompletion(c.Context(), baseURL, anthropic, oauth, apiKey, req.Model, req.Messages)
+	result, err := h.app.Services.Upstream.ChatCompletion(c.Context(), baseURL, anthropic, oauth, apiKey, req.Model, req.Messages, headers)
 	if err != nil {
 		return err
 	}
@@ -837,7 +838,11 @@ func (h *providersHandler) CatalogModelTest(c fiber.Ctx) error {
 		base = spec.BaseURL
 	}
 	apiKey, oauth := h.usableCredential(c.Context(), slug)
-	return h.runModelTest(c, base, spec.Dialect == "anthropic", apiKey, oauth)
+	var headers map[string]string
+	if slug == "cline" {
+		headers = connectors.ClineHeaders(apiKey)
+	}
+	return h.runModelTest(c, base, spec.Dialect == "anthropic", apiKey, oauth, headers)
 }
 
 // CustomModelTest issues one test chat completion for a custom provider model
@@ -868,7 +873,7 @@ func (h *providersHandler) CustomModelTest(c fiber.Ctx) error {
 	kind := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(provider.APIKind)), "custom-")
 	anthropic := kind == "anthropic"
 	apiKey, oauth := h.usableCredential(c.Context(), provider.Slug)
-	return h.runModelTest(c, base, anthropic, apiKey, oauth)
+	return h.runModelTest(c, base, anthropic, apiKey, oauth, nil)
 }
 
 // --- Provider-scoped bulk account operations ---
