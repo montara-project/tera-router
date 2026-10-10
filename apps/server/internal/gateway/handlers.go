@@ -94,6 +94,12 @@ func (s *Server) handleAnthropicCountTokens(c fiber.Ctx) error {
 		return s.fail(c, core.DialectAnthropic, http.StatusBadRequest, "invalid request: "+err.Error())
 	}
 
+	// Count the skills the real request will carry; a failed lookup only makes
+	// the estimate slightly low, so it is not worth failing the count.
+	if key, ok := authedKey(c); ok {
+		_ = s.injectSkills(c.Context(), req, key.ID)
+	}
+
 	return c.Status(http.StatusOK).JSON(fiber.Map{"input_tokens": estimateInputTokens(req)})
 }
 
@@ -192,6 +198,16 @@ func (s *Server) handleChat(c fiber.Ctx, dialect core.Dialect) error {
 		}
 		s.log.Error("gateway budget check failed", "key", meta.KeyName, "error", err)
 		return s.fail(c, dialect, http.StatusInternalServerError, "budget check failed")
+	}
+
+	// Enabled skills extend the system prompt. A failed lookup fails the
+	// request: serving it without instructions the operator switched on would
+	// silently change the model's behavior.
+	if err := s.injectSkills(routeCtx, req, key.ID); err != nil {
+		routeCancel()
+		release()
+		s.log.Error("gateway skill lookup failed", "key", meta.KeyName, "error", err)
+		return s.fail(c, dialect, http.StatusInternalServerError, "skill lookup failed")
 	}
 
 	// Content-safety policies screen the user text before any upstream sees

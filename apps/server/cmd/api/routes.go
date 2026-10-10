@@ -26,6 +26,10 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 
 	r.Get("/health", h.Health.Check)
 
+	// Skill documents an AI agent fetches by URL (reference guides and custom
+	// skills). Public: agents request them without credentials.
+	r.Get("/skills/:slug/SKILL.md", h.Skills.Document)
+
 	// Inference gateway: /v1/chat/completions, /v1/messages,
 	// /v1/messages/count_tokens, /v1/responses (+ root /responses). It
 	// authenticates with API keys, not the dashboard's JWT, and is registered
@@ -193,6 +197,7 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 
 	protected.Get("/skills", h.Skills.Index)
 	protected.Post("/skills", h.Skills.Store)
+	protected.Patch("/skills/:id", h.Skills.Update)
 	protected.Delete("/skills/:id", h.Skills.Delete)
 
 	protected.Get("/console", h.Console.Index)

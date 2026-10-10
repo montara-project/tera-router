@@ -8,6 +8,7 @@ type CreateKey struct {
 	PlanID        string    `json:"plan_id"`
 	Scopes        string    `json:"scopes"`
 	AllowedModels *[]string `json:"allowed_models"`
+	SkillIDs      *[]string `json:"skill_ids"`
 }
 
 func (d *CreateKey) Validate(v *validator.MapValidator) {
@@ -22,6 +23,7 @@ type UpdateKey struct {
 	Scopes        *string   `json:"scopes"`
 	Disabled      *bool     `json:"disabled"`
 	AllowedModels *[]string `json:"allowed_models"`
+	SkillIDs      *[]string `json:"skill_ids"`
 }
 
 func (d *UpdateKey) Validate(v *validator.MapValidator) {
