@@ -3,6 +3,13 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [0.5.7](https://github.com/montara-project/tera-router/compare/v0.5.6...v0.5.7) (2026-10-13)
+
+### Features
+
+* **providers:** add Meta Muse as an API key provider ([ef28d7f](https://github.com/montara-project/tera-router/commit/ef28d7ffa86fcf8b13b89317b09bc831d1e4b07d))
+* **web-ui:** use the Meta brand mark for the Muse provider avatar ([4030e12](https://github.com/montara-project/tera-router/commit/4030e12f87044ccc512bb1d030e994cffdecf3b2))
+
 ## [0.5.6](https://github.com/montara-project/tera-router/compare/v0.5.5...v0.5.6) (2026-10-10)
 
 ### Features
