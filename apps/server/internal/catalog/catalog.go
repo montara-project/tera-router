@@ -29,6 +29,7 @@ func All() []dtos.CatalogProvider {
 		{Slug: "nvidia", Name: "NVIDIA NIM", BaseURL: "https://integrate.api.nvidia.com/v1", Dialect: dialectOpenAI, Capabilities: llmCaps("tts", "embeddings"), AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true},
 		{Slug: "cline", Name: "Cline", BaseURL: "https://api.cline.bot/api/v1", Dialect: dialectOpenAI, Capabilities: llmCaps(), AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true},
 		{Slug: "cloudflare", Name: "Cloudflare AI", BaseURL: "https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1", Dialect: dialectOpenAI, Capabilities: llmCaps("embeddings", "image", "stt", "tts"), AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true, Notice: "The endpoint embeds your Cloudflare account ID — set the account's Base URL to https://api.cloudflare.com/client/v4/accounts/<account_id>/ai/v1."},
+		{Slug: "muse", Name: "Meta Muse", BaseURL: "https://api.meta.ai/v1", Dialect: dialectOpenAI, Capabilities: llmCaps("image"), AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true},
 
 		// Codex is reachable only through OpenAI's "Sign in to official
 		// website" connect flow: its subscription tokens serve the ChatGPT
@@ -61,6 +62,7 @@ var seedable = map[string]bool{
 	"nvidia":     true,
 	"cline":      true,
 	"cloudflare": true,
+	"muse":       true,
 }
 
 // Seedable reports whether connecting the catalog provider (creating an
