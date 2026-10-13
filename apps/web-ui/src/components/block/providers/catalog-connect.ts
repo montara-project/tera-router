@@ -24,4 +24,5 @@ export const API_KEY_PROVIDERS: Record<string, { name: string }> = {
   nvidia: { name: 'NVIDIA NIM' },
   cline: { name: 'Cline' },
   cloudflare: { name: 'Cloudflare AI' },
+  muse: { name: 'Meta Muse' },
 }

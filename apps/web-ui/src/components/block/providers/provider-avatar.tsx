@@ -18,6 +18,10 @@ export function getProviderBrand(slug: string, apiKind?: string): Brand {
     return { letter: 'm', tileClassName: 'bg-orange-500 text-white' }
   }
 
+  if (slug === 'muse') {
+    return { letter: 'M', tileClassName: 'bg-blue-600 text-white' }
+  }
+
   if (slug.includes('nvidia') || slug.includes('nemotron')) {
     return { icon: Icons.nvidia }
   }

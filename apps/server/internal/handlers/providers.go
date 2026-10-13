@@ -567,7 +567,7 @@ func (h *providersHandler) usableCredential(ctx context.Context, providerSlug st
 // OpenRouter's public /models (whose pricing is imported into the overrides),
 // the Ollama family's /api/tags, Cline's union of /models and the
 // recommended-models free list, Cloudflare's account-scoped /models, and the
-// OpenAI/Anthropic/NVIDIA official /v1/models.
+// OpenAI/Anthropic/NVIDIA/Muse official /v1/models.
 var modelsSyncProviders = map[string]bool{
 	"openrouter":   true,
 	"ollama":       true,
@@ -577,6 +577,7 @@ var modelsSyncProviders = map[string]bool{
 	"openai":       true,
 	"anthropic":    true,
 	"nvidia":       true,
+	"muse":         true,
 }
 
 // syncProviderModels fetches a provider's upstream model list through its
@@ -609,7 +610,7 @@ func (h *providersHandler) syncProviderModels(ctx context.Context, slug string) 
 			base = strings.TrimSuffix(u, "/")
 		}
 		return h.app.Services.Upstream.ListModels(ctx, base+"/models", false, oauth, apiKey)
-	case "openai", "anthropic", "nvidia":
+	case "openai", "anthropic", "nvidia", "muse":
 		if apiKey == "" {
 			return nil, apperr.New(apperr.KindUnprocessable, noCredential)
 		}
