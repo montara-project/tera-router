@@ -19,6 +19,7 @@ import {
   CardHeading,
   CardTitle,
 } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 
 interface TokenSavingTabProps {
@@ -32,14 +33,20 @@ const SOURCE_CODE_FILTER_OPTIONS: { value: SourceCodeFilterMode; label: string }
   { value: 'aggressive', label: 'Aggressive' },
 ]
 
+const SOURCE_CODE_FILTER_DESCRIPTIONS: Record<SourceCodeFilterMode, string> = {
+  off: 'No source code comment stripping.',
+  minimal: 'Strips whole-line // comments from tool outputs.',
+  aggressive: 'Strips whole-line //, # and /* */ comments from tool outputs.',
+}
+
 const CODE_LINES: { command: string; comment?: string }[] = [
+  { command: 'docker run -d --name headroom -p 8787:8787 \\' },
   {
-    command: 'pipx install "headroom-ai[all]"',
-    comment: '# needs Python 3.10+ (or: pip install --user)',
+    command: '  -e HEADROOM_COMPRESS_ALLOW_REMOTE=1 \\',
+    comment: '# /v1/compress is loopback-only otherwise',
   },
-  { command: 'pipx ensurepath', comment: '# add headroom to PATH, then restart your shell' },
-  { command: 'headroom proxy --port 8787', comment: "# verify it's working" },
-  { command: 'headroom doctor' },
+  { command: '  ghcr.io/headroomlabs-ai/headroom:latest \\' },
+  { command: '  headroom proxy --host 0.0.0.0 --port 8787' },
 ]
 
 const ariaLabels = {
@@ -83,7 +90,10 @@ export default function TokenSavingTab({ settings, onUpdate }: TokenSavingTabPro
                 onCheckedChange={(value) => onUpdate({ rtk_enabled: value })}
               />
             </SettingRow>
-            <SettingRow title="Source code filter" description="No source code comment stripping.">
+            <SettingRow
+              title="Source code filter"
+              description={SOURCE_CODE_FILTER_DESCRIPTIONS[settings.source_code_filter]}
+            >
               <SegmentedControl
                 onChange={(value) =>
                   onUpdate({ source_code_filter: value as SourceCodeFilterMode })
@@ -209,6 +219,34 @@ export default function TokenSavingTab({ settings, onUpdate }: TokenSavingTabPro
                 onCheckedChange={(value) => onUpdate({ headroom_enabled: value })}
               />
             </SettingRow>
+            <SettingRow title="Proxy URL" description="Base URL of the Headroom proxy.">
+              <Input
+                key={settings.headroom_url}
+                aria-label="Headroom proxy URL"
+                type="url"
+                defaultValue={settings.headroom_url}
+                placeholder="http://localhost:8787"
+                className="w-64 font-mono"
+                onBlur={(e) => {
+                  const value = e.target.value.trim()
+                  if (value && value !== settings.headroom_url) onUpdate({ headroom_url: value })
+                }}
+              />
+            </SettingRow>
+            <SettingRow title="Timeout (sec)" description="Fails open past this. Default: 5s.">
+              <Input
+                aria-label="Headroom timeout in seconds"
+                type="number"
+                min={1}
+                step={1}
+                value={settings.headroom_timeout}
+                className="w-24 text-center font-mono"
+                onChange={(e) => {
+                  const value = e.target.valueAsNumber
+                  if (!Number.isNaN(value) && value >= 1) onUpdate({ headroom_timeout: value })
+                }}
+              />
+            </SettingRow>
           </div>
 
           <div className="border-t border-border p-5">
@@ -218,12 +256,7 @@ export default function TokenSavingTab({ settings, onUpdate }: TokenSavingTabPro
                 Don't have a Headroom proxy yet?
               </p>
               <p className="text-muted-foreground text-xs leading-relaxed">
-                Headroom is a local, open-source compression proxy. The{' '}
-                <code className="rounded bg-background px-1.5 py-0.5 font-mono text-xs">
-                  headroom
-                </code>{' '}
-                CLI ships with the Python package (the npm package is a library only). Install it
-                with pipx, then start it:
+                Headroom is a local, open-source compression proxy. Run it from its Docker image:
               </p>
               <div className="space-y-1.5 rounded-md bg-background p-3 font-mono text-xs">
                 {CODE_LINES.map((line) => (
@@ -237,16 +270,22 @@ export default function TokenSavingTab({ settings, onUpdate }: TokenSavingTabPro
                 Then set <strong className="font-semibold text-foreground">Proxy URL</strong> to{' '}
                 <code className="rounded bg-background px-1.5 py-0.5 font-mono text-xs">
                   http://localhost:8787
-                </code>
-                .
+                </code>{' '}
+                (or{' '}
+                <code className="rounded bg-background px-1.5 py-0.5 font-mono text-xs">
+                  http://headroom:8787
+                </code>{' '}
+                when Tera Router runs in the same Docker network).
               </p>
-              <button
+              <a
                 className="inline-flex cursor-pointer items-center gap-1.5 text-xs font-medium text-amber-500 hover:text-amber-400 dark:text-amber-400 dark:hover:text-amber-300"
-                type="button"
+                href="https://github.com/headroomlabs-ai/headroom"
+                rel="noreferrer"
+                target="_blank"
               >
                 Installation guide
                 <IconExternalLink className="h-3 w-3" />
-              </button>
+              </a>
             </div>
           </div>
         </CardContent>

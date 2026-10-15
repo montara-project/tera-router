@@ -2,6 +2,7 @@ package dtos
 
 import (
 	"encoding/json"
+	"os"
 
 	"tera-router/server/internal/lib/validator"
 )
@@ -20,6 +21,8 @@ type AppSettings struct {
 	TerseEnabled           *bool   `json:"terse_enabled"`
 	HeadroomEnabled        *bool   `json:"headroom_enabled"`
 	PonytailEnabled        *bool   `json:"ponytail_enabled"`
+	HeadroomURL            *string `json:"headroom_url"`
+	HeadroomTimeout        *int    `json:"headroom_timeout"`
 	ProviderRoundRobin     *bool   `json:"provider_round_robin"`
 	ProviderStickyLimit    *int    `json:"provider_sticky_limit"`
 	ChainRoundRobin        *bool   `json:"chain_round_robin"`
@@ -49,6 +52,8 @@ func DefaultSettings() AppSettings {
 		TerseEnabled:           new(false),
 		HeadroomEnabled:        new(false),
 		PonytailEnabled:        new(false),
+		HeadroomURL:            new(defaultHeadroomURL()),
+		HeadroomTimeout:        new(5),
 		ProviderRoundRobin:     new(true),
 		ProviderStickyLimit:    new(3),
 		ChainRoundRobin:        new(false),
@@ -62,6 +67,16 @@ func DefaultSettings() AppSettings {
 		BrandingTagline:        new(""),
 		BrandingTheme:          new("forest-amber"),
 	}
+}
+
+// defaultHeadroomURL is the Headroom proxy used until the dashboard saves one:
+// HEADROOM_URL (e.g. http://headroom:8787 for a compose sidecar), else the
+// proxy's local default.
+func defaultHeadroomURL() string {
+	if v := os.Getenv("HEADROOM_URL"); v != "" {
+		return v
+	}
+	return "http://localhost:8787"
 }
 
 // MergeSettings overlays the non-nil fields of patch onto current and returns
@@ -82,11 +97,13 @@ func MergeSettings(current, patch AppSettings) AppSettings {
 	mergeBool(&out.RequestDetailRecording, patch.RequestDetailRecording)
 
 	mergeString(&out.SourceCodeFilter, patch.SourceCodeFilter)
+	mergeString(&out.HeadroomURL, patch.HeadroomURL)
 	mergeString(&out.BrandingDisplayName, patch.BrandingDisplayName)
 	mergeString(&out.BrandingTagline, patch.BrandingTagline)
 	mergeString(&out.BrandingTheme, patch.BrandingTheme)
 
 	mergeInt(&out.ProviderStickyLimit, patch.ProviderStickyLimit)
+	mergeInt(&out.HeadroomTimeout, patch.HeadroomTimeout)
 	mergeInt(&out.ConnectTimeout, patch.ConnectTimeout)
 	mergeInt(&out.StreamStallTimeout, patch.StreamStallTimeout)
 	mergeInt(&out.RequestTimeout, patch.RequestTimeout)
