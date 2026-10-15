@@ -26,6 +26,8 @@ export const SettingsSchema = z.object({
   terse_enabled: optionalBoolean('terse enabled'),
   headroom_enabled: optionalBoolean('headroom enabled'),
   ponytail_enabled: optionalBoolean('ponytail enabled'),
+  headroom_url: optionalString('headroom url'),
+  headroom_timeout: optionalNumber('headroom timeout'),
   provider_round_robin: optionalBoolean('provider round robin'),
   provider_sticky_limit: optionalNumber('provider sticky limit'),
   chain_round_robin: optionalBoolean('chain round robin'),

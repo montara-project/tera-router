@@ -7,6 +7,8 @@ export type AppSettings = {
   terse_enabled: boolean
   headroom_enabled: boolean
   ponytail_enabled: boolean
+  headroom_url: string
+  headroom_timeout: number
   provider_round_robin: boolean
   provider_sticky_limit: number
   chain_round_robin: boolean
