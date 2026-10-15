@@ -22,6 +22,10 @@ services:
       APP_MACHINE_ID: ${APP_MACHINE_ID:?APP_MACHINE_ID is required}
       APP_SECRET: ${APP_SECRET:?APP_SECRET is required}
       APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS:-*}
+      # Default Headroom proxy for Settings > Token Saving; a URL saved in the
+      # dashboard overrides it. Headroom still has to be switched on there.
+      HEADROOM_URL: ${HEADROOM_URL:-http://headroom:8787}
+      HEADROOM_PROXY_TOKEN: ${HEADROOM_PROXY_TOKEN:-}
     # The image CMD is replaced wholesale, so every flag the container needs
     # must be repeated here. The SQLite file lives on the volume below; the
     # migrator resolves ./migrations from the working directory.
@@ -42,6 +46,26 @@ services:
       start_period: 10s
     volumes:
       - tera-data:/app/data
+    depends_on:
+      headroom:
+        condition: service_started
+        required: false
+
+  # Optional token-reduction proxy the gateway calls through HEADROOM_URL.
+  # Opt in with `docker compose --profile headroom up` and a shared
+  # HEADROOM_PROXY_TOKEN (`openssl rand -hex 32`): Headroom refuses a
+  # non-loopback bind without one, and /v1/compress answers only loopback
+  # callers unless remote access is allowed. The port stays unpublished.
+  headroom:
+    image: ghcr.io/headroomlabs-ai/headroom:${HEADROOM_VERSION:-0.41.0}
+    profiles: [headroom]
+    restart: unless-stopped
+    # The image entrypoint is already `headroom proxy`, bound to 127.0.0.1.
+    environment:
+      HEADROOM_HOST: "0.0.0.0"
+      HEADROOM_PORT: "8787"
+      HEADROOM_COMPRESS_ALLOW_REMOTE: "1"
+      HEADROOM_PROXY_TOKEN: ${HEADROOM_PROXY_TOKEN:-}
 
 volumes:
   tera-data:
