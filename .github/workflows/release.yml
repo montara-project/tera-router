@@ -1,11 +1,13 @@
-# Builds deploy/Dockerfile and publishes the image to GitHub Container Registry.
+# Publishes the Docker images to GitHub Container Registry and deploys the
+# main web to Cloudflare Workers.
 #
 # Triggers:
 #   - a semver tag (v1.2.3) publishes 1.2.3, 1.2 and latest
 #   - a manual run publishes the short commit SHA, plus any tag you pass in
 #
-# Every published image is multi-arch (linux/amd64 + linux/arm64), so the same
-# tag runs on x86 servers and ARM hosts (Graviton, Apple silicon, Pi).
+# Images:
+#   ghcr.io/<owner>/tera-router       the Go API + gateway serving the web UI (deploy/Dockerfile)
+#   ghcr.io/<owner>/tera-router/docs  apps/docs, the documentation site (deploy/docs.Dockerfile)
 
 name: Release
 
@@ -30,21 +32,28 @@ env:
   PLATFORMS: linux/amd64
 
 jobs:
-  release:
-    name: Release Web UI + Server
+  release-images:
+    name: Release ${{ matrix.name }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
       # Required to push the image to ghcr.io with the workflow's GITHUB_TOKEN.
       packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Both install from the workspace lockfile, so they build from the root.
+          - name: server
+            suffix: ''
+            file: deploy/Dockerfile
+          - name: docs
+            suffix: /docs
+            file: deploy/docs.Dockerfile
 
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-
-      # arm64 layers are built on the amd64 runner through QEMU emulation.
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v4
@@ -60,7 +69,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}${{ matrix.suffix }}
           tags: |
             type=semver,pattern={{raw}}
             type=semver,pattern=v{{major}}.{{minor}}
@@ -72,93 +81,43 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: deploy/Dockerfile
+          file: ${{ matrix.file }}
           platforms: ${{ env.PLATFORMS }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          # Vite bakes these into the web-ui bundle at build time. VITE_API_URL
-          # defaults to empty = same-origin at runtime; set the repo Variable
-          # only when deploying the API on a different origin than the UI.
+          # Vite bakes the VITE_* values into the web UI inside the server
+          # image and APP_VERSION goes into the Go binary; the docs image
+          # ignores them. VITE_API_URL stays empty for the usual setup, where
+          # the server serves the UI itself: set the repo Variable only when
+          # the API lives on another origin than the UI.
           build-args: |
             VITE_APP_NAME=${{ vars.VITE_APP_NAME || 'Tera Router' }}
             VITE_API_URL=${{ vars.VITE_API_URL || '' }}
             APP_VERSION=${{ github.ref_name }}
           push: true
-          # GitHub Actions cache keeps the Go module and pnpm store layers warm
-          # between runs, which is most of the build time.
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # One cache scope per image, or the builds evict each other.
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
 
-  release-docs:
-    name: Release docs
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
-
-      - name: Set up Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Log in to ${{ env.REGISTRY }}
-        uses: docker/login-action@v4
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      # Same tag set as the server image, namespaced under /docs.
-      - name: Derive image tags and labels
-        id: meta
-        uses: docker/metadata-action@v6
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/docs
-          tags: |
-            type=semver,pattern={{raw}}
-            type=semver,pattern=v{{major}}.{{minor}}
-            type=raw,value=latest,enable=${{ github.ref_type == 'tag' }}
-            type=raw,value=${{ inputs.tag }},enable=${{ inputs.tag != '' }}
-            type=sha,format=short,prefix=sha-
-
-      - name: Build and push
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: deploy/docs.Dockerfile
-          platforms: ${{ env.PLATFORMS }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          push: true
-          # GHA cache keeps the pnpm store layer warm; the next build layer
-          # still rebuilds whenever the docs sources change.
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  # Deploys the marketing web on every release run (tag push or manual
-  # dispatch) — the workflow itself never triggers on branch pushes.
+  # Deploys the main web on every release run (tag push or manual dispatch);
+  # the workflow itself never triggers on branch pushes.
   release-main-web:
-    name: Deploy to Cloudflare Workers
+    name: Deploy main web to Cloudflare Workers
     runs-on: ubuntu-latest
     permissions:
       contents: read
       deployments: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
 
       - name: Install dependencies
