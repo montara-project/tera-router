@@ -3,6 +3,14 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [0.6.0](https://github.com/montara-project/tera-router/compare/v0.5.7...v0.6.0) (2026-10-15)
+
+### Features
+
+* **deploy:** add an optional Headroom sidecar to docker compose ([dc96e9b](https://github.com/montara-project/tera-router/commit/dc96e9bef2dca3532ab2492f509077c7b3562fd4))
+* **server:** apply token saving settings in the gateway ([0dd1705](https://github.com/montara-project/tera-router/commit/0dd17050e85859b4cd1909f98f7f3c843b3aa8b2))
+* **web-ui:** configure the Headroom proxy URL and timeout ([bce9062](https://github.com/montara-project/tera-router/commit/bce90624963afb1c3979a7dc126c049a00ef3488))
+
 ## [0.5.7](https://github.com/montara-project/tera-router/compare/v0.5.6...v0.5.7) (2026-10-13)
 
 ### Features
