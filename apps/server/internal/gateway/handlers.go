@@ -233,6 +233,10 @@ func (s *Server) handleChat(c fiber.Ctx, dialect core.Dialect) error {
 		c.Set(guardrailHeader, verdict.Decision)
 	}
 
+	// Token saving runs after the guardrail screen so Headroom only ever sees
+	// redacted text, and before dispatch so every attempt sends the slim body.
+	s.applyTokenSaving(routeCtx, req)
+
 	attempts := s.plan(routeCtx, resolved.Targets)
 	routeCancel()
 	if len(attempts) == 0 {
