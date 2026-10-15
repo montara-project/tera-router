@@ -66,6 +66,11 @@ services:
       HEADROOM_PORT: "8787"
       HEADROOM_COMPRESS_ALLOW_REMOTE: "1"
       HEADROOM_PROXY_TOKEN: ${HEADROOM_PROXY_TOKEN:-}
+      # Kompress (ModernBERT on CPU) outruns the gateway's 5s Headroom timeout
+      # on large tool results; the structural compressors stay on. Set both to
+      # 0 and raise the timeout in Settings > Token Saving to use it.
+      HEADROOM_DISABLE_KOMPRESS: ${HEADROOM_DISABLE_KOMPRESS:-1}
+      HEADROOM_DISABLE_KOMPRESS_FALLBACK: ${HEADROOM_DISABLE_KOMPRESS_FALLBACK:-1}
 
 volumes:
   tera-data:
