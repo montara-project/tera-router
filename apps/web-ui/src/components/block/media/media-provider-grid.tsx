@@ -3,10 +3,9 @@ import { Link } from '@tanstack/react-router'
 import type { MediaCapability, MediaProvider } from '@/lib/api/models/media'
 import type { Provider } from '@/lib/api/models/provider'
 
-import { Icons } from '@/components/block/common/icons'
+import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
 import { Badge, BadgeDot } from '@/components/ui/badge'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
-import { cn } from '@/lib/utils'
 
 const CAPABILITY_LABELS: Record<MediaCapability, string> = {
   embed: 'Embed',
@@ -16,52 +15,6 @@ const CAPABILITY_LABELS: Record<MediaCapability, string> = {
   search: 'Search',
   fetch: 'Fetch',
   image_to_text: 'Image to Text',
-}
-
-type Brand = {
-  icon?: React.ComponentType<React.SVGProps<SVGSVGElement>>
-  letter?: string
-  tileClassName?: string
-}
-
-const BRANDS: Record<string, Brand> = {
-  openrouter: { icon: Icons.openrouter, tileClassName: 'bg-white text-black' },
-  nvidia: { icon: Icons.nvidia, tileClassName: 'bg-white' },
-  gemini: { icon: Icons.gemini, tileClassName: 'bg-white' },
-
-  openai: { icon: Icons.openai, tileClassName: 'bg-white text-black' },
-  mistral: { icon: Icons.mistral, tileClassName: 'bg-white' },
-  together: { icon: Icons.together, tileClassName: 'bg-white text-black' },
-  fireworks: { icon: Icons.fireworks, tileClassName: 'bg-white' },
-  nebius: { icon: Icons.nebius, tileClassName: 'bg-white text-black' },
-  'voyage-ai': { icon: Icons.voyage, tileClassName: 'bg-white' },
-  'jina-ai': { icon: Icons.jina, tileClassName: 'bg-white text-black' },
-  exa: { icon: Icons.exa, tileClassName: 'bg-white' },
-  tavily: { icon: Icons.tavily, tileClassName: 'bg-white' },
-  firecrawl: { icon: Icons.firecrawl, tileClassName: 'bg-white' },
-  brave: { icon: Icons.brave, tileClassName: 'bg-white' },
-  serper: { icon: Icons.serper, tileClassName: 'bg-white' },
-  elevenlabs: { icon: Icons.elevenlabs, tileClassName: 'bg-white text-black' },
-  deepgram: { icon: Icons.deepgram, tileClassName: 'bg-white' },
-}
-
-function ProviderAvatar({ slug }: { slug: string }) {
-  const brand = BRANDS[slug] ?? { letter: slug.charAt(0).toUpperCase() }
-
-  return (
-    <span
-      className={cn(
-        'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ring-1 ring-border',
-        brand.tileClassName
-      )}
-    >
-      {brand.icon ? (
-        <brand.icon className="h-5 w-5" />
-      ) : (
-        <span className="text-sm font-bold">{brand.letter}</span>
-      )}
-    </span>
-  )
 }
 
 interface MediaProviderGridProps {

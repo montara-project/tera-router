@@ -55,6 +55,9 @@ export function getProviderBrand(slug: string, apiKind?: string): Brand {
   if (slug.includes('jina')) {
     return { icon: Icons.jina }
   }
+  if (slug.includes('groq')) {
+    return { icon: Icons.groq }
+  }
   // Web search providers. Exact match for exa: "exa" is a substring of
   // unrelated custom slugs (e.g. "hexagon").
   if (slug === 'exa') {
