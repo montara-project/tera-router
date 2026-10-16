@@ -1,4 +1,13 @@
-import { IconApps, IconPlugConnected, IconPlus, IconSearch } from '@tabler/icons-react'
+import {
+  IconApps,
+  IconMessageCircle,
+  IconMicrophone,
+  IconPhoto,
+  IconPlugConnected,
+  IconPlus,
+  IconSearch,
+  IconWorld,
+} from '@tabler/icons-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
@@ -8,7 +17,6 @@ import type { Models } from '@/lib/api/models'
 
 import IconBadge from '@/components/block/common/icon-badge'
 import SectionCard from '@/components/block/common/section-card'
-import CapabilityChips, { CAPABILITIES } from '@/components/block/providers/capability-chips'
 import {
   API_KEY_PROVIDERS,
   CUSTOM_CONNECT_PRESETS,
@@ -33,6 +41,7 @@ import {
 } from '@/components/ui/card'
 import { Input, InputWrapper } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toastAxiosError } from '@/lib/api/axios-error'
 import { ACCOUNT_QUERY_KEY } from '@/lib/api/queries/account'
 import { PROVIDER_QUERY_KEY, providerQueries } from '@/lib/api/queries/provider'
@@ -41,6 +50,42 @@ import { services } from '@/lib/api/services'
 export const Route = createFileRoute('/(protected)/(connection)/providers/')({
   component: RouteComponent,
 })
+
+/**
+ * Provider categories, one tab each. A provider belongs to every category
+ * whose capabilities it lists, so OpenAI shows under Model, Voice and Image.
+ */
+const CATEGORIES = [
+  {
+    value: 'model',
+    label: 'AI Model Providers',
+    icon: IconMessageCircle,
+    capabilities: ['chat', 'embeddings'],
+  },
+  {
+    value: 'search',
+    label: 'AI Search Providers',
+    icon: IconWorld,
+    capabilities: ['search', 'fetch'],
+  },
+  {
+    value: 'voice',
+    label: 'AI Voice Providers',
+    icon: IconMicrophone,
+    capabilities: ['tts', 'stt'],
+  },
+  { value: 'image', label: 'AI Image Generation', icon: IconPhoto, capabilities: ['image'] },
+] as const satisfies {
+  value: string
+  label: string
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>
+  capabilities: Models.ProviderCapability[]
+}[]
+
+type Category = (typeof CATEGORIES)[number]
+
+const inCategory = (provider: Models.Provider, category: Category) =>
+  category.capabilities.some((capability) => provider.capabilities.includes(capability))
 
 function RouteSkeleton() {
   return (
@@ -127,7 +172,8 @@ function ProvidersCard({
 
 function RouteComponent() {
   const [search, setSearch] = useState('')
-  const [capability, setCapability] = useState('all')
+  const [categoryValue, setCategoryValue] = useState<string>(CATEGORIES[0].value)
+  const category = CATEGORIES.find((c) => c.value === categoryValue) ?? CATEGORIES[0]
   const [createOpen, setCreateOpen] = useState(false)
   const [createPreset, setCreatePreset] = useState<{ slug: string; api_kind: string } | undefined>(
     undefined
@@ -150,31 +196,22 @@ function RouteComponent() {
 
   const counts = useMemo(() => {
     const all = [...(overview?.connected ?? []), ...(overview?.available ?? [])]
-    const map: Record<string, number> = { all: all.length }
-
-    for (const { value } of CAPABILITIES) {
-      if (value !== 'all') {
-        map[value] = all.filter((provider) =>
-          provider.capabilities.includes(value as Models.ProviderCapability)
-        ).length
-      }
-    }
-
-    return map
+    return Object.fromEntries(
+      CATEGORIES.map((c) => [c.value, all.filter((provider) => inCategory(provider, c)).length])
+    )
   }, [overview])
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase()
     const matches = (provider: Models.Provider) =>
-      (capability === 'all' ||
-        provider.capabilities.includes(capability as Models.ProviderCapability)) &&
+      inCategory(provider, category) &&
       (!query || `${provider.name} ${provider.slug}`.toLowerCase().includes(query))
 
     return {
       connected: (overview?.connected ?? []).filter(matches),
       available: (overview?.available ?? []).filter(matches),
     }
-  }, [overview, search, capability])
+  }, [overview, search, category])
 
   if (!overview) {
     return <RouteSkeleton />
@@ -271,7 +308,19 @@ function RouteComponent() {
             />
           </InputWrapper>
 
-          <CapabilityChips value={capability} onChange={setCapability} counts={counts} />
+          <Tabs value={category.value} onValueChange={setCategoryValue}>
+            <TabsList className="w-full justify-start overflow-x-auto">
+              {CATEGORIES.map((c) => (
+                <TabsTrigger key={c.value} value={c.value}>
+                  <c.icon />
+                  {c.label}
+                  <span className="text-[10px] leading-none font-medium tabular-nums opacity-60">
+                    {counts[c.value] ?? 0}
+                  </span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
 
           <ProvidersCard
             count={filtered.connected.length}
