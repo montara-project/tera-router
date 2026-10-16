@@ -43,7 +43,8 @@ export const REFERENCE_SKILLS: ReferenceSkill[] = [
   {
     slug: 'embeddings',
     name: 'Embeddings',
-    description: 'Vectors for RAG and semantic search via OpenAI, OpenRouter, NVIDIA, Cloudflare, Jina AI.',
+    description:
+      'Vectors for RAG and semantic search via OpenAI, OpenRouter, NVIDIA, Cloudflare, Jina AI.',
     endpoint: '/v1/embeddings',
   },
   {
