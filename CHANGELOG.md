@@ -3,6 +3,33 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [1.0.0](https://github.com/montara-project/tera-router/compare/v0.6.0...v1.0.0) (2026-10-16)
+
+### Features
+
+* **catalog:** add media providers and derive the Media page from it ([446faa5](https://github.com/montara-project/tera-router/commit/446faa573a20d9fca32be146b1879428ea832fcd))
+* **chains:** toggle chain steps active per step ([ac066a4](https://github.com/montara-project/tera-router/commit/ac066a499c631e047b4fee14a262a8c29e830368))
+* **gateway:** add image generation and embeddings endpoints ([2d5e55a](https://github.com/montara-project/tera-router/commit/2d5e55aeea1547f126507aeca939f95c28be3b59))
+* **gateway:** add text-to-speech and speech-to-text endpoints ([569afbd](https://github.com/montara-project/tera-router/commit/569afbd52c8e0f39c8c48d206caf070c6a579419))
+* **gateway:** add web search and web fetch endpoints ([ccea64c](https://github.com/montara-project/tera-router/commit/ccea64cbd7879a1b1d30253b077a621d7bf4d239))
+* **tunnels:** expose the router on a tailnet with Tailscale serve ([81b6a41](https://github.com/montara-project/tera-router/commit/81b6a413752c472f3e062e7094873f4cc7e76264))
+* **web-ui:** add brand icons for web search providers ([eb4f4e9](https://github.com/montara-project/tera-router/commit/eb4f4e93b9a686657a3f321471f932f7c0371843))
+* **web-ui:** add ElevenLabs and Deepgram provider icons ([fddaae9](https://github.com/montara-project/tera-router/commit/fddaae939a5166e482310566623cb32140a07396))
+* **web-ui:** group providers page into category tabs ([720b373](https://github.com/montara-project/tera-router/commit/720b373b859bdf33d39dc95782cadf79a7a5e939))
+* **web-ui:** paginate the Provider Health tables ([a9646c0](https://github.com/montara-project/tera-router/commit/a9646c0d11b6a118ed3ffc12d105ef78b1766061))
+* **web-ui:** replace CLI tool letter tiles with brand icons ([e87fe48](https://github.com/montara-project/tera-router/commit/e87fe480722824bb02df59d8d70e37fa07701e28))
+* **web-ui:** view skill guides in a rendered markdown dialog ([18c5218](https://github.com/montara-project/tera-router/commit/18c5218fe97915fd2e4378dcae4c302ddc11703e))
+
+### Bug Fixes
+
+* **catalog:** drop search capability from OpenAI ([322177f](https://github.com/montara-project/tera-router/commit/322177f2320abfe695566b83136bf9205b28475a))
+* **deploy:** disable Headroom Kompress in the compose sidecar ([a6fa64e](https://github.com/montara-project/tera-router/commit/a6fa64e83dffd7bbf363985ac79b213e7b772dc1))
+* **web-ui:** make chain step comboboxes scrollable and enable model on pick ([85f72e7](https://github.com/montara-project/tera-router/commit/85f72e7d29c0347bba3b710105454519f39fe656))
+* **web-ui:** open Provider Health on the Providers tab ([8d42474](https://github.com/montara-project/tera-router/commit/8d42474a66518268485ebf53aa07b9b2136f1e9e))
+* **web-ui:** open the API key form for search and voice providers ([1ff1424](https://github.com/montara-project/tera-router/commit/1ff1424cc7df71077e0b028bc828ab2043bc4ca9))
+* **web-ui:** show provider icons for every Media provider ([d97c997](https://github.com/montara-project/tera-router/commit/d97c99730570961dcd50f8a6875d40610137f768))
+* **web-ui:** treat a missing chain step active flag as active ([ac864d9](https://github.com/montara-project/tera-router/commit/ac864d9028ae410d1ba94065ef528b1312d511ad))
+
 ## [0.6.0](https://github.com/montara-project/tera-router/compare/v0.5.7...v0.6.0) (2026-10-15)
 
 ### Features
