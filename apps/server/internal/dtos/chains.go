@@ -6,6 +6,8 @@ import "tera-router/server/internal/lib/validator"
 type ChainStep struct {
 	Provider string `json:"provider"`
 	Model    string `json:"model"`
+	// Active defaults to true when omitted.
+	Active *bool `json:"active"`
 }
 
 // Chain is the chain create/update request body (POST/PUT/PATCH /v1/chains).

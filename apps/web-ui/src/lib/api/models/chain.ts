@@ -5,6 +5,8 @@ export type ChainStep = {
   position: number
   provider: string
   model: string
+  /** false keeps the step in the chain but the gateway skips it */
+  active: boolean
   created_at: string
 }
 

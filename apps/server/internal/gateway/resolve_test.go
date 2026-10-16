@@ -157,6 +157,31 @@ func TestResolveTargetsChain(t *testing.T) {
 	}
 }
 
+// An inactive step stays in the chain but is never routed to; a chain whose
+// steps are all inactive and has no fallback is a bad model.
+func TestResolveTargetsChainSkipsInactiveStep(t *testing.T) {
+	s, a := newTestServer(t)
+	seedChain(t, a, "mixed", "priority", []chainStep{
+		{provider: "openai", model: "gpt-4o-mini"},
+		{provider: "anthropic", model: "claude-3-5-sonnet"},
+	}, "", "")
+	exec(t, a, `UPDATE chain_steps SET active = false WHERE provider = 'openai'`)
+
+	res, err := s.resolveTargets(context.Background(), "chain:mixed")
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	if len(res.Targets) != 1 || res.Targets[0].Provider != "anthropic" {
+		t.Fatalf("targets = %+v, want only the active anthropic step", res.Targets)
+	}
+
+	exec(t, a, `UPDATE chain_steps SET active = false`)
+	var bad badModelError
+	if _, err := s.resolveTargets(context.Background(), "chain:mixed"); !asBadModel(err, &bad) {
+		t.Fatalf("all inactive: error = %v, want badModelError", err)
+	}
+}
+
 func TestResolveTargetsBareChainName(t *testing.T) {
 	s, a := newTestServer(t)
 	seedChain(t, a, "cheap", "priority", []chainStep{{provider: "deepseek", model: "deepseek-chat"}}, "", "")

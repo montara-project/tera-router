@@ -5,7 +5,7 @@ import { optionalBoolean, optionalNumber, optionalString, requiredString } from 
 import type { Chain, ChainStep } from '../../models/chain'
 
 /** Steps carry only the routing coordinates; ids and positions are server-assigned. */
-type ChainStepPayload = Pick<ChainStep, 'provider' | 'model'>
+type ChainStepPayload = Pick<ChainStep, 'provider' | 'model' | 'active'>
 
 type ChainPayload = Partial<
   Pick<
@@ -18,6 +18,7 @@ type ChainPayload = Partial<
 export const ChainStepSchema = z.object({
   provider: requiredString('provider'),
   model: requiredString('model'),
+  active: z.boolean(),
 }) satisfies z.ZodType<ChainStepPayload>
 
 /** Chain create/update body (POST/PUT/PATCH /v1/chains). */

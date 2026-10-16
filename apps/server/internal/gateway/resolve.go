@@ -261,7 +261,7 @@ func (s *Server) chainResult(ctx context.Context, name string) (resolveResult, e
 
 	out := make([]target, 0, len(chain.Steps)+1)
 	for _, step := range chain.Steps {
-		if step.Provider == "" || step.Model == "" {
+		if !step.Active || step.Provider == "" || step.Model == "" {
 			continue
 		}
 		out = append(out, target{Provider: step.Provider, Model: step.Model, ChainName: chain.Name})

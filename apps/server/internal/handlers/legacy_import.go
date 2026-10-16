@@ -283,7 +283,7 @@ func (h *legacyImportHandler) importChains(ctx context.Context, chains []legacyi
 		for i, s := range pc.Steps {
 			chain.Steps = append(chain.Steps, models.ChainStep{
 				ID: uuid.NewString(), ChainID: chain.ID, Position: i + 1,
-				Provider: s.Provider, Model: s.Model, CreatedAt: now,
+				Provider: s.Provider, Model: s.Model, Active: true, CreatedAt: now,
 			})
 		}
 		if err := h.app.Repos.Chains.Insert(ctx, chain); err != nil {
