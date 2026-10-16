@@ -36,6 +36,11 @@ const BRANDS: Record<string, Brand> = {
   nebius: { icon: Icons.nebius, tileClassName: 'bg-white text-black' },
   'voyage-ai': { icon: Icons.voyage, tileClassName: 'bg-white' },
   'jina-ai': { icon: Icons.jina, tileClassName: 'bg-white text-black' },
+  exa: { icon: Icons.exa, tileClassName: 'bg-white' },
+  tavily: { icon: Icons.tavily, tileClassName: 'bg-white' },
+  firecrawl: { icon: Icons.firecrawl, tileClassName: 'bg-white' },
+  brave: { icon: Icons.brave, tileClassName: 'bg-white' },
+  serper: { icon: Icons.serper, tileClassName: 'bg-white' },
 }
 
 function ProviderAvatar({ slug }: { slug: string }) {
