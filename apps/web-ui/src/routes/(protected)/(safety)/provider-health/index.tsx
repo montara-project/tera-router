@@ -48,7 +48,7 @@ function RouteSkeleton() {
 function ProviderHealthContent() {
   const queryClient = useQueryClient()
   const [range, setRange] = useState<HealthWindow>('7d')
-  const [tab, setTab] = useState<HealthTab>('chains')
+  const [tab, setTab] = useState<HealthTab>('providers')
 
   const { data, isFetching } = useQuery(providerHealthQueries.overview(range))
 
