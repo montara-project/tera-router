@@ -169,6 +169,9 @@ function ChainForm({ chain, onOpenChange }: ChainFormProps) {
   )
   const usedProviders = usedProviderKey ? usedProviderKey.split('\u0000') : []
   const fallbackProvider = useSelector(form.store, (s) => s.values.fallback_provider.trim())
+  const hasIncompleteStep = useSelector(form.store, (s) =>
+    s.values.steps.some((step) => (step.provider.trim() === '') !== (step.model.trim() === ''))
+  )
 
   const modelQueries = useQueries({
     queries: usedProviders.map((slug) => {
@@ -289,20 +292,26 @@ function ChainForm({ chain, onOpenChange }: ChainFormProps) {
                       )}
                     </form.AppField>
                     <span className="text-muted-foreground/60">/</span>
-                    <form.AppField name={`steps[${i}].model`}>
-                      {(subField) => (
-                        <div className="min-w-0 flex-[1.4]">
-                          <subField.ComboboxField
-                            label="Model"
-                            hideLabel
-                            placeholder={row.provider.trim() ? 'model' : 'pick a provider first'}
-                            options={modelOptionsBySlug.get(row.provider.trim()) ?? []}
-                            defaultValues={row.model ? [row.model] : []}
-                            disabled={row.provider.trim() === ''}
-                          />
-                        </div>
+                    {/* The array field re-renders only when rows are added or
+                        removed, so `row` goes stale; subscribe to the provider. */}
+                    <form.Subscribe selector={(s) => s.values.steps[i]?.provider.trim() ?? ''}>
+                      {(provider) => (
+                        <form.AppField name={`steps[${i}].model`}>
+                          {(subField) => (
+                            <div className="min-w-0 flex-[1.4]">
+                              <subField.ComboboxField
+                                label="Model"
+                                hideLabel
+                                placeholder={provider ? 'model' : 'pick a provider first'}
+                                options={modelOptionsBySlug.get(provider) ?? []}
+                                defaultValues={row.model ? [row.model] : []}
+                                disabled={provider === ''}
+                              />
+                            </div>
+                          )}
+                        </form.AppField>
                       )}
-                    </form.AppField>
+                    </form.Subscribe>
                     <span className="ml-auto flex shrink-0 items-center gap-0.5">
                       <Button
                         size="icon"
@@ -340,7 +349,7 @@ function ChainForm({ chain, onOpenChange }: ChainFormProps) {
                   </div>
                 ))}
 
-                {rows.some((row) => (row.provider.trim() === '') !== (row.model.trim() === '')) ? (
+                {hasIncompleteStep ? (
                   <p className="text-xs text-destructive">
                     Every step needs both a provider and a model before saving.
                   </p>

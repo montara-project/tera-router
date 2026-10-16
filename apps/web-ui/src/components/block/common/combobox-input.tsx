@@ -74,7 +74,9 @@ export default function ComboboxInput<TData>({
   const selectedLabel = (value: string) => options.find((c) => c.value === value)?.label ?? value
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    // modal: the content is portaled outside any open Dialog, whose scroll lock
+    // would otherwise swallow wheel/touch scrolling in the option list.
+    <Popover modal open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
