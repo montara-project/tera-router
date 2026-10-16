@@ -40,8 +40,10 @@ Ask the user for the key if you do not have one. Never invent one.
 | `GET /v1/models`                 | Model list         |
 | `POST /v1/search`                | Web search         |
 | `POST /v1/web/fetch`             | Web fetch          |
+| `POST /v1/audio/speech`          | Text-to-speech     |
+| `POST /v1/audio/transcriptions`  | Speech-to-text     |
 
-There are no image, audio, or embedding endpoints.
+There are no image or embedding endpoints.
 
 ## Model names
 
@@ -77,3 +79,5 @@ for this key or blocked by a guardrail.
 - Chat and code generation: {{BASE_URL}}/skills/chat/SKILL.md
 - Web search: {{BASE_URL}}/skills/web-search/SKILL.md
 - Web fetch: {{BASE_URL}}/skills/web-fetch/SKILL.md
+- Text-to-speech: {{BASE_URL}}/skills/text-to-speech/SKILL.md
+- Speech-to-text: {{BASE_URL}}/skills/speech-to-text/SKILL.md

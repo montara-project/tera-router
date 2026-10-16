@@ -32,16 +32,14 @@ export const REFERENCE_SKILLS: ReferenceSkill[] = [
   {
     slug: 'text-to-speech',
     name: 'Text-to-Speech',
-    description: 'OpenAI, ElevenLabs, Edge, Google, Deepgram voices.',
+    description: 'OpenAI, ElevenLabs, and Deepgram voices.',
     endpoint: '/v1/audio/speech',
-    comingSoon: true,
   },
   {
     slug: 'speech-to-text',
     name: 'Speech-to-Text',
-    description: 'Transcribe via Whisper, Groq, Gemini, Deepgram, AssemblyAI.',
+    description: 'Transcribe via OpenAI, Groq, ElevenLabs, and Deepgram.',
     endpoint: '/v1/audio/transcriptions',
-    comingSoon: true,
   },
   {
     slug: 'embeddings',

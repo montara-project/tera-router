@@ -45,7 +45,7 @@ type mediaHandler struct {
 func (h *mediaHandler) Index(c fiber.Ctx) error {
 	providers := []dtos.MediaProvider{
 		{ID: "media-openrouter", Name: "OpenRouter", Slug: "openrouter", Capabilities: []string{"embed", "image_to_text"}},
-		{ID: "media-nvidia", Name: "NVIDIA NIM", Slug: "nvidia", Capabilities: []string{"tts", "embed"}},
+		{ID: "media-nvidia", Name: "NVIDIA NIM", Slug: "nvidia", Capabilities: []string{"embed"}},
 		{ID: "media-gemini", Name: "Gemini", Slug: "gemini", Capabilities: []string{"embed", "image", "search", "tts", "stt", "image_to_text"}},
 		{ID: "media-openai", Name: "OpenAI", Slug: "openai", Capabilities: []string{"embed", "tts", "stt", "image"}},
 		{ID: "media-mistral", Name: "Mistral", Slug: "mistral", Capabilities: []string{"embed", "image_to_text"}},
@@ -54,6 +54,9 @@ func (h *mediaHandler) Index(c fiber.Ctx) error {
 		{ID: "media-nebius", Name: "Nebius AI", Slug: "nebius", Capabilities: []string{"embed"}},
 		{ID: "media-voyage", Name: "Voyage AI", Slug: "voyage-ai", Capabilities: []string{"embed"}},
 		{ID: "media-jina", Name: "Jina AI", Slug: "jina-ai", Capabilities: []string{"embed", "search", "fetch"}},
+		{ID: "media-groq", Name: "Groq", Slug: "groq", Capabilities: []string{"stt"}},
+		{ID: "media-elevenlabs", Name: "ElevenLabs", Slug: "elevenlabs", Capabilities: []string{"tts", "stt"}},
+		{ID: "media-deepgram", Name: "Deepgram", Slug: "deepgram", Capabilities: []string{"tts", "stt"}},
 		{ID: "media-exa", Name: "Exa", Slug: "exa", Capabilities: []string{"search", "fetch"}},
 		{ID: "media-tavily", Name: "Tavily", Slug: "tavily", Capabilities: []string{"search", "fetch"}},
 		{ID: "media-firecrawl", Name: "Firecrawl", Slug: "firecrawl", Capabilities: []string{"search", "fetch"}},
