@@ -48,8 +48,9 @@ func (s *Server) serveOpenAIMedia(c fiber.Ctx, what, capability, path string) er
 }
 
 // openAIMediaSupport admits catalog providers that list the capability and
-// speak the OpenAI dialect, Jina AI (OpenAI-shaped embeddings without a chat
-// dialect), and any OpenAI-compatible custom provider.
+// either speak the OpenAI dialect or have no chat dialect at all (Jina AI,
+// Voyage AI: OpenAI-shaped embeddings only), plus any OpenAI-compatible
+// custom provider.
 func openAIMediaSupport(capability string) providerSupport {
 	return func(slug string, spec providerSpec, custom bool) bool {
 		if custom {
@@ -57,7 +58,7 @@ func openAIMediaSupport(capability string) providerSupport {
 		}
 		cp, _ := catalog.Lookup(slug)
 		return slices.Contains(cp.Capabilities, capability) &&
-			(spec.Dialect == core.DialectOpenAI || slug == "jina-ai")
+			(spec.Dialect == core.DialectOpenAI || spec.Dialect == "")
 	}
 }
 

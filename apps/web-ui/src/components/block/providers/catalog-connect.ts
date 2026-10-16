@@ -26,6 +26,11 @@ export const API_KEY_PROVIDERS: Record<string, { name: string }> = {
   cloudflare: { name: 'Cloudflare AI' },
   muse: { name: 'Meta Muse' },
   groq: { name: 'Groq' },
+  gemini: { name: 'Gemini' },
+  mistral: { name: 'Mistral AI' },
+  together: { name: 'Together AI' },
+  fireworks: { name: 'Fireworks AI' },
+  nebius: { name: 'Nebius Token Factory' },
 }
 
 /** Web search and voice providers: Connect opens the key form, but they have
@@ -39,4 +44,5 @@ export const KEY_ONLY_PROVIDERS: Record<string, { name: string }> = {
   serper: { name: 'Serper' },
   elevenlabs: { name: 'ElevenLabs' },
   deepgram: { name: 'Deepgram' },
+  'voyage-ai': { name: 'Voyage AI' },
 }

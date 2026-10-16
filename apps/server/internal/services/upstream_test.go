@@ -360,6 +360,7 @@ func TestV1Join(t *testing.T) {
 		{"https://koma.run/api/v1/koma-gateway/", "models", "https://koma.run/api/v1/koma-gateway/models"},
 		{"https://api.anthropic.com", "messages", "https://api.anthropic.com/v1/messages"},
 		{"https://v1.example.com", "models", "https://v1.example.com/v1/models"},
+		{"https://generativelanguage.googleapis.com/v1beta/openai", "models", "https://generativelanguage.googleapis.com/v1beta/openai/models"},
 	}
 	for _, tc := range cases {
 		if got := V1Join(tc.base, tc.path); got != tc.want {
