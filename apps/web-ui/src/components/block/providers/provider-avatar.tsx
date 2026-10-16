@@ -72,6 +72,13 @@ export function getProviderBrand(slug: string, apiKind?: string): Brand {
   if (slug.includes('serper')) {
     return { icon: Icons.serper }
   }
+  // Voice providers.
+  if (slug.includes('elevenlabs')) {
+    return { icon: Icons.elevenlabs }
+  }
+  if (slug.includes('deepgram')) {
+    return { icon: Icons.deepgram }
+  }
 
   const kind = apiKind?.toLowerCase() ?? ''
   if (kind.includes('anthropic')) {

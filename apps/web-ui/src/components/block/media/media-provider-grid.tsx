@@ -41,6 +41,8 @@ const BRANDS: Record<string, Brand> = {
   firecrawl: { icon: Icons.firecrawl, tileClassName: 'bg-white' },
   brave: { icon: Icons.brave, tileClassName: 'bg-white' },
   serper: { icon: Icons.serper, tileClassName: 'bg-white' },
+  elevenlabs: { icon: Icons.elevenlabs, tileClassName: 'bg-white text-black' },
+  deepgram: { icon: Icons.deepgram, tileClassName: 'bg-white' },
 }
 
 function ProviderAvatar({ slug }: { slug: string }) {
