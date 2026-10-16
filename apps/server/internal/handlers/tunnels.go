@@ -45,3 +45,33 @@ func (h *tunnelsHandler) CloudflareDisable(c fiber.Ctx) error {
 	auditRecord(c.Context(), h.app, actorFrom(c), "tunnel.disable", "cloudflare", nil)
 	return dtos.Item(c, fiber.StatusOK, h.app.Services.Tunnel.Status(), "Cloudflare Tunnel disabled")
 }
+
+// Tailscale reports whether tailscale is installed and connected on this host
+// and the tailnet HTTPS URL when this server is served.
+func (h *tunnelsHandler) Tailscale(c fiber.Ctx) error {
+	return dtos.OK(c, h.app.Services.Tailscale.Status(h.app.Config.App.Port))
+}
+
+// TailscaleEnable serves this server on the host's tailnet over HTTPS
+// (`tailscale serve --bg`). tailscaled persists the mapping, so it survives
+// server and host restarts without a stored setting.
+func (h *tunnelsHandler) TailscaleEnable(c fiber.Ctx) error {
+	status, err := h.app.Services.Tailscale.Start(h.app.Config.App.Port)
+	if err != nil {
+		return apperr.New(apperr.KindUnprocessable, "%s", err.Error())
+	}
+	auditRecord(c.Context(), h.app, actorFrom(c), "tunnel.enable", "tailscale", map[string]string{
+		"url": status.URL,
+	})
+	return dtos.Item(c, fiber.StatusOK, status, "Tailscale enabled")
+}
+
+// TailscaleDisable removes this server's tailnet mapping.
+func (h *tunnelsHandler) TailscaleDisable(c fiber.Ctx) error {
+	status, err := h.app.Services.Tailscale.Stop(h.app.Config.App.Port)
+	if err != nil {
+		return apperr.New(apperr.KindUnprocessable, "%s", err.Error())
+	}
+	auditRecord(c.Context(), h.app, actorFrom(c), "tunnel.disable", "tailscale", nil)
+	return dtos.Item(c, fiber.StatusOK, status, "Tailscale disabled")
+}

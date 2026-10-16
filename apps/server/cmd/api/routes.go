@@ -214,6 +214,10 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	protected.Get("/tunnels/cloudflare", h.Tunnels.Cloudflare)
 	protected.Post("/tunnels/cloudflare/enable", h.Tunnels.CloudflareEnable)
 	protected.Post("/tunnels/cloudflare/disable", h.Tunnels.CloudflareDisable)
+	// Tailscale (tailscale serve exposing this server on the host's tailnet)
+	protected.Get("/tunnels/tailscale", h.Tunnels.Tailscale)
+	protected.Post("/tunnels/tailscale/enable", h.Tunnels.TailscaleEnable)
+	protected.Post("/tunnels/tailscale/disable", h.Tunnels.TailscaleDisable)
 
 	return gw
 }

@@ -22,26 +22,23 @@ import { Icons } from '../../common/icons'
 import ConnectApp, { type ConnectToneVariant } from './connect-app'
 
 export default function TunnelSection() {
-  const { copy, copied } = useCopyToClipboard()
   const { data: cloudflare } = useQuery(queries.tunnels.cloudflare())
-  const enableMutation = useMutation(queries.tunnels.enableCloudflare())
-  const disableMutation = useMutation(queries.tunnels.disableCloudflare())
+  const enableCloudflare = useMutation(queries.tunnels.enableCloudflare())
+  const disableCloudflare = useMutation(queries.tunnels.disableCloudflare())
 
-  const running = cloudflare?.running ?? false
-  const pending = enableMutation.isPending || disableMutation.isPending
+  const { data: tailscale } = useQuery(queries.tunnels.tailscale())
+  const enableTailscale = useMutation(queries.tunnels.enableTailscale())
+  const disableTailscale = useMutation(queries.tunnels.disableTailscale())
 
-  const handleToggle = async () => {
-    try {
-      const res = await (running ? disableMutation : enableMutation).mutateAsync()
-      toast.success(res.message ?? (running ? 'Tunnel disabled' : 'Tunnel enabled'))
-    } catch (error) {
-      toastAxiosError(error)
-    }
+  const cloudflarePending = enableCloudflare.isPending || disableCloudflare.isPending
+  const tailscalePending = enableTailscale.isPending || disableTailscale.isPending
+
+  let tailscaleDescription = 'Private HTTPS on your tailnet via tailscale serve'
+  if (tailscale?.installed === false) {
+    tailscaleDescription = 'tailscale is not installed on the server host'
+  } else if (tailscale && !tailscale.logged_in) {
+    tailscaleDescription = 'Not on a tailnet: run `tailscale up` on the server host'
   }
-
-  let cloudflareButton = running ? 'Disable' : 'Enable'
-  if (enableMutation.isPending) cloudflareButton = 'Starting…'
-  if (disableMutation.isPending) cloudflareButton = 'Stopping…'
 
   return (
     <Card className="bg-background">
@@ -70,50 +67,89 @@ export default function TunnelSection() {
                 ? 'cloudflared is not installed on the server host'
                 : 'Quick tunnel — no account needed'
             }
-            buttonText={cloudflareButton}
+            buttonText={toggleLabel(
+              cloudflare?.running,
+              enableCloudflare.isPending,
+              disableCloudflare.isPending
+            )}
             icon={Icons.cloudflare}
             tone="warning"
-            disabled={!cloudflare?.installed || pending}
-            onClick={handleToggle}
+            disabled={!cloudflare?.installed || cloudflarePending}
+            onClick={() =>
+              void toggleTunnel(
+                cloudflare?.running ? disableCloudflare : enableCloudflare,
+                'Tunnel',
+                cloudflare?.running
+              )
+            }
           >
-            {cloudflare?.url && (
-              <InputWrapper variant="xl">
-                <Input
-                  type="text"
-                  readOnly
-                  aria-label="Cloudflare Tunnel URL"
-                  value={cloudflare.url}
-                  className="font-mono text-sm"
-                />
-                <Button
-                  onClick={() => copy(cloudflare.url)}
-                  variant="secondary"
-                  disabled={copied}
-                  className="-me-3.5"
-                >
-                  {copied ? (
-                    <CheckIcon className="size-4 text-green-600" />
-                  ) : (
-                    <>
-                      <CopyIcon strokeWidth={1.5} className="size-4 text-white" />
-                      Copy
-                    </>
-                  )}
-                </Button>
-              </InputWrapper>
-            )}
+            {cloudflare?.url && <TunnelUrl label="Cloudflare Tunnel URL" url={cloudflare.url} />}
           </TunnelAppItem>
           <TunnelAppItem
             title="Tailscale"
-            description="Private network with HTTPS"
-            buttonText="Coming Soon"
+            description={tailscaleDescription}
+            buttonText={toggleLabel(
+              tailscale?.running,
+              enableTailscale.isPending,
+              disableTailscale.isPending
+            )}
             icon={Icons.tailscale}
             tone="info"
-            disabled
-          />
+            disabled={!tailscale?.installed || !tailscale.logged_in || tailscalePending}
+            onClick={() =>
+              void toggleTunnel(
+                tailscale?.running ? disableTailscale : enableTailscale,
+                'Tailscale',
+                tailscale?.running
+              )
+            }
+          >
+            {tailscale?.url && <TunnelUrl label="Tailscale URL" url={tailscale.url} />}
+          </TunnelAppItem>
         </div>
       </CardContent>
     </Card>
+  )
+}
+
+/** Enable/Disable button text, with progress while a toggle is in flight. */
+function toggleLabel(running: boolean | undefined, starting: boolean, stopping: boolean) {
+  if (starting) return 'Starting…'
+  if (stopping) return 'Stopping…'
+  return running ? 'Disable' : 'Enable'
+}
+
+async function toggleTunnel(
+  mutation: { mutateAsync: () => Promise<{ message?: string }> },
+  name: string,
+  running: boolean | undefined
+) {
+  try {
+    const res = await mutation.mutateAsync()
+    toast.success(res.message ?? (running ? `${name} disabled` : `${name} enabled`))
+  } catch (error) {
+    toastAxiosError(error)
+  }
+}
+
+/** Read-only tunnel URL with a copy button. */
+function TunnelUrl({ label, url }: { label: string; url: string }) {
+  const { copy, copied } = useCopyToClipboard()
+
+  return (
+    <InputWrapper variant="xl">
+      <Input type="text" readOnly aria-label={label} value={url} className="font-mono text-sm" />
+      <Button onClick={() => copy(url)} variant="secondary" disabled={copied} className="-me-3.5">
+        {copied ? (
+          <CheckIcon className="size-4 text-green-600" />
+        ) : (
+          <>
+            <CopyIcon strokeWidth={1.5} className="size-4 text-white" />
+            Copy
+          </>
+        )}
+      </Button>
+    </InputWrapper>
   )
 }
 
