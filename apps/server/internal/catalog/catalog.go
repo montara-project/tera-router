@@ -23,7 +23,7 @@ func All() []dtos.CatalogProvider {
 	return []dtos.CatalogProvider{
 		{Slug: "custom-openai", Name: "Custom (OpenAI-compatible)", Dialect: dialectOpenAI, Capabilities: llmCaps("embeddings", "image", "tts", "stt"), AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true, Pinned: true},
 		{Slug: "custom-anthropic", Name: "Custom (Anthropic-compatible)", Dialect: dialectAnthropic, Capabilities: llmCaps(), AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true, Pinned: true},
-		{Slug: "openai", Name: "OpenAI", BaseURL: "https://api.openai.com/v1", Dialect: dialectOpenAI, Capabilities: llmCaps("embeddings", "image", "tts", "stt", "search"), AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true},
+		{Slug: "openai", Name: "OpenAI", BaseURL: "https://api.openai.com/v1", Dialect: dialectOpenAI, Capabilities: llmCaps("embeddings", "image", "tts", "stt"), AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true},
 		{Slug: "anthropic", Name: "Anthropic", BaseURL: "https://api.anthropic.com/v1", Dialect: dialectAnthropic, Capabilities: llmCaps(), AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true},
 		{Slug: "openrouter", Name: "OpenRouter", BaseURL: "https://openrouter.ai/api/v1", Dialect: dialectOpenAI, Capabilities: llmCaps("embeddings"), AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true, Notice: "Free tier: 27+ free models, no credit card, 200 req/day."},
 		{Slug: "nvidia", Name: "NVIDIA NIM", BaseURL: "https://integrate.api.nvidia.com/v1", Dialect: dialectOpenAI, Capabilities: llmCaps("tts", "embeddings"), AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true},

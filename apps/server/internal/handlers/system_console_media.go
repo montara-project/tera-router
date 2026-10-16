@@ -47,7 +47,7 @@ func (h *mediaHandler) Index(c fiber.Ctx) error {
 		{ID: "media-openrouter", Name: "OpenRouter", Slug: "openrouter", Capabilities: []string{"embed", "image_to_text"}},
 		{ID: "media-nvidia", Name: "NVIDIA NIM", Slug: "nvidia", Capabilities: []string{"tts", "embed"}},
 		{ID: "media-gemini", Name: "Gemini", Slug: "gemini", Capabilities: []string{"embed", "image", "search", "tts", "stt", "image_to_text"}},
-		{ID: "media-openai", Name: "OpenAI", Slug: "openai", Capabilities: []string{"embed", "tts", "stt", "image", "search"}},
+		{ID: "media-openai", Name: "OpenAI", Slug: "openai", Capabilities: []string{"embed", "tts", "stt", "image"}},
 		{ID: "media-mistral", Name: "Mistral", Slug: "mistral", Capabilities: []string{"embed", "image_to_text"}},
 		{ID: "media-together", Name: "Together AI", Slug: "together", Capabilities: []string{"embed"}},
 		{ID: "media-fireworks", Name: "Fireworks AI", Slug: "fireworks", Capabilities: []string{"embed"}},
