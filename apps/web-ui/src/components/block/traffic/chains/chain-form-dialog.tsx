@@ -105,7 +105,8 @@ function ChainForm({ chain, onOpenChange }: ChainFormProps) {
           ? chain.steps.map((step) => ({
               provider: step.provider,
               model: step.model,
-              active: step.active,
+              // Older servers omit the flag; omitted means active there too.
+              active: step.active ?? true,
             }))
           : [{ provider: '', model: '', active: true }],
     },
