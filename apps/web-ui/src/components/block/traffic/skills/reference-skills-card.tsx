@@ -1,10 +1,15 @@
 'use client'
 
-import { IconBook2 } from '@tabler/icons-react'
+import { IconBook2, IconEye } from '@tabler/icons-react'
+import { useState } from 'react'
 
 import IconBadge from '@/components/block/common/icon-badge'
 import CopySkillButton from '@/components/block/traffic/skills/copy-skill-button'
+import SkillDetailDialog, {
+  type SkillDetailTarget,
+} from '@/components/block/traffic/skills/skill-detail-dialog'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -15,7 +20,13 @@ import {
 } from '@/components/ui/card'
 import { REFERENCE_SKILLS, skillUrl, type ReferenceSkill } from '@/lib/constants/skill'
 
-function ReferenceSkillRow({ skill }: { skill: ReferenceSkill }) {
+function ReferenceSkillRow({
+  skill,
+  onView,
+}: {
+  skill: ReferenceSkill
+  onView: (skill: ReferenceSkill) => void
+}) {
   return (
     <div className="flex items-center justify-between gap-4 px-5 py-4">
       <div className="space-y-1">
@@ -33,7 +44,19 @@ function ReferenceSkillRow({ skill }: { skill: ReferenceSkill }) {
             Coming soon
           </Badge>
         ) : (
-          <CopySkillButton value={skillUrl(skill.slug)} label={`Copy ${skill.name} skill URL`} />
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              mode="icon"
+              size="icon"
+              aria-label={`View ${skill.name} skill`}
+              onClick={() => onView(skill)}
+            >
+              <IconEye className="text-muted-foreground" />
+            </Button>
+            <CopySkillButton value={skillUrl(skill.slug)} label={`Copy ${skill.name} skill URL`} />
+          </>
         )}
       </div>
     </div>
@@ -41,6 +64,8 @@ function ReferenceSkillRow({ skill }: { skill: ReferenceSkill }) {
 }
 
 export default function ReferenceSkillsCard() {
+  const [viewing, setViewing] = useState<SkillDetailTarget | null>(null)
+
   return (
     <Card className="bg-background">
       <CardHeader className="h-20">
@@ -63,10 +88,11 @@ export default function ReferenceSkillsCard() {
       <CardContent className="p-0">
         <div className="divide-y divide-border">
           {REFERENCE_SKILLS.map((skill) => (
-            <ReferenceSkillRow key={skill.slug} skill={skill} />
+            <ReferenceSkillRow key={skill.slug} skill={skill} onView={setViewing} />
           ))}
         </div>
       </CardContent>
+      <SkillDetailDialog skill={viewing} onClose={() => setViewing(null)} />
     </Card>
   )
 }
