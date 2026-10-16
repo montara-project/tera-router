@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -382,6 +383,12 @@ func (h *accountsHandler) probe(ctx context.Context, providerSlug, metadataRaw, 
 	spec, ok := catalog.Lookup(providerSlug)
 	if !ok {
 		return dtos.TestResult{OK: true, Detail: "no probe available for provider"}, nil
+	}
+
+	if !slices.Contains(spec.Capabilities, "chat") {
+		// Web search providers have no free authenticated endpoint; every
+		// call is billed, so the key is checked on first use instead.
+		return dtos.TestResult{OK: true, Detail: "provider skips credential validation"}, nil
 	}
 
 	baseURL := spec.BaseURL

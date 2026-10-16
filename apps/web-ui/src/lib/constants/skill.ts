@@ -53,16 +53,14 @@ export const REFERENCE_SKILLS: ReferenceSkill[] = [
   {
     slug: 'web-search',
     name: 'Web Search',
-    description: 'Tavily, Exa, Brave, Serper, SearXNG, Google PSE, You.com.',
+    description: 'Exa, Tavily, Firecrawl, Jina AI, Brave Search, Serper.',
     endpoint: '/v1/search',
-    comingSoon: true,
   },
   {
     slug: 'web-fetch',
     name: 'Web Fetch',
-    description: 'URL to markdown/text/HTML via Firecrawl, Jina, Tavily, Exa.',
+    description: 'URL to markdown/text via Exa, Tavily, Firecrawl, Jina AI.',
     endpoint: '/v1/web/fetch',
-    comingSoon: true,
   },
 ]
 

@@ -53,7 +53,12 @@ func (h *mediaHandler) Index(c fiber.Ctx) error {
 		{ID: "media-fireworks", Name: "Fireworks AI", Slug: "fireworks", Capabilities: []string{"embed"}},
 		{ID: "media-nebius", Name: "Nebius AI", Slug: "nebius", Capabilities: []string{"embed"}},
 		{ID: "media-voyage", Name: "Voyage AI", Slug: "voyage-ai", Capabilities: []string{"embed"}},
-		{ID: "media-jina", Name: "Jina AI", Slug: "jina-ai", Capabilities: []string{"embed"}},
+		{ID: "media-jina", Name: "Jina AI", Slug: "jina-ai", Capabilities: []string{"embed", "search", "fetch"}},
+		{ID: "media-exa", Name: "Exa", Slug: "exa", Capabilities: []string{"search", "fetch"}},
+		{ID: "media-tavily", Name: "Tavily", Slug: "tavily", Capabilities: []string{"search", "fetch"}},
+		{ID: "media-firecrawl", Name: "Firecrawl", Slug: "firecrawl", Capabilities: []string{"search", "fetch"}},
+		{ID: "media-brave", Name: "Brave Search", Slug: "brave", Capabilities: []string{"search"}},
+		{ID: "media-serper", Name: "Serper", Slug: "serper", Capabilities: []string{"search"}},
 	}
 	return dtos.OK(c, fiber.Map{"providers": providers})
 }

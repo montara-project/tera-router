@@ -38,9 +38,10 @@ Ask the user for the key if you do not have one. Never invent one.
 | `POST /v1/messages/count_tokens` | Anthropic          |
 | `POST /v1/responses`             | OpenAI Responses   |
 | `GET /v1/models`                 | Model list         |
+| `POST /v1/search`                | Web search         |
+| `POST /v1/web/fetch`             | Web fetch          |
 
-Only text inference is served. There are no image, audio, embedding, search, or
-web-fetch endpoints.
+There are no image, audio, or embedding endpoints.
 
 ## Model names
 
@@ -74,3 +75,5 @@ for this key or blocked by a guardrail.
 ## More
 
 - Chat and code generation: {{BASE_URL}}/skills/chat/SKILL.md
+- Web search: {{BASE_URL}}/skills/web-search/SKILL.md
+- Web fetch: {{BASE_URL}}/skills/web-fetch/SKILL.md

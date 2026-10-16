@@ -112,7 +112,12 @@ func newRequest(ctx context.Context, method, endpoint string, body []byte, heade
 // doJSON performs a unary JSON POST, returning the buffered 2xx body. Transport
 // failures and non-2xx statuses are classified into *core.ProviderError.
 func doJSON(ctx context.Context, c call, endpoint string, body []byte, headers map[string]string) (*unaryResponse, error) {
-	req, err := newRequest(ctx, http.MethodPost, endpoint, body, headers)
+	return doRequest(ctx, c, http.MethodPost, endpoint, body, headers)
+}
+
+// doRequest is doJSON for any method; a nil body sends no payload (GET).
+func doRequest(ctx context.Context, c call, method, endpoint string, body []byte, headers map[string]string) (*unaryResponse, error) {
+	req, err := newRequest(ctx, method, endpoint, body, headers)
 	if err != nil {
 		return nil, c.internal(err)
 	}
