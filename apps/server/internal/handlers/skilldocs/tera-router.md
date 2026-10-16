@@ -42,8 +42,8 @@ Ask the user for the key if you do not have one. Never invent one.
 | `POST /v1/web/fetch`             | Web fetch          |
 | `POST /v1/audio/speech`          | Text-to-speech     |
 | `POST /v1/audio/transcriptions`  | Speech-to-text     |
-
-There are no image or embedding endpoints.
+| `POST /v1/images/generations`    | Image generation   |
+| `POST /v1/embeddings`            | Embeddings         |
 
 ## Model names
 
@@ -81,3 +81,5 @@ for this key or blocked by a guardrail.
 - Web fetch: {{BASE_URL}}/skills/web-fetch/SKILL.md
 - Text-to-speech: {{BASE_URL}}/skills/text-to-speech/SKILL.md
 - Speech-to-text: {{BASE_URL}}/skills/speech-to-text/SKILL.md
+- Image generation: {{BASE_URL}}/skills/image-generation/SKILL.md
+- Embeddings: {{BASE_URL}}/skills/embeddings/SKILL.md

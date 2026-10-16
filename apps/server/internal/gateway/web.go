@@ -29,8 +29,9 @@ type webAttempt struct {
 }
 
 // directRun calls the upstream for one attempt and, on success, returns the
-// function that writes the response to the client.
-type directRun func(ctx context.Context, at webAttempt) (respond func() error, err error)
+// function that writes the response to the client plus the tokens the
+// upstream reported (zero when it reports none).
+type directRun func(ctx context.Context, at webAttempt) (respond func() error, usage core.Usage, err error)
 
 // handleWebSearch serves POST /v1/search:
 // {"query": "...", "max_results": 5, "provider": "exa"} -> normalized results.
@@ -49,9 +50,9 @@ func (s *Server) handleWebSearch(c fiber.Ctx) error {
 	}
 	limit = min(limit, maxWebResults)
 
-	return s.serveWeb(c, connectors.WebSearchCapability, req.Provider, func(ctx context.Context, at webAttempt) (func() error, error) {
+	return s.serveWeb(c, connectors.WebSearchCapability, req.Provider, func(ctx context.Context, at webAttempt) (func() error, core.Usage, error) {
 		results, err := connectors.WebSearch(ctx, at.Target.Provider, at.BaseURL, at.Creds, req.Query, limit)
-		return jsonResponse(c, at, fiber.Map{"query": req.Query, "results": results}), err
+		return jsonResponse(c, at, fiber.Map{"query": req.Query, "results": results}), core.Usage{}, err
 	})
 }
 
@@ -67,9 +68,9 @@ func (s *Server) handleWebFetch(c fiber.Ctx) error {
 		return writeError(c, http.StatusBadRequest, "invalid request: url must be an absolute http(s) URL")
 	}
 
-	return s.serveWeb(c, connectors.WebFetchCapability, req.Provider, func(ctx context.Context, at webAttempt) (func() error, error) {
+	return s.serveWeb(c, connectors.WebFetchCapability, req.Provider, func(ctx context.Context, at webAttempt) (func() error, core.Usage, error) {
 		page, err := connectors.WebFetch(ctx, at.Target.Provider, at.BaseURL, at.Creds, req.URL)
-		return jsonResponse(c, at, fiber.Map{"url": page.URL, "title": page.Title, "content": page.Content}), err
+		return jsonResponse(c, at, fiber.Map{"url": page.URL, "title": page.Title, "content": page.Content}), core.Usage{}, err
 	})
 }
 
@@ -164,13 +165,15 @@ func (s *Server) serveDirect(c fiber.Ctx, what string, resolve func(context.Cont
 	var last *core.ProviderError
 	for _, at := range attempts {
 		start := time.Now()
-		respond, err := run(ctx, at)
+		respond, usage, err := run(ctx, at)
 		latency := time.Since(start)
 		if err == nil {
+			rates, tokenRate := s.pricingFor(ctx, at.Target.Provider, at.Target.Model)
 			s.recordUsage(usageRecord{
 				APIKeyID: meta.APIKeyID, AccountID: at.AccountID,
 				Provider: at.Target.Provider, Model: at.Target.Model,
 				Client: meta.Client, ClientIP: meta.ClientIP, RequestID: meta.RequestID, Chain: meta.Chain,
+				Usage: usage, CostMicros: costMicros(rates, usage), TokenRate: tokenRate,
 				Latency: latency,
 			})
 			c.Set("X-TeraRouter-Provider", at.Target.Provider)

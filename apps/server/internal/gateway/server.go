@@ -10,8 +10,9 @@
 // + POST /responses (OpenAI Responses), and GET /v1/models (OpenAI-shaped
 // listing that advertises the aliases, chains, and auto-combo ids a client
 // may route to), plus POST /v1/search and POST /v1/web/fetch over the web
-// search providers (see web.go) and POST /v1/audio/speech and
-// POST /v1/audio/transcriptions over the voice providers (see audio.go).
+// search providers (see web.go), POST /v1/audio/speech and
+// POST /v1/audio/transcriptions over the voice providers (see audio.go), and
+// POST /v1/images/generations and POST /v1/embeddings (see media.go).
 package gateway
 
 import (
@@ -166,6 +167,8 @@ func Register(r *fiber.App, a *app.Application) *Server {
 	r.Post("/v1/web/fetch", s.authMiddleware, s.handleWebFetch)
 	r.Post("/v1/audio/speech", s.authMiddleware, s.handleSpeech)
 	r.Post("/v1/audio/transcriptions", s.authMiddleware, s.handleTranscription)
+	r.Post("/v1/images/generations", s.authMiddleware, s.handleImages)
+	r.Post("/v1/embeddings", s.authMiddleware, s.handleEmbeddings)
 	return s
 }
 
@@ -183,6 +186,8 @@ var GatewayRoutes = []string{
 	"/v1/web/fetch",
 	"/v1/audio/speech",
 	"/v1/audio/transcriptions",
+	"/v1/images/generations",
+	"/v1/embeddings",
 }
 
 // IsGatewayPath reports whether a request path is served by the inference

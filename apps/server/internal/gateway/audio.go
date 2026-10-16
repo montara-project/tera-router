@@ -23,14 +23,14 @@ func (s *Server) handleSpeech(c fiber.Ctx) error {
 		return writeError(c, http.StatusBadRequest, "invalid request: input is required")
 	}
 
-	return s.serveDirect(c, "text-to-speech", s.audioTargets(req.Model, connectors.SpeechCapability),
-		func(ctx context.Context, at webAttempt) (func() error, error) {
+	return s.serveDirect(c, "text-to-speech", s.capabilityTargets(req.Model, audioSupport(connectors.SpeechCapability)),
+		func(ctx context.Context, at webAttempt) (func() error, core.Usage, error) {
 			req.Model = at.Target.Model
 			audio, err := connectors.Speech(ctx, at.Target.Provider, at.BaseURL, at.Creds, req)
 			return func() error {
 				c.Set(fiber.HeaderContentType, cmp.Or(audio.ContentType, "audio/mpeg"))
 				return c.Status(http.StatusOK).Send(audio.Body)
-			}, err
+			}, core.Usage{}, err
 		})
 }
 
@@ -58,18 +58,30 @@ func (s *Server) handleTranscription(c fiber.Ctx) error {
 		FileType: cmp.Or(fh.Header.Get(fiber.HeaderContentType), "application/octet-stream"),
 	}
 
-	return s.serveDirect(c, "speech-to-text", s.audioTargets(c.FormValue("model"), connectors.TranscriptionCapability),
-		func(ctx context.Context, at webAttempt) (func() error, error) {
+	return s.serveDirect(c, "speech-to-text", s.capabilityTargets(c.FormValue("model"), audioSupport(connectors.TranscriptionCapability)),
+		func(ctx context.Context, at webAttempt) (func() error, core.Usage, error) {
 			req.Model = at.Target.Model
 			text, err := connectors.Transcribe(ctx, at.Target.Provider, at.BaseURL, at.Creds, req)
-			return func() error { return c.Status(http.StatusOK).JSON(fiber.Map{"text": text}) }, err
+			return func() error { return c.Status(http.StatusOK).JSON(fiber.Map{"text": text}) }, core.Usage{}, err
 		})
 }
 
-// audioTargets resolves the request's model exactly like chat — provider/model,
-// alias, or chain — keeping only the targets whose provider serves the audio
-// capability.
-func (s *Server) audioTargets(model, capability string) func(context.Context) ([]target, string, error) {
+// providerSupport reports whether a provider serves a capability; custom
+// marks an operator-added provider (not in the catalog).
+type providerSupport func(slug string, spec providerSpec, custom bool) bool
+
+// audioSupport admits the providers with an audio driver; an OpenAI-compatible
+// custom provider serves both directions.
+func audioSupport(capability string) providerSupport {
+	return func(slug string, spec providerSpec, custom bool) bool {
+		return connectors.SupportsAudio(slug, capability, custom && spec.Dialect == core.DialectOpenAI)
+	}
+}
+
+// capabilityTargets resolves the request's model exactly like chat —
+// provider/model, alias, or chain — keeping only the targets whose provider
+// serves the capability.
+func (s *Server) capabilityTargets(model string, supports providerSupport) func(context.Context) ([]target, string, error) {
 	return func(ctx context.Context) ([]target, string, error) {
 		res, err := s.resolveTargets(ctx, model)
 		if err != nil {
@@ -79,8 +91,7 @@ func (s *Server) audioTargets(model, capability string) func(context.Context) ([
 		for _, t := range res.Targets {
 			spec, ok := s.providerSpec(ctx, t.Provider)
 			_, inCatalog := catalog.Lookup(t.Provider)
-			customOpenAI := ok && !inCatalog && spec.Dialect == core.DialectOpenAI
-			if ok && connectors.SupportsAudio(t.Provider, capability, customOpenAI) {
+			if ok && supports(t.Provider, spec, !inCatalog) {
 				out = append(out, t)
 			}
 		}

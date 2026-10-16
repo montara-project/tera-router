@@ -29,13 +29,13 @@ func All() []dtos.CatalogProvider {
 		{Slug: "nvidia", Name: "NVIDIA NIM", BaseURL: "https://integrate.api.nvidia.com/v1", Dialect: dialectOpenAI, Capabilities: llmCaps("embeddings"), AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true},
 		{Slug: "groq", Name: "Groq", BaseURL: "https://api.groq.com/openai/v1", Dialect: dialectOpenAI, Capabilities: llmCaps("stt"), AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true},
 		{Slug: "cline", Name: "Cline", BaseURL: "https://api.cline.bot/api/v1", Dialect: dialectOpenAI, Capabilities: llmCaps(), AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true},
-		{Slug: "cloudflare", Name: "Cloudflare AI", BaseURL: "https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1", Dialect: dialectOpenAI, Capabilities: llmCaps("embeddings", "image"), AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true, Notice: "The endpoint embeds your Cloudflare account ID — set the account's Base URL to https://api.cloudflare.com/client/v4/accounts/<account_id>/ai/v1."},
+		{Slug: "cloudflare", Name: "Cloudflare AI", BaseURL: "https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1", Dialect: dialectOpenAI, Capabilities: llmCaps("embeddings"), AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true, Notice: "The endpoint embeds your Cloudflare account ID — set the account's Base URL to https://api.cloudflare.com/client/v4/accounts/<account_id>/ai/v1."},
 		// Web search/fetch providers: no chat dialect, served by the gateway's
 		// /v1/search and /v1/web/fetch (connectors/web.go).
 		{Slug: "exa", Name: "Exa", BaseURL: "https://api.exa.ai", Capabilities: []string{"search", "fetch"}, AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true},
 		{Slug: "tavily", Name: "Tavily", BaseURL: "https://api.tavily.com", Capabilities: []string{"search", "fetch"}, AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true},
 		{Slug: "firecrawl", Name: "Firecrawl", BaseURL: "https://api.firecrawl.dev/v2", Capabilities: []string{"search", "fetch"}, AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true},
-		{Slug: "jina-ai", Name: "Jina AI", Capabilities: []string{"search", "fetch"}, AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true},
+		{Slug: "jina-ai", Name: "Jina AI", BaseURL: "https://api.jina.ai/v1", Capabilities: []string{"embeddings", "search", "fetch"}, AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true},
 		{Slug: "brave", Name: "Brave Search", BaseURL: "https://api.search.brave.com/res/v1", Capabilities: []string{"search"}, AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true},
 		{Slug: "serper", Name: "Serper", BaseURL: "https://google.serper.dev", Capabilities: []string{"search"}, AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true},
 		// Voice providers: no chat dialect, served by the gateway's

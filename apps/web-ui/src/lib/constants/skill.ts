@@ -25,9 +25,8 @@ export const REFERENCE_SKILLS: ReferenceSkill[] = [
   {
     slug: 'image-generation',
     name: 'Image Generation',
-    description: 'Text-to-image via DALL-E, Imagen, FLUX, and more.',
+    description: 'Text-to-image via OpenAI or any OpenAI-compatible provider.',
     endpoint: '/v1/images/generations',
-    comingSoon: true,
   },
   {
     slug: 'text-to-speech',
@@ -44,9 +43,8 @@ export const REFERENCE_SKILLS: ReferenceSkill[] = [
   {
     slug: 'embeddings',
     name: 'Embeddings',
-    description: 'Vectors for RAG and semantic search.',
+    description: 'Vectors for RAG and semantic search via OpenAI, OpenRouter, NVIDIA, Cloudflare, Jina AI.',
     endpoint: '/v1/embeddings',
-    comingSoon: true,
   },
   {
     slug: 'web-search',

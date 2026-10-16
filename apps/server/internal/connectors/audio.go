@@ -52,8 +52,8 @@ type SpeechRequest struct {
 	Speed          float64 `json:"speed,omitempty"`
 }
 
-// Audio is synthesized speech as returned by the provider.
-type Audio struct {
+// Raw is an upstream response relayed to the client as-is.
+type Raw struct {
 	Body        []byte
 	ContentType string
 }
@@ -70,7 +70,7 @@ type TranscriptionRequest struct {
 
 // Speech synthesizes req.Input on provider. defaultBase is the provider's
 // base URL; an account base_url overrides it.
-func Speech(ctx context.Context, provider, defaultBase string, creds core.Credentials, req SpeechRequest) (Audio, error) {
+func Speech(ctx context.Context, provider, defaultBase string, creds core.Credentials, req SpeechRequest) (Raw, error) {
 	c := call{provider: provider, model: req.Model, accountID: creds.AccountID, creds: creds}
 	base := baseURL(defaultBase, creds)
 	key := creds.Token()
@@ -84,7 +84,7 @@ func Speech(ctx context.Context, provider, defaultBase string, creds core.Creden
 	case "elevenlabs":
 		// The voice is an ElevenLabs voice id; OpenAI voice names do not exist there.
 		if req.Voice == "" {
-			return Audio{}, c.badRequest("voice is required: an ElevenLabs voice id")
+			return Raw{}, c.badRequest("voice is required: an ElevenLabs voice id")
 		}
 		endpoint = joinURL(base, "text-to-speech/"+url.PathEscape(req.Voice))
 		body = map[string]any{"text": req.Input, "model_id": req.Model}
@@ -102,13 +102,13 @@ func Speech(ctx context.Context, provider, defaultBase string, creds core.Creden
 
 	payload, err := json.Marshal(body)
 	if err != nil {
-		return Audio{}, c.internal(err)
+		return Raw{}, c.internal(err)
 	}
 	resp, err := doRequest(ctx, c, http.MethodPost, endpoint, payload, mergeHeaders(headers, creds.Headers))
 	if err != nil {
-		return Audio{}, err
+		return Raw{}, err
 	}
-	return Audio{Body: resp.body, ContentType: resp.contentType}, nil
+	return Raw{Body: resp.body, ContentType: resp.contentType}, nil
 }
 
 // Transcribe returns the text spoken in req.File.
