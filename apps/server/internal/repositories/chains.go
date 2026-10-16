@@ -47,9 +47,9 @@ func (r *ChainRepository) insertExec(ctx context.Context, ex Executor, c models.
 func (r *ChainRepository) insertStepsExec(ctx context.Context, ex Executor, chainID string, steps []models.ChainStep) error {
 	for _, s := range steps {
 		if _, err := r.execContext(ctx, ex, `
-			INSERT INTO chain_steps (id, chain_id, position, provider, model)
-			VALUES ($1, $2, $3, $4, $5)`,
-			s.ID, chainID, s.Position, s.Provider, s.Model,
+			INSERT INTO chain_steps (id, chain_id, position, provider, model, active)
+			VALUES ($1, $2, $3, $4, $5, $6)`,
+			s.ID, chainID, s.Position, s.Provider, s.Model, s.Active,
 		); err != nil {
 			return err
 		}
@@ -85,7 +85,7 @@ func (r *ChainRepository) listExec(ctx context.Context) ([]models.Chain, error) 
 
 func (r *ChainRepository) attachStepsExec(ctx context.Context, ex Executor, chains []models.Chain) ([]models.Chain, error) {
 	rows, err := r.queryContext(ctx, ex, `
-		SELECT id, chain_id, position, provider, model, created_at
+		SELECT id, chain_id, position, provider, model, active, created_at
 		FROM chain_steps ORDER BY chain_id, position`)
 	if err != nil {
 		return nil, err
@@ -95,7 +95,7 @@ func (r *ChainRepository) attachStepsExec(ctx context.Context, ex Executor, chai
 	stepsByChain := map[string][]models.ChainStep{}
 	for rows.Next() {
 		var s models.ChainStep
-		if err := rows.Scan(&s.ID, &s.ChainID, &s.Position, &s.Provider, &s.Model, &s.CreatedAt); err != nil {
+		if err := rows.Scan(&s.ID, &s.ChainID, &s.Position, &s.Provider, &s.Model, &s.Active, &s.CreatedAt); err != nil {
 			return nil, errtrace.Wrap(err)
 		}
 		stepsByChain[s.ChainID] = append(stepsByChain[s.ChainID], s)

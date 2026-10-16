@@ -11,15 +11,15 @@ The dashboard (`apps/web-ui`) is the only place you need for day-to-day router m
 
 ## Traffic
 
-- **Endpoints** — how to connect your apps: base URL + API key, plus a one-click Cloudflare quick tunnel for sharing (needs `cloudflared` on the server host; the Docker image bundles it).
-- **Chains** — build model chains: sequential steps, strategies (`priority`, `round-robin`, `load-balanced`), and fallbacks.
-- **Skills** — reusable prompt snippets, plus _reference skills_ you can copy to a coding agent so it knows how to use the router.
+- **Endpoints** — how to connect your apps: base URL + API key, plus one-click tunnels for access from other machines: a public Cloudflare quick tunnel or a private Tailscale address (see [Remote access](/docs/getting-started/remote-access)).
+- **Chains** — build model chains: sequential steps that can each be switched on or off, strategies (`priority`, `round-robin`, `load-balanced`), and fallbacks.
+- **Skills** — reusable prompt snippets, plus _reference skills_ you can copy to a coding agent so it knows how to use the router. Any skill opens in a rendered preview.
 
 ## Connections
 
 - **API Keys** — create, restrict models, disable, and reveal `sk_tr_` keys. Each key can be bound to a plan.
-- **Providers** — connect provider accounts (API key or OAuth), set priorities, test connections, and view per-account quotas.
-- **Media** — provider catalog for embeddings, TTS, STT, and image.
+- **Providers** — connect provider accounts (API key, or official sign-in for OpenAI and Anthropic), set priorities, test connections, and view per-account quotas. Tabs split the catalog into AI Model, AI Search, AI Voice, and AI Image Generation providers.
+- **Media** — the same catalog grouped by non-chat capability: embeddings, image, TTS, STT, web search, and web fetch.
 - **Proxy Pools** — group outbound proxies for accounts that need specific IPs.
 
 ## Safety

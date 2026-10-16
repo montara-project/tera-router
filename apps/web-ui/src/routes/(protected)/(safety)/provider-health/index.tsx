@@ -24,6 +24,9 @@ export const Route = createFileRoute('/(protected)/(safety)/provider-health/')({
 
 const TIME_RANGES = ['5m', '15m', '1h', '6h', '24h', '7d'] as const
 
+/** Rows per page in every health table. */
+const PAGE_SIZE = 10
+
 function RouteSkeleton() {
   return (
     <div className="bg-sidebar border border-sidebar-accent p-2 rounded-2xl">
@@ -48,7 +51,7 @@ function RouteSkeleton() {
 function ProviderHealthContent() {
   const queryClient = useQueryClient()
   const [range, setRange] = useState<HealthWindow>('7d')
-  const [tab, setTab] = useState<HealthTab>('chains')
+  const [tab, setTab] = useState<HealthTab>('providers')
 
   const { data, isFetching } = useQuery(providerHealthQueries.overview(range))
 
@@ -106,9 +109,12 @@ function ProviderHealthContent() {
         <ProviderHealthTabs value={tab} onChange={setTab} />
 
         {tab === 'probes' ? (
-          <ProbesTable entries={data.probes} />
+          <ProbesTable entries={data.probes} pageSize={PAGE_SIZE} />
         ) : (
           <HealthTable
+            // Keyed by tab so each tab starts on page 1.
+            key={tab}
+            pageSize={PAGE_SIZE}
             entityLabel={tab === 'chains' ? 'Chain' : tab === 'models' ? 'Model' : 'Provider'}
             entries={data[tab]}
             onView={handleView}

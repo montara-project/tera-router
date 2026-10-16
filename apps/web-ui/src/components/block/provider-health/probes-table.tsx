@@ -6,13 +6,19 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 
+import TablePagination, { usePagedRows } from '../common/table-pagination'
+
 const COLUMNS = 'grid grid-cols-[1.6fr_1fr_0.9fr_0.9fr_1.2fr] items-center gap-4'
 
 interface ProbesTableProps {
   entries: ProbeEntry[]
+  /** Rows per page; the full list renders when omitted. */
+  pageSize?: number
 }
 
-export default function ProbesTable({ entries }: ProbesTableProps) {
+export default function ProbesTable({ entries, pageSize }: ProbesTableProps) {
+  const paged = usePagedRows(entries, pageSize ?? Math.max(entries.length, 1))
+
   return (
     <Card className="bg-background">
       <CardContent className="overflow-x-auto p-0">
@@ -37,7 +43,7 @@ export default function ProbesTable({ entries }: ProbesTableProps) {
             </Empty>
           ) : (
             <div className="divide-y divide-border/60">
-              {entries.map((probe) => (
+              {paged.rows.map((probe) => (
                 <div
                   key={probe.id}
                   className={`${COLUMNS} px-5 py-3.5 transition-colors hover:bg-muted/40`}
@@ -66,6 +72,15 @@ export default function ProbesTable({ entries }: ProbesTableProps) {
             </div>
           )}
         </div>
+        {pageSize ? (
+          <TablePagination
+            page={paged.page}
+            pageCount={paged.pageCount}
+            pageSize={pageSize}
+            total={entries.length}
+            onPageChange={paged.setPage}
+          />
+        ) : null}
       </CardContent>
     </Card>
   )

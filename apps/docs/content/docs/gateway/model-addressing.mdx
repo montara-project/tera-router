@@ -50,8 +50,8 @@ curl -X POST http://localhost:8080/v1/chains \
     "fallback_model": "anthropic/claude-sonnet-4",
     "enabled": true,
     "steps": [
-      { "provider": "claude", "model": "claude-sonnet-4" },
-      { "provider": "glm", "model": "glm-4.6" }
+      { "provider": "anthropic", "model": "claude-sonnet-4" },
+      { "provider": "openai", "model": "gpt-4o", "active": false }
     ]
   }'
 ```
@@ -63,6 +63,8 @@ Available strategies:
 - `load-balanced` — spread requests evenly.
 
 Call it with `model: "chain:heavy-coding"` (or plain `heavy-coding`, since chain names are looked up first in form 4).
+
+Each step has an `active` flag (default `true`). An inactive step stays in the chain but the router skips it — handy for parking a provider without losing its position. A chain with no active step and no fallback answers `400`.
 
 ## Reasoning suffix
 

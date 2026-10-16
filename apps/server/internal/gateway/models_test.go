@@ -43,19 +43,19 @@ func TestHandleListModelsAdvertisesAliasesAndChains(t *testing.T) {
 	// shadowed by the alias above, and without any target.
 	chains := []models.Chain{
 		{ID: "chain-1", Name: "budget", Strategy: "priority", Enabled: true,
-			Steps: []models.ChainStep{{ID: "cs-1", Position: 0, Provider: "prov", Model: "cheap"}}},
+			Steps: []models.ChainStep{{ID: "cs-1", Position: 0, Provider: "prov", Model: "cheap", Active: true}}},
 		{ID: "chain-2", Name: "fallback-only", Strategy: "priority", Enabled: true,
 			FallbackProvider: "prov", FallbackModel: "fb"},
 		{ID: "chain-3", Name: "off-chain", Strategy: "priority", Enabled: false,
-			Steps: []models.ChainStep{{ID: "cs-3", Position: 0, Provider: "prov", Model: "m"}}},
+			Steps: []models.ChainStep{{ID: "cs-3", Position: 0, Provider: "prov", Model: "m", Active: true}}},
 		{ID: "chain-4", Name: "auto", Strategy: "priority", Enabled: true,
-			Steps: []models.ChainStep{{ID: "cs-4", Position: 0, Provider: "prov", Model: "m"}}},
+			Steps: []models.ChainStep{{ID: "cs-4", Position: 0, Provider: "prov", Model: "m", Active: true}}},
 		{ID: "chain-5", Name: "prov/thing", Strategy: "priority", Enabled: true,
-			Steps: []models.ChainStep{{ID: "cs-5", Position: 0, Provider: "prov", Model: "m"}}},
+			Steps: []models.ChainStep{{ID: "cs-5", Position: 0, Provider: "prov", Model: "m", Active: true}}},
 		{ID: "chain-6", Name: "chain:weird", Strategy: "priority", Enabled: true,
-			Steps: []models.ChainStep{{ID: "cs-6", Position: 0, Provider: "prov", Model: "m"}}},
+			Steps: []models.ChainStep{{ID: "cs-6", Position: 0, Provider: "prov", Model: "m", Active: true}}},
 		{ID: "chain-7", Name: "shadowed-chain", Strategy: "priority", Enabled: true,
-			Steps: []models.ChainStep{{ID: "cs-7", Position: 0, Provider: "prov", Model: "m"}}},
+			Steps: []models.ChainStep{{ID: "cs-7", Position: 0, Provider: "prov", Model: "m", Active: true}}},
 		{ID: "chain-8", Name: "empty-chain", Strategy: "priority", Enabled: true},
 	}
 	for _, chain := range chains {

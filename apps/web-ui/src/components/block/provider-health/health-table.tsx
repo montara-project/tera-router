@@ -1,14 +1,13 @@
 import { IconActivity, IconChevronRight } from '@tabler/icons-react'
-import { useState } from 'react'
 
 import type { HealthEntry, HealthStatus } from '@/lib/api/models/provider-health'
 
 import { Badge, BadgeDot } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 
 import EmptyState from '../common/empty-state'
+import TablePagination, { usePagedRows } from '../common/table-pagination'
 
 const STATUS_META: Record<
   HealthStatus,
@@ -32,13 +31,7 @@ interface HealthTableProps {
 }
 
 export default function HealthTable({ entityLabel, entries, onView, pageSize }: HealthTableProps) {
-  const [page, setPage] = useState(1)
-
-  const pageCount = pageSize ? Math.max(Math.ceil(entries.length / pageSize), 1) : 1
-  const safePage = Math.min(page, pageCount)
-  const visibleEntries = pageSize
-    ? entries.slice((safePage - 1) * pageSize, safePage * pageSize)
-    : entries
+  const paged = usePagedRows(entries, pageSize ?? Math.max(entries.length, 1))
 
   return (
     <Card className="bg-background">
@@ -63,7 +56,7 @@ export default function HealthTable({ entityLabel, entries, onView, pageSize }: 
               />
             ) : (
               <div className="divide-y divide-border/60">
-                {visibleEntries.map((entry) => {
+                {paged.rows.map((entry) => {
                   const meta = STATUS_META[entry.status]
 
                   return (
@@ -107,31 +100,14 @@ export default function HealthTable({ entityLabel, entries, onView, pageSize }: 
           </div>
         </div>
 
-        {pageSize && entries.length > 0 ? (
-          <div className="flex items-center justify-between border-t border-border px-5 py-3">
-            <p className="text-muted-foreground text-xs">{entries.length} total</p>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={safePage <= 1}
-                onClick={() => setPage((current) => Math.max(current - 1, 1))}
-              >
-                Previous
-              </Button>
-              <span className="text-muted-foreground text-xs tabular-nums">
-                {safePage} / {pageCount}
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={safePage >= pageCount}
-                onClick={() => setPage((current) => Math.min(current + 1, pageCount))}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
+        {pageSize ? (
+          <TablePagination
+            page={paged.page}
+            pageCount={paged.pageCount}
+            pageSize={pageSize}
+            total={entries.length}
+            onPageChange={paged.setPage}
+          />
         ) : null}
       </CardContent>
     </Card>

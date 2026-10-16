@@ -25,44 +25,39 @@ export const REFERENCE_SKILLS: ReferenceSkill[] = [
   {
     slug: 'image-generation',
     name: 'Image Generation',
-    description: 'Text-to-image via DALL-E, Imagen, FLUX, and more.',
+    description: 'Text-to-image via OpenAI or any OpenAI-compatible provider.',
     endpoint: '/v1/images/generations',
-    comingSoon: true,
   },
   {
     slug: 'text-to-speech',
     name: 'Text-to-Speech',
-    description: 'OpenAI, ElevenLabs, Edge, Google, Deepgram voices.',
+    description: 'OpenAI, ElevenLabs, and Deepgram voices.',
     endpoint: '/v1/audio/speech',
-    comingSoon: true,
   },
   {
     slug: 'speech-to-text',
     name: 'Speech-to-Text',
-    description: 'Transcribe via Whisper, Groq, Gemini, Deepgram, AssemblyAI.',
+    description: 'Transcribe via OpenAI, Groq, ElevenLabs, and Deepgram.',
     endpoint: '/v1/audio/transcriptions',
-    comingSoon: true,
   },
   {
     slug: 'embeddings',
     name: 'Embeddings',
-    description: 'Vectors for RAG and semantic search.',
+    description:
+      'Vectors for RAG and semantic search via OpenAI, OpenRouter, NVIDIA, Cloudflare, Jina AI.',
     endpoint: '/v1/embeddings',
-    comingSoon: true,
   },
   {
     slug: 'web-search',
     name: 'Web Search',
-    description: 'Tavily, Exa, Brave, Serper, SearXNG, Google PSE, You.com.',
+    description: 'Exa, Tavily, Firecrawl, Jina AI, Brave Search, Serper.',
     endpoint: '/v1/search',
-    comingSoon: true,
   },
   {
     slug: 'web-fetch',
     name: 'Web Fetch',
-    description: 'URL to markdown/text/HTML via Firecrawl, Jina, Tavily, Exa.',
+    description: 'URL to markdown/text via Exa, Tavily, Firecrawl, Jina AI.',
     endpoint: '/v1/web/fetch',
-    comingSoon: true,
   },
 ]
 

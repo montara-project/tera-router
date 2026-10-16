@@ -43,7 +43,11 @@ func chainFromRequest(req dtos.Chain) models.Chain {
 func toChainSteps(in []dtos.ChainStep) []models.ChainStep {
 	out := make([]models.ChainStep, 0, len(in))
 	for _, s := range in {
-		out = append(out, models.ChainStep{Provider: s.Provider, Model: s.Model})
+		step := models.ChainStep{Provider: s.Provider, Model: s.Model, Active: true}
+		if s.Active != nil {
+			step.Active = *s.Active
+		}
+		out = append(out, step)
 	}
 	return out
 }

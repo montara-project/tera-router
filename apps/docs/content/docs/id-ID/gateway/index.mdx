@@ -5,17 +5,29 @@ description: Base URL, autentikasi, dan kompatibilitas dialek untuk semua endpoi
 
 ## Endpoint
 
-Gateway melayani tiga dialek API sekaligus, semua di bawah `/v1`:
+Gateway melayani tiga dialek chat sekaligus, semua di bawah `/v1`:
 
-| Endpoint                         | Dialek             | Dipakai oleh                              |
-| -------------------------------- | ------------------ | ----------------------------------------- |
-| `POST /v1/chat/completions`      | OpenAI Chat        | SDK OpenAI, kebanyakan tool dan framework |
-| `POST /v1/messages`              | Anthropic Messages | SDK Anthropic, Claude Code                |
-| `POST /v1/messages/count_tokens` | Anthropic          | Estimasi token (dihitung lokal)           |
-| `POST /v1/responses`             | OpenAI Responses   | Klien Responses API                       |
-| `POST /responses`                | OpenAI Responses   | Alias di root, untuk klien seperti Codex  |
+| Endpoint                         | Dialek             | Dipakai oleh                                       |
+| -------------------------------- | ------------------ | -------------------------------------------------- |
+| `POST /v1/chat/completions`      | OpenAI Chat        | SDK OpenAI, kebanyakan tool dan framework          |
+| `POST /v1/messages`              | Anthropic Messages | SDK Anthropic, Claude Code                         |
+| `POST /v1/messages/count_tokens` | Anthropic          | Estimasi token (dihitung lokal)                    |
+| `POST /v1/responses`             | OpenAI Responses   | Klien Responses API                                |
+| `POST /responses`                | OpenAI Responses   | Alias di root, untuk klien seperti Codex           |
+| `GET /v1/models`                 | OpenAI             | Model, alias, dan chain yang boleh dipakai key ini |
 
 Request body-nya persis format aslinya — tidak ada field custom yang wajib. Router hanya peduli pada cara kamu menulis `model` (lihat [Model & routing](/id-ID/docs/gateway/model-addressing)).
+
+Selain chat, key yang sama bisa memanggil endpoint berikut:
+
+| Endpoint                        | Format        | Halaman                                              |
+| ------------------------------- | ------------- | ---------------------------------------------------- |
+| `POST /v1/search`               | Tera Router   | [Web Search & Fetch](/id-ID/docs/gateway/web-search) |
+| `POST /v1/web/fetch`            | Tera Router   | [Web Search & Fetch](/id-ID/docs/gateway/web-search) |
+| `POST /v1/audio/speech`         | Audio OpenAI  | [Audio](/id-ID/docs/gateway/audio)                   |
+| `POST /v1/audio/transcriptions` | Audio OpenAI  | [Audio](/id-ID/docs/gateway/audio)                   |
+| `POST /v1/images/generations`   | Images OpenAI | [Pembuatan Gambar](/id-ID/docs/gateway/images)       |
+| `POST /v1/embeddings`           | OpenAI        | [Embeddings](/id-ID/docs/gateway/embeddings)         |
 
 ## Autentikasi
 

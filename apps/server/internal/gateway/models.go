@@ -114,11 +114,11 @@ func chainNameResolvable(name string) bool {
 	return !strings.Contains(name, "/") && !strings.HasPrefix(name, "chain:")
 }
 
-// chainHasTarget mirrors chainResult's target construction: usable steps,
+// chainHasTarget mirrors chainResult's target construction: active steps,
 // plus the configured fallback as the last-resort target.
 func chainHasTarget(chain models.Chain) bool {
 	for _, step := range chain.Steps {
-		if step.Provider != "" && step.Model != "" {
+		if step.Active && step.Provider != "" && step.Model != "" {
 			return true
 		}
 	}

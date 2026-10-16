@@ -49,8 +49,52 @@ const disableCloudflare = () => {
   })
 }
 
+export const GET_TAILSCALE_TUNNEL_QUERY_KEY = () => {
+  return [TUNNEL_QUERY_KEY, 'tailscale']
+}
+
+const tailscale = () =>
+  queryOptions({
+    queryKey: GET_TAILSCALE_TUNNEL_QUERY_KEY(),
+    queryFn: async () => {
+      const res = await services.tunnels.tailscale()
+      return res.data.data
+    },
+  })
+
+const enableTailscale = () => {
+  const qc = getQueryClient()
+
+  return mutationOptions({
+    mutationFn: async () => {
+      const res = await services.tunnels.enableTailscale()
+      return res.data
+    },
+    onSuccess: (res) => {
+      qc.setQueryData(GET_TAILSCALE_TUNNEL_QUERY_KEY(), res.data)
+    },
+  })
+}
+
+const disableTailscale = () => {
+  const qc = getQueryClient()
+
+  return mutationOptions({
+    mutationFn: async () => {
+      const res = await services.tunnels.disableTailscale()
+      return res.data
+    },
+    onSuccess: (res) => {
+      qc.setQueryData(GET_TAILSCALE_TUNNEL_QUERY_KEY(), res.data)
+    },
+  })
+}
+
 export const tunnelQueries = {
   cloudflare,
   enableCloudflare,
   disableCloudflare,
+  tailscale,
+  enableTailscale,
+  disableTailscale,
 } as const

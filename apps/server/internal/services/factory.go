@@ -12,6 +12,7 @@ type Services struct {
 	Upstream   *UpstreamService
 	ClaudeCode *ClaudeCodeService
 	Tunnel     *TunnelService
+	Tailscale  *TailscaleService
 }
 
 // New wires the third-party integrations.
@@ -21,5 +22,6 @@ func New() *Services {
 		Upstream:   &UpstreamService{},
 		ClaudeCode: &ClaudeCodeService{},
 		Tunnel:     &TunnelService{},
+		Tailscale:  &TailscaleService{},
 	}
 }

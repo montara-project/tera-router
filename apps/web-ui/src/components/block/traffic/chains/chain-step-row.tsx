@@ -19,12 +19,23 @@ export default function ChainStepRow({ row }: ChainStepRowProps) {
         <React.Fragment>
           {row.steps.map((item, index) => (
             <React.Fragment key={item.position}>
-              <div className="flex min-w-0 items-center gap-2 rounded-lg border border-border bg-card px-2 py-1.5">
+              <div
+                title={item.active !== false ? undefined : 'Inactive — skipped by the router'}
+                className={`flex min-w-0 items-center gap-2 rounded-lg border bg-card px-2 py-1.5 ${
+                  item.active !== false
+                    ? 'border-border'
+                    : 'border-dashed border-border/60 opacity-50'
+                }`}
+              >
                 <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent text-[10px] font-semibold text-accent-foreground">
                   {item.position}
                 </span>
                 <Icons.chatgpt className="size-3.5 shrink-0 text-white" />
-                <span className="min-w-0 truncate font-mono text-xs font-medium">{item.model}</span>
+                <span
+                  className={`min-w-0 truncate font-mono text-xs font-medium ${item.active !== false ? '' : 'line-through'}`}
+                >
+                  {item.model}
+                </span>
               </div>
 
               {index < row.steps.length - 1 && (

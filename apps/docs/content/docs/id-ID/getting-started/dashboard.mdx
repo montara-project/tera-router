@@ -11,15 +11,15 @@ Dashboard (`apps/web-ui`) adalah satu-satunya tempat kamu mengelola router sehar
 
 ## Traffic
 
-- **Endpoints** — cara menghubungkan aplikasi: base URL + API key, plus Cloudflare quick tunnel sekali klik untuk dibagikan (butuh `cloudflared` di host server; image Docker sudah menyertakannya).
-- **Chains** — susun rantai model: langkah berurutan, strategi (`priority`, `round-robin`, `load-balanced`), dan fallback.
-- **Skills** — potongan prompt yang bisa dipakai ulang, plus _reference skills_ yang bisa dicopy ke coding agent agar paham cara memakai router.
+- **Endpoints** — cara menghubungkan aplikasi: base URL + API key, plus tunnel sekali klik untuk akses dari mesin lain: Cloudflare quick tunnel yang publik atau alamat Tailscale yang privat (lihat [Akses jarak jauh](/id-ID/docs/getting-started/remote-access)).
+- **Chains** — susun rantai model: langkah berurutan yang masing-masing bisa dinyalakan atau dimatikan, strategi (`priority`, `round-robin`, `load-balanced`), dan fallback.
+- **Skills** — potongan prompt yang bisa dipakai ulang, plus _reference skills_ yang bisa dicopy ke coding agent agar paham cara memakai router. Setiap skill bisa dibuka dalam pratinjau yang sudah dirender.
 
 ## Connections
 
 - **API Keys** — buat, batasi model, nonaktifkan, dan reveal key `sk_tr_`. Tiap key bisa diikat ke plan.
-- **Providers** — hubungkan akun provider (API key atau OAuth), atur prioritas, uji koneksi, dan lihat kuota per akun.
-- **Media** — katalog provider untuk embeddings, TTS, STT, dan image.
+- **Providers** — hubungkan akun provider (API key, atau login resmi untuk OpenAI dan Anthropic), atur prioritas, uji koneksi, dan lihat kuota per akun. Tab memisahkan katalog menjadi AI Model, AI Search, AI Voice, dan AI Image Generation.
+- **Media** — katalog yang sama dikelompokkan per kemampuan non-chat: embeddings, gambar, TTS, STT, web search, dan web fetch.
 - **Proxy Pools** — kelompokkan proxy outbound untuk akun yang butuh IP tertentu.
 
 ## Safety

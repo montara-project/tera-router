@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"tera-router/server/internal/app"
+	"tera-router/server/internal/catalog"
 	"tera-router/server/internal/dtos"
 
 	"github.com/gofiber/fiber/v3"
@@ -40,20 +41,29 @@ type mediaHandler struct {
 	app *app.Application
 }
 
-// Index returns the static media provider catalog (embeddings, TTS, STT,
-// image, search, image-to-text).
+// Index lists the catalog providers with a non-chat capability, so the Media
+// page shows exactly the providers the Providers page can connect. Catalog
+// "embeddings" is reported as the page's "embed"; the pinned custom-provider
+// templates are left out.
 func (h *mediaHandler) Index(c fiber.Ctx) error {
-	providers := []dtos.MediaProvider{
-		{ID: "media-openrouter", Name: "OpenRouter", Slug: "openrouter", Capabilities: []string{"embed", "image_to_text"}},
-		{ID: "media-nvidia", Name: "NVIDIA NIM", Slug: "nvidia", Capabilities: []string{"tts", "embed"}},
-		{ID: "media-gemini", Name: "Gemini", Slug: "gemini", Capabilities: []string{"embed", "image", "search", "tts", "stt", "image_to_text"}},
-		{ID: "media-openai", Name: "OpenAI", Slug: "openai", Capabilities: []string{"embed", "tts", "stt", "image", "search"}},
-		{ID: "media-mistral", Name: "Mistral", Slug: "mistral", Capabilities: []string{"embed", "image_to_text"}},
-		{ID: "media-together", Name: "Together AI", Slug: "together", Capabilities: []string{"embed"}},
-		{ID: "media-fireworks", Name: "Fireworks AI", Slug: "fireworks", Capabilities: []string{"embed"}},
-		{ID: "media-nebius", Name: "Nebius AI", Slug: "nebius", Capabilities: []string{"embed"}},
-		{ID: "media-voyage", Name: "Voyage AI", Slug: "voyage-ai", Capabilities: []string{"embed"}},
-		{ID: "media-jina", Name: "Jina AI", Slug: "jina-ai", Capabilities: []string{"embed"}},
+	providers := []dtos.MediaProvider{}
+	for _, p := range catalog.Listed() {
+		if p.Pinned {
+			continue
+		}
+		caps := []string{}
+		for _, cap := range p.Capabilities {
+			switch cap {
+			case "chat":
+			case "embeddings":
+				caps = append(caps, "embed")
+			default:
+				caps = append(caps, cap)
+			}
+		}
+		if len(caps) > 0 {
+			providers = append(providers, dtos.MediaProvider{ID: "media-" + p.Slug, Name: p.Name, Slug: p.Slug, Capabilities: caps})
+		}
 	}
 	return dtos.OK(c, fiber.Map{"providers": providers})
 }

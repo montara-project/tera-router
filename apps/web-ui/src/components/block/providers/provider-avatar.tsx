@@ -55,6 +55,33 @@ export function getProviderBrand(slug: string, apiKind?: string): Brand {
   if (slug.includes('jina')) {
     return { icon: Icons.jina }
   }
+  if (slug.includes('groq')) {
+    return { icon: Icons.groq }
+  }
+  // Web search providers. Exact match for exa: "exa" is a substring of
+  // unrelated custom slugs (e.g. "hexagon").
+  if (slug === 'exa') {
+    return { icon: Icons.exa }
+  }
+  if (slug.includes('tavily')) {
+    return { icon: Icons.tavily }
+  }
+  if (slug.includes('firecrawl')) {
+    return { icon: Icons.firecrawl }
+  }
+  if (slug.includes('brave')) {
+    return { icon: Icons.brave }
+  }
+  if (slug.includes('serper')) {
+    return { icon: Icons.serper }
+  }
+  // Voice providers.
+  if (slug.includes('elevenlabs')) {
+    return { icon: Icons.elevenlabs }
+  }
+  if (slug.includes('deepgram')) {
+    return { icon: Icons.deepgram }
+  }
 
   const kind = apiKind?.toLowerCase() ?? ''
   if (kind.includes('anthropic')) {

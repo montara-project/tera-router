@@ -1,0 +1,110 @@
+---
+title: Remote Access
+description: Reach the router from outside its machine — a public Cloudflare quick tunnel or a private Tailscale HTTPS address.
+---
+
+The router listens on `http://localhost:8080` by default. To use it from another machine, a phone, or a
+teammate's laptop, turn on one of the two tunnels on the **Endpoints** page:
+
+|                | Cloudflare Tunnel                                        | Tailscale                                         |
+| -------------- | -------------------------------------------------------- | ------------------------------------------------- |
+| Who can reach  | Anyone on the internet who has the URL                   | Only devices on your tailnet                      |
+| URL            | Random `https://*.trycloudflare.com`, new on every start | Stable `https://<machine>.<tailnet>.ts.net`       |
+| Account needed | None                                                     | A Tailscale account; the host joined to a tailnet |
+| Host binary    | `cloudflared` (bundled in the Docker image)              | `tailscale` (not in the Docker image)             |
+| Best for       | Quick demos and sharing                                  | Day-to-day private use across your devices        |
+
+Either way, the gateway still requires an `sk_tr_` API key and the dashboard still requires a login.
+Use the tunnel URL as the base URL: `https://<tunnel-host>/v1` for OpenAI SDKs, `https://<tunnel-host>`
+for Anthropic SDKs.
+
+## Cloudflare Tunnel
+
+A Cloudflare _quick tunnel_ exposes the router on a public `*.trycloudflare.com` address with no
+Cloudflare account or DNS setup.
+
+1. Make sure `cloudflared` is on the server host's `PATH`. The Docker image already includes it; for a
+   local install see [Cloudflare's downloads](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/).
+2. Open **Endpoints → Tunnels → Cloudflare Tunnel** and click **Enable**.
+3. Wait a few seconds for the `https://….trycloudflare.com` URL to appear, then **Copy** it.
+
+How it behaves:
+
+- The server runs `cloudflared` as a child process. It stops when the server stops.
+- The on/off choice is saved, so after a restart the tunnel comes back on its own — with a **new URL**.
+- Click **Disable** to tear it down and keep it off across restarts.
+- The dashboard rate limit counts each visitor separately: the server trusts the `Cf-Connecting-IP`
+  header while the tunnel is up.
+
+<Callout type="warn" title="Public by design">
+  Anyone with the URL can reach your gateway's login page and endpoints. Keep API keys secret, and
+  use Tailscale instead when only your own devices need access. Cloudflare positions quick tunnels
+  for testing, without an uptime guarantee.
+</Callout>
+
+## Tailscale
+
+Tailscale publishes the router on your private tailnet with a real HTTPS certificate, through
+[`tailscale serve`](https://tailscale.com/kb/1312/serve). Only devices signed in to the same tailnet
+can open it.
+
+### Prerequisites
+
+1. Install Tailscale on the server host and join it to your tailnet: `tailscale up`.
+2. In the Tailscale admin console, under **DNS**, enable **MagicDNS** and **HTTPS Certificates** —
+   `tailscale serve` needs them for the `*.ts.net` certificate.
+3. On Linux, allow the user that runs the router to manage Tailscale without `sudo`:
+
+   ```bash
+   sudo tailscale set --operator=$USER
+   ```
+
+### Turn it on
+
+Open **Endpoints → Tunnels → Tailscale** and click **Enable**. The router runs:
+
+```bash
+tailscale serve --bg --https=443 http://127.0.0.1:8080
+```
+
+and shows your `https://<machine>.<tailnet>.ts.net` URL with a **Copy** button. The row explains what
+is missing when it cannot be enabled — the CLI is not installed, or the host is not on a tailnet.
+
+How it behaves:
+
+- `tailscaled` stores the mapping, so it survives restarts of the router and of the host. The URL never
+  changes.
+- **Disable** removes only the router's own mapping; other `tailscale serve` config on the host is left
+  alone.
+- Errors from the CLI are shown as-is — for example when HTTPS certificates are not enabled for the
+  tailnet, or when the router lacks permission (see the `--operator` step above).
+- Tailscale forwards from the host itself, so the dashboard rate limit sees every tailnet visitor as
+  one local client.
+
+### With Docker
+
+The Docker image does not include `tailscale`, so the **Enable** button reports it as not installed.
+Run `tailscale serve` on the Docker host instead, pointing at the published port:
+
+```bash
+# on the Docker host (already joined to your tailnet)
+tailscale serve --bg --https=443 http://127.0.0.1:8080
+
+# later, to remove it
+tailscale serve --https=443 http://127.0.0.1:8080 off
+```
+
+The router is then available at `https://<docker-host>.<tailnet>.ts.net`.
+
+## Point your tools at the tunnel
+
+Once a tunnel is up, swap the base URL in your client — nothing else changes:
+
+```ts title="OpenAI SDK over Tailscale"
+import OpenAI from 'openai'
+
+const client = new OpenAI({
+  apiKey: 'sk_tr_...',
+  baseURL: 'https://my-server.tail1234.ts.net/v1',
+})
+```

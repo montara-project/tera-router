@@ -102,8 +102,13 @@ function ChainForm({ chain, onOpenChange }: ChainFormProps) {
       fallback_model: chain?.fallback_model ?? '',
       steps:
         chain?.steps && chain.steps.length > 0
-          ? chain.steps.map((step) => ({ provider: step.provider, model: step.model }))
-          : [{ provider: '', model: '' }],
+          ? chain.steps.map((step) => ({
+              provider: step.provider,
+              model: step.model,
+              // Older servers omit the flag; omitted means active there too.
+              active: step.active ?? true,
+            }))
+          : [{ provider: '', model: '', active: true }],
     },
     validators: {
       onSubmit: ChainFormSchema,
@@ -111,9 +116,17 @@ function ChainForm({ chain, onOpenChange }: ChainFormProps) {
     onSubmit: async ({ value }) => {
       const steps = value.steps
         .filter((step) => step.provider.trim() !== '' && step.model.trim() !== '')
-        .map((step) => ({ provider: step.provider.trim(), model: step.model.trim() }))
+        .map((step) => ({
+          provider: step.provider.trim(),
+          model: step.model.trim(),
+          active: step.active,
+        }))
       if (steps.length === 0) {
         toast.error('Add at least one complete provider/model step')
+        return
+      }
+      if (!steps.some((step) => step.active) && !value.fallback_model.trim()) {
+        toast.error('Activate at least one step or set a terminal fallback')
         return
       }
 
@@ -169,6 +182,13 @@ function ChainForm({ chain, onOpenChange }: ChainFormProps) {
   )
   const usedProviders = usedProviderKey ? usedProviderKey.split('\u0000') : []
   const fallbackProvider = useSelector(form.store, (s) => s.values.fallback_provider.trim())
+  const activeStepCount = useSelector(
+    form.store,
+    (s) => s.values.steps.filter((step) => step.active && step.provider.trim() !== '').length
+  )
+  const hasIncompleteStep = useSelector(form.store, (s) =>
+    s.values.steps.some((step) => (step.provider.trim() === '') !== (step.model.trim() === ''))
+  )
 
   const modelQueries = useQueries({
     queries: usedProviders.map((slug) => {
@@ -259,88 +279,115 @@ function ChainForm({ chain, onOpenChange }: ChainFormProps) {
                   <span className="text-muted-foreground text-xs">
                     {rows.length === 0
                       ? 'first healthy target serves'
-                      : `walked in order · ${rows.length} step${rows.length === 1 ? '' : 's'}`}
+                      : `walked in order · ${activeStepCount} of ${rows.length} active`}
                   </span>
                 </div>
 
                 {rows.map((row, i) => (
-                  <div
+                  // The array field re-renders only when rows are added or
+                  // removed, so the row's active flag comes from a subscription.
+                  <form.Subscribe
                     key={`step-${i}`}
-                    className="border-border hover:bg-muted/30 group flex items-center gap-2 rounded-lg border px-3 py-2 transition-colors"
+                    selector={(s) => s.values.steps[i]?.active ?? true}
                   >
-                    <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-blue-50 text-xs font-semibold tabular-nums text-blue-600 ring-1 ring-blue-200/60 dark:bg-blue-950/40 dark:text-blue-300 dark:ring-blue-900/50">
-                      {i + 1}
-                    </span>
-                    <form.AppField name={`steps[${i}].provider`}>
-                      {(subField) => (
-                        <div className="min-w-0 flex-1">
-                          <subField.ComboboxField
-                            label="Provider"
-                            hideLabel
-                            placeholder="provider"
-                            options={providerOptions}
-                            defaultValues={row.provider ? [row.provider] : []}
-                            onSelect={() => {
-                              // Model ids are provider-specific; start clean on switch.
-                              form.setFieldValue(`steps[${i}].model`, '')
-                            }}
-                          />
-                        </div>
-                      )}
-                    </form.AppField>
-                    <span className="text-muted-foreground/60">/</span>
-                    <form.AppField name={`steps[${i}].model`}>
-                      {(subField) => (
-                        <div className="min-w-0 flex-[1.4]">
-                          <subField.ComboboxField
-                            label="Model"
-                            hideLabel
-                            placeholder={row.provider.trim() ? 'model' : 'pick a provider first'}
-                            options={modelOptionsBySlug.get(row.provider.trim()) ?? []}
-                            defaultValues={row.model ? [row.model] : []}
-                            disabled={row.provider.trim() === ''}
-                          />
-                        </div>
-                      )}
-                    </form.AppField>
-                    <span className="ml-auto flex shrink-0 items-center gap-0.5">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        type="button"
-                        className="size-7"
-                        aria-label={`Move step ${i + 1} up`}
-                        disabled={i === 0}
-                        onClick={() => field.moveValue(i, i - 1)}
+                    {(active) => (
+                      <div
+                        className={`group flex items-center gap-2 rounded-lg border px-3 py-2 transition-colors hover:bg-muted/30 ${
+                          active ? 'border-border' : 'border-dashed border-border/60 opacity-70'
+                        }`}
                       >
-                        <IconChevronUp className="size-3.5" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        type="button"
-                        className="size-7"
-                        aria-label={`Move step ${i + 1} down`}
-                        disabled={i === rows.length - 1}
-                        onClick={() => field.moveValue(i, i + 1)}
-                      >
-                        <IconChevronDown className="size-3.5" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        type="button"
-                        className="hover:text-destructive size-7"
-                        aria-label={`Remove step ${i + 1}`}
-                        onClick={() => field.removeValue(i)}
-                      >
-                        <IconX className="size-3.5" />
-                      </Button>
-                    </span>
-                  </div>
+                        <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-blue-50 text-xs font-semibold tabular-nums text-blue-600 ring-1 ring-blue-200/60 dark:bg-blue-950/40 dark:text-blue-300 dark:ring-blue-900/50">
+                          {i + 1}
+                        </span>
+                        <form.AppField name={`steps[${i}].provider`}>
+                          {(subField) => (
+                            <div className="min-w-0 flex-1">
+                              <subField.ComboboxField
+                                label="Provider"
+                                hideLabel
+                                placeholder="provider"
+                                options={providerOptions}
+                                defaultValues={row.provider ? [row.provider] : []}
+                                onSelect={() => {
+                                  // Model ids are provider-specific; start clean on switch.
+                                  form.setFieldValue(`steps[${i}].model`, '')
+                                }}
+                              />
+                            </div>
+                          )}
+                        </form.AppField>
+                        <span className="text-muted-foreground/60">/</span>
+                        {/* The array field re-renders only when rows are added or
+                        removed, so `row` goes stale; subscribe to the provider. */}
+                        <form.Subscribe selector={(s) => s.values.steps[i]?.provider.trim() ?? ''}>
+                          {(provider) => (
+                            <form.AppField name={`steps[${i}].model`}>
+                              {(subField) => (
+                                <div className="min-w-0 flex-[1.4]">
+                                  <subField.ComboboxField
+                                    label="Model"
+                                    hideLabel
+                                    placeholder={provider ? 'model' : 'pick a provider first'}
+                                    options={modelOptionsBySlug.get(provider) ?? []}
+                                    defaultValues={row.model ? [row.model] : []}
+                                    disabled={provider === ''}
+                                  />
+                                </div>
+                              )}
+                            </form.AppField>
+                          )}
+                        </form.Subscribe>
+                        <span className="ml-auto flex shrink-0 items-center gap-0.5">
+                          <form.AppField name={`steps[${i}].active`}>
+                            {(subField) => (
+                              <Switch
+                                size="sm"
+                                className="mr-1"
+                                checked={subField.state.value}
+                                onCheckedChange={subField.handleChange}
+                                aria-label={`Step ${i + 1} active`}
+                              />
+                            )}
+                          </form.AppField>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            type="button"
+                            className="size-7"
+                            aria-label={`Move step ${i + 1} up`}
+                            disabled={i === 0}
+                            onClick={() => field.moveValue(i, i - 1)}
+                          >
+                            <IconChevronUp className="size-3.5" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            type="button"
+                            className="size-7"
+                            aria-label={`Move step ${i + 1} down`}
+                            disabled={i === rows.length - 1}
+                            onClick={() => field.moveValue(i, i + 1)}
+                          >
+                            <IconChevronDown className="size-3.5" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            type="button"
+                            className="hover:text-destructive size-7"
+                            aria-label={`Remove step ${i + 1}`}
+                            onClick={() => field.removeValue(i)}
+                          >
+                            <IconX className="size-3.5" />
+                          </Button>
+                        </span>
+                      </div>
+                    )}
+                  </form.Subscribe>
                 ))}
 
-                {rows.some((row) => (row.provider.trim() === '') !== (row.model.trim() === '')) ? (
+                {hasIncompleteStep ? (
                   <p className="text-xs text-destructive">
                     Every step needs both a provider and a model before saving.
                   </p>
@@ -357,7 +404,9 @@ function ChainForm({ chain, onOpenChange }: ChainFormProps) {
                   variant="outline"
                   size="sm"
                   className="border-dashed"
-                  onClick={() => form.pushFieldValue('steps', { provider: '', model: '' })}
+                  onClick={() =>
+                    form.pushFieldValue('steps', { provider: '', model: '', active: true })
+                  }
                 >
                   <IconPlus /> Add step
                 </Button>

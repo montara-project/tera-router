@@ -1,0 +1,84 @@
+---
+title: Web Search & Fetch
+description: Cari di web dan baca halaman sebagai markdown lewat satu API — POST /v1/search dan POST /v1/web/fetch.
+---
+
+Dua endpoint ini memberi agent akses web langsung lewat provider yang sudah kamu hubungkan. Bentuk
+request dan response-nya milik router sendiri dan tetap sama, provider mana pun yang menjawab.
+
+| Endpoint             | Provider                                              |
+| -------------------- | ----------------------------------------------------- |
+| `POST /v1/search`    | Exa, Tavily, Firecrawl, Jina AI, Brave Search, Serper |
+| `POST /v1/web/fetch` | Exa, Tavily, Firecrawl, Jina AI                       |
+
+Hubungkan minimal satu di antaranya di **Providers → AI Search Providers** terlebih dahulu.
+
+## Search
+
+```bash
+curl http://localhost:8080/v1/search \
+  -H "Authorization: Bearer sk_tr_..." \
+  -H "Content-Type: application/json" \
+  -d '{ "query": "latest Go release notes", "max_results": 5 }'
+```
+
+| Field         | Wajib | Catatan                                                                                              |
+| ------------- | ----- | ---------------------------------------------------------------------------------------------------- |
+| `query`       | ya    | Kata kunci pencarian.                                                                                |
+| `max_results` | tidak | 1–20, default 5.                                                                                     |
+| `provider`    | tidak | `exa`, `tavily`, `firecrawl`, `jina-ai`, `brave`, atau `serper`. Kosongkan agar router yang memilih. |
+
+```json
+{
+  "provider": "exa",
+  "query": "latest Go release notes",
+  "results": [
+    {
+      "title": "Go 1.26 Release Notes",
+      "url": "https://go.dev/doc/go1.26",
+      "snippet": "…",
+      "published_date": "2026-02-10"
+    }
+  ]
+}
+```
+
+`published_date` hanya muncul kalau provider melaporkannya.
+
+## Fetch
+
+```bash
+curl http://localhost:8080/v1/web/fetch \
+  -H "Authorization: Bearer sk_tr_..." \
+  -H "Content-Type: application/json" \
+  -d '{ "url": "https://go.dev/doc/effective_go" }'
+```
+
+| Field      | Wajib | Catatan                                                                           |
+| ---------- | ----- | --------------------------------------------------------------------------------- |
+| `url`      | ya    | URL absolut `http://` atau `https://`.                                            |
+| `provider` | tidak | `exa`, `tavily`, `firecrawl`, atau `jina-ai`. Kosongkan agar router yang memilih. |
+
+```json
+{
+  "provider": "jina-ai",
+  "url": "https://go.dev/doc/effective_go",
+  "title": "Effective Go",
+  "content": "# Effective Go\n\n…"
+}
+```
+
+## Fallback dan akses
+
+Tanpa `provider`, router mencoba setiap provider yang terhubung secara bergantian dan pindah ke
+berikutnya kalau satu gagal (fetch yang kembali kosong juga dihitung gagal). Prioritas akun, cooldown,
+budget, dan pencatatan usage berjalan persis seperti chat.
+
+Allowlist key dan plan memperlakukan setiap provider sebagai model bernama sesuai kemampuannya, jadi
+`exa/search`, `exa/*`, atau `search` memberi akses.
+
+| Status | Arti                                                                 |
+| ------ | -------------------------------------------------------------------- |
+| `400`  | `query` kosong, `url` tidak valid, atau provider tanpa kemampuan itu |
+| `403`  | Allowlist key tidak mengizinkan web search/fetch                     |
+| `503`  | Belum ada provider search/fetch yang terhubung                       |

@@ -155,7 +155,9 @@ func setUpstreamAuth(req *http.Request, anthropic bool, oauth bool, apiKey strin
 // bare hosts like https://api.openai.com — still get /v1 inserted.
 func V1Join(base, path string) string {
 	base = strings.TrimSuffix(base, "/")
-	if strings.HasSuffix(base, "/v1") || strings.Contains(base, "/v1/") {
+	// A /v1 or /v1beta step anywhere (Gemini's .../v1beta/openai) is
+	// already versioned.
+	if withSlash := base + "/"; strings.Contains(withSlash, "/v1/") || strings.Contains(withSlash, "/v1beta/") {
 		return base + "/" + strings.TrimLeft(path, "/")
 	}
 	return base + "/v1/" + strings.TrimLeft(path, "/")

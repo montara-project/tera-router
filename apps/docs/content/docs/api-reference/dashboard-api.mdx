@@ -147,15 +147,28 @@ Pagination uses the `offset` (0-based) and `limit` (default 10, max 100) query p
 | POST                 | `/v1/guardrails/evaluate` | Test policies (dry run)   |
 | PUT / PATCH / DELETE | `/v1/guardrails/:id`      | Manage policies           |
 
+### Tunnels
+
+| Method | Path                             | Notes                                                      |
+| ------ | -------------------------------- | ---------------------------------------------------------- |
+| GET    | `/v1/tunnels/cloudflare`         | `installed`, `running`, and the quick tunnel `url`         |
+| POST   | `/v1/tunnels/cloudflare/enable`  | Start a quick tunnel (remembered across restarts)          |
+| POST   | `/v1/tunnels/cloudflare/disable` | Stop it and keep it off                                    |
+| GET    | `/v1/tunnels/tailscale`          | `installed`, `logged_in`, `running`, and the tailnet `url` |
+| POST   | `/v1/tunnels/tailscale/enable`   | `tailscale serve --bg` this server over HTTPS              |
+| POST   | `/v1/tunnels/tailscale/disable`  | Remove this server's serve mapping                         |
+
+Enabling and disabling are audit-logged. See [Remote access](/docs/getting-started/remote-access).
+
 ### Misc
 
-| Method            | Path               | Notes                                        |
-| ----------------- | ------------------ | -------------------------------------------- |
-| GET / PUT / PATCH | `/v1/settings`     | Router settings (timeout, round-robin, etc.) |
-| GET / POST        | `/v1/skills`       | List / create skills                         |
-| PATCH             | `/v1/skills/:id`   | Switch gateway injection (`enabled`)         |
-| DELETE            | `/v1/skills/:id`   | Delete skill                                 |
-| GET / DELETE      | `/v1/console`      | Ring buffer log (500 entries) / clear        |
-| GET               | `/v1/system/stats` | Host & process metrics                       |
-| GET               | `/v1/media`        | Media provider catalog                       |
-| GET               | `/health`          | Server health (no auth)                      |
+| Method            | Path               | Notes                                            |
+| ----------------- | ------------------ | ------------------------------------------------ |
+| GET / PUT / PATCH | `/v1/settings`     | Router settings (timeout, round-robin, etc.)     |
+| GET / POST        | `/v1/skills`       | List / create skills                             |
+| PATCH             | `/v1/skills/:id`   | Switch gateway injection (`enabled`)             |
+| DELETE            | `/v1/skills/:id`   | Delete skill                                     |
+| GET / DELETE      | `/v1/console`      | Ring buffer log (500 entries) / clear            |
+| GET               | `/v1/system/stats` | Host & process metrics                           |
+| GET               | `/v1/media`        | Catalog providers grouped by non-chat capability |
+| GET               | `/health`          | Server health (no auth)                          |

@@ -5,24 +5,37 @@ description: The built-in provider catalog, adding accounts, priorities, and cus
 
 ## Provider vs account
 
-- A **provider** is a type of upstream (OpenAI, Anthropic, GLM, ...) with a built-in dialect and base URL.
+- A **provider** is a type of upstream (OpenAI, Anthropic, Gemini, Exa, ...) with a built-in dialect and base URL.
 - An **account** is your concrete credential on that provider — one provider can have many accounts.
 
 ## Built-in catalog
 
-| Dialect              | Providers                                                                                                                                    |
-| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| OpenAI-compatible    | `openai`, `deepseek`, `xai`, `glm-cn`, `mistral`, `groq`, `cohere`, `perplexity`, `openrouter`, `nvidia`, `azure`, `vllm`, `ollama`, `cline` |
-| Anthropic-compatible | `anthropic` (API key or Claude sign-in, OAuth), `glm`, `kimi`, `minimax`                                                                     |
-| Responses            | `codex` (OAuth, ChatGPT backend)                                                                                                             |
-| No credentials       | `ollama-local` (localhost:11434)                                                                                                             |
-| OAuth-only           | `gemini`, `vertex`, `github` (Copilot), `cursor`, `kiro`, `qoder`, `kilocode`                                                                |
+The **Providers** page splits the catalog into four tabs. A provider appears under every tab its capabilities match — OpenAI, for example, is under all of them except search.
+
+| Tab                     | Providers                                                                                                                                                                                   |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **AI Model Providers**  | `openai`, `anthropic`, `openrouter`, `nvidia`, `gemini`, `mistral`, `together`, `fireworks`, `nebius`, `groq`, `cline`, `cloudflare`, `muse`, `voyage-ai`, `jina-ai`, plus custom providers |
+| **AI Search Providers** | `exa`, `tavily`, `firecrawl`, `jina-ai`, `brave`, `serper`                                                                                                                                  |
+| **AI Voice Providers**  | `openai`, `groq` (STT), `elevenlabs`, `deepgram`, plus OpenAI-compatible custom providers                                                                                                   |
+| **AI Image Generation** | `openai`, `gemini`, `together`, `muse`, plus OpenAI-compatible custom providers                                                                                                             |
+
+What each capability unlocks on the gateway:
+
+| Capability     | Gateway endpoint                                                      |
+| -------------- | --------------------------------------------------------------------- |
+| chat           | `/v1/chat/completions`, `/v1/messages`, `/v1/responses`               |
+| embeddings     | [`/v1/embeddings`](/docs/gateway/embeddings)                          |
+| image          | [`/v1/images/generations`](/docs/gateway/images)                      |
+| tts / stt      | [`/v1/audio/speech`, `/v1/audio/transcriptions`](/docs/gateway/audio) |
+| search / fetch | [`/v1/search`, `/v1/web/fetch`](/docs/gateway/web-search)             |
+
+Chat providers speak the OpenAI dialect except `anthropic` (Anthropic dialect). OpenAI and Anthropic can be connected with an API key or by signing in on the official website (OAuth); the OpenAI sign-in is routed as the separate `codex` provider (Responses dialect, ChatGPT backend).
 
 Account credentials are stored encrypted (envelope encryption with a key derived from `APP_SECRET`).
 
 ## Adding an account
 
-Via the dashboard (**Providers → pick a provider → Connect**) or the API. Always test before saving:
+Via the dashboard (**Providers → pick a provider → Connect**) or the API. Chat providers sync their model list right after connecting; search, voice, and embedding-only providers (Exa, ElevenLabs, Voyage AI, …) only need the key, which is checked on first use because those APIs have no free test call. Test before saving:
 
 ```bash
 curl -X POST http://localhost:8080/v1/validate-key \

@@ -1,0 +1,35 @@
+---
+title: Image Generation
+description: Text-to-image in OpenAI's images format — POST /v1/images/generations.
+---
+
+`POST /v1/images/generations` takes OpenAI's images request. The router resolves `model` like chat
+and rewrites only that field — `size`, `n`, `quality`, `response_format`, and any provider-specific
+extra reach the upstream untouched. The response is relayed unchanged.
+
+```bash
+curl http://localhost:8080/v1/images/generations \
+  -H "Authorization: Bearer sk_tr_..." \
+  -H "Content-Type: application/json" \
+  -d '{ "model": "openai/gpt-image-1", "prompt": "A watercolor fox in a snowy forest", "size": "1024x1024" }'
+```
+
+```json
+{ "created": 1760000000, "data": [{ "b64_json": "iVBORw0KGgo…" }] }
+```
+
+Depending on the model and `response_format`, each item carries `b64_json` or a temporary `url`. With
+the OpenAI SDK, set `baseURL` to `http://localhost:8080/v1` and call `images.generate`.
+
+## Providers
+
+Every catalog provider that lists the **image** capability on the OpenAI dialect serves this
+endpoint — OpenAI, Gemini, Together AI, and Meta Muse — plus any OpenAI-compatible custom provider
+(for example a hosted FLUX endpoint addressed as `<provider-slug>/<model>`).
+
+<Callout type="warn" title="Slow models">
+  Generation can take tens of seconds; the router waits up to 90 seconds before answering `504`.
+</Callout>
+
+`400` means the model names a provider without image generation; `503` means no account is connected
+for it.

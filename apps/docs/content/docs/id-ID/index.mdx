@@ -8,10 +8,12 @@ description: Satu base URL dan satu API key untuk semua model — format OpenAI,
 Tera Router adalah LLM gateway yang kamu jalankan sendiri. Arahkan SDK, `curl`, atau coding agent favoritmu ke satu base URL, dan router yang meneruskan setiap request ke provider yang sudah kamu hubungkan — lengkap dengan fallback, cooldown, pembatasan biaya, dan pencatatan usage.
 
 - **Kompatibel dengan tiga dialek** — `POST /v1/chat/completions` (OpenAI), `POST /v1/messages` (Anthropic), dan `POST /v1/responses` (OpenAI Responses). Klien yang sudah ada tidak perlu diubah.
+- **Lebih dari chat** — web search dan fetch, text-to-speech, speech-to-text, pembuatan gambar, dan embeddings dengan key yang sama, lengkap dengan fallback dan pencatatan usage yang sama.
 - **Routing yang bisa diatur** — rantai provider dengan strategi `priority`, `round-robin`, atau `load-balanced`, plus fallback otomatis saat satu akun gagal atau kena rate limit.
 - **Kontrol biaya** — plan dan budget per key, per akun, atau global, dengan alert dan hard cutoff.
 - **Guardrails** — deteksi PII, prompt injection, topik, toksisitas, dan bias sebelum request keluar.
 - **Dashboard** — kelola semua di atas dari UI: API key, akun provider, chains, guardrails, usage, sampai log console.
+- **Akses jarak jauh** — bagikan router lewat Cloudflare quick tunnel sekali klik, atau simpan privat di jaringan Tailscale-mu.
 
 ## Tiga langkah ke request pertama
 
@@ -77,6 +79,9 @@ Perhatikan: dengan Tera Router, model Anthropic bisa dipanggil lewat SDK OpenAI 
   </Card>
   <Card href="/id-ID/docs/gateway/model-addressing" title="Model & routing">
     `provider/model`, alias pool, dan `chain:`.
+  </Card>
+  <Card href="/id-ID/docs/getting-started/remote-access" title="Akses jarak jauh">
+    Cloudflare Tunnel dan Tailscale.
   </Card>
   <Card href="/id-ID/docs/concepts/guardrails" title="Guardrails">
     Filter PII, injection, dan topik terlarang.

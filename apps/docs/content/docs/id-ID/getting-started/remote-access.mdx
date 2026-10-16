@@ -1,0 +1,110 @@
+---
+title: Akses Jarak Jauh
+description: Akses router dari luar mesinnya — Cloudflare quick tunnel yang publik atau alamat HTTPS Tailscale yang privat.
+---
+
+Secara default router mendengarkan di `http://localhost:8080`. Untuk memakainya dari mesin lain, HP, atau
+laptop rekan tim, nyalakan salah satu dari dua tunnel di halaman **Endpoints**:
+
+|                 | Cloudflare Tunnel                                          | Tailscale                                       |
+| --------------- | ---------------------------------------------------------- | ----------------------------------------------- |
+| Siapa yang bisa | Siapa pun di internet yang punya URL-nya                   | Hanya perangkat di tailnet-mu                   |
+| URL             | Acak `https://*.trycloudflare.com`, baru setiap kali nyala | Tetap `https://<mesin>.<tailnet>.ts.net`        |
+| Akun            | Tidak perlu                                                | Akun Tailscale; host sudah bergabung ke tailnet |
+| Binary di host  | `cloudflared` (sudah ada di image Docker)                  | `tailscale` (tidak ada di image Docker)         |
+| Cocok untuk     | Demo cepat dan berbagi                                     | Pemakaian privat sehari-hari di perangkatmu     |
+
+Dengan keduanya, gateway tetap butuh API key `sk_tr_` dan dashboard tetap butuh login. Pakai URL tunnel
+sebagai base URL: `https://<host-tunnel>/v1` untuk SDK OpenAI, `https://<host-tunnel>` untuk SDK
+Anthropic.
+
+## Cloudflare Tunnel
+
+Cloudflare _quick tunnel_ membuka router di alamat publik `*.trycloudflare.com` tanpa akun Cloudflare
+atau pengaturan DNS.
+
+1. Pastikan `cloudflared` ada di `PATH` host server. Image Docker sudah menyertakannya; untuk instalasi
+   lokal lihat [halaman unduhan Cloudflare](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/).
+2. Buka **Endpoints → Tunnels → Cloudflare Tunnel** lalu klik **Enable**.
+3. Tunggu beberapa detik sampai URL `https://….trycloudflare.com` muncul, lalu klik **Copy**.
+
+Cara kerjanya:
+
+- Server menjalankan `cloudflared` sebagai child process, yang ikut berhenti saat server berhenti.
+- Pilihan nyala/mati disimpan, jadi setelah restart tunnel menyala lagi sendiri — dengan **URL baru**.
+- Klik **Disable** untuk mematikannya dan membiarkannya mati setelah restart.
+- Rate limit dashboard menghitung tiap pengunjung secara terpisah: server memercayai header
+  `Cf-Connecting-IP` selama tunnel menyala.
+
+<Callout type="warn" title="Publik secara desain">
+  Siapa pun yang punya URL-nya bisa membuka halaman login dan endpoint gateway-mu. Jaga kerahasiaan
+  API key, dan pakai Tailscale kalau hanya perangkatmu sendiri yang perlu akses. Cloudflare
+  memposisikan quick tunnel untuk pengujian, tanpa jaminan uptime.
+</Callout>
+
+## Tailscale
+
+Tailscale memublikasikan router di tailnet privatmu dengan sertifikat HTTPS asli, lewat
+[`tailscale serve`](https://tailscale.com/kb/1312/serve). Hanya perangkat yang login ke tailnet yang
+sama yang bisa membukanya.
+
+### Prasyarat
+
+1. Pasang Tailscale di host server dan gabungkan ke tailnet-mu: `tailscale up`.
+2. Di admin console Tailscale, bagian **DNS**, aktifkan **MagicDNS** dan **HTTPS Certificates** —
+   `tailscale serve` membutuhkannya untuk sertifikat `*.ts.net`.
+3. Di Linux, izinkan user yang menjalankan router mengelola Tailscale tanpa `sudo`:
+
+   ```bash
+   sudo tailscale set --operator=$USER
+   ```
+
+### Menyalakan
+
+Buka **Endpoints → Tunnels → Tailscale** lalu klik **Enable**. Router menjalankan:
+
+```bash
+tailscale serve --bg --https=443 http://127.0.0.1:8080
+```
+
+lalu menampilkan URL `https://<mesin>.<tailnet>.ts.net` beserta tombol **Copy**. Kalau tidak bisa
+dinyalakan, baris itu menjelaskan apa yang kurang — CLI belum terpasang, atau host belum masuk tailnet.
+
+Cara kerjanya:
+
+- `tailscaled` menyimpan pemetaannya, jadi tetap aktif setelah router maupun host di-restart. URL-nya
+  tidak pernah berubah.
+- **Disable** hanya menghapus pemetaan milik router; konfigurasi `tailscale serve` lain di host tidak
+  disentuh.
+- Error dari CLI ditampilkan apa adanya — misalnya saat HTTPS certificates belum diaktifkan untuk
+  tailnet, atau router tidak punya izin (lihat langkah `--operator` di atas).
+- Tailscale meneruskan request dari host itu sendiri, jadi rate limit dashboard melihat semua
+  pengunjung tailnet sebagai satu klien lokal.
+
+### Dengan Docker
+
+Image Docker tidak menyertakan `tailscale`, sehingga tombol **Enable** melaporkannya belum terpasang.
+Jalankan `tailscale serve` di host Docker, diarahkan ke port yang dipublikasikan:
+
+```bash
+# di host Docker (sudah bergabung ke tailnet)
+tailscale serve --bg --https=443 http://127.0.0.1:8080
+
+# nanti, untuk menghapusnya
+tailscale serve --https=443 http://127.0.0.1:8080 off
+```
+
+Router lalu bisa diakses di `https://<host-docker>.<tailnet>.ts.net`.
+
+## Arahkan tool-mu ke tunnel
+
+Begitu tunnel menyala, cukup ganti base URL di klien — tidak ada yang lain yang berubah:
+
+```ts title="SDK OpenAI lewat Tailscale"
+import OpenAI from 'openai'
+
+const client = new OpenAI({
+  apiKey: 'sk_tr_...',
+  baseURL: 'https://my-server.tail1234.ts.net/v1',
+})
+```

@@ -27,6 +27,19 @@ const resources = (): TunnelResources => {
       const url = `${path}/cloudflare/disable`
       return api.post(url)
     },
+    tailscale: () => {
+      const url = `${path}/tailscale`
+      return api.get(url)
+    },
+    /** runs `tailscale serve` on the server host (audit-logged) */
+    enableTailscale: () => {
+      const url = `${path}/tailscale/enable`
+      return api.post(url)
+    },
+    disableTailscale: () => {
+      const url = `${path}/tailscale/disable`
+      return api.post(url)
+    },
   }
 }
 

@@ -14,7 +14,9 @@ For every request, the router:
 
 ## Fallback chains
 
-A chain determines who gets tried next. Example `heavy-coding`: Claude first, GLM second, OpenRouter as the closing fallback. If the first step gets a `429`, the router starts a 30-second cooldown for that account and immediately continues to the second step — the client sees no error.
+A chain determines who gets tried next. Example `heavy-coding`: Claude first, GPT-4o second, OpenRouter as the closing fallback. If the first step gets a `429`, the router starts a 30-second cooldown for that account and immediately continues to the second step — the client sees no error.
+
+Every step can be switched off individually (**Chains → edit → step switch**, or `"active": false` in the API). Inactive steps are skipped but keep their place, so switching one back on restores the original order.
 
 ## Retries and cooldowns
 
@@ -26,6 +28,10 @@ A chain determines who gets tried next. Example `heavy-coding`: Claude first, GL
 | All targets exhausted          | `503` to the client                                      |
 
 At most **10 attempts** per request in total. Cooldowns rest problem accounts instead of hammering them again — their status is visible on the **Provider Health** page.
+
+## Beyond chat
+
+Web search/fetch, audio, image, and embedding requests go through the same pipeline: key and plan allowlists, budgets, account priority, cooldowns, and fallback to the next target or account. Embedding tokens are metered and priced like chat tokens.
 
 ## Concurrency
 

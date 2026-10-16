@@ -1,11 +1,15 @@
 'use client'
 
-import { IconInbox, IconPuzzle, IconTrash } from '@tabler/icons-react'
+import { IconEye, IconInbox, IconPuzzle, IconTrash } from '@tabler/icons-react'
+import { useState } from 'react'
 
 import type { Models } from '@/lib/api/models'
 
 import IconBadge from '@/components/block/common/icon-badge'
 import CopySkillButton from '@/components/block/traffic/skills/copy-skill-button'
+import SkillDetailDialog, {
+  type SkillDetailTarget,
+} from '@/components/block/traffic/skills/skill-detail-dialog'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -44,12 +48,14 @@ function CustomSkillRow({
   toggling,
   onToggle,
   onDelete,
+  onView,
 }: {
   skill: Models.Skill
   deleting: boolean
   toggling: boolean
   onToggle: (skill: Models.Skill, enabled: boolean) => void
   onDelete: (skill: Models.Skill) => void
+  onView: (skill: Models.Skill) => void
 }) {
   return (
     <div className="flex items-center justify-between gap-4 px-5 py-4">
@@ -66,6 +72,16 @@ function CustomSkillRow({
           disabled={toggling}
           onCheckedChange={(checked) => onToggle(skill, checked)}
         />
+        <Button
+          type="button"
+          variant="ghost"
+          mode="icon"
+          size="icon"
+          aria-label={`View ${skill.name} skill`}
+          onClick={() => onView(skill)}
+        >
+          <IconEye className="text-muted-foreground" />
+        </Button>
         <CopySkillButton value={skillUrl(skill.id)} label={`Copy ${skill.name} skill URL`} />
         <Button
           type="button"
@@ -92,6 +108,7 @@ export default function CustomSkillsCard({
   onDelete,
 }: CustomSkillsCardProps) {
   const isEmpty = skills.length === 0
+  const [viewing, setViewing] = useState<SkillDetailTarget | null>(null)
 
   return (
     <Card className="bg-background">
@@ -138,12 +155,14 @@ export default function CustomSkillsCard({
                 deleting={deletingId === skill.id}
                 toggling={togglingId === skill.id}
                 onToggle={onToggle}
+                onView={(s) => setViewing({ slug: s.id, name: s.name })}
                 onDelete={onDelete}
               />
             ))}
           </div>
         )}
       </CardContent>
+      <SkillDetailDialog skill={viewing} onClose={() => setViewing(null)} />
     </Card>
   )
 }
