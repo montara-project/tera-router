@@ -20,6 +20,7 @@ import SectionCard from '@/components/block/common/section-card'
 import {
   API_KEY_PROVIDERS,
   CUSTOM_CONNECT_PRESETS,
+  KEY_ONLY_PROVIDERS,
   OAUTH_FLOW_FOR,
 } from '@/components/block/providers/catalog-connect'
 import ConnectModeDialog from '@/components/block/providers/connect-mode-dialog'
@@ -235,7 +236,7 @@ function RouteComponent() {
       setModeProvider({ slug: provider.slug, name: provider.name })
       return
     }
-    if (API_KEY_PROVIDERS[provider.slug]) {
+    if (API_KEY_PROVIDERS[provider.slug] || KEY_ONLY_PROVIDERS[provider.slug]) {
       setKeyProvider({ slug: provider.slug, name: provider.name })
       return
     }

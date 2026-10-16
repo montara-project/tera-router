@@ -25,4 +25,18 @@ export const API_KEY_PROVIDERS: Record<string, { name: string }> = {
   cline: { name: 'Cline' },
   cloudflare: { name: 'Cloudflare AI' },
   muse: { name: 'Meta Muse' },
+  groq: { name: 'Groq' },
+}
+
+/** Web search and voice providers: Connect opens the key form, but they have
+ * no model catalog to sync — the gateway calls them by capability. */
+export const KEY_ONLY_PROVIDERS: Record<string, { name: string }> = {
+  exa: { name: 'Exa' },
+  tavily: { name: 'Tavily' },
+  firecrawl: { name: 'Firecrawl' },
+  'jina-ai': { name: 'Jina AI' },
+  brave: { name: 'Brave Search' },
+  serper: { name: 'Serper' },
+  elevenlabs: { name: 'ElevenLabs' },
+  deepgram: { name: 'Deepgram' },
 }
