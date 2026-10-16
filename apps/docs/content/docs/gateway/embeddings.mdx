@@ -1,0 +1,52 @@
+---
+title: Embeddings
+description: Text embeddings for RAG and semantic search in OpenAI's format — POST /v1/embeddings.
+---
+
+`POST /v1/embeddings` takes OpenAI's embeddings request. The router resolves `model` like chat and
+rewrites only that field, so provider extras such as NVIDIA's `input_type` or Jina's `task` pass
+through. The response is relayed unchanged.
+
+```bash
+curl http://localhost:8080/v1/embeddings \
+  -H "Authorization: Bearer sk_tr_..." \
+  -H "Content-Type: application/json" \
+  -d '{ "model": "openai/text-embedding-3-small", "input": ["first passage", "second passage"] }'
+```
+
+```json
+{
+  "object": "list",
+  "data": [{ "object": "embedding", "index": 0, "embedding": [0.0123, -0.0456] }],
+  "model": "text-embedding-3-small",
+  "usage": { "prompt_tokens": 6, "total_tokens": 6 }
+}
+```
+
+## Providers
+
+| Provider             | `model` example                            | Notes                                       |
+| -------------------- | ------------------------------------------ | ------------------------------------------- |
+| OpenAI               | `openai/text-embedding-3-small`            |                                             |
+| OpenRouter           | `openrouter/openai/text-embedding-3-small` |                                             |
+| NVIDIA NIM           | `nvidia/nvidia/nv-embedqa-e5-v5`           | send `"input_type": "query"` or `"passage"` |
+| Gemini               | `gemini/gemini-embedding-001`              |                                             |
+| Mistral AI           | `mistral/mistral-embed`                    |                                             |
+| Together AI          | `together/BAAI/bge-large-en-v1.5`          |                                             |
+| Fireworks AI         | `fireworks/nomic-ai/nomic-embed-text-v1.5` |                                             |
+| Nebius Token Factory | `nebius/BAAI/bge-en-icl`                   |                                             |
+| Cloudflare AI        | `cloudflare/@cf/baai/bge-m3`               |                                             |
+| Voyage AI            | `voyage-ai/voyage-3.5`                     |                                             |
+| Jina AI              | `jina-ai/jina-embeddings-v3`               | optional `"task"`, e.g. `retrieval.query`   |
+
+OpenAI-compatible custom providers work too.
+
+## Metering
+
+The `usage.prompt_tokens` an upstream reports is recorded like chat tokens: it shows on the **Usage**
+page, is priced through your model pricing overrides, and counts against the key's budgets.
+
+<Callout type="idea" title="One model per index">
+  Embed queries and documents with the same model — vectors from different models are not
+  comparable.
+</Callout>

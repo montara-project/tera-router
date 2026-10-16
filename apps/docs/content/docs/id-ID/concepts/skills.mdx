@@ -28,14 +28,21 @@ Skill yang disuntikkan ditambahkan setelah system prompt dari klien, sesuai urut
 
 Selain skill buatanmu, halaman **Skills** menampilkan _reference skills_: panduan siap-pakai yang menjelaskan ke sebuah agent cara memakai Tera Router — endpoint mana yang dipanggil, autentikasi seperti apa, format body seperti apa.
 
-Cara pakainya: klik **Copy** pada skill yang diinginkan, lalu tempel URL-nya ke agent (Claude Code, Cursor, dll). Agent akan membaca panduan itu dan tahu cara bicara dengan router-mu.
+| Reference skill  | Isinya                                                  |
+| ---------------- | ------------------------------------------------------- |
+| Tera Router      | Panduan setup dan indeks skill lainnya                  |
+| Chat             | `/v1/chat/completions`, `/v1/messages`, `/v1/responses` |
+| Image Generation | `/v1/images/generations`                                |
+| Text-to-Speech   | `/v1/audio/speech`                                      |
+| Speech-to-Text   | `/v1/audio/transcriptions`                              |
+| Embeddings       | `/v1/embeddings`                                        |
+| Web Search       | `/v1/search`                                            |
+| Web Fetch        | `/v1/web/fetch`                                         |
+
+Cara pakainya: klik **Copy** pada skill yang diinginkan, lalu tempel URL-nya ke agent (Claude Code, Cursor, dll). Agent akan membaca panduan itu dan tahu cara bicara dengan router-mu. Tiap panduan mengisi alamat tempat ia diminta, jadi contohnya sesuai dengan router-mu.
+
+Klik ikon **mata** pada skill mana pun — reference maupun custom — untuk membaca `SKILL.md`-nya sebagai Markdown yang sudah dirender di dialog, persis seperti yang diterima agent.
 
 ## Media catalog
 
-Halaman **Media** adalah katalog provider untuk kebutuhan non-teks: embeddings, text-to-speech, speech-to-text, dan image. Katalognya statis dari server (`GET /v1/media`) — dipakai untuk melihat provider mana yang menyediakan kemampuan tertentu (OpenRouter, NVIDIA NIM, vLLM, Gemini, Copilot, OpenAI, Mistral, Together, Fireworks, dan lainnya).
-
-<Callout type="warn" title="Gateway saat ini melayani teks">
-  Endpoint inference yang aktif di gateway baru chat, messages, dan responses. Endpoint
-  gambar/audio/embedding belum tersedia di gateway — katalog Media adalah peta jalan penyedia yang
-  didukung.
-</Callout>
+Halaman **Media** mengelompokkan provider berdasarkan kemampuan non-chat: embeddings, gambar, text-to-speech, speech-to-text, web search, dan web fetch. Daftarnya dibangun dari katalog provider yang sama dengan halaman **Providers** (`GET /v1/media`), jadi setiap kartunya bisa dihubungkan dan dipakai routing. Tiap kartu menunjukkan apakah provider sudah terhubung dan menautkan ke halaman detailnya.

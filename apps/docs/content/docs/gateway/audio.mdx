@@ -1,0 +1,69 @@
+---
+title: Audio
+description: Text-to-speech and speech-to-text in OpenAI's audio format — POST /v1/audio/speech and POST /v1/audio/transcriptions.
+---
+
+Both endpoints use OpenAI's audio API, so the OpenAI SDK works by swapping its base URL. `model`
+resolves exactly like chat — `provider/model`, an alias, or `chain:<name>` — and the router keeps only
+the targets whose provider supports the capability.
+
+| Endpoint                        | Providers                                                              |
+| ------------------------------- | ---------------------------------------------------------------------- |
+| `POST /v1/audio/speech`         | OpenAI, ElevenLabs, Deepgram, OpenAI-compatible custom providers       |
+| `POST /v1/audio/transcriptions` | OpenAI, Groq, ElevenLabs, Deepgram, OpenAI-compatible custom providers |
+
+## Text-to-speech
+
+```bash
+curl http://localhost:8080/v1/audio/speech \
+  -H "Authorization: Bearer sk_tr_..." \
+  -H "Content-Type: application/json" \
+  -d '{ "model": "openai/gpt-4o-mini-tts", "input": "Hello from Tera Router.", "voice": "alloy" }' \
+  --output speech.mp3
+```
+
+The response is the audio file itself; its `Content-Type` is the audio type (`audio/mpeg` for MP3).
+
+| Provider   | `model` example                          | `voice`                           |
+| ---------- | ---------------------------------------- | --------------------------------- |
+| OpenAI     | `openai/gpt-4o-mini-tts`, `openai/tts-1` | `alloy`, `nova`, `shimmer`, …     |
+| ElevenLabs | `elevenlabs/eleven_multilingual_v2`      | required: an ElevenLabs voice id  |
+| Deepgram   | `deepgram/aura-2-thalia-en`              | not used — the model is the voice |
+
+`response_format` and `speed` are honored by OpenAI-compatible providers; ElevenLabs and Deepgram
+return MP3.
+
+## Speech-to-text
+
+Send `multipart/form-data`, as with OpenAI's transcription API:
+
+```bash
+curl http://localhost:8080/v1/audio/transcriptions \
+  -H "Authorization: Bearer sk_tr_..." \
+  -F file=@meeting.mp3 \
+  -F model=groq/whisper-large-v3-turbo
+```
+
+```json
+{ "text": "Hello from the meeting." }
+```
+
+| Field      | Required | Notes                                            |
+| ---------- | -------- | ------------------------------------------------ |
+| `file`     | yes      | The audio file, up to 25 MB.                     |
+| `model`    | yes      | `provider/model`, an alias, or `chain:<name>`.   |
+| `language` | no       | ISO-639-1 code such as `en` or `id`.             |
+| `prompt`   | no       | Context hint — OpenAI-compatible providers only. |
+
+| Provider   | `model` example                                     |
+| ---------- | --------------------------------------------------- |
+| OpenAI     | `openai/gpt-4o-mini-transcribe`, `openai/whisper-1` |
+| Groq       | `groq/whisper-large-v3-turbo`                       |
+| ElevenLabs | `elevenlabs/scribe_v2`                              |
+| Deepgram   | `deepgram/nova-3`                                   |
+
+## Errors
+
+`400` means the model names a provider without the capability (or `file` is missing); `503` means no
+account is connected for it. An alias or chain that mixes providers falls back to the next one when a
+provider fails.

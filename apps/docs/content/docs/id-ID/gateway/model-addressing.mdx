@@ -50,8 +50,8 @@ curl -X POST http://localhost:8080/v1/chains \
     "fallback_model": "anthropic/claude-sonnet-4",
     "enabled": true,
     "steps": [
-      { "provider": "claude", "model": "claude-sonnet-4" },
-      { "provider": "glm", "model": "glm-4.6" }
+      { "provider": "anthropic", "model": "claude-sonnet-4" },
+      { "provider": "openai", "model": "gpt-4o", "active": false }
     ]
   }'
 ```
@@ -63,6 +63,8 @@ Strategi yang tersedia:
 - `load-balanced` — sebar request merata.
 
 Panggil dengan `model: "chain:heavy-coding"` (atau polos `heavy-coding`, karena nama chain dicari lebih dulu di bentuk ke-4).
+
+Setiap langkah punya flag `active` (default `true`). Langkah yang nonaktif tetap ada di chain tapi dilewati router — berguna untuk mengistirahatkan provider tanpa kehilangan posisinya. Chain tanpa langkah aktif dan tanpa fallback menjawab `400`.
 
 ## Suffix reasoning
 

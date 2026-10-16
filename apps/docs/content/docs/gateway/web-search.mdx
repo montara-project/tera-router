@@ -1,0 +1,84 @@
+---
+title: Web Search & Fetch
+description: Search the web and read pages as markdown through one API — POST /v1/search and POST /v1/web/fetch.
+---
+
+Two endpoints give agents live web access through the providers you have connected. The request
+and response shapes are the router's own and stay the same whichever provider answers.
+
+| Endpoint             | Providers                                             |
+| -------------------- | ----------------------------------------------------- |
+| `POST /v1/search`    | Exa, Tavily, Firecrawl, Jina AI, Brave Search, Serper |
+| `POST /v1/web/fetch` | Exa, Tavily, Firecrawl, Jina AI                       |
+
+Connect at least one of them on **Providers → AI Search Providers** first.
+
+## Search
+
+```bash
+curl http://localhost:8080/v1/search \
+  -H "Authorization: Bearer sk_tr_..." \
+  -H "Content-Type: application/json" \
+  -d '{ "query": "latest Go release notes", "max_results": 5 }'
+```
+
+| Field         | Required | Notes                                                                                       |
+| ------------- | -------- | ------------------------------------------------------------------------------------------- |
+| `query`       | yes      | The search query.                                                                           |
+| `max_results` | no       | 1–20, default 5.                                                                            |
+| `provider`    | no       | `exa`, `tavily`, `firecrawl`, `jina-ai`, `brave`, or `serper`. Omit to let the router pick. |
+
+```json
+{
+  "provider": "exa",
+  "query": "latest Go release notes",
+  "results": [
+    {
+      "title": "Go 1.26 Release Notes",
+      "url": "https://go.dev/doc/go1.26",
+      "snippet": "…",
+      "published_date": "2026-02-10"
+    }
+  ]
+}
+```
+
+`published_date` appears only when the provider reports one.
+
+## Fetch
+
+```bash
+curl http://localhost:8080/v1/web/fetch \
+  -H "Authorization: Bearer sk_tr_..." \
+  -H "Content-Type: application/json" \
+  -d '{ "url": "https://go.dev/doc/effective_go" }'
+```
+
+| Field      | Required | Notes                                                                    |
+| ---------- | -------- | ------------------------------------------------------------------------ |
+| `url`      | yes      | Absolute `http://` or `https://` URL.                                    |
+| `provider` | no       | `exa`, `tavily`, `firecrawl`, or `jina-ai`. Omit to let the router pick. |
+
+```json
+{
+  "provider": "jina-ai",
+  "url": "https://go.dev/doc/effective_go",
+  "title": "Effective Go",
+  "content": "# Effective Go\n\n…"
+}
+```
+
+## Fallback and access
+
+Without `provider`, the router tries every connected provider in turn and moves to the next when one
+fails (a fetch that comes back empty also counts as a failure). Account priority, cooldowns, budgets,
+and usage metering work exactly as for chat.
+
+Key and plan allowlists treat each provider as a model named after the capability, so `exa/search`,
+`exa/*`, or `search` grant access.
+
+| Status | Meaning                                                          |
+| ------ | ---------------------------------------------------------------- |
+| `400`  | Missing `query`, bad `url`, or a provider without the capability |
+| `403`  | The key's allowlist does not grant web search/fetch              |
+| `503`  | No search/fetch provider is connected                            |

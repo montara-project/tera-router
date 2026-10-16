@@ -147,6 +147,19 @@ Pagination memakai query `offset` (0-based) dan `limit` (default 10, maks 100).
 | POST                 | `/v1/guardrails/evaluate` | Uji kebijakan (dry run)   |
 | PUT / PATCH / DELETE | `/v1/guardrails/:id`      | Kelola kebijakan          |
 
+### Tunnels
+
+| Method | Path                             | Catatan                                                |
+| ------ | -------------------------------- | ------------------------------------------------------ |
+| GET    | `/v1/tunnels/cloudflare`         | `installed`, `running`, dan `url` quick tunnel         |
+| POST   | `/v1/tunnels/cloudflare/enable`  | Nyalakan quick tunnel (diingat setelah restart)        |
+| POST   | `/v1/tunnels/cloudflare/disable` | Matikan dan biarkan mati                               |
+| GET    | `/v1/tunnels/tailscale`          | `installed`, `logged_in`, `running`, dan `url` tailnet |
+| POST   | `/v1/tunnels/tailscale/enable`   | `tailscale serve --bg` server ini lewat HTTPS          |
+| POST   | `/v1/tunnels/tailscale/disable`  | Hapus pemetaan serve milik server ini                  |
+
+Menyalakan dan mematikan tercatat di audit log. Lihat [Akses jarak jauh](/id-ID/docs/getting-started/remote-access).
+
 ### Lainnya
 
 | Method            | Path               | Keterangan                                   |
@@ -157,5 +170,5 @@ Pagination memakai query `offset` (0-based) dan `limit` (default 10, maks 100).
 | DELETE            | `/v1/skills/:id`   | Hapus skill                                  |
 | GET / DELETE      | `/v1/console`      | Log ring buffer (500 entri) / bersihkan      |
 | GET               | `/v1/system/stats` | Metrik host & proses                         |
-| GET               | `/v1/media`        | Katalog provider media                       |
+| GET               | `/v1/media`        | Provider katalog per kemampuan non-chat      |
 | GET               | `/health`          | Kesehatan server (tanpa auth)                |

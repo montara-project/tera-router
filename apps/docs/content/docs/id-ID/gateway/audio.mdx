@@ -1,0 +1,69 @@
+---
+title: Audio
+description: Text-to-speech dan speech-to-text dengan format audio OpenAI — POST /v1/audio/speech dan POST /v1/audio/transcriptions.
+---
+
+Kedua endpoint memakai API audio OpenAI, jadi SDK OpenAI bisa langsung dipakai dengan mengganti base
+URL-nya. `model` dibaca persis seperti chat — `provider/model`, alias, atau `chain:<nama>` — dan router
+hanya menyimpan target yang provider-nya mendukung kemampuan itu.
+
+| Endpoint                        | Provider                                                              |
+| ------------------------------- | --------------------------------------------------------------------- |
+| `POST /v1/audio/speech`         | OpenAI, ElevenLabs, Deepgram, custom provider kompatibel OpenAI       |
+| `POST /v1/audio/transcriptions` | OpenAI, Groq, ElevenLabs, Deepgram, custom provider kompatibel OpenAI |
+
+## Text-to-speech
+
+```bash
+curl http://localhost:8080/v1/audio/speech \
+  -H "Authorization: Bearer sk_tr_..." \
+  -H "Content-Type: application/json" \
+  -d '{ "model": "openai/gpt-4o-mini-tts", "input": "Halo dari Tera Router.", "voice": "alloy" }' \
+  --output speech.mp3
+```
+
+Response-nya adalah file audio itu sendiri; `Content-Type`-nya jenis audio (`audio/mpeg` untuk MP3).
+
+| Provider   | Contoh `model`                           | `voice`                                |
+| ---------- | ---------------------------------------- | -------------------------------------- |
+| OpenAI     | `openai/gpt-4o-mini-tts`, `openai/tts-1` | `alloy`, `nova`, `shimmer`, …          |
+| ElevenLabs | `elevenlabs/eleven_multilingual_v2`      | wajib: voice id ElevenLabs             |
+| Deepgram   | `deepgram/aura-2-thalia-en`              | tidak dipakai — model-nya adalah suara |
+
+`response_format` dan `speed` dipakai oleh provider yang kompatibel dengan OpenAI; ElevenLabs dan
+Deepgram mengembalikan MP3.
+
+## Speech-to-text
+
+Kirim `multipart/form-data`, sama seperti API transkripsi OpenAI:
+
+```bash
+curl http://localhost:8080/v1/audio/transcriptions \
+  -H "Authorization: Bearer sk_tr_..." \
+  -F file=@rapat.mp3 \
+  -F model=groq/whisper-large-v3-turbo
+```
+
+```json
+{ "text": "Halo dari rapat." }
+```
+
+| Field      | Wajib | Catatan                                              |
+| ---------- | ----- | ---------------------------------------------------- |
+| `file`     | ya    | File audio, maksimal 25 MB.                          |
+| `model`    | ya    | `provider/model`, alias, atau `chain:<nama>`.        |
+| `language` | tidak | Kode ISO-639-1 seperti `en` atau `id`.               |
+| `prompt`   | tidak | Petunjuk konteks — hanya provider kompatibel OpenAI. |
+
+| Provider   | Contoh `model`                                      |
+| ---------- | --------------------------------------------------- |
+| OpenAI     | `openai/gpt-4o-mini-transcribe`, `openai/whisper-1` |
+| Groq       | `groq/whisper-large-v3-turbo`                       |
+| ElevenLabs | `elevenlabs/scribe_v2`                              |
+| Deepgram   | `deepgram/nova-3`                                   |
+
+## Error
+
+`400` berarti model menunjuk provider tanpa kemampuan itu (atau `file` tidak ada); `503` berarti belum
+ada akun yang terhubung untuknya. Alias atau chain yang mencampur provider akan pindah ke provider
+berikutnya kalau satu gagal.

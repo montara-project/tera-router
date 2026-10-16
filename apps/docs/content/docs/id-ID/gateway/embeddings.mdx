@@ -1,0 +1,52 @@
+---
+title: Embeddings
+description: Embedding teks untuk RAG dan semantic search dengan format OpenAI — POST /v1/embeddings.
+---
+
+`POST /v1/embeddings` menerima request embeddings OpenAI. Router membaca `model` seperti chat dan hanya
+mengubah field itu, jadi field khusus provider seperti `input_type` milik NVIDIA atau `task` milik Jina
+tetap diteruskan. Response provider dikembalikan tanpa diubah.
+
+```bash
+curl http://localhost:8080/v1/embeddings \
+  -H "Authorization: Bearer sk_tr_..." \
+  -H "Content-Type: application/json" \
+  -d '{ "model": "openai/text-embedding-3-small", "input": ["paragraf pertama", "paragraf kedua"] }'
+```
+
+```json
+{
+  "object": "list",
+  "data": [{ "object": "embedding", "index": 0, "embedding": [0.0123, -0.0456] }],
+  "model": "text-embedding-3-small",
+  "usage": { "prompt_tokens": 6, "total_tokens": 6 }
+}
+```
+
+## Provider
+
+| Provider             | Contoh `model`                             | Catatan                                        |
+| -------------------- | ------------------------------------------ | ---------------------------------------------- |
+| OpenAI               | `openai/text-embedding-3-small`            |                                                |
+| OpenRouter           | `openrouter/openai/text-embedding-3-small` |                                                |
+| NVIDIA NIM           | `nvidia/nvidia/nv-embedqa-e5-v5`           | kirim `"input_type": "query"` atau `"passage"` |
+| Gemini               | `gemini/gemini-embedding-001`              |                                                |
+| Mistral AI           | `mistral/mistral-embed`                    |                                                |
+| Together AI          | `together/BAAI/bge-large-en-v1.5`          |                                                |
+| Fireworks AI         | `fireworks/nomic-ai/nomic-embed-text-v1.5` |                                                |
+| Nebius Token Factory | `nebius/BAAI/bge-en-icl`                   |                                                |
+| Cloudflare AI        | `cloudflare/@cf/baai/bge-m3`               |                                                |
+| Voyage AI            | `voyage-ai/voyage-3.5`                     |                                                |
+| Jina AI              | `jina-ai/jina-embeddings-v3`               | opsional `"task"`, misal `retrieval.query`     |
+
+Custom provider yang kompatibel dengan OpenAI juga bisa dipakai.
+
+## Pencatatan
+
+`usage.prompt_tokens` yang dilaporkan provider dicatat seperti token chat: tampil di halaman **Usage**,
+dihitung biayanya lewat override harga model, dan mengurangi budget key.
+
+<Callout type="idea" title="Satu model per indeks">
+  Embed query dan dokumen dengan model yang sama — vektor dari model berbeda tidak bisa
+  dibandingkan.
+</Callout>

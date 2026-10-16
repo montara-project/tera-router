@@ -1,4 +1,4 @@
 {
   "title": "Getting Started",
-  "pages": ["installation", "docker-compose", "dashboard"]
+  "pages": ["installation", "docker-compose", "remote-access", "dashboard"]
 }

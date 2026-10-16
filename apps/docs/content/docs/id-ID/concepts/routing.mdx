@@ -16,6 +16,8 @@ Untuk setiap request, router:
 
 Chain menentukan siapa dicoba berikutnya. Contoh `heavy-coding`: Claude dulu, GLM kedua, OpenRouter sebagai fallback penutup. Kalau langkah pertama kena `429`, router masuk cooldown 30 detik untuk akun itu dan langsung lanjut ke langkah kedua — klien tidak melihat error.
 
+Setiap langkah bisa dimatikan satu per satu (**Chains → edit → saklar langkah**, atau `"active": false` di API). Langkah yang nonaktif dilewati tapi tetap di posisinya, jadi menyalakannya lagi mengembalikan urutan semula.
+
 ## Retry dan cooldown
 
 | Peristiwa                          | Tindakan router                                         |
@@ -26,6 +28,10 @@ Chain menentukan siapa dicoba berikutnya. Contoh `heavy-coding`: Claude dulu, GL
 | Semua target habis                 | `503` ke klien                                          |
 
 Total maksimal **10 percobaan** per request. Cooldown membuat akun yang bermasalah diistirahatkan, bukan dibanjiri lagi — statusnya terlihat di halaman **Provider Health**.
+
+## Di luar chat
+
+Request web search/fetch, audio, gambar, dan embeddings melewati pipeline yang sama: allowlist key dan plan, budget, prioritas akun, cooldown, dan fallback ke target atau akun berikutnya. Token embeddings dicatat dan dihitung biayanya seperti token chat.
 
 ## Konkurensi
 

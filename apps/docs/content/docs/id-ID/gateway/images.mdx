@@ -1,0 +1,36 @@
+---
+title: Pembuatan Gambar
+description: Text-to-image dengan format images OpenAI — POST /v1/images/generations.
+---
+
+`POST /v1/images/generations` menerima request images OpenAI. Router membaca `model` seperti chat dan
+hanya mengubah field itu — `size`, `n`, `quality`, `response_format`, dan field khusus provider
+diteruskan apa adanya. Response provider dikembalikan tanpa diubah.
+
+```bash
+curl http://localhost:8080/v1/images/generations \
+  -H "Authorization: Bearer sk_tr_..." \
+  -H "Content-Type: application/json" \
+  -d '{ "model": "openai/gpt-image-1", "prompt": "Rubah cat air di hutan bersalju", "size": "1024x1024" }'
+```
+
+```json
+{ "created": 1760000000, "data": [{ "b64_json": "iVBORw0KGgo…" }] }
+```
+
+Tergantung model dan `response_format`, tiap item berisi `b64_json` atau `url` sementara. Dengan SDK
+OpenAI, set `baseURL` ke `http://localhost:8080/v1` lalu panggil `images.generate`.
+
+## Provider
+
+Setiap provider katalog yang punya kemampuan **image** dengan dialek OpenAI melayani endpoint ini —
+OpenAI, Gemini, Together AI, dan Meta Muse — plus custom provider yang kompatibel dengan OpenAI
+(misalnya endpoint FLUX yang di-hosting, dipanggil sebagai `<slug-provider>/<model>`).
+
+<Callout type="warn" title="Model yang lambat">
+  Pembuatan gambar bisa memakan puluhan detik; router menunggu hingga 90 detik sebelum menjawab
+  `504`.
+</Callout>
+
+`400` berarti model menunjuk provider tanpa kemampuan membuat gambar; `503` berarti belum ada akun yang
+terhubung untuknya.

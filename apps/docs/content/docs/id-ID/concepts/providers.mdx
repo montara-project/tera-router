@@ -5,24 +5,37 @@ description: Katalog provider bawaan, menambah akun, prioritas, dan custom provi
 
 ## Provider vs akun
 
-- **Provider** adalah jenis upstream (OpenAI, Anthropic, GLM, ...) dengan dialek dan base URL bawaan.
+- **Provider** adalah jenis upstream (OpenAI, Anthropic, Gemini, Exa, ...) dengan dialek dan base URL bawaan.
 - **Account** adalah kredensial konkret milikmu di provider itu — satu provider bisa punya banyak akun.
 
 ## Katalog bawaan
 
-| Dialek               | Provider                                                                                                                                     |
-| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| OpenAI-compatible    | `openai`, `deepseek`, `xai`, `glm-cn`, `mistral`, `groq`, `cohere`, `perplexity`, `openrouter`, `nvidia`, `azure`, `vllm`, `ollama`, `cline` |
-| Anthropic-compatible | `anthropic` (API key atau sign-in Claude, OAuth), `glm`, `kimi`, `minimax`                                                                   |
-| Responses            | `codex` (OAuth, backend ChatGPT)                                                                                                             |
-| Tanpa kredensial     | `ollama-local` (localhost:11434)                                                                                                             |
-| OAuth-only           | `gemini`, `vertex`, `github` (Copilot), `cursor`, `kiro`, `qoder`, `kilocode`                                                                |
+Halaman **Providers** membagi katalog ke dalam empat tab. Provider muncul di setiap tab yang sesuai dengan kemampuannya — OpenAI, misalnya, ada di semua tab kecuali search.
+
+| Tab                     | Provider                                                                                                                                                                                   |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **AI Model Providers**  | `openai`, `anthropic`, `openrouter`, `nvidia`, `gemini`, `mistral`, `together`, `fireworks`, `nebius`, `groq`, `cline`, `cloudflare`, `muse`, `voyage-ai`, `jina-ai`, plus custom provider |
+| **AI Search Providers** | `exa`, `tavily`, `firecrawl`, `jina-ai`, `brave`, `serper`                                                                                                                                 |
+| **AI Voice Providers**  | `openai`, `groq` (STT), `elevenlabs`, `deepgram`, plus custom provider yang kompatibel dengan OpenAI                                                                                       |
+| **AI Image Generation** | `openai`, `gemini`, `together`, `muse`, plus custom provider yang kompatibel dengan OpenAI                                                                                                 |
+
+Kemampuan yang dibuka di gateway:
+
+| Kemampuan      | Endpoint gateway                                                            |
+| -------------- | --------------------------------------------------------------------------- |
+| chat           | `/v1/chat/completions`, `/v1/messages`, `/v1/responses`                     |
+| embeddings     | [`/v1/embeddings`](/id-ID/docs/gateway/embeddings)                          |
+| image          | [`/v1/images/generations`](/id-ID/docs/gateway/images)                      |
+| tts / stt      | [`/v1/audio/speech`, `/v1/audio/transcriptions`](/id-ID/docs/gateway/audio) |
+| search / fetch | [`/v1/search`, `/v1/web/fetch`](/id-ID/docs/gateway/web-search)             |
+
+Provider chat memakai dialek OpenAI kecuali `anthropic` (dialek Anthropic). OpenAI dan Anthropic bisa dihubungkan dengan API key atau login di situs resminya (OAuth); login OpenAI dirutekan sebagai provider terpisah `codex` (dialek Responses, backend ChatGPT).
 
 Kredensial akun disimpan terenkripsi (enkripsi amplop dengan kunci turunan dari `APP_SECRET`).
 
 ## Menambah akun
 
-Lewat dashboard (**Providers → pilih provider → Connect**) atau API. Selalu uji dulu sebelum disimpan:
+Lewat dashboard (**Providers → pilih provider → Connect**) atau API. Provider chat langsung menyinkronkan daftar modelnya setelah terhubung; provider search, voice, dan khusus embeddings (Exa, ElevenLabs, Voyage AI, …) cukup diberi key, yang dicek saat pertama dipakai karena API-nya tidak punya panggilan uji gratis. Uji dulu sebelum disimpan:
 
 ```bash
 curl -X POST http://localhost:8080/v1/validate-key \

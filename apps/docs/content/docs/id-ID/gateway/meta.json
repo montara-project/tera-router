@@ -5,6 +5,10 @@
     "chat-completions",
     "messages",
     "responses",
+    "web-search",
+    "audio",
+    "images",
+    "embeddings",
     "model-addressing",
     "streaming",
     "errors"

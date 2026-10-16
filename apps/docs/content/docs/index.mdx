@@ -8,10 +8,12 @@ description: One base URL and one API key for every model — OpenAI, Anthropic,
 Tera Router is an LLM gateway you run yourself. Point your SDK, `curl`, or favorite coding agent at a single base URL, and the router forwards each request to the providers you have connected — complete with fallbacks, cooldowns, spending limits, and usage tracking.
 
 - **Three dialects, fully compatible** — `POST /v1/chat/completions` (OpenAI), `POST /v1/messages` (Anthropic), and `POST /v1/responses` (OpenAI Responses). Existing clients need no changes.
+- **More than chat** — web search and fetch, text-to-speech, speech-to-text, image generation, and embeddings behind the same key, with the same fallbacks and metering.
 - **Routing you control** — provider chains with `priority`, `round-robin`, or `load-balanced` strategies, plus automatic failover when an account fails or gets rate limited.
 - **Cost control** — plans and budgets per key, per account, or global, with alerts and hard cutoffs.
 - **Guardrails** — PII, prompt injection, topic, toxicity, and bias detection before requests leave.
 - **Dashboard** — manage everything above from a UI: API keys, provider accounts, chains, guardrails, usage, down to the console log.
+- **Remote access** — share the router through a one-click Cloudflare quick tunnel, or keep it private on your Tailscale network.
 
 ## Three steps to your first request
 
@@ -77,6 +79,9 @@ Note: with Tera Router, an Anthropic model can be called through the OpenAI SDK 
   </Card>
   <Card href="/docs/gateway/model-addressing" title="Models & routing">
     `provider/model`, alias pools, and `chain:`.
+  </Card>
+  <Card href="/docs/getting-started/remote-access" title="Remote access">
+    Cloudflare Tunnel and Tailscale.
   </Card>
   <Card href="/docs/concepts/guardrails" title="Guardrails">
     PII, injection, and forbidden topic filters.
