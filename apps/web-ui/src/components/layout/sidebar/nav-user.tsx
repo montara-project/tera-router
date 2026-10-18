@@ -1,6 +1,7 @@
 'use client'
 
 import { BadgeCheck, Bell, ChevronsUpDown, CreditCard, LogOut, RotateCcw } from 'lucide-react'
+import { useState } from 'react'
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -14,6 +15,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar'
 import { Skeleton } from '@/components/ui/skeleton'
+import { services } from '@/lib/api/services'
+import { clearAuthTokens } from '@/lib/auth/token-storage'
 import { type UserInfo } from '@/types/menu'
 
 type NavUserProps = {
@@ -38,8 +41,21 @@ function getInitials(name: string) {
 }
 
 export default function NavUser({ user, userError, onRetryUser }: NavUserProps) {
+  const [signingOut, setSigningOut] = useState(false)
+
+  // Ends the session on the server (every device, see POST /v1/auth/sign-out),
+  // then drops the cookies and reloads to the login page so no cached data
+  // outlives the session. A failed request still signs out locally.
   const handleSignOut = async () => {
-    // TODO: Implement sign out logic
+    setSigningOut(true)
+    try {
+      await services.auth.signOut()
+    } catch {
+      // The server is unreachable or the session already ended.
+    } finally {
+      clearAuthTokens()
+      window.location.href = '/'
+    }
   }
 
   const name = user?.name ?? ''
@@ -130,9 +146,9 @@ export default function NavUser({ user, userError, onRetryUser }: NavUserProps) 
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem variant="destructive" onClick={handleSignOut}>
+            <DropdownMenuItem variant="destructive" disabled={signingOut} onClick={handleSignOut}>
               <LogOut />
-              Log out
+              {signingOut ? 'Logging out…' : 'Log out'}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
