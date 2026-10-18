@@ -13,6 +13,7 @@ import type { Models } from '@/lib/api/models'
 import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
 import { Badge, BadgeDot } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { cn } from '@/lib/utils'
 
@@ -48,6 +49,10 @@ interface ProviderGridProps {
   onSync?: (provider: Models.Provider) => void
   syncingSlug?: string | null
   detailBasePath?: string
+  /** Ids that can be selected for deletion (providers without any account). */
+  selectableIds?: Set<string>
+  selectedIds?: Set<string>
+  onToggleSelect?: (id: string) => void
 }
 
 export default function ProviderGrid({
@@ -57,6 +62,9 @@ export default function ProviderGrid({
   onSync,
   syncingSlug,
   detailBasePath,
+  selectableIds,
+  selectedIds,
+  onToggleSelect,
 }: ProviderGridProps) {
   if (providers.length === 0) {
     return <EmptyState variant={variant} />
@@ -68,13 +76,16 @@ export default function ProviderGrid({
         // Catalog providers carry "prov-<slug>" ids; custom providers carry
         // uuids — the detail route serves both.
         const detailPath = detailBasePath ? `${detailBasePath}/${provider.id}` : null
+        const selectable = Boolean(onToggleSelect && selectableIds?.has(provider.id))
+        const selected = selectable && Boolean(selectedIds?.has(provider.id))
 
         return (
           <div
             key={provider.id}
             className={cn(
               'group relative flex flex-col rounded-xl border border-border bg-card p-4 transition-[border-color,box-shadow] hover:border-ring/50 hover:shadow-xs',
-              detailPath && 'hover:-translate-y-0.5'
+              detailPath && 'hover:-translate-y-0.5',
+              selected && 'border-destructive/60 ring-1 ring-destructive/40'
             )}
           >
             {variant === 'connected' ? (
@@ -111,6 +122,14 @@ export default function ProviderGrid({
             <div className="mt-auto flex items-center justify-between gap-2 pt-3">
               {variant === 'connected' ? (
                 <div className="flex items-center gap-1.5">
+                  {selectable ? (
+                    <Checkbox
+                      size="sm"
+                      checked={selected}
+                      onCheckedChange={() => onToggleSelect?.(provider.id)}
+                      aria-label={`Select ${provider.name} for deletion`}
+                    />
+                  ) : null}
                   <p className="text-xs text-muted-foreground">
                     {provider.accounts ?? 0}{' '}
                     {(provider.accounts ?? 0) === 1 ? 'account' : 'accounts'}

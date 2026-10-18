@@ -2,6 +2,8 @@ package repositories
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 
 	"tera-router/server/internal/models"
 
@@ -131,26 +133,68 @@ func (r *ProviderRepository) Delete(ctx context.Context, id string) (ProviderDel
 			return err
 		}
 		result.Accounts = accounts
-
-		if _, err := r.execAffected(ctx, tx,
-			`DELETE FROM model_pricing_overrides WHERE provider = $1`, provider.Slug); err != nil {
-			return err
-		}
-		if _, err := r.execAffected(ctx, tx,
-			`DELETE FROM model_capability_overrides WHERE provider = $1`, provider.Slug); err != nil {
-			return err
-		}
-		// The stored catalog is a settings row, not a table of its own.
-		if _, err := r.execAffected(ctx, tx,
-			`DELETE FROM settings WHERE key = $1`, ProviderModelsSettingsKey(provider.Slug)); err != nil {
-			return err
-		}
-		return r.deleteExec(ctx, tx, id)
+		return r.cascadeExec(ctx, tx, id, provider.Slug)
 	})
 	if err != nil {
 		return ProviderDeleteResult{}, err
 	}
 	return result, nil
+}
+
+// DeleteEmpty deletes each listed provider that has no accounts at all
+// (disabled ones included), with the same cascade as Delete, in one
+// transaction. The account count is read inside that transaction, so an
+// account connected concurrently can never be deleted with its provider.
+// Providers that still have accounts, or no longer exist, are skipped.
+// It returns the ids actually deleted.
+func (r *ProviderRepository) DeleteEmpty(ctx context.Context, ids []string) ([]string, error) {
+	deleted := make([]string, 0, len(ids))
+	err := r.withTx(ctx, func(tx Executor) error {
+		for _, id := range ids {
+			var (
+				slug     string
+				accounts int
+			)
+			err := r.queryRowContext(ctx, tx, `
+				SELECT p.slug, (SELECT count(*) FROM accounts a WHERE a.provider = p.slug)
+				FROM custom_providers p WHERE p.id = $1`, id).Scan(&slug, &accounts)
+			if errors.Is(err, sql.ErrNoRows) || (err == nil && accounts > 0) {
+				continue
+			}
+			if err != nil {
+				return errtrace.Wrap(err)
+			}
+			if err := r.cascadeExec(ctx, tx, id, slug); err != nil {
+				return err
+			}
+			deleted = append(deleted, id)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return deleted, nil
+}
+
+// cascadeExec removes what is scoped to a provider besides its accounts —
+// pricing and capability overrides and the stored model catalog — and then
+// the provider row itself.
+func (r *ProviderRepository) cascadeExec(ctx context.Context, tx Executor, id, slug string) error {
+	if _, err := r.execAffected(ctx, tx,
+		`DELETE FROM model_pricing_overrides WHERE provider = $1`, slug); err != nil {
+		return err
+	}
+	if _, err := r.execAffected(ctx, tx,
+		`DELETE FROM model_capability_overrides WHERE provider = $1`, slug); err != nil {
+		return err
+	}
+	// The stored catalog is a settings row, not a table of its own.
+	if _, err := r.execAffected(ctx, tx,
+		`DELETE FROM settings WHERE key = $1`, ProviderModelsSettingsKey(slug)); err != nil {
+		return err
+	}
+	return r.deleteExec(ctx, tx, id)
 }
 
 func (r *ProviderRepository) deleteExec(ctx context.Context, ex Executor, id string) error {

@@ -94,6 +94,7 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	protected.Get("/providers/rates", h.Providers.Rates)
 	protected.Get("/custom-providers", h.Providers.CustomIndex)
 	protected.Post("/custom-providers", h.Providers.CustomStore)
+	protected.Post("/custom-providers/bulk-delete", h.Providers.CustomBulkDelete)
 	protected.Get("/custom-providers/by-slug/:slug", h.Providers.CustomShowBySlug)
 	protected.Get("/custom-providers/:id", h.Providers.CustomShow)
 	protected.Put("/custom-providers/:id", h.Providers.CustomUpdate)

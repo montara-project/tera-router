@@ -127,6 +127,21 @@ const customDelete = () => {
   })
 }
 
+const customBulkDelete = () => {
+  const qc = getQueryClient()
+
+  return mutationOptions({
+    mutationFn: async (ids: string[]) => {
+      const res = await services.providers.customBulkDelete(ids)
+      return res.data
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [PROVIDER_QUERY_KEY] })
+      qc.invalidateQueries({ queryKey: [CUSTOM_PROVIDER_QUERY_KEY] })
+    },
+  })
+}
+
 // Stored catalog with per-model states; search and paging are server-side,
 // so the params are part of the cache key.
 const customModels = (id: string, params?: ProviderModelListParams) =>
@@ -280,6 +295,7 @@ export const providerQueries = {
   customCreate,
   customUpdate,
   customDelete,
+  customBulkDelete,
   customModels,
   customModelsSync,
   customModelsUpdate,

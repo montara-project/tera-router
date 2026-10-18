@@ -53,6 +53,10 @@ const resources = (): ProviderResources => {
       const url = `${customPath}/${id}`
       return api.delete(url)
     },
+    customBulkDelete: (ids) => {
+      const url = `${customPath}/bulk-delete`
+      return api.post(url, { ids })
+    },
     /** stored catalog with per-model states; server-side search + paging */
     customModels: (id, params) => {
       const url = `${customPath}/${id}/models`
