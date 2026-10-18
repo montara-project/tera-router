@@ -3,6 +3,26 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [1.1.0](https://github.com/montara-project/tera-router/compare/v1.0.0...v1.1.0) (2026-10-18)
+
+### Features
+
+* add optional TOTP two-factor authentication ([976058c](https://github.com/montara-project/tera-router/commit/976058c4a38ec603302cbb6d42e079929b09ee47))
+* block client IPs manually and after repeated failed sign-ins ([26da689](https://github.com/montara-project/tera-router/commit/26da68970cd17881cd4d0119afccb9d0f7a5b547))
+* **server:** rename the admin from ADMIN_EMAIL on seed ([49a37ca](https://github.com/montara-project/tera-router/commit/49a37ca6ccb64e6b797cdd2bad6ecad8c9d0f26b))
+* **server:** sync the admin password from ADMIN_PASSWORD on seed ([3a405ec](https://github.com/montara-project/tera-router/commit/3a405ecdbcac6cac00f4fab2bc5b6f4b36119432))
+
+### Bug Fixes
+
+* **gateway:** stop honoring API keys revoked after they were cached ([01aef92](https://github.com/montara-project/tera-router/commit/01aef92071676b4ca62191db17ab39f846775f3f))
+* **gateway:** wait for the last-used stamp before shutdown ([1bb7d46](https://github.com/montara-project/tera-router/commit/1bb7d461469ac41ac7c941f844f62cf51dfe88e0))
+* **server:** cap concurrent argon2 runs and hide registered emails ([38498d5](https://github.com/montara-project/tera-router/commit/38498d5319d3aa3ebeda7417c47f87470971d938))
+* **server:** end admin sessions when the env changes how it signs in ([496c9ca](https://github.com/montara-project/tera-router/commit/496c9cafa32980a0dd580986c066f95dc7cf005e))
+* **server:** read APP_SECRET from the environment and warn when short ([36a0031](https://github.com/montara-project/tera-router/commit/36a00315e208fa8fa6f5b0462ee4bedb4d4cc4d4))
+* **server:** refuse access tokens issued before a session revocation ([3187b34](https://github.com/montara-project/tera-router/commit/3187b3476a26be9ab72f072e0b90f598c54851ef))
+* **server:** send HSTS on HTTPS responses ([6233b16](https://github.com/montara-project/tera-router/commit/6233b16ee088341583926509c78df9b8b3bba578))
+* **web-ui:** wire up the sidebar Log out action ([d69b3ff](https://github.com/montara-project/tera-router/commit/d69b3ff2aff003fcde5f5d4e002677188159faa2))
+
 ## [1.0.0](https://github.com/montara-project/tera-router/compare/v0.6.0...v1.0.0) (2026-10-16)
 
 ### Features
