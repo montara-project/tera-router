@@ -106,10 +106,9 @@ SENTRY_DSN=
 
 <Callout type="error" title="APP_SECRET adalah kunci utama">
   `APP_SECRET` menandatangani token sesi dan menurunkan kunci yang mengenkripsi kredensial provider
-  yang tersimpan. Compose menolak jalan tanpa itu. Pakai minimal 32 karakter acak
-  (`openssl rand -base64 48`); server memberi peringatan saat boot kalau lebih pendek. Menggantinya
-  belakangan membuat semua kredensial yang tersimpan tidak bisa dibaca — set sekali dan simpan
-  baik-baik.
+  yang tersimpan. Compose menolak jalan tanpa itu. Pakai minimal 32 karakter acak (`openssl rand
+  -base64 48`); server memberi peringatan saat boot kalau lebih pendek. Menggantinya belakangan
+  membuat semua kredensial yang tersimpan tidak bisa dibaca — set sekali dan simpan baik-baik.
 </Callout>
 
 ## 3. Jalankan stack
