@@ -20,9 +20,10 @@ type BaseRepository struct {
 	Config *config.ConfigApp
 }
 
-// debugQuery logs the pretty-printed SQL and its bind arguments when debug
-// mode is enabled (--debug / DEBUG=true). Every execution helper calls it, so
-// enabling debug traces the whole SQL surface of the process.
+// debugQuery logs the pretty-printed SQL when debug mode is enabled (--debug /
+// DEBUG=true). Every execution helper calls it, so enabling debug traces the
+// whole SQL surface of the process. Bind arguments are not printed: they carry
+// password hashes and sealed credentials.
 func (r BaseRepository) debugQuery(query string, args ...any) {
 	if r.Config == nil || !r.Config.Debug {
 		return
