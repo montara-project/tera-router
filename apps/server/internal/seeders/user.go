@@ -2,6 +2,7 @@ package seeders
 
 import (
 	"database/sql"
+	"errors"
 	"log"
 	"os"
 
@@ -10,9 +11,15 @@ import (
 	"github.com/google/uuid"
 )
 
-// adminEmail seeds the first dashboard account. Override it at seed time via
-// ADMIN_EMAIL.
-var adminEmail = envOr("ADMIN_EMAIL", "admin@tera.local")
+// adminID is the seeded admin's fixed id. The seeder finds the account by it,
+// so changing ADMIN_EMAIL renames the admin instead of minting a second one.
+var adminID = uuid.MustParse("00000000-0000-0000-0000-0000000000ff")
+
+// adminEmail is the first dashboard account's email: ADMIN_EMAIL, read at seed
+// time, or a default.
+func adminEmail() string {
+	return envOr("ADMIN_EMAIL", "admin@tera.local")
+}
 
 func envOr(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
@@ -53,15 +60,19 @@ type AdminUserSeeder struct {
 func (s AdminUserSeeder) Name() string { return "admin_user" }
 
 func (s AdminUserSeeder) Seed() {
-	var exists bool
-	if err := s.DB.QueryRow(`SELECT EXISTS (SELECT 1 FROM users WHERE email = $1)`, adminEmail).Scan(&exists); err != nil {
-		log.Fatalf("check admin user: %v", err)
-	}
-	if exists {
+	var current string
+	err := s.DB.QueryRow(`SELECT email FROM users WHERE id = $1`, adminID).Scan(&current)
+	if err == nil {
+		s.syncEmail(current)
 		s.syncPassword()
 		s.resetTOTP()
 		return
 	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		log.Fatalf("check admin user: %v", err)
+	}
+
+	email := adminEmail()
 
 	plain := adminPassword(s.Dev)
 	hash, err := password.Hash(plain)
@@ -73,7 +84,7 @@ func (s AdminUserSeeder) Seed() {
 		INSERT INTO users (id, fullname, email, password_hash, is_active, role_id)
 		VALUES ($1, $2, $3, $4, true, $5)
 		ON CONFLICT (email) DO NOTHING`,
-		uuid.MustParse("00000000-0000-0000-0000-0000000000ff"), "Administrator", adminEmail, hash,
+		adminID, "Administrator", email, hash,
 		uuid.MustParse("00000000-0000-0000-0000-000000000001"),
 	)
 	if err != nil {
@@ -84,7 +95,31 @@ func (s AdminUserSeeder) Seed() {
 		log.Printf("admin user seeded with the development password %q; set ADMIN_PASSWORD to override", devAdminPassword)
 		return
 	}
-	log.Printf("admin user seeded for %s; the password came from ADMIN_PASSWORD", adminEmail)
+	log.Printf("admin user seeded for %s; the password came from ADMIN_PASSWORD", email)
+}
+
+// syncEmail makes ADMIN_EMAIL the source of truth for the admin's email, like
+// syncPassword does for the password. Without ADMIN_EMAIL the stored email is
+// left alone. An email already taken by another account is reported and
+// skipped rather than failing the boot.
+func (s AdminUserSeeder) syncEmail(current string) {
+	email := os.Getenv("ADMIN_EMAIL")
+	if email == "" || email == current {
+		return
+	}
+	var taken bool
+	if err := s.DB.QueryRow(`SELECT EXISTS (SELECT 1 FROM users WHERE email = $1 AND id <> $2)`, email, adminID).Scan(&taken); err != nil {
+		log.Fatalf("check admin email: %v", err)
+	}
+	if taken {
+		log.Printf("ADMIN_EMAIL %s already belongs to another account; the admin keeps %s", email, current)
+		return
+	}
+	if _, err := s.DB.Exec(
+		`UPDATE users SET email = $2, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now') WHERE id = $1`, adminID, email); err != nil {
+		log.Fatalf("sync admin email: %v", err)
+	}
+	log.Printf("admin email changed from %s to %s by ADMIN_EMAIL", current, email)
 }
 
 // resetTOTP is the lost-authenticator escape hatch: ADMIN_TOTP_RESET=true
@@ -95,10 +130,10 @@ func (s AdminUserSeeder) resetTOTP() {
 		return
 	}
 	if _, err := s.DB.Exec(
-		`UPDATE users SET totp_wrapped_dek = '', totp_ciphertext = '', totp_last_step = 0 WHERE email = $1`, adminEmail); err != nil {
+		`UPDATE users SET totp_wrapped_dek = '', totp_ciphertext = '', totp_last_step = 0 WHERE id = $1`, adminID); err != nil {
 		log.Fatalf("reset admin totp: %v", err)
 	}
-	log.Printf("two-factor authentication cleared for %s by ADMIN_TOTP_RESET; unset it now", adminEmail)
+	log.Print("admin two-factor authentication cleared by ADMIN_TOTP_RESET; unset it now")
 }
 
 // syncPassword makes ADMIN_PASSWORD the source of truth for an existing admin.
@@ -111,8 +146,8 @@ func (s AdminUserSeeder) syncPassword() {
 		return
 	}
 
-	var id, current string
-	if err := s.DB.QueryRow(`SELECT id, password_hash FROM users WHERE email = $1`, adminEmail).Scan(&id, &current); err != nil {
+	var current string
+	if err := s.DB.QueryRow(`SELECT password_hash FROM users WHERE id = $1`, adminID).Scan(&current); err != nil {
 		log.Fatalf("load admin user: %v", err)
 	}
 	if ok, err := password.Verify(plain, current); err == nil && ok {
@@ -131,16 +166,16 @@ func (s AdminUserSeeder) syncPassword() {
 	defer tx.Rollback()
 
 	if _, err := tx.Exec(
-		`UPDATE users SET password_hash = $2, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now') WHERE id = $1`, id, hash); err != nil {
+		`UPDATE users SET password_hash = $2, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now') WHERE id = $1`, adminID, hash); err != nil {
 		log.Fatalf("sync admin password: %v", err)
 	}
 	if _, err := tx.Exec(
-		`UPDATE refresh_tokens SET revoked_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now') WHERE user_id = $1 AND revoked_at IS NULL`, id); err != nil {
+		`UPDATE refresh_tokens SET revoked_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now') WHERE user_id = $1 AND revoked_at IS NULL`, adminID); err != nil {
 		log.Fatalf("revoke admin sessions: %v", err)
 	}
 	if err := tx.Commit(); err != nil {
 		log.Fatalf("sync admin password: %v", err)
 	}
 
-	log.Printf("admin password for %s updated from ADMIN_PASSWORD; existing sessions revoked", adminEmail)
+	log.Print("admin password updated from ADMIN_PASSWORD; existing sessions revoked")
 }
