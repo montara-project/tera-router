@@ -22,6 +22,7 @@ services:
     image: ghcr.io/montara-project/tera-router:v0.4.0
     container_name: tera-router-llm
     environment:
+      - APP_SECRET=${APP_SECRET:?APP_SECRET wajib diisi di Dokploy env}
       - ADMIN_EMAIL=${ADMIN_EMAIL}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
 
@@ -37,7 +38,6 @@ services:
       - '--port=${APP_PORT:-8080}'
 
       - '--app-name=${APP_NAME:-tera-router-server}'
-      - '--app-secret=${APP_SECRET:?APP_SECRET wajib diisi di Dokploy env}'
       - '--cors-allowed-origins=${CORS_ALLOWED_ORIGINS:-*}'
 
       - '--rate-limit-exempt-ips=${RATE_LIMIT_EXEMPT_IPS}'
@@ -106,8 +106,10 @@ SENTRY_DSN=
 
 <Callout type="error" title="APP_SECRET adalah kunci utama">
   `APP_SECRET` menandatangani token sesi dan menurunkan kunci yang mengenkripsi kredensial provider
-  yang tersimpan. Compose menolak jalan tanpa itu. Menggantinya belakangan membuat semua kredensial
-  yang tersimpan tidak bisa dibaca — set sekali dan simpan baik-baik.
+  yang tersimpan. Compose menolak jalan tanpa itu. Pakai minimal 32 karakter acak
+  (`openssl rand -base64 48`); server memberi peringatan saat boot kalau lebih pendek. Menggantinya
+  belakangan membuat semua kredensial yang tersimpan tidak bisa dibaca — set sekali dan simpan
+  baik-baik.
 </Callout>
 
 ## 3. Jalankan stack

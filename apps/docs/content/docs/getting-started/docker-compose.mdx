@@ -22,6 +22,7 @@ services:
     image: ghcr.io/montara-project/tera-router:v0.4.0
     container_name: tera-router-llm
     environment:
+      - APP_SECRET=${APP_SECRET:?APP_SECRET wajib diisi di Dokploy env}
       - ADMIN_EMAIL=${ADMIN_EMAIL}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
 
@@ -37,7 +38,6 @@ services:
       - '--port=${APP_PORT:-8080}'
 
       - '--app-name=${APP_NAME:-tera-router-server}'
-      - '--app-secret=${APP_SECRET:?APP_SECRET wajib diisi di Dokploy env}'
       - '--cors-allowed-origins=${CORS_ALLOWED_ORIGINS:-*}'
 
       - '--rate-limit-exempt-ips=${RATE_LIMIT_EXEMPT_IPS}'
@@ -106,8 +106,9 @@ SENTRY_DSN=
 
 <Callout type="error" title="APP_SECRET is the house key">
   `APP_SECRET` signs session tokens and derives the key that encrypts stored provider credentials.
-  Compose refuses to start without it. Changing it later makes every stored credential unreadable —
-  set it once and keep it safe.
+  Compose refuses to start without it. Use at least 32 random characters (`openssl rand -base64 48`);
+  the server warns at boot about a shorter one. Changing it later makes every stored credential
+  unreadable — set it once and keep it safe.
 </Callout>
 
 ## 3. Start the stack

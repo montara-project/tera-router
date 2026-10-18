@@ -28,12 +28,12 @@ services:
       HEADROOM_PROXY_TOKEN: ${HEADROOM_PROXY_TOKEN:-}
     # The image CMD is replaced wholesale, so every flag the container needs
     # must be repeated here. The SQLite file lives on the volume below; the
-    # migrator resolves ./migrations from the working directory.
+    # migrator resolves ./migrations from the working directory. APP_SECRET is
+    # read from the environment above, so it stays out of the process args.
     command:
       - "--env=${APP_ENV:-production}"
       - "--port=8080"
       - "--machine-id=${APP_MACHINE_ID}"
-      - "--app-secret=${APP_SECRET}"
       - "--cors-allowed-origins=${APP_CORS_ALLOWED_ORIGINS:-*}"
       - "--database-path=/app/data/terarouter.db"
       - "--migrate-on-boot=true"
