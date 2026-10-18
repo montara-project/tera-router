@@ -5,6 +5,8 @@ import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Field, FieldGroup } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { useAppForm } from '@/hooks/form'
 import { SignInSchema } from '@/lib/api/dtos/auth/schema'
 import { signInWithEmail } from '@/lib/auth/email-auth'
@@ -13,6 +15,9 @@ import { cn } from '@/lib/utils'
 export default function LoginSection({ className, ...props }: React.ComponentProps<'div'>) {
   const { navigate } = useRouter()
   const [isLoading, setIsLoading] = useState(false)
+  // Set once the password checked out on an account with two-factor auth on.
+  const [needsCode, setNeedsCode] = useState(false)
+  const [otp, setOtp] = useState('')
 
   const form = useAppForm({
     defaultValues: {
@@ -27,17 +32,28 @@ export default function LoginSection({ className, ...props }: React.ComponentPro
       setIsLoading(true)
 
       try {
-        await signInWithEmail(value)
+        const res = await signInWithEmail({ ...value, otp: needsCode ? otp : undefined })
+        if (res && 'totpRequired' in res) {
+          setNeedsCode(true)
+          return
+        }
         navigate({ to: '/dashboard' })
       } catch (error) {
         const message = error instanceof Error ? error.message : 'An error occurred'
         toast.error(message)
+        setOtp('')
+        if (!needsCode) form.reset()
       } finally {
         setIsLoading(false)
-        form.reset()
       }
     },
   })
+
+  const cancelCode = () => {
+    setNeedsCode(false)
+    setOtp('')
+    form.reset()
+  }
 
   return (
     <div className={cn('flex flex-col gap-6', className)} {...props}>
@@ -59,22 +75,47 @@ export default function LoginSection({ className, ...props }: React.ComponentPro
             form.handleSubmit()
           }}
         >
-          <form.AppField
-            name="email"
-            children={(field) => <field.TextField label="Email" placeholder="type your email" />}
-          />
+          {needsCode ? (
+            <Field>
+              <Label htmlFor="otp">Authentication code</Label>
+              <Input
+                id="otp"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                placeholder="6-digit code from your authenticator app"
+                autoFocus
+              />
+            </Field>
+          ) : (
+            <>
+              <form.AppField
+                name="email"
+                children={(field) => (
+                  <field.TextField label="Email" placeholder="type your email" />
+                )}
+              />
 
-          <form.AppField
-            name="password"
-            children={(field) => (
-              <field.PasswordField label="Password" placeholder="type your password" />
-            )}
-          />
+              <form.AppField
+                name="password"
+                children={(field) => (
+                  <field.PasswordField label="Password" placeholder="type your password" />
+                )}
+              />
+            </>
+          )}
 
           <Field>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? 'Signing in...' : 'Login'}
+            <Button type="submit" disabled={isLoading || (needsCode && otp.length !== 6)}>
+              {isLoading ? 'Signing in...' : needsCode ? 'Verify' : 'Login'}
             </Button>
+            {needsCode && (
+              <Button type="button" variant="ghost" onClick={cancelCode} disabled={isLoading}>
+                Back
+              </Button>
+            )}
           </Field>
         </form>
       </FieldGroup>

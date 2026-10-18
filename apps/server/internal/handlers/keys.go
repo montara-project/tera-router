@@ -196,6 +196,7 @@ func (h *keysHandler) Update(c fiber.Ctx) error {
 	if err := h.app.Repos.APIKeys.Update(c.Context(), key); err != nil {
 		return err
 	}
+	h.app.KeysChanged()
 	auditRecord(c.Context(), h.app, actorFrom(c), "key.update", id.String(), map[string]any{"disabled": key.Disabled})
 	return dtos.OK(c, fiber.Map{
 		"id":     key.ID,
@@ -213,6 +214,7 @@ func (h *keysHandler) Delete(c fiber.Ctx) error {
 	if err := h.app.Repos.APIKeys.Delete(c.Context(), id.String()); err != nil {
 		return err
 	}
+	h.app.KeysChanged()
 	auditRecord(c.Context(), h.app, actorFrom(c), "key.delete", id.String(), nil)
 	return dtos.Deleted(c, "Key deleted")
 }

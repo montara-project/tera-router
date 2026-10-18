@@ -84,6 +84,8 @@ func (h *skillsHandler) Delete(c fiber.Ctx) error {
 	if err := h.app.Repos.Skills.Delete(c.Context(), id.String()); err != nil {
 		return err
 	}
+	// The delete also strips the skill from every key that selected it.
+	h.app.KeysChanged()
 	auditRecord(c.Context(), h.app, actorFrom(c), "skill.delete", id.String(), nil)
 	return dtos.Deleted(c, "Skill deleted")
 }

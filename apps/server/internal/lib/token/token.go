@@ -15,6 +15,12 @@ import (
 )
 
 // Claims are the access-token claims verified by the auth middleware.
+// Timestamps in issued tokens carry milliseconds, so RequireAuth can tell a
+// token issued just after a session revocation from one issued just before it
+// in the same second. jwt.TimePrecision is process-wide; this package is the
+// only JWT user. Parsing accepts both fractional and whole-second values.
+func init() { jwt.TimePrecision = time.Millisecond }
+
 type Claims struct {
 	Email string `json:"email"`
 	Role  string `json:"role"`

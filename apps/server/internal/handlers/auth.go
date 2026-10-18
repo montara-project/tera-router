@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"errors"
+	"sync"
 	"time"
 
 	"tera-router/server/internal/app"
@@ -28,6 +29,12 @@ const (
 // deliberately does not distinguish the two cases.
 var ErrBadCredentials = apperr.New(apperr.KindUnauthorized, "invalid email or password")
 
+// dummyHash is verified against for unknown emails; see signIn.
+var dummyHash = sync.OnceValue(func() string {
+	h, _ := password.Hash("tera-router-dummy-password")
+	return h
+})
+
 type authHandler struct {
 	app *app.Application
 }
@@ -40,7 +47,11 @@ func (h *authHandler) SignIn(c fiber.Ctx) error {
 		return err
 	}
 
-	session, err := h.signIn(c.Context(), req.Email, req.Password)
+	session, err := h.signIn(c.Context(), req.Email, req.Password, req.OTP)
+	if errors.Is(err, errTOTPRequired) {
+		// Password checked out; the client asks for the code and resubmits.
+		return dtos.OK(c, fiber.Map{"totp_required": true})
+	}
 	if err != nil {
 		return err
 	}
@@ -50,22 +61,32 @@ func (h *authHandler) SignIn(c fiber.Ctx) error {
 	return dtos.OK(c, sessionView(session))
 }
 
-// signIn verifies the credentials and issues a new token pair.
-func (h *authHandler) signIn(ctx context.Context, email, plainPassword string) (dtos.Session, error) {
+// signIn verifies the credentials, and the TOTP code when the user enabled
+// it, then issues a new token pair.
+func (h *authHandler) signIn(ctx context.Context, email, plainPassword, otp string) (dtos.Session, error) {
 	user, err := h.app.Repos.Users.GetByEmail(ctx, email)
 	if err != nil {
 		if errors.Is(err, apperr.ErrNotFound) {
+			// Spend the same argon2 work as a real account, so response time
+			// does not reveal which emails are registered.
+			_, _ = password.Verify(plainPassword, dummyHash())
 			return dtos.Session{}, ErrBadCredentials
 		}
 		return dtos.Session{}, err
 	}
-	if !user.IsActive || user.IsBlocked {
+
+	ok, err := password.Verify(plainPassword, user.PasswordHash)
+	if err != nil || !ok || !user.IsActive || user.IsBlocked {
 		return dtos.Session{}, ErrBadCredentials
 	}
 
-	ok, err := password.Verify(plainPassword, user.PasswordHash)
-	if err != nil || !ok {
-		return dtos.Session{}, ErrBadCredentials
+	if user.TOTPEnabled {
+		if otp == "" {
+			return dtos.Session{}, errTOTPRequired
+		}
+		if err := h.checkTOTP(ctx, user, otp); err != nil {
+			return dtos.Session{}, err
+		}
 	}
 
 	return h.issueSession(ctx, user)
@@ -121,9 +142,10 @@ func (h *authHandler) Me(c fiber.Ctx) error {
 	return dtos.OK(c, user)
 }
 
-// SignOut revokes every live refresh token of the user. The web client keeps
-// the refresh token in a cookie the server cannot read, so revoking all of
-// the user's tokens is the safe interpretation.
+// SignOut ends every session of the user: all refresh tokens are revoked and
+// access tokens issued before now are refused by RequireAuth. The web client
+// keeps the refresh token in a cookie the server cannot read, so revoking all
+// of the user's tokens is the safe interpretation.
 func (h *authHandler) SignOut(c fiber.Ctx) error {
 	uid, err := lib.ContextGetUID(c)
 	if err != nil {
@@ -131,6 +153,9 @@ func (h *authHandler) SignOut(c fiber.Ctx) error {
 	}
 
 	if err := h.app.Repos.Refresh.RevokeAllForUser(c.Context(), uid.String()); err != nil {
+		return err
+	}
+	if err := h.app.Repos.Users.RevokeSessions(c.Context(), uid.String()); err != nil {
 		return err
 	}
 	return dtos.Message(c, fiber.StatusOK, "Signed out")

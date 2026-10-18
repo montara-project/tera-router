@@ -35,6 +35,18 @@ const resources = (): AuthResources => {
       const url = `${path}/sign-out`
       return api.post(url)
     },
+    totpSetup: () => {
+      const url = `${path}/totp/setup`
+      return api.post(url)
+    },
+    totpEnable: (reqBody) => {
+      const url = `${path}/totp/enable`
+      return api.post(url, reqBody)
+    },
+    totpDisable: (reqBody) => {
+      const url = `${path}/totp/disable`
+      return api.post(url, reqBody)
+    },
   }
 }
 

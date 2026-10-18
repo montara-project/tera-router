@@ -17,4 +17,9 @@ type User struct {
 	CreatedAt    time.Time  `json:"created_at"`
 	UpdatedAt    time.Time  `json:"updated_at"`
 	DeletedAt    *time.Time `json:"deleted_at"`
+	// TOTP second factor; the secret is sealed and never serialized.
+	TOTPWrappedDEK string `json:"-"`
+	TOTPCiphertext string `json:"-"`
+	TOTPLastStep   int64  `json:"-"`
+	TOTPEnabled    bool   `json:"totp_enabled"`
 }

@@ -15,5 +15,5 @@ export const RefreshSchema = z
   })
   .required()
 
-export type SignInDto = z.infer<typeof SignInSchema>
+export type SignInDto = z.infer<typeof SignInSchema> & { otp?: string }
 export type RefreshDto = z.infer<typeof RefreshSchema>

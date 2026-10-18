@@ -226,6 +226,39 @@ func TestAuthRejectsDisabledKey(t *testing.T) {
 	readBody(t, resp)
 }
 
+// A key revoked after it was verified and cached must stop working on the next
+// request, not after the cache TTL: the dashboard calls KeysChanged on write.
+func TestAuthRejectsKeyRevokedAfterUse(t *testing.T) {
+	app, a := newGatewayApp(t)
+	call := func() int {
+		resp := do(t, app, http.MethodPost, "/v1/messages/count_tokens",
+			`{"model":"x","messages":[{"role":"user","content":"hi"}]}`,
+			map[string]string{"Authorization": "Bearer " + testKeyPlaintext})
+		readBody(t, resp)
+		return resp.StatusCode
+	}
+
+	if got := call(); got != http.StatusOK {
+		t.Fatalf("first call = %d, want 200", got)
+	}
+	exec(t, a, `UPDATE api_keys SET disabled = true WHERE id = 'key-e2e'`)
+	a.KeysChanged()
+	if got := call(); got != http.StatusUnauthorized {
+		t.Fatalf("after disable = %d, want 401", got)
+	}
+
+	exec(t, a, `UPDATE api_keys SET disabled = false WHERE id = 'key-e2e'`)
+	a.KeysChanged()
+	if got := call(); got != http.StatusOK {
+		t.Fatalf("after re-enable = %d, want 200", got)
+	}
+	exec(t, a, `DELETE FROM api_keys WHERE id = 'key-e2e'`)
+	a.KeysChanged()
+	if got := call(); got != http.StatusUnauthorized {
+		t.Fatalf("after delete = %d, want 401", got)
+	}
+}
+
 // --- count_tokens ---
 
 func TestCountTokensEstimatesLocally(t *testing.T) {

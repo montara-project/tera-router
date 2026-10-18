@@ -67,7 +67,14 @@ func serve(app *app.Application) error {
 	// Middleware
 	server.Use(recover.New())
 	server.Use(logger.New())
-	server.Use(helmet.New())
+	// Blocked addresses stop here, before any other work.
+	if err := app.IPBlocks.Reload(context.Background()); err != nil {
+		return fmt.Errorf("load ip blocklist: %w", err)
+	}
+	server.Use(middlewares.IPBlock(app.IPBlocks, app.Services.Tunnel.Running))
+	// HSTS is only sent on HTTPS requests; subdomains are left out so other
+	// hosts on the operator's domain are not forced onto TLS.
+	server.Use(helmet.New(helmet.Config{HSTSMaxAge: 180 * 24 * 60 * 60, HSTSExcludeSubdomains: true}))
 	server.Use(requestid.New())
 	// Compress must never touch inference traffic: buffering an SSE body
 	// defeats streaming, and the encoder would delay every chunk.

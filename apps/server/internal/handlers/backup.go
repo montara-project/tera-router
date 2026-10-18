@@ -217,6 +217,7 @@ func (h *backupHandler) ConfigImport(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
+	h.app.KeysChanged()
 	auditRecord(ctx, h.app, actorFrom(c), "backup.config.import", configBackupFormat, map[string]any{"tables": counts, "portable": doc.Portable != nil})
 	return dtos.Item(c, fiber.StatusOK, fiber.Map{"tables": counts, "safety_copy": safety}, "Configuration imported")
 }
@@ -370,6 +371,13 @@ func (h *backupHandler) DatabaseRestore(c fiber.Ctx) error {
 	if version < live {
 		if err := migrator.Up(h.app.DB, migrator.DefaultDir); err != nil {
 			return apperr.New(apperr.KindInternal, "restored, but migrating v%d → v%d failed (safety copy at %s): %s", version, live, safety, err.Error())
+		}
+	}
+	// Every in-memory mirror of the old database is stale now.
+	h.app.KeysChanged()
+	if h.app.IPBlocks != nil {
+		if err := h.app.IPBlocks.Reload(ctx); err != nil {
+			return err
 		}
 	}
 

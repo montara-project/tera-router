@@ -7,6 +7,7 @@ import { chainServices } from './chain'
 import { cliToolServices } from './cli-tool'
 import { consoleServices } from './console'
 import { guardrailsServices } from './guardrails'
+import { ipBlockServices } from './ip-block'
 import { keyServices } from './key'
 import { mediaServices } from './media'
 import { oauthServices } from './oauth'
@@ -32,6 +33,7 @@ export const services = {
   cliTools: cliToolServices,
   console: consoleServices,
   guardrails: guardrailsServices,
+  ipBlocks: ipBlockServices,
   keys: keyServices,
   media: mediaServices,
   oauth: oauthServices,

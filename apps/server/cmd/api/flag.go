@@ -27,7 +27,9 @@ func parseFlag(cfg *config.Config) {
 	flag.BoolVar(&cfg.App.Debug, "debug", debugFromEnv(), "Debug mode (also enabled by DEBUG=true)")
 	flag.IntVar(&cfg.App.Port, "port", 8080, "Port")
 	flag.StringVar(&cfg.App.Name, "app-name", "tera-router-server", "App Name")
-	flag.StringVar(&cfg.App.Secret, "app-secret", "", "App Secret")
+	// APP_SECRET in the environment keeps the secret out of the process
+	// arguments, which any local user can read with ps.
+	flag.StringVar(&cfg.App.Secret, "app-secret", os.Getenv("APP_SECRET"), "App Secret (also read from APP_SECRET)")
 	flag.StringVar(&cfg.App.CORSAllowedOrigins, "cors-allowed-origins", "*", "CORS Allowed Origins")
 	flag.StringVar(&cfg.App.RateLimitExemptIPs, "rate-limit-exempt-ips", "", "Comma-separated client IPs exempt from the rate limiter")
 	flag.StringVar(&cfg.App.TrustedProxies, "trusted-proxies", "", "Comma-separated IPs/CIDRs trusted to supply X-Forwarded-For (e.g. the reverse proxy's address)")
@@ -52,6 +54,9 @@ func parseFlag(cfg *config.Config) {
 	validateFlag(cfg)
 }
 
+// minSecretLen is the shortest app secret accepted without a warning.
+const minSecretLen = 32
+
 func validateFlag(cfg *config.Config) {
 	if cfg.App.Env == "" {
 		log.Println("flag environment is marked as local")
@@ -63,6 +68,14 @@ func validateFlag(cfg *config.Config) {
 
 	if cfg.App.Secret == "" {
 		log.Fatal("flag app-secret must be provided")
+	}
+	// The secret signs session tokens (HS256) and derives the key sealing
+	// every stored credential, so a short one can be brute-forced offline from
+	// a single leaked token. It only warns: rotating the secret makes every
+	// sealed credential unreadable, so refusing to boot would strand existing
+	// installs.
+	if len(cfg.App.Secret) < minSecretLen {
+		log.Printf("WARNING: app-secret is %d characters; use at least %d random characters (openssl rand -base64 48) on a new install", len(cfg.App.Secret), minSecretLen)
 	}
 
 	if cfg.Database.Path == "" {

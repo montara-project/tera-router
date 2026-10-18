@@ -1,6 +1,9 @@
 package password
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestHashVerifyRoundTrip(t *testing.T) {
 	hash, err := Hash("correct horse battery staple")
@@ -39,5 +42,31 @@ func TestHashesAreUnique(t *testing.T) {
 func TestVerifyInvalidHash(t *testing.T) {
 	if _, err := Verify("x", "not-a-hash"); err == nil {
 		t.Fatal("expected error for malformed hash")
+	}
+}
+
+// A full set of argon2 slots makes the next hash wait for one to free up.
+func TestHashWaitsForFreeSlot(t *testing.T) {
+	for i := 0; i < maxConcurrent; i++ {
+		slots <- struct{}{}
+	}
+	done := make(chan struct{})
+	go func() {
+		_, _ = Hash("queued")
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		t.Fatal("hash ran while every slot was taken")
+	case <-time.After(100 * time.Millisecond):
+	}
+	for i := 0; i < maxConcurrent; i++ {
+		<-slots
+	}
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("hash did not run once slots freed up")
 	}
 }

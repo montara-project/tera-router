@@ -24,6 +24,22 @@ const (
 	argonSaltLen = 16
 )
 
+// maxConcurrent caps argon2 runs in flight. Each one holds argonMemory, so an
+// unbounded burst of sign-ins (the endpoint is public) could exhaust memory;
+// extra callers queue instead.
+// ponytail: callers wait without a deadline; add a timeout returning 429 if
+// queued sign-ins ever need to give up under sustained attack.
+const maxConcurrent = 4
+
+var slots = make(chan struct{}, maxConcurrent)
+
+// idKey is argon2.IDKey behind the concurrency cap.
+func idKey(password, salt []byte, time, memory uint32, threads uint8, keyLen uint32) []byte {
+	slots <- struct{}{}
+	defer func() { <-slots }()
+	return argon2.IDKey(password, salt, time, memory, threads, keyLen)
+}
+
 // ErrInvalidHash is returned when a stored hash cannot be parsed.
 var ErrInvalidHash = errors.New("password: invalid argon2 hash")
 
@@ -33,7 +49,7 @@ func Hash(plaintext string) (string, error) {
 	if _, err := io.ReadFull(rand.Reader, salt); err != nil {
 		return "", fmt.Errorf("generate salt: %w", err)
 	}
-	digest := argon2.IDKey([]byte(plaintext), salt, argonTime, argonMemory, argonThreads, argonKeyLen)
+	digest := idKey([]byte(plaintext), salt, argonTime, argonMemory, argonThreads, argonKeyLen)
 
 	return fmt.Sprintf("$argon2id$v=%d$m=%d,t=%d,p=%d$%s$%s",
 		argon2.Version, argonMemory, argonTime, argonThreads,
@@ -49,7 +65,7 @@ func Verify(plaintext, encodedHash string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	got := argon2.IDKey([]byte(plaintext), salt, time, mem, threads, uint32(len(want)))
+	got := idKey([]byte(plaintext), salt, time, mem, threads, uint32(len(want)))
 	return subtle.ConstantTimeCompare(got, want) == 1, nil
 }
 

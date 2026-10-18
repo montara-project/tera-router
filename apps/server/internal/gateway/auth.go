@@ -82,12 +82,10 @@ func (s *Server) authenticate(ctx context.Context, plaintext string) (models.API
 	}
 	lookup := apikey.LookupHash(plaintext)
 
-	if rec, ok := s.auth.get(lookup); ok {
-		// A key disabled since it was cached must stop working immediately.
-		if rec.Disabled {
-			s.auth.invalidate(lookup)
-			return models.APIKey{}, errUnauthorized
-		}
+	// A dashboard write to any key bumps the version, so a key disabled or
+	// deleted since it was cached is re-read instead of trusted.
+	version := s.app.KeysVersion()
+	if rec, ok := s.auth.get(lookup, version); ok {
 		return rec, nil
 	}
 
@@ -107,10 +105,14 @@ func (s *Server) authenticate(ctx context.Context, plaintext string) (models.API
 		return models.APIKey{}, errUnauthorized
 	}
 
-	s.auth.put(lookup, rec)
+	s.auth.put(lookup, rec, version)
 
 	// Best-effort last-used stamp; a failure here must not fail the request.
+	// Tracked with the metering writes so Drain waits for it before the
+	// database closes.
+	s.metering.Add(1)
 	go func(id string) {
+		defer s.metering.Done()
 		touchCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if err := s.app.Repos.APIKeys.TouchLastUsed(touchCtx, id, time.Now()); err != nil {
@@ -122,8 +124,8 @@ func (s *Server) authenticate(ctx context.Context, plaintext string) (models.API
 }
 
 // authCacheTTL bounds how long a verified key is trusted without re-running
-// argon2. Short enough that a disabled key stops working within seconds, long
-// enough to absorb a coding agent's burst of requests.
+// argon2, long enough to absorb a coding agent's burst of requests. Revocation
+// does not wait for it: Application.KeysChanged drops every entry at once.
 const authCacheTTL = 5 * time.Minute
 
 // authCacheMaxEntries caps the cache so a spray of invalid keys cannot grow it
@@ -140,18 +142,20 @@ type authCache struct {
 type authCacheEntry struct {
 	record  models.APIKey
 	expires time.Time
+	version int64
 }
 
 func newAuthCache() authCache {
 	return authCache{entries: make(map[string]authCacheEntry)}
 }
 
-// get returns a cached key when its entry is still fresh.
-func (a *authCache) get(lookup string) (models.APIKey, bool) {
+// get returns a cached key when its entry is still fresh and was cached at
+// the current key version.
+func (a *authCache) get(lookup string, version int64) (models.APIKey, bool) {
 	a.mu.RLock()
 	ent, ok := a.entries[lookup]
 	a.mu.RUnlock()
-	if !ok || time.Now().After(ent.expires) {
+	if !ok || ent.version != version || time.Now().After(ent.expires) {
 		return models.APIKey{}, false
 	}
 	return ent.record, true
@@ -159,7 +163,7 @@ func (a *authCache) get(lookup string) (models.APIKey, bool) {
 
 // put stores a verified key, evicting the entry closest to expiry when the
 // cache is full.
-func (a *authCache) put(lookup string, rec models.APIKey) {
+func (a *authCache) put(lookup string, rec models.APIKey, version int64) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if _, exists := a.entries[lookup]; !exists && len(a.entries) >= authCacheMaxEntries {
@@ -172,12 +176,5 @@ func (a *authCache) put(lookup string, rec models.APIKey) {
 		}
 		delete(a.entries, oldestKey)
 	}
-	a.entries[lookup] = authCacheEntry{record: rec, expires: time.Now().Add(authCacheTTL)}
-}
-
-// invalidate drops one cached entry.
-func (a *authCache) invalidate(lookup string) {
-	a.mu.Lock()
-	delete(a.entries, lookup)
-	a.mu.Unlock()
+	a.entries[lookup] = authCacheEntry{record: rec, expires: time.Now().Add(authCacheTTL), version: version}
 }
