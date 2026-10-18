@@ -142,9 +142,10 @@ func (h *authHandler) Me(c fiber.Ctx) error {
 	return dtos.OK(c, user)
 }
 
-// SignOut revokes every live refresh token of the user. The web client keeps
-// the refresh token in a cookie the server cannot read, so revoking all of
-// the user's tokens is the safe interpretation.
+// SignOut ends every session of the user: all refresh tokens are revoked and
+// access tokens issued before now are refused by RequireAuth. The web client
+// keeps the refresh token in a cookie the server cannot read, so revoking all
+// of the user's tokens is the safe interpretation.
 func (h *authHandler) SignOut(c fiber.Ctx) error {
 	uid, err := lib.ContextGetUID(c)
 	if err != nil {
@@ -152,6 +153,9 @@ func (h *authHandler) SignOut(c fiber.Ctx) error {
 	}
 
 	if err := h.app.Repos.Refresh.RevokeAllForUser(c.Context(), uid.String()); err != nil {
+		return err
+	}
+	if err := h.app.Repos.Users.RevokeSessions(c.Context(), uid.String()); err != nil {
 		return err
 	}
 	return dtos.Message(c, fiber.StatusOK, "Signed out")

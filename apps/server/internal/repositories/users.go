@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"time"
 
 	"tera-router/server/internal/models"
 )
@@ -110,4 +111,29 @@ func (r *UserRepository) ConsumeTOTPStep(ctx context.Context, id string, step in
 	}
 	n, err := res.RowsAffected()
 	return n == 1, err
+}
+
+// RevokeSessions refuses every access token issued to the user before now.
+// Refresh tokens are revoked separately (RefreshTokenRepository).
+//
+// The time comes from Go, truncated to milliseconds like a token's iat, not
+// from SQLite's clock, which can round up: a token issued in the same
+// millisecond right after the revocation must stay valid.
+func (r *UserRepository) RevokeSessions(ctx context.Context, id string) error {
+	at := time.Now().UTC().Truncate(time.Millisecond).Format("2006-01-02 15:04:05.000-07:00")
+	_, err := r.execContext(ctx, r.DB, `UPDATE users SET sessions_revoked_at = $2 WHERE id = $1`, id, at)
+	return err
+}
+
+// AuthState is what RequireAuth checks per request: whether the account may
+// still sign in, and when its sessions were last revoked.
+func (r *UserRepository) AuthState(ctx context.Context, id string) (usable bool, revokedAt *time.Time, err error) {
+	var active, blocked bool
+	err = r.queryRowContext(ctx, r.DB,
+		`SELECT is_active, is_blocked, sessions_revoked_at FROM users WHERE id = $1 AND deleted_at IS NULL`, id).
+		Scan(&active, &blocked, &revokedAt)
+	if err != nil {
+		return false, nil, translateNotFound(err)
+	}
+	return active && !blocked, revokedAt, nil
 }
