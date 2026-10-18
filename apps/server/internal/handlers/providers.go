@@ -303,6 +303,51 @@ func (h *providersHandler) CustomDelete(c fiber.Ctx) error {
 	return dtos.Deleted(c, message)
 }
 
+// maxBulkDelete caps one bulk delete request.
+const maxBulkDelete = 500
+
+// CustomBulkDelete deletes the listed custom providers that have no account
+// at all (POST /v1/custom-providers/bulk-delete). A provider that still has
+// an API key or OAuth account is skipped, never deleted with its
+// credentials; the check runs in the deleting transaction. The response lists
+// the deleted ids and how many were skipped.
+func (h *providersHandler) CustomBulkDelete(c fiber.Ctx) error {
+	var req dtos.CustomProviderBulkDelete
+	if err := lib.ValidateRequestBody(c, &req); err != nil {
+		return err
+	}
+	if len(req.IDs) == 0 || len(req.IDs) > maxBulkDelete {
+		return apperr.New(apperr.KindBadRequest, "send between 1 and %d provider ids", maxBulkDelete)
+	}
+	ids := make([]string, 0, len(req.IDs))
+	seen := make(map[string]bool, len(req.IDs))
+	for _, raw := range req.IDs {
+		id, err := uuid.Parse(raw)
+		if err != nil {
+			return apperr.New(apperr.KindBadRequest, "invalid provider id %q", raw)
+		}
+		if !seen[id.String()] {
+			seen[id.String()] = true
+			ids = append(ids, id.String())
+		}
+	}
+
+	deleted, err := h.app.Repos.Providers.DeleteEmpty(c.Context(), ids)
+	if err != nil {
+		return err
+	}
+	for _, id := range deleted {
+		auditRecord(c.Context(), h.app, actorFrom(c), "custom_provider.delete", id,
+			map[string]any{"bulk": true, "accounts_deleted": 0})
+	}
+
+	message := fmt.Sprintf("Deleted %d %s", len(deleted), pluralize(int64(len(deleted)), "provider", "providers"))
+	if skipped := len(ids) - len(deleted); skipped > 0 {
+		message += fmt.Sprintf("; skipped %d with API keys or already gone", skipped)
+	}
+	return dtos.Item(c, fiber.StatusOK, fiber.Map{"deleted": deleted, "skipped": len(ids) - len(deleted)}, message)
+}
+
 // pluralize picks the singular or plural form for n.
 func pluralize(n int64, singular, plural string) string {
 	if n == 1 {

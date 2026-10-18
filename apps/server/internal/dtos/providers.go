@@ -20,6 +20,17 @@ func (d *CustomProvider) Validate(v *validator.MapValidator) {
 	v.Field("name").Required().String()
 }
 
+// CustomProviderBulkDelete lists the custom providers to delete
+// (POST /v1/custom-providers/bulk-delete). Only those without any account are
+// deleted; the server checks that itself.
+type CustomProviderBulkDelete struct {
+	IDs []string `json:"ids"`
+}
+
+func (d *CustomProviderBulkDelete) Validate(v *validator.MapValidator) {
+	v.Field("ids").Required()
+}
+
 // ProviderModelState sets one catalog model's state
 // (PATCH /v1/custom-providers/:id/models).
 type ProviderModelState struct {
