@@ -58,6 +58,7 @@ func (s AdminUserSeeder) Seed() {
 		log.Fatalf("check admin user: %v", err)
 	}
 	if exists {
+		s.syncPassword()
 		return
 	}
 
@@ -83,4 +84,48 @@ func (s AdminUserSeeder) Seed() {
 		return
 	}
 	log.Printf("admin user seeded for %s; the password came from ADMIN_PASSWORD", adminEmail)
+}
+
+// syncPassword makes ADMIN_PASSWORD the source of truth for an existing admin.
+// When it no longer matches the stored hash, the hash is replaced and the
+// admin's refresh tokens are revoked so sessions opened with the old password
+// end. Without ADMIN_PASSWORD the stored password is left alone.
+func (s AdminUserSeeder) syncPassword() {
+	plain := os.Getenv("ADMIN_PASSWORD")
+	if plain == "" {
+		return
+	}
+
+	var id, current string
+	if err := s.DB.QueryRow(`SELECT id, password_hash FROM users WHERE email = $1`, adminEmail).Scan(&id, &current); err != nil {
+		log.Fatalf("load admin user: %v", err)
+	}
+	if ok, err := password.Verify(plain, current); err == nil && ok {
+		return
+	}
+
+	hash, err := password.Hash(plain)
+	if err != nil {
+		log.Fatalf("hash admin password: %v", err)
+	}
+
+	tx, err := s.DB.Begin()
+	if err != nil {
+		log.Fatalf("sync admin password: %v", err)
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(
+		`UPDATE users SET password_hash = $2, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now') WHERE id = $1`, id, hash); err != nil {
+		log.Fatalf("sync admin password: %v", err)
+	}
+	if _, err := tx.Exec(
+		`UPDATE refresh_tokens SET revoked_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now') WHERE user_id = $1 AND revoked_at IS NULL`, id); err != nil {
+		log.Fatalf("revoke admin sessions: %v", err)
+	}
+	if err := tx.Commit(); err != nil {
+		log.Fatalf("sync admin password: %v", err)
+	}
+
+	log.Printf("admin password for %s updated from ADMIN_PASSWORD; existing sessions revoked", adminEmail)
 }
