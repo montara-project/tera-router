@@ -16,6 +16,7 @@ import type { AppSettings } from '@/lib/api/models/settings'
 import SectionCard from '@/components/block/common/section-card'
 import BrandingTab from '@/components/block/settings/branding-tab'
 import ImportExportTab from '@/components/block/settings/import-export-tab'
+import IPBlockCard from '@/components/block/settings/ip-block-card'
 import NetworkTab from '@/components/block/settings/network-tab'
 import RoutingTab from '@/components/block/settings/routing-tab'
 import SecurityTab from '@/components/block/settings/security-tab'
@@ -99,7 +100,10 @@ function RouteComponent() {
         </TabsContent>
 
         <TabsContent value="security">
-          <SecurityTab />
+          <div className="flex flex-col gap-4">
+            <SecurityTab />
+            <IPBlockCard />
+          </div>
         </TabsContent>
 
         <TabsContent value="import-export">

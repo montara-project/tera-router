@@ -67,6 +67,11 @@ func serve(app *app.Application) error {
 	// Middleware
 	server.Use(recover.New())
 	server.Use(logger.New())
+	// Blocked addresses stop here, before any other work.
+	if err := app.IPBlocks.Reload(context.Background()); err != nil {
+		return fmt.Errorf("load ip blocklist: %w", err)
+	}
+	server.Use(middlewares.IPBlock(app.IPBlocks, app.Services.Tunnel.Running))
 	server.Use(helmet.New())
 	server.Use(requestid.New())
 	// Compress must never touch inference traffic: buffering an SSE body

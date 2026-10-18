@@ -9,6 +9,7 @@ import (
 	"tera-router/server/internal/app"
 	"tera-router/server/internal/config"
 	"tera-router/server/internal/database"
+	"tera-router/server/internal/ipblock"
 	"tera-router/server/internal/lib/sealer"
 	"tera-router/server/internal/migrator"
 	"tera-router/server/internal/oauth"
@@ -105,5 +106,6 @@ func assemble(cfg config.Config, logger *slog.Logger) *app.Application {
 		Secrets:  secrets,
 		Services: services.New(),
 		OAuth:    oauth.NewManager(repos, secrets, logger),
+		IPBlocks: ipblock.New(repos.IPBlocks),
 	}
 }

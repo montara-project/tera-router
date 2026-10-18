@@ -26,8 +26,10 @@ var (
 )
 
 // checkTOTP verifies code against the user's sealed secret and burns its step.
-// ponytail: brute force is bounded only by the password gate and the
-// per-IP dashboard rate limit; add a per-user failure lockout if that falls short.
+// Brute force is bounded by the password gate and the ipblock guard, which
+// blocks an address after repeated failed sign-ins.
+// ponytail: the limit is per address, not per account; add a per-user lockout
+// if a distributed attack on one account shows up.
 func (h *authHandler) checkTOTP(ctx context.Context, user models.User, code string) error {
 	secret, err := h.app.Secrets.OpenString(sealer.Sealed{WrappedDEK: user.TOTPWrappedDEK, Ciphertext: user.TOTPCiphertext})
 	if err != nil {

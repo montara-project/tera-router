@@ -54,6 +54,11 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	protected.Post("/auth/totp/enable", h.Auth.TOTPEnable)
 	protected.Post("/auth/totp/disable", h.Auth.TOTPDisable)
 
+	// IP blocklist
+	protected.Get("/ip-blocks", h.IPBlocks.Index)
+	protected.Post("/ip-blocks", h.IPBlocks.Store)
+	protected.Delete("/ip-blocks/:id", h.IPBlocks.Delete)
+
 	// Keys & plans
 	protected.Get("/keys", h.Keys.Index)
 	protected.Post("/keys", h.Keys.Store)

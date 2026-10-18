@@ -20,6 +20,7 @@ type Handlers struct {
 	ProviderHealth *providerHealthHandler
 	ProxyPools     *proxyPoolsHandler
 	Settings       *settingsHandler
+	IPBlocks       *ipBlocksHandler
 	Skills         *skillsHandler
 	Priming        *pricingHandler
 	Guardrails     *guardrailsHandler
@@ -49,6 +50,7 @@ func New(app *app.Application) *Handlers {
 		ProviderHealth: &providerHealthHandler{app: app},
 		ProxyPools:     &proxyPoolsHandler{app: app},
 		Settings:       &settingsHandler{app: app},
+		IPBlocks:       &ipBlocksHandler{app: app},
 		Skills:         &skillsHandler{app: app},
 		Priming:        &pricingHandler{app: app},
 		Guardrails:     &guardrailsHandler{app: app},

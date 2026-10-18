@@ -135,6 +135,10 @@ account.
 - **Trusted proxies** — `--trusted-proxies=your_private_network_ip` must match the subnet your reverse proxy or
   load balancer actually sits in, so the server reads real client IPs for rate limiting and logs.
   Adjust the value before deploying.
+- **IP blocking** — **Settings → Security → Blocked IPs** refuses addresses or CIDR ranges with 403,
+  and an address with 10 failed sign-ins in 15 minutes is blocked for 15 minutes. Both key on the
+  client IP, so set trusted proxies first: otherwise every visitor shares the proxy's address and
+  one attacker's failed sign-ins block everyone.
 - **Rate-limit exemptions** — `RATE_LIMIT_EXEMPT_IPS` takes a comma-separated list of IPs that
   bypass the dashboard rate limit (e.g. an internal monitoring host).
 - **Persistence** — everything stateful is the SQLite file at `/app/data/terarouter.db` on the

@@ -44,6 +44,7 @@ type Repositories struct {
 	Pricing    *PricingRepository
 	Capability *CapabilityRepository
 	Backup     *BackupRepository
+	IPBlocks   *IPBlockRepository
 }
 
 // New builds every repository on top of the shared connection pool, handing
@@ -71,5 +72,6 @@ func New(db *sql.DB, cfg *config.ConfigApp) *Repositories {
 		Pricing:    &PricingRepository{base},
 		Capability: &CapabilityRepository{base},
 		Backup:     &BackupRepository{base},
+		IPBlocks:   &IPBlockRepository{base},
 	}
 }

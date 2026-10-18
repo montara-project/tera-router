@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	"tera-router/server/internal/config"
+	"tera-router/server/internal/ipblock"
 	"tera-router/server/internal/lib/sealer"
 	"tera-router/server/internal/oauth"
 	"tera-router/server/internal/repositories"
@@ -28,6 +29,9 @@ type Application struct {
 	// OAuth refreshes expiring OAuth access tokens (anthropic, codex) just in
 	// time; nil in tools that never dispatch through the gateway.
 	OAuth *oauth.Manager
+	// IPBlocks refuses blocked client addresses; nil in tools without an
+	// HTTP server.
+	IPBlocks *ipblock.Guard
 }
 
 // Close releases the database pool.

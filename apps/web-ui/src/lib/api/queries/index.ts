@@ -6,6 +6,7 @@ import { chainQueries } from './chain'
 import { cliToolQueries } from './cli-tool'
 import { consoleQueries } from './console'
 import { guardrailsQueries } from './guardrails'
+import { ipBlockQueries } from './ip-block'
 import { keyQueries } from './key'
 import { mediaQueries } from './media'
 import { overrideQueries } from './override'
@@ -29,6 +30,7 @@ export const queries = {
   cliTools: cliToolQueries,
   console: consoleQueries,
   guardrails: guardrailsQueries,
+  ipBlocks: ipBlockQueries,
   keys: keyQueries,
   media: mediaQueries,
   overrides: overrideQueries,
