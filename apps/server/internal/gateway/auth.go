@@ -108,7 +108,11 @@ func (s *Server) authenticate(ctx context.Context, plaintext string) (models.API
 	s.auth.put(lookup, rec, version)
 
 	// Best-effort last-used stamp; a failure here must not fail the request.
+	// Tracked with the metering writes so Drain waits for it before the
+	// database closes.
+	s.metering.Add(1)
 	go func(id string) {
+		defer s.metering.Done()
 		touchCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if err := s.app.Repos.APIKeys.TouchLastUsed(touchCtx, id, time.Now()); err != nil {
