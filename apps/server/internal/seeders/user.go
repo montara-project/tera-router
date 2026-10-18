@@ -115,11 +115,9 @@ func (s AdminUserSeeder) syncEmail(current string) {
 		log.Printf("ADMIN_EMAIL %s already belongs to another account; the admin keeps %s", email, current)
 		return
 	}
-	if _, err := s.DB.Exec(
-		`UPDATE users SET email = $2, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now') WHERE id = $1`, adminID, email); err != nil {
-		log.Fatalf("sync admin email: %v", err)
-	}
-	log.Printf("admin email changed from %s to %s by ADMIN_EMAIL", current, email)
+	s.updateAdmin("sync admin email",
+		`UPDATE users SET email = $2, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now') WHERE id = $1`, adminID, email)
+	log.Printf("admin email changed from %s to %s by ADMIN_EMAIL; existing sessions revoked", current, email)
 }
 
 // resetTOTP is the lost-authenticator escape hatch: ADMIN_TOTP_RESET=true
@@ -129,17 +127,15 @@ func (s AdminUserSeeder) resetTOTP() {
 	if os.Getenv("ADMIN_TOTP_RESET") != "true" {
 		return
 	}
-	if _, err := s.DB.Exec(
-		`UPDATE users SET totp_wrapped_dek = '', totp_ciphertext = '', totp_last_step = 0 WHERE id = $1`, adminID); err != nil {
-		log.Fatalf("reset admin totp: %v", err)
-	}
-	log.Print("admin two-factor authentication cleared by ADMIN_TOTP_RESET; unset it now")
+	s.updateAdmin("reset admin totp",
+		`UPDATE users SET totp_wrapped_dek = '', totp_ciphertext = '', totp_last_step = 0 WHERE id = $1`, adminID)
+	log.Print("admin two-factor authentication cleared by ADMIN_TOTP_RESET and sessions revoked; unset it now")
 }
 
 // syncPassword makes ADMIN_PASSWORD the source of truth for an existing admin.
-// When it no longer matches the stored hash, the hash is replaced and the
-// admin's refresh tokens are revoked so sessions opened with the old password
-// end. Without ADMIN_PASSWORD the stored password is left alone.
+// When it no longer matches the stored hash, the hash is replaced and every
+// admin session ends (see updateAdmin). Without ADMIN_PASSWORD the stored
+// password is left alone.
 func (s AdminUserSeeder) syncPassword() {
 	plain := os.Getenv("ADMIN_PASSWORD")
 	if plain == "" {
@@ -159,23 +155,34 @@ func (s AdminUserSeeder) syncPassword() {
 		log.Fatalf("hash admin password: %v", err)
 	}
 
+	s.updateAdmin("sync admin password",
+		`UPDATE users SET password_hash = $2, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now') WHERE id = $1`, adminID, hash)
+	log.Print("admin password updated from ADMIN_PASSWORD; existing sessions revoked")
+}
+
+// updateAdmin runs one UPDATE on the admin and, in the same transaction, ends
+// every session it has: refresh tokens are revoked, and sessions_revoked_at
+// makes RequireAuth refuse access tokens issued before now. Any change to how
+// the admin signs in goes through here, so old cookies stop working at once.
+func (s AdminUserSeeder) updateAdmin(what, query string, args ...any) {
 	tx, err := s.DB.Begin()
 	if err != nil {
-		log.Fatalf("sync admin password: %v", err)
+		log.Fatalf("%s: %v", what, err)
 	}
 	defer tx.Rollback()
 
-	if _, err := tx.Exec(
-		`UPDATE users SET password_hash = $2, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now') WHERE id = $1`, adminID, hash); err != nil {
-		log.Fatalf("sync admin password: %v", err)
+	if _, err := tx.Exec(query, args...); err != nil {
+		log.Fatalf("%s: %v", what, err)
 	}
 	if _, err := tx.Exec(
 		`UPDATE refresh_tokens SET revoked_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now') WHERE user_id = $1 AND revoked_at IS NULL`, adminID); err != nil {
 		log.Fatalf("revoke admin sessions: %v", err)
 	}
-	if err := tx.Commit(); err != nil {
-		log.Fatalf("sync admin password: %v", err)
+	if _, err := tx.Exec(
+		`UPDATE users SET sessions_revoked_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now') WHERE id = $1`, adminID); err != nil {
+		log.Fatalf("revoke admin sessions: %v", err)
 	}
-
-	log.Print("admin password updated from ADMIN_PASSWORD; existing sessions revoked")
+	if err := tx.Commit(); err != nil {
+		log.Fatalf("%s: %v", what, err)
+	}
 }

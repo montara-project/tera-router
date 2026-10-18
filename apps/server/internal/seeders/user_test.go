@@ -34,12 +34,19 @@ func TestAdminPasswordSyncsFromEnv(t *testing.T) {
 	AdminUserSeeder{DB: db}.Seed()
 	assertAdminPassword(t, db, "second-pass")
 
-	var revoked sql.NullString
-	if err := db.QueryRow(`SELECT revoked_at FROM refresh_tokens WHERE id = 'rt-1'`).Scan(&revoked); err != nil {
-		t.Fatalf("load refresh token: %v", err)
+	assertSessionsRevoked(t, db, "rt-1")
+
+	// A restart with unchanged env must not sign anyone out.
+	if _, err := db.Exec(`UPDATE users SET sessions_revoked_at = NULL WHERE id = $1`, adminID); err != nil {
+		t.Fatal(err)
 	}
-	if !revoked.Valid {
-		t.Fatal("expected the old session to be revoked after a password change")
+	insertRefresh(t, db, "rt-2")
+	AdminUserSeeder{DB: db}.Seed()
+	var revoked, sessions sql.NullString
+	_ = db.QueryRow(`SELECT revoked_at FROM refresh_tokens WHERE id = 'rt-2'`).Scan(&revoked)
+	_ = db.QueryRow(`SELECT sessions_revoked_at FROM users WHERE id = $1`, adminID).Scan(&sessions)
+	if revoked.Valid || sessions.Valid {
+		t.Fatal("an unchanged ADMIN_PASSWORD revoked sessions on reboot")
 	}
 
 	// Unset env keeps the stored password.
@@ -75,11 +82,13 @@ func TestAdminTOTPReset(t *testing.T) {
 	if !enabled() {
 		t.Fatal("TOTP cleared without ADMIN_TOTP_RESET")
 	}
+	insertRefresh(t, db, "rt-totp")
 	t.Setenv("ADMIN_TOTP_RESET", "true")
 	AdminUserSeeder{DB: db, Dev: true}.Seed()
 	if enabled() {
 		t.Fatal("ADMIN_TOTP_RESET=true should clear TOTP")
 	}
+	assertSessionsRevoked(t, db, "rt-totp")
 }
 
 func assertAdminPassword(t *testing.T, db *sql.DB, want string) {
@@ -122,11 +131,13 @@ func TestAdminEmailSyncsFromEnv(t *testing.T) {
 	t.Setenv("ADMIN_EMAIL", "first@tera.local")
 	AdminUserSeeder{DB: db, Dev: true}.Seed()
 
+	insertRefresh(t, db, "rt-email")
 	t.Setenv("ADMIN_EMAIL", "second@tera.local")
 	AdminUserSeeder{DB: db, Dev: true}.Seed()
 	if got := email(); got != "second@tera.local" || count() != 1 {
 		t.Fatalf("email = %s with %d users, want the one admin renamed", got, count())
 	}
+	assertSessionsRevoked(t, db, "rt-email")
 
 	// An email another account owns is skipped, not stolen.
 	if _, err := db.Exec(`INSERT INTO users (id, fullname, email, password_hash, role_id)
@@ -144,5 +155,29 @@ func TestAdminEmailSyncsFromEnv(t *testing.T) {
 	AdminUserSeeder{DB: db, Dev: true}.Seed()
 	if got := email(); got != "second@tera.local" {
 		t.Fatalf("email = %s, want it kept without ADMIN_EMAIL", got)
+	}
+}
+
+// assertSessionsRevoked checks that every admin session ended: the refresh
+// token is revoked and sessions_revoked_at is set for RequireAuth.
+func assertSessionsRevoked(t *testing.T, db *sql.DB, refreshID string) {
+	t.Helper()
+	var revoked, sessions sql.NullString
+	if err := db.QueryRow(`SELECT revoked_at FROM refresh_tokens WHERE id = $1`, refreshID).Scan(&revoked); err != nil {
+		t.Fatalf("load refresh token: %v", err)
+	}
+	if err := db.QueryRow(`SELECT sessions_revoked_at FROM users WHERE id = $1`, adminID).Scan(&sessions); err != nil {
+		t.Fatalf("load admin: %v", err)
+	}
+	if !revoked.Valid || !sessions.Valid {
+		t.Fatalf("refresh revoked = %v, sessions_revoked_at = %v; want both set", revoked.Valid, sessions.Valid)
+	}
+}
+
+func insertRefresh(t *testing.T, db *sql.DB, id string) {
+	t.Helper()
+	if _, err := db.Exec(`INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at)
+		VALUES ($1, $2, $1, '2999-01-01')`, id, adminID.String()); err != nil {
+		t.Fatalf("insert refresh token: %v", err)
 	}
 }
