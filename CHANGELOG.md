@@ -3,6 +3,13 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [1.2.0](https://github.com/montara-project/tera-router/compare/v1.1.0...v1.2.0) (2026-10-18)
+
+### Features
+
+* **server:** bulk delete custom providers without accounts ([ee0d2fc](https://github.com/montara-project/tera-router/commit/ee0d2fc85a2dbf2eca5971fb18d8ecf76563627b))
+* **web-ui:** delete providers without API keys from the Providers page ([6a6896a](https://github.com/montara-project/tera-router/commit/6a6896aebdd598c0a2674846fd0e78ea6fb2a3fc))
+
 ## [1.1.0](https://github.com/montara-project/tera-router/compare/v1.0.0...v1.1.0) (2026-10-18)
 
 ### Features
