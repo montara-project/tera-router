@@ -40,7 +40,11 @@ func (h *authHandler) SignIn(c fiber.Ctx) error {
 		return err
 	}
 
-	session, err := h.signIn(c.Context(), req.Email, req.Password)
+	session, err := h.signIn(c.Context(), req.Email, req.Password, req.OTP)
+	if errors.Is(err, errTOTPRequired) {
+		// Password checked out; the client asks for the code and resubmits.
+		return dtos.OK(c, fiber.Map{"totp_required": true})
+	}
 	if err != nil {
 		return err
 	}
@@ -50,8 +54,9 @@ func (h *authHandler) SignIn(c fiber.Ctx) error {
 	return dtos.OK(c, sessionView(session))
 }
 
-// signIn verifies the credentials and issues a new token pair.
-func (h *authHandler) signIn(ctx context.Context, email, plainPassword string) (dtos.Session, error) {
+// signIn verifies the credentials, and the TOTP code when the user enabled
+// it, then issues a new token pair.
+func (h *authHandler) signIn(ctx context.Context, email, plainPassword, otp string) (dtos.Session, error) {
 	user, err := h.app.Repos.Users.GetByEmail(ctx, email)
 	if err != nil {
 		if errors.Is(err, apperr.ErrNotFound) {
@@ -66,6 +71,15 @@ func (h *authHandler) signIn(ctx context.Context, email, plainPassword string) (
 	ok, err := password.Verify(plainPassword, user.PasswordHash)
 	if err != nil || !ok {
 		return dtos.Session{}, ErrBadCredentials
+	}
+
+	if user.TOTPEnabled {
+		if otp == "" {
+			return dtos.Session{}, errTOTPRequired
+		}
+		if err := h.checkTOTP(ctx, user, otp); err != nil {
+			return dtos.Session{}, err
+		}
 	}
 
 	return h.issueSession(ctx, user)

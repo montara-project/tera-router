@@ -48,6 +48,40 @@ func TestAdminPasswordSyncsFromEnv(t *testing.T) {
 	assertAdminPassword(t, db, "second-pass")
 }
 
+func TestAdminTOTPReset(t *testing.T) {
+	db, err := database.Open(filepath.Join(t.TempDir(), "seed_test.db"))
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if err := migrator.Up(db, "../../migrations"); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	RoleSeeder{DB: db}.Seed()
+	AdminUserSeeder{DB: db, Dev: true}.Seed()
+	if _, err := db.Exec(`UPDATE users SET totp_wrapped_dek = 'd', totp_ciphertext = 'c' WHERE email = $1`, adminEmail); err != nil {
+		t.Fatal(err)
+	}
+
+	enabled := func() bool {
+		var c string
+		if err := db.QueryRow(`SELECT totp_ciphertext FROM users WHERE email = $1`, adminEmail).Scan(&c); err != nil {
+			t.Fatal(err)
+		}
+		return c != ""
+	}
+
+	AdminUserSeeder{DB: db, Dev: true}.Seed()
+	if !enabled() {
+		t.Fatal("TOTP cleared without ADMIN_TOTP_RESET")
+	}
+	t.Setenv("ADMIN_TOTP_RESET", "true")
+	AdminUserSeeder{DB: db, Dev: true}.Seed()
+	if enabled() {
+		t.Fatal("ADMIN_TOTP_RESET=true should clear TOTP")
+	}
+}
+
 func assertAdminPassword(t *testing.T, db *sql.DB, want string) {
 	t.Helper()
 	var hash string

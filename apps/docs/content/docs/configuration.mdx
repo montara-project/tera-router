@@ -19,6 +19,7 @@ The server reads `.env` in `apps/server` when run via `make run`.
 | `SEED_ON_BOOT`         | `true`               | Seed initial data (roles, admin, Default plan)                                  |
 | `ADMIN_EMAIL`          | `admin@tera.local`   | Initial admin email                                                             |
 | `ADMIN_PASSWORD`       | `admin123` (dev)     | Admin password — required in production; a change is synced to the admin on the next seed |
+| `ADMIN_TOTP_RESET`     | —                    | Set to `true` to turn off the admin's two-factor auth on the next seed; unset it after signing in |
 | `CORS_ALLOWED_ORIGINS` | `*`                  | Comma-separated origin list, e.g. `http://localhost:5173,http://localhost:3001` |
 | `APP_NAME`             | `tera-router-server` | Application name                                                                |
 | `SENTRY_DSN`           | —                    | Enables error tracking when set                                                 |

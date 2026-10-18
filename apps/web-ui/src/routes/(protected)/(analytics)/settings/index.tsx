@@ -5,6 +5,7 @@ import {
   IconNetwork,
   IconPalette,
   IconRoute,
+  IconShieldLock,
 } from '@tabler/icons-react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
@@ -17,6 +18,7 @@ import BrandingTab from '@/components/block/settings/branding-tab'
 import ImportExportTab from '@/components/block/settings/import-export-tab'
 import NetworkTab from '@/components/block/settings/network-tab'
 import RoutingTab from '@/components/block/settings/routing-tab'
+import SecurityTab from '@/components/block/settings/security-tab'
 import SystemTab from '@/components/block/settings/system-tab'
 import TokenSavingTab from '@/components/block/settings/token-saving-tab'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -32,6 +34,7 @@ const TABS = [
   { value: 'routing', label: 'Routing', icon: IconRoute },
   { value: 'network', label: 'Network', icon: IconNetwork },
   { value: 'branding', label: 'Branding', icon: IconPalette },
+  { value: 'security', label: 'Security', icon: IconShieldLock },
   { value: 'import-export', label: 'Import / Export', icon: IconDatabase },
   { value: 'system', label: 'System', icon: IconGauge },
 ]
@@ -93,6 +96,10 @@ function RouteComponent() {
 
         <TabsContent value="branding">
           <BrandingTab settings={settings} onUpdate={handleUpdate} />
+        </TabsContent>
+
+        <TabsContent value="security">
+          <SecurityTab />
         </TabsContent>
 
         <TabsContent value="import-export">

@@ -16,4 +16,5 @@ export interface User {
   is_blocked: boolean
   role_id: string
   role: Role
+  totp_enabled: boolean
 }

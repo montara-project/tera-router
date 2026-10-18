@@ -59,6 +59,7 @@ func (s AdminUserSeeder) Seed() {
 	}
 	if exists {
 		s.syncPassword()
+		s.resetTOTP()
 		return
 	}
 
@@ -84,6 +85,20 @@ func (s AdminUserSeeder) Seed() {
 		return
 	}
 	log.Printf("admin user seeded for %s; the password came from ADMIN_PASSWORD", adminEmail)
+}
+
+// resetTOTP is the lost-authenticator escape hatch: ADMIN_TOTP_RESET=true
+// turns the admin's TOTP off on the next seed. The operator unsets it after
+// signing in again, or every boot keeps clearing it.
+func (s AdminUserSeeder) resetTOTP() {
+	if os.Getenv("ADMIN_TOTP_RESET") != "true" {
+		return
+	}
+	if _, err := s.DB.Exec(
+		`UPDATE users SET totp_wrapped_dek = '', totp_ciphertext = '', totp_last_step = 0 WHERE email = $1`, adminEmail); err != nil {
+		log.Fatalf("reset admin totp: %v", err)
+	}
+	log.Printf("two-factor authentication cleared for %s by ADMIN_TOTP_RESET; unset it now", adminEmail)
 }
 
 // syncPassword makes ADMIN_PASSWORD the source of truth for an existing admin.

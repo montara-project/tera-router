@@ -50,6 +50,9 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	// Auth
 	protected.Get("/auth/me", h.Auth.Me)
 	protected.Post("/auth/sign-out", h.Auth.SignOut)
+	protected.Post("/auth/totp/setup", h.Auth.TOTPSetup)
+	protected.Post("/auth/totp/enable", h.Auth.TOTPEnable)
+	protected.Post("/auth/totp/disable", h.Auth.TOTPDisable)
 
 	// Keys & plans
 	protected.Get("/keys", h.Keys.Index)
