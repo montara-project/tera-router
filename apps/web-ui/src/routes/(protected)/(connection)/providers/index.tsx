@@ -6,9 +6,10 @@ import {
   IconPlugConnected,
   IconPlus,
   IconSearch,
+  IconTrash,
   IconWorld,
 } from '@tabler/icons-react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
@@ -17,6 +18,7 @@ import type { Models } from '@/lib/api/models'
 
 import IconBadge from '@/components/block/common/icon-badge'
 import SectionCard from '@/components/block/common/section-card'
+import SimpleAlertDialog from '@/components/block/common/simple-alert-dialog'
 import {
   API_KEY_PROVIDERS,
   CUSTOM_CONNECT_PRESETS,
@@ -88,6 +90,20 @@ type Category = (typeof CATEGORIES)[number]
 const inCategory = (provider: Models.Provider, category: Category) =>
   category.capabilities.some((capability) => provider.capabilities.includes(capability))
 
+/**
+ * A connected provider with no account (no API key or OAuth login) is just a
+ * stored custom_providers row, safe to delete. Catalog-only entries carry a
+ * "prov-<slug>" id and have nothing to delete.
+ */
+const isEmptyProvider = (provider: Models.Provider) =>
+  (provider.accounts ?? 0) === 0 && !provider.id.startsWith('prov-')
+
+/** "A, B, C and 2 more" for the confirmation text. */
+const listNames = (names: string[]) =>
+  names.length <= 5
+    ? names.join(', ')
+    : `${names.slice(0, 5).join(', ')} and ${names.length - 5} more`
+
 function RouteSkeleton() {
   return (
     <div className="bg-sidebar border border-sidebar-accent p-2 rounded-2xl">
@@ -129,6 +145,10 @@ function ProvidersCard({
   onSync,
   syncingSlug,
   detailBasePath,
+  actions,
+  selectableIds,
+  selectedIds,
+  onToggleSelect,
 }: {
   count: number
   description: string
@@ -140,6 +160,10 @@ function ProvidersCard({
   onSync?: (provider: Models.Provider) => void
   syncingSlug?: string | null
   detailBasePath?: string
+  actions?: React.ReactNode
+  selectableIds?: Set<string>
+  selectedIds?: Set<string>
+  onToggleSelect?: (id: string) => void
 }) {
   return (
     <Card className="bg-background">
@@ -152,6 +176,7 @@ function ProvidersCard({
           </CardHeading>
         </div>
         <CardToolbar>
+          {actions}
           <Badge variant="secondary" size="sm" className="tabular-nums">
             {count}
           </Badge>
@@ -165,6 +190,9 @@ function ProvidersCard({
           onSync={onSync}
           syncingSlug={syncingSlug}
           detailBasePath={detailBasePath}
+          selectableIds={selectableIds}
+          selectedIds={selectedIds}
+          onToggleSelect={onToggleSelect}
         />
       </CardContent>
     </Card>
@@ -182,6 +210,10 @@ function RouteComponent() {
   const [keyProvider, setKeyProvider] = useState<{ slug: string; name: string } | null>(null)
   const [modeProvider, setModeProvider] = useState<{ slug: string; name: string } | null>(null)
   const [syncingSlug, setSyncingSlug] = useState<string | null>(null)
+  const [selected, setSelected] = useState<Set<string>>(() => new Set())
+  // Providers awaiting delete confirmation; null while the dialog is closed.
+  const [pendingDelete, setPendingDelete] = useState<Models.Provider[] | null>(null)
+  const bulkDelete = useMutation(providerQueries.customBulkDelete())
   const {
     connect: connectOAuth,
     connecting,
@@ -214,8 +246,39 @@ function RouteComponent() {
     }
   }, [overview, search, category])
 
+  // Only empty providers in the current view can be selected, so a hidden or
+  // since-connected provider never rides along in a bulk delete.
+  const emptyProviders = filtered.connected.filter(isEmptyProvider)
+  const emptyIds = new Set(emptyProviders.map((provider) => provider.id))
+  const selectedEmpty = emptyProviders.filter((provider) => selected.has(provider.id))
+
   if (!overview) {
     return <RouteSkeleton />
+  }
+
+  const toggleSelect = (id: string) => {
+    setSelected((current) => {
+      const next = new Set(current)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const confirmDelete = () => {
+    const targets = pendingDelete ?? []
+    setPendingDelete(null)
+    if (targets.length === 0) return
+    bulkDelete.mutate(
+      targets.map((provider) => provider.id),
+      {
+        onSuccess: (res) => {
+          toast.success(res.message ?? 'Providers deleted')
+          setSelected(new Set())
+        },
+        onError: toastAxiosError,
+      }
+    )
   }
 
   const handleNewProvider = () => {
@@ -331,6 +394,41 @@ function RouteComponent() {
             title="Connected providers"
             variant="connected"
             detailBasePath="/providers"
+            selectableIds={emptyIds}
+            selectedIds={selected}
+            onToggleSelect={toggleSelect}
+            actions={
+              emptyProviders.length > 0 ? (
+                <>
+                  {selectedEmpty.length > 0 ? (
+                    <>
+                      <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
+                        Clear
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="text-white"
+                        disabled={bulkDelete.isPending}
+                        onClick={() => setPendingDelete(selectedEmpty)}
+                      >
+                        <IconTrash />
+                        Delete selected ({selectedEmpty.length})
+                      </Button>
+                    </>
+                  ) : null}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={bulkDelete.isPending}
+                    onClick={() => setPendingDelete(emptyProviders)}
+                  >
+                    <IconTrash />
+                    Delete empty ({emptyProviders.length})
+                  </Button>
+                </>
+              ) : null
+            }
             onSync={(provider) => {
               if (API_KEY_PROVIDERS[provider.slug]) {
                 void syncModels(provider.slug)
@@ -352,6 +450,18 @@ function RouteComponent() {
       </SectionCard>
 
       <AddCustomProviderForm open={createOpen} onOpenChange={setCreateOpen} preset={createPreset} />
+
+      <SimpleAlertDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingDelete(null)
+        }}
+        title={`Delete ${pendingDelete?.length ?? 0} ${pendingDelete?.length === 1 ? 'provider' : 'providers'} without API keys?`}
+        description={`${listNames((pendingDelete ?? []).map((provider) => provider.name))} will be removed with their stored model catalogs and pricing overrides. They have no API keys, so no credentials are deleted; a provider that gets one in the meantime is skipped. Usage history is kept.`}
+        confirmText="Delete providers"
+        onConfirm={confirmDelete}
+        variant="destructive"
+      />
 
       <AddCustomProviderApiKeyForm
         open={Boolean(keyProvider)}

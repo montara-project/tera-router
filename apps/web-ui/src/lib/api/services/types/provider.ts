@@ -15,6 +15,10 @@ export type ProviderResources = {
     payload: CustomProviderDto
   ) => Promise<AxiosItemResponse<Models.CustomProvider>>
   customDelete: (id: string) => Promise<AxiosDeleteResponse>
+  /** Deletes the listed providers that have no account; the server skips the rest. */
+  customBulkDelete: (
+    ids: string[]
+  ) => Promise<AxiosItemResponse<{ deleted: string[]; skipped: number }>>
   customModels: (
     id: string,
     params?: { search?: string; offset?: number; limit?: number }
