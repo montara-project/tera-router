@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"errors"
+	"sync"
 	"time"
 
 	"tera-router/server/internal/app"
@@ -27,6 +28,12 @@ const (
 // ErrBadCredentials is returned for unknown emails or wrong passwords. It
 // deliberately does not distinguish the two cases.
 var ErrBadCredentials = apperr.New(apperr.KindUnauthorized, "invalid email or password")
+
+// dummyHash is verified against for unknown emails; see signIn.
+var dummyHash = sync.OnceValue(func() string {
+	h, _ := password.Hash("tera-router-dummy-password")
+	return h
+})
 
 type authHandler struct {
 	app *app.Application
@@ -60,16 +67,16 @@ func (h *authHandler) signIn(ctx context.Context, email, plainPassword, otp stri
 	user, err := h.app.Repos.Users.GetByEmail(ctx, email)
 	if err != nil {
 		if errors.Is(err, apperr.ErrNotFound) {
+			// Spend the same argon2 work as a real account, so response time
+			// does not reveal which emails are registered.
+			_, _ = password.Verify(plainPassword, dummyHash())
 			return dtos.Session{}, ErrBadCredentials
 		}
 		return dtos.Session{}, err
 	}
-	if !user.IsActive || user.IsBlocked {
-		return dtos.Session{}, ErrBadCredentials
-	}
 
 	ok, err := password.Verify(plainPassword, user.PasswordHash)
-	if err != nil || !ok {
+	if err != nil || !ok || !user.IsActive || user.IsBlocked {
 		return dtos.Session{}, ErrBadCredentials
 	}
 
