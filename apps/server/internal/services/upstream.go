@@ -701,3 +701,59 @@ func upstreamErrorMessage(raw []byte, status int) string {
 	}
 	return detail
 }
+
+// ListDeepgramModels fetches Deepgram's GET {base}/models, whose envelope
+// splits speech-to-text and text-to-speech models into stt/tts arrays. Ids are
+// the canonical names the audio connector passes as ?model= (nova-3,
+// aura-2-thalia-en); streaming-only STT models are skipped since the gateway
+// transcribes through the batch /listen endpoint.
+func (s *UpstreamService) ListDeepgramModels(ctx context.Context, baseURL, apiKey string) ([]UpstreamModel, error) {
+	endpoint := strings.TrimSuffix(baseURL, "/") + "/models"
+	if err := validateEndpoint(endpoint); err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Token "+apiKey)
+
+	resp, err := probeClient().Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("upstream request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
+	if err != nil {
+		return nil, fmt.Errorf("read upstream response: %w", err)
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("upstream responded with status %d", resp.StatusCode)
+	}
+
+	type entry struct {
+		CanonicalName string `json:"canonical_name"`
+		Batch         *bool  `json:"batch"`
+	}
+	var payload struct {
+		STT []entry `json:"stt"`
+		TTS []entry `json:"tts"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return nil, fmt.Errorf("parse deepgram models response: %w", err)
+	}
+
+	seen := map[string]bool{}
+	models := make([]UpstreamModel, 0, len(payload.STT)+len(payload.TTS))
+	for _, m := range append(payload.STT, payload.TTS...) {
+		if m.CanonicalName == "" || seen[m.CanonicalName] || (m.Batch != nil && !*m.Batch) {
+			continue
+		}
+		seen[m.CanonicalName] = true
+		models = append(models, UpstreamModel{ID: m.CanonicalName})
+	}
+	slices.SortFunc(models, func(a, b UpstreamModel) int { return strings.Compare(a.ID, b.ID) })
+	return models, nil
+}

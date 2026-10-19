@@ -426,3 +426,34 @@ func TestChatCompletionClineEnvelopeAndHeaders(t *testing.T) {
 		t.Errorf("headers: X-CLIENT-TYPE=%q Authorization=%q", gotHeader.Get("X-CLIENT-TYPE"), gotHeader.Get("Authorization"))
 	}
 }
+
+// The Deepgram sync reads the stt/tts envelope with Token auth, keys models by
+// canonical_name, dedups, and drops streaming-only STT models.
+func TestListDeepgramModels(t *testing.T) {
+	var gotAuth string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth = r.Header.Get("Authorization")
+		if r.URL.Path != "/v1/models" {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write([]byte(`{
+			"stt":[{"name":"nova-3","canonical_name":"nova-3","batch":true},
+			       {"name":"nova-3","canonical_name":"nova-3","batch":true},
+			       {"name":"general","canonical_name":"nova-3-general","batch":false}],
+			"tts":[{"name":"thalia","canonical_name":"aura-2-thalia-en"}]}`))
+	}))
+	defer srv.Close()
+
+	svc := &UpstreamService{}
+	models, err := svc.ListDeepgramModels(context.Background(), srv.URL+"/v1", "dg-key")
+	if err != nil {
+		t.Fatalf("ListDeepgramModels: %v", err)
+	}
+	if gotAuth != "Token dg-key" {
+		t.Errorf("auth = %q, want Token scheme", gotAuth)
+	}
+	if len(models) != 2 || models[0].ID != "aura-2-thalia-en" || models[1].ID != "nova-3" {
+		t.Errorf("models = %+v", models)
+	}
+}
