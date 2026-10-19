@@ -38,7 +38,7 @@ export default function TextField({
         {label}
         {asterisk && <span className="text-destructive">*</span>}
       </FieldLabel>
-      <InputWrapper className="h-10">
+      <InputWrapper variant="lg">
         {props.icon && <props.icon />}
         <Input
           id={field.name}

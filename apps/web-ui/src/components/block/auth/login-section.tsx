@@ -1,10 +1,10 @@
-import { Link, useRouter } from '@tanstack/react-router'
-import { GalleryVerticalEnd } from 'lucide-react'
+import { IconLoader2 } from '@tabler/icons-react'
+import { revalidateLogic } from '@tanstack/react-form'
+import { useRouter } from '@tanstack/react-router'
 import { useState } from 'react'
-import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
-import { Field, FieldGroup } from '@/components/ui/field'
+import { Field, FieldError, FieldGroup } from '@/components/ui/field'
 import { InputOTP, REGEXP_ONLY_DIGITS } from '@/components/ui/input-otp'
 import { Label } from '@/components/ui/label'
 import { useAppForm } from '@/hooks/form'
@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils'
 export default function LoginSection({ className, ...props }: React.ComponentProps<'div'>) {
   const { navigate } = useRouter()
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   // Set once the password checked out on an account with two-factor auth on.
   const [needsCode, setNeedsCode] = useState(false)
   const [otp, setOtp] = useState('')
@@ -24,12 +25,14 @@ export default function LoginSection({ className, ...props }: React.ComponentPro
       email: '',
       password: '',
     },
+    // Stay quiet until the first submit, then revalidate as the user fixes things.
+    validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
     validators: {
-      onSubmit: SignInSchema,
-      onChange: SignInSchema,
+      onDynamic: SignInSchema,
     },
     onSubmit: async ({ value }) => {
       setIsLoading(true)
+      setError(null)
 
       try {
         const res = await signInWithEmail({ ...value, otp: needsCode ? otp : undefined })
@@ -39,10 +42,13 @@ export default function LoginSection({ className, ...props }: React.ComponentPro
         }
         navigate({ to: '/dashboard' })
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'An error occurred'
-        toast.error(message)
+        setError(error instanceof Error ? error.message : 'An error occurred')
         setOtp('')
-        if (!needsCode) form.reset()
+        if (!needsCode) {
+          // Keep the email; only the password needs retyping.
+          form.setFieldValue('password', '', { dontValidate: true })
+          document.getElementById('password')?.focus()
+        }
       } finally {
         setIsLoading(false)
       }
@@ -52,24 +58,29 @@ export default function LoginSection({ className, ...props }: React.ComponentPro
   const cancelCode = () => {
     setNeedsCode(false)
     setOtp('')
-    form.reset()
+    setError(null)
+    form.setFieldValue('password', '', { dontValidate: true })
   }
 
   return (
     <div className={cn('flex flex-col gap-6', className)} {...props}>
       <FieldGroup>
-        <div className="flex flex-col items-center gap-2 text-center">
-          <Link to="/" className="flex flex-col items-center gap-2 font-medium">
-            <div className="flex size-8 items-center justify-center rounded-md">
-              <GalleryVerticalEnd className="size-6" />
-            </div>
-            <span className="sr-only">Tera Router</span>
-          </Link>
+        <div className="flex flex-col items-center gap-3 text-center">
+          <div className="flex size-10 items-center justify-center rounded-lg bg-neutral-100 p-1">
+            <img
+              src="/static/images/tera.png"
+              alt=""
+              width={32}
+              height={32}
+              className="rounded-md"
+            />
+          </div>
           <h1 className="text-xl font-bold">Welcome to Tera Router.</h1>
         </div>
 
         <form
           className="flex flex-col gap-6"
+          noValidate
           onSubmit={(e) => {
             e.preventDefault()
             form.handleSubmit()
@@ -84,6 +95,7 @@ export default function LoginSection({ className, ...props }: React.ComponentPro
                 onChange={setOtp}
                 maxLength={6}
                 pattern={REGEXP_ONLY_DIGITS}
+                aria-invalid={!!error}
                 autoFocus
               >
                 <InputOTP.Group>
@@ -107,22 +119,39 @@ export default function LoginSection({ className, ...props }: React.ComponentPro
               <form.AppField
                 name="email"
                 children={(field) => (
-                  <field.TextField label="Email" placeholder="type your email" />
+                  <field.TextField
+                    label="Email"
+                    placeholder="type your email"
+                    type="email"
+                    autoComplete="username"
+                  />
                 )}
               />
 
               <form.AppField
                 name="password"
                 children={(field) => (
-                  <field.PasswordField label="Password" placeholder="type your password" />
+                  <field.PasswordField
+                    label="Password"
+                    placeholder="type your password"
+                    autoComplete="current-password"
+                  />
                 )}
               />
             </>
           )}
 
           <Field>
+            {error && <FieldError>{error}</FieldError>}
             <Button type="submit" disabled={isLoading || (needsCode && otp.length !== 6)}>
-              {isLoading ? 'Signing in...' : needsCode ? 'Verify' : 'Login'}
+              {isLoading && <IconLoader2 className="size-4 animate-spin" />}
+              {needsCode
+                ? isLoading
+                  ? 'Verifying…'
+                  : 'Verify'
+                : isLoading
+                  ? 'Signing in…'
+                  : 'Sign in'}
             </Button>
             {needsCode && (
               <Button type="button" variant="ghost" onClick={cancelCode} disabled={isLoading}>
