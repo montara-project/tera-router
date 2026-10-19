@@ -457,3 +457,36 @@ func TestListDeepgramModels(t *testing.T) {
 		t.Errorf("models = %+v", models)
 	}
 }
+
+// The ElevenLabs sync sends xi-api-key, keeps text-to-speech models only, and
+// appends the Scribe STT ids /models does not list.
+func TestListElevenLabsModels(t *testing.T) {
+	var gotKey string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotKey = r.Header.Get("xi-api-key")
+		if r.URL.Path != "/v1/models" {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write([]byte(`[
+			{"model_id":"eleven_multilingual_v2","can_do_text_to_speech":true},
+			{"model_id":"eleven_english_sts_v2","can_do_text_to_speech":false,"can_do_voice_conversion":true}]`))
+	}))
+	defer srv.Close()
+
+	svc := &UpstreamService{}
+	models, err := svc.ListElevenLabsModels(context.Background(), srv.URL+"/v1", "xi-key")
+	if err != nil {
+		t.Fatalf("ListElevenLabsModels: %v", err)
+	}
+	if gotKey != "xi-key" {
+		t.Errorf("xi-api-key = %q", gotKey)
+	}
+	var ids []string
+	for _, m := range models {
+		ids = append(ids, m.ID)
+	}
+	if want := "eleven_multilingual_v2,scribe_v1,scribe_v2,scribe_v2_medical"; strings.Join(ids, ",") != want {
+		t.Errorf("models = %v, want %s", ids, want)
+	}
+}

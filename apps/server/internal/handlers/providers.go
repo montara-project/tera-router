@@ -612,8 +612,8 @@ func (h *providersHandler) usableCredential(ctx context.Context, providerSlug st
 // OpenRouter's public /models (whose pricing is imported into the overrides),
 // the Ollama family's /api/tags, Cline's union of /models and the
 // recommended-models free list, Cloudflare's account-scoped /models,
-// Deepgram's stt/tts /v1/models, and the OpenAI/Anthropic/NVIDIA/Muse official
-// /v1/models.
+// Deepgram's stt/tts /v1/models, ElevenLabs' /v1/models plus its Scribe STT ids,
+// and the OpenAI/Anthropic/NVIDIA/Muse official /v1/models.
 var modelsSyncProviders = map[string]bool{
 	"openrouter":   true,
 	"ollama":       true,
@@ -625,6 +625,7 @@ var modelsSyncProviders = map[string]bool{
 	"nvidia":       true,
 	"muse":         true,
 	"deepgram":     true,
+	"elevenlabs":   true,
 }
 
 // syncProviderModels fetches a provider's upstream model list through its
@@ -662,6 +663,11 @@ func (h *providersHandler) syncProviderModels(ctx context.Context, slug string) 
 			return nil, apperr.New(apperr.KindUnprocessable, noCredential)
 		}
 		return h.app.Services.Upstream.ListDeepgramModels(ctx, spec.BaseURL, apiKey)
+	case "elevenlabs":
+		if apiKey == "" {
+			return nil, apperr.New(apperr.KindUnprocessable, noCredential)
+		}
+		return h.app.Services.Upstream.ListElevenLabsModels(ctx, spec.BaseURL, apiKey)
 	case "openai", "anthropic", "nvidia", "muse":
 		if apiKey == "" {
 			return nil, apperr.New(apperr.KindUnprocessable, noCredential)
