@@ -1,3 +1,5 @@
+import type { Metadata } from 'next'
+
 import {
   ArrowRight,
   ArrowUpRight,
@@ -25,6 +27,9 @@ import { dialects, features, providerGroups, steps } from '@/components/landing/
 import { SectionHeading } from '@/components/landing/section-heading'
 import { SiteFooter } from '@/components/landing/site-footer'
 import { SiteHeader } from '@/components/landing/site-header'
+import { pageMeta } from '@/lib/constants/meta'
+
+export const metadata: Metadata = pageMeta({ path: '/' })
 
 const GITHUB_URL = 'https://github.com/montara-project/tera-router'
 const DOCS_URL = 'https://docs.terarouter.xyz'
@@ -110,7 +115,7 @@ function Hero() {
               />
               <span aria-hidden className="relative inline-flex size-1.5 rounded-full bg-accent" />
             </span>
-            Self-hosted AI inference gateway
+            Open source, self-hosted AI gateway
           </p>
 
           <h1 className="mt-6 text-balance text-4xl font-semibold tracking-tight sm:text-5xl lg:text-6xl">
@@ -118,9 +123,9 @@ function Hero() {
           </h1>
 
           <p className="mx-auto mt-6 max-w-2xl text-pretty text-lg leading-relaxed text-dim">
-            Tera Router is a unified gateway for your custom AI providers. Speak OpenAI, Anthropic,
-            or Responses dialects — route across accounts with fallback, keys, guardrails, and usage
-            analytics built in.
+            Tera Router is an open source AI gateway and LLM router for every provider you use.
+            Speak OpenAI, Anthropic, or Responses dialects — route across accounts with fallback,
+            keys, guardrails, and usage analytics built in.
           </p>
 
           <div className="mt-9 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:flex-wrap sm:items-center">
