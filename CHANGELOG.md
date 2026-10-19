@@ -3,6 +3,13 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [1.3.1](https://github.com/montara-project/tera-router/compare/v1.3.0...v1.3.1) (2026-10-19)
+
+### Features
+
+* **docs:** add per-page metadata, hreflang, sitemap, and robots for SEO ([31aca19](https://github.com/montara-project/tera-router/commit/31aca190ae33b8e3469d193ef4f25fcc17bb0ea8))
+* **main-web:** add SEO metadata, JSON-LD, sitemap, and robots ([a526a36](https://github.com/montara-project/tera-router/commit/a526a36c6b9750eafd37ffa2d0ba1772bb6cb990))
+
 ## [1.3.0](https://github.com/montara-project/tera-router/compare/v1.2.0...v1.3.0) (2026-10-19)
 
 ### Features
