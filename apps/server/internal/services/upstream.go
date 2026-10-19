@@ -263,7 +263,12 @@ func (s *UpstreamService) ListModels(ctx context.Context, endpoint string, anthr
 			Pricing map[string]json.RawMessage `json:"pricing"`
 		} `json:"data"`
 	}
-	if err := json.Unmarshal(body, &payload); err != nil {
+	// Together answers with a bare array instead of the {"data": [...]} envelope.
+	target := any(&payload)
+	if trimmed := bytes.TrimSpace(body); len(trimmed) > 0 && trimmed[0] == '[' {
+		target = &payload.Data
+	}
+	if err := json.Unmarshal(body, target); err != nil {
 		return nil, fmt.Errorf("parse upstream model list: %w", err)
 	}
 
@@ -272,7 +277,9 @@ func (s *UpstreamService) ListModels(ctx context.Context, endpoint string, anthr
 		if m.ID == "" {
 			continue
 		}
-		entry := UpstreamModel{ID: m.ID}
+		// Gemini's OpenAI-compatible list names models "models/gemini-…";
+		// chat requests take the bare id.
+		entry := UpstreamModel{ID: strings.TrimPrefix(m.ID, "models/")}
 		if p := parseUpstreamPricing(m.Pricing); p != nil {
 			entry.Pricing = p
 		}
@@ -700,4 +707,122 @@ func upstreamErrorMessage(raw []byte, status int) string {
 		return fmt.Sprintf("upstream responded with status %d", status)
 	}
 	return detail
+}
+
+// ListDeepgramModels fetches Deepgram's GET {base}/models, whose envelope
+// splits speech-to-text and text-to-speech models into stt/tts arrays. Ids are
+// the canonical names the audio connector passes as ?model= (nova-3,
+// aura-2-thalia-en); streaming-only STT models are skipped since the gateway
+// transcribes through the batch /listen endpoint.
+func (s *UpstreamService) ListDeepgramModels(ctx context.Context, baseURL, apiKey string) ([]UpstreamModel, error) {
+	endpoint := strings.TrimSuffix(baseURL, "/") + "/models"
+	if err := validateEndpoint(endpoint); err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Token "+apiKey)
+
+	resp, err := probeClient().Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("upstream request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
+	if err != nil {
+		return nil, fmt.Errorf("read upstream response: %w", err)
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("upstream responded with status %d", resp.StatusCode)
+	}
+
+	type entry struct {
+		CanonicalName string `json:"canonical_name"`
+		Batch         *bool  `json:"batch"`
+	}
+	var payload struct {
+		STT []entry `json:"stt"`
+		TTS []entry `json:"tts"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return nil, fmt.Errorf("parse deepgram models response: %w", err)
+	}
+
+	seen := map[string]bool{}
+	models := make([]UpstreamModel, 0, len(payload.STT)+len(payload.TTS))
+	for _, m := range append(payload.STT, payload.TTS...) {
+		if m.CanonicalName == "" || seen[m.CanonicalName] || (m.Batch != nil && !*m.Batch) {
+			continue
+		}
+		seen[m.CanonicalName] = true
+		models = append(models, UpstreamModel{ID: m.CanonicalName})
+	}
+	slices.SortFunc(models, func(a, b UpstreamModel) int { return strings.Compare(a.ID, b.ID) })
+	return models, nil
+}
+
+// elevenLabsSTTModels are the Scribe batch speech-to-text ids, which
+// ElevenLabs' /models (text-to-speech and voice-conversion only) never lists.
+// ponytail: static list, refresh when ElevenLabs ships a new Scribe model.
+var elevenLabsSTTModels = []string{"scribe_v1", "scribe_v2", "scribe_v2_medical"}
+
+// ListElevenLabsModels fetches ElevenLabs' GET {base}/models, a bare array of
+// {model_id, can_do_text_to_speech}, keeping the text-to-speech models the
+// audio connector sends as model_id, and appends the Scribe STT ids.
+func (s *UpstreamService) ListElevenLabsModels(ctx context.Context, baseURL, apiKey string) ([]UpstreamModel, error) {
+	endpoint := strings.TrimSuffix(baseURL, "/") + "/models"
+	if err := validateEndpoint(endpoint); err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("xi-api-key", apiKey)
+
+	resp, err := probeClient().Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("upstream request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
+	if err != nil {
+		return nil, fmt.Errorf("read upstream response: %w", err)
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("upstream responded with status %d", resp.StatusCode)
+	}
+
+	var payload []struct {
+		ModelID           string `json:"model_id"`
+		CanDoTextToSpeech bool   `json:"can_do_text_to_speech"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return nil, fmt.Errorf("parse elevenlabs models response: %w", err)
+	}
+
+	seen := map[string]bool{}
+	models := make([]UpstreamModel, 0, len(payload)+len(elevenLabsSTTModels))
+	add := func(id string) {
+		if id != "" && !seen[id] {
+			seen[id] = true
+			models = append(models, UpstreamModel{ID: id})
+		}
+	}
+	for _, m := range payload {
+		if m.CanDoTextToSpeech {
+			add(m.ModelID)
+		}
+	}
+	for _, id := range elevenLabsSTTModels {
+		add(id)
+	}
+	slices.SortFunc(models, func(a, b UpstreamModel) int { return strings.Compare(a.ID, b.ID) })
+	return models, nil
 }

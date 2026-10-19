@@ -426,3 +426,90 @@ func TestChatCompletionClineEnvelopeAndHeaders(t *testing.T) {
 		t.Errorf("headers: X-CLIENT-TYPE=%q Authorization=%q", gotHeader.Get("X-CLIENT-TYPE"), gotHeader.Get("Authorization"))
 	}
 }
+
+// The Deepgram sync reads the stt/tts envelope with Token auth, keys models by
+// canonical_name, dedups, and drops streaming-only STT models.
+func TestListDeepgramModels(t *testing.T) {
+	var gotAuth string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth = r.Header.Get("Authorization")
+		if r.URL.Path != "/v1/models" {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write([]byte(`{
+			"stt":[{"name":"nova-3","canonical_name":"nova-3","batch":true},
+			       {"name":"nova-3","canonical_name":"nova-3","batch":true},
+			       {"name":"general","canonical_name":"nova-3-general","batch":false}],
+			"tts":[{"name":"thalia","canonical_name":"aura-2-thalia-en"}]}`))
+	}))
+	defer srv.Close()
+
+	svc := &UpstreamService{}
+	models, err := svc.ListDeepgramModels(context.Background(), srv.URL+"/v1", "dg-key")
+	if err != nil {
+		t.Fatalf("ListDeepgramModels: %v", err)
+	}
+	if gotAuth != "Token dg-key" {
+		t.Errorf("auth = %q, want Token scheme", gotAuth)
+	}
+	if len(models) != 2 || models[0].ID != "aura-2-thalia-en" || models[1].ID != "nova-3" {
+		t.Errorf("models = %+v", models)
+	}
+}
+
+// The ElevenLabs sync sends xi-api-key, keeps text-to-speech models only, and
+// appends the Scribe STT ids /models does not list.
+func TestListElevenLabsModels(t *testing.T) {
+	var gotKey string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotKey = r.Header.Get("xi-api-key")
+		if r.URL.Path != "/v1/models" {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write([]byte(`[
+			{"model_id":"eleven_multilingual_v2","can_do_text_to_speech":true},
+			{"model_id":"eleven_english_sts_v2","can_do_text_to_speech":false,"can_do_voice_conversion":true}]`))
+	}))
+	defer srv.Close()
+
+	svc := &UpstreamService{}
+	models, err := svc.ListElevenLabsModels(context.Background(), srv.URL+"/v1", "xi-key")
+	if err != nil {
+		t.Fatalf("ListElevenLabsModels: %v", err)
+	}
+	if gotKey != "xi-key" {
+		t.Errorf("xi-api-key = %q", gotKey)
+	}
+	var ids []string
+	for _, m := range models {
+		ids = append(ids, m.ID)
+	}
+	if want := "eleven_multilingual_v2,scribe_v1,scribe_v2,scribe_v2_medical"; strings.Join(ids, ",") != want {
+		t.Errorf("models = %v, want %s", ids, want)
+	}
+}
+
+// ListModels also reads Together's bare-array list and strips Gemini's
+// "models/" id prefix.
+func TestListModelsBareArrayAndGeminiPrefix(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/together/models" {
+			_, _ = w.Write([]byte(`[{"id":"meta-llama/Llama-3.3-70B-Instruct-Turbo","type":"chat"}]`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"object":"list","data":[{"id":"models/gemini-2.5-flash"}]}`))
+	}))
+	defer srv.Close()
+
+	svc := &UpstreamService{}
+	together, err := svc.ListModels(context.Background(), srv.URL+"/together/models", false, false, "k")
+	if err != nil || len(together) != 1 || together[0].ID != "meta-llama/Llama-3.3-70B-Instruct-Turbo" {
+		t.Errorf("together = %+v, err %v", together, err)
+	}
+	gemini, err := svc.ListModels(context.Background(), srv.URL+"/gemini/models", false, false, "k")
+	if err != nil || len(gemini) != 1 || gemini[0].ID != "gemini-2.5-flash" {
+		t.Errorf("gemini = %+v, err %v", gemini, err)
+	}
+}

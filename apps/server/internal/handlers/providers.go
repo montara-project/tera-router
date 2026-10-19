@@ -611,8 +611,10 @@ func (h *providersHandler) usableCredential(ctx context.Context, providerSlug st
 // equivalent), each with its own source ported from IDRouter's connectors:
 // OpenRouter's public /models (whose pricing is imported into the overrides),
 // the Ollama family's /api/tags, Cline's union of /models and the
-// recommended-models free list, Cloudflare's account-scoped /models, and the
-// OpenAI/Anthropic/NVIDIA/Muse official /v1/models.
+// recommended-models free list, Cloudflare's account-scoped /models,
+// Deepgram's stt/tts /v1/models, ElevenLabs' /v1/models plus its Scribe STT ids,
+// and the OpenAI-compatible /models of OpenAI, Anthropic, NVIDIA, Muse, Gemini,
+// Mistral, Together, Fireworks, Nebius, and Groq.
 var modelsSyncProviders = map[string]bool{
 	"openrouter":   true,
 	"ollama":       true,
@@ -623,6 +625,14 @@ var modelsSyncProviders = map[string]bool{
 	"anthropic":    true,
 	"nvidia":       true,
 	"muse":         true,
+	"gemini":       true,
+	"mistral":      true,
+	"together":     true,
+	"fireworks":    true,
+	"nebius":       true,
+	"groq":         true,
+	"deepgram":     true,
+	"elevenlabs":   true,
 }
 
 // syncProviderModels fetches a provider's upstream model list through its
@@ -655,7 +665,17 @@ func (h *providersHandler) syncProviderModels(ctx context.Context, slug string) 
 			base = strings.TrimSuffix(u, "/")
 		}
 		return h.app.Services.Upstream.ListModels(ctx, base+"/models", false, oauth, apiKey)
-	case "openai", "anthropic", "nvidia", "muse":
+	case "deepgram":
+		if apiKey == "" {
+			return nil, apperr.New(apperr.KindUnprocessable, noCredential)
+		}
+		return h.app.Services.Upstream.ListDeepgramModels(ctx, spec.BaseURL, apiKey)
+	case "elevenlabs":
+		if apiKey == "" {
+			return nil, apperr.New(apperr.KindUnprocessable, noCredential)
+		}
+		return h.app.Services.Upstream.ListElevenLabsModels(ctx, spec.BaseURL, apiKey)
+	case "openai", "anthropic", "nvidia", "muse", "gemini", "mistral", "together", "fireworks", "nebius", "groq":
 		if apiKey == "" {
 			return nil, apperr.New(apperr.KindUnprocessable, noCredential)
 		}
