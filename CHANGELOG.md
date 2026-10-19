@@ -3,6 +3,15 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [1.3.0](https://github.com/montara-project/tera-router/compare/v1.2.0...v1.3.0) (2026-10-19)
+
+### Features
+
+* **server:** sync Deepgram stt/tts models from upstream ([ee81daf](https://github.com/montara-project/tera-router/commit/ee81daf6236ee3cbcdbea5c0c86c0baa2cacb3f7))
+* **server:** sync ElevenLabs tts and scribe models from upstream ([4c5086c](https://github.com/montara-project/tera-router/commit/4c5086c1d19c79124eccddbe07c4cc096981f836))
+* **server:** sync models for Gemini, Mistral, Together, Fireworks, Nebius, and Groq ([c5eb0af](https://github.com/montara-project/tera-router/commit/c5eb0af7fe409e4edeceb6eaf2caa3621eca1bd7))
+* **web-ui:** add 404 not found page with back-to-home link ([caa7fdd](https://github.com/montara-project/tera-router/commit/caa7fdd379f2e5bc96fbae1b4a10b915d8d4c12d))
+
 ## [1.2.0](https://github.com/montara-project/tera-router/compare/v1.1.0...v1.2.0) (2026-10-18)
 
 ### Features
