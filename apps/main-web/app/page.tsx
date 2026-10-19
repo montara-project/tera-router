@@ -1,3 +1,5 @@
+import type { Metadata } from 'next'
+
 import {
   ArrowRight,
   ArrowUpRight,
@@ -25,6 +27,9 @@ import { dialects, features, providerGroups, steps } from '@/components/landing/
 import { SectionHeading } from '@/components/landing/section-heading'
 import { SiteFooter } from '@/components/landing/site-footer'
 import { SiteHeader } from '@/components/landing/site-header'
+import { pageMeta } from '@/lib/constants/meta'
+
+export const metadata: Metadata = pageMeta({ path: '/' })
 
 const GITHUB_URL = 'https://github.com/montara-project/tera-router'
 const DOCS_URL = 'https://docs.terarouter.xyz'

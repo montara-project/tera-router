@@ -1,39 +1,18 @@
 import type { Metadata } from 'next'
 
+import { META, META_DESCRIPTION, META_IMAGE, META_URL } from '@/lib/constants/meta'
+
 import './globals.css'
 
-const SITE_URL = 'https://terarouter.xyz'
-const TITLE = 'Tera Router: Open Source AI Gateway for 20+ LLM Providers'
-const DESCRIPTION =
-  'Open source, self-hosted AI gateway. Route OpenAI, Anthropic, Gemini, and 20+ LLM providers through one OpenAI-compatible endpoint with fallback and analytics.'
-const LOGO = '/static/images/tera.png'
-
-export const metadata: Metadata = {
-  metadataBase: new URL(SITE_URL),
-  title: TITLE,
-  description: DESCRIPTION,
-  alternates: { canonical: '/' },
-  openGraph: {
-    title: TITLE,
-    description: DESCRIPTION,
-    url: '/',
-    siteName: 'Tera Router',
-    // 320×320 square logo, so cards use the small "summary" layout.
-    images: [{ url: LOGO, width: 320, height: 320, alt: 'Tera Router logo' }],
-    locale: 'en_US',
-    type: 'website',
-  },
-  twitter: { card: 'summary', title: TITLE, description: DESCRIPTION, images: [LOGO] },
-  icons: { icon: `${LOGO}?v=3` },
-}
+export const metadata: Metadata = META
 
 const jsonLd = JSON.stringify({
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
   name: 'Tera Router',
-  description: DESCRIPTION,
-  url: SITE_URL,
-  image: SITE_URL + LOGO,
+  description: META_DESCRIPTION,
+  url: META_URL,
+  image: META_URL + META_IMAGE,
   applicationCategory: 'DeveloperApplication',
   operatingSystem: 'Linux, macOS, Windows (Docker)',
   license: 'https://opensource.org/licenses/MIT',
