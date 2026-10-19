@@ -613,7 +613,8 @@ func (h *providersHandler) usableCredential(ctx context.Context, providerSlug st
 // the Ollama family's /api/tags, Cline's union of /models and the
 // recommended-models free list, Cloudflare's account-scoped /models,
 // Deepgram's stt/tts /v1/models, ElevenLabs' /v1/models plus its Scribe STT ids,
-// and the OpenAI/Anthropic/NVIDIA/Muse official /v1/models.
+// and the OpenAI-compatible /models of OpenAI, Anthropic, NVIDIA, Muse, Gemini,
+// Mistral, Together, Fireworks, Nebius, and Groq.
 var modelsSyncProviders = map[string]bool{
 	"openrouter":   true,
 	"ollama":       true,
@@ -624,6 +625,12 @@ var modelsSyncProviders = map[string]bool{
 	"anthropic":    true,
 	"nvidia":       true,
 	"muse":         true,
+	"gemini":       true,
+	"mistral":      true,
+	"together":     true,
+	"fireworks":    true,
+	"nebius":       true,
+	"groq":         true,
 	"deepgram":     true,
 	"elevenlabs":   true,
 }
@@ -668,7 +675,7 @@ func (h *providersHandler) syncProviderModels(ctx context.Context, slug string) 
 			return nil, apperr.New(apperr.KindUnprocessable, noCredential)
 		}
 		return h.app.Services.Upstream.ListElevenLabsModels(ctx, spec.BaseURL, apiKey)
-	case "openai", "anthropic", "nvidia", "muse":
+	case "openai", "anthropic", "nvidia", "muse", "gemini", "mistral", "together", "fireworks", "nebius", "groq":
 		if apiKey == "" {
 			return nil, apperr.New(apperr.KindUnprocessable, noCredential)
 		}

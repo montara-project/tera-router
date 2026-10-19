@@ -263,7 +263,12 @@ func (s *UpstreamService) ListModels(ctx context.Context, endpoint string, anthr
 			Pricing map[string]json.RawMessage `json:"pricing"`
 		} `json:"data"`
 	}
-	if err := json.Unmarshal(body, &payload); err != nil {
+	// Together answers with a bare array instead of the {"data": [...]} envelope.
+	target := any(&payload)
+	if trimmed := bytes.TrimSpace(body); len(trimmed) > 0 && trimmed[0] == '[' {
+		target = &payload.Data
+	}
+	if err := json.Unmarshal(body, target); err != nil {
 		return nil, fmt.Errorf("parse upstream model list: %w", err)
 	}
 
@@ -272,7 +277,9 @@ func (s *UpstreamService) ListModels(ctx context.Context, endpoint string, anthr
 		if m.ID == "" {
 			continue
 		}
-		entry := UpstreamModel{ID: m.ID}
+		// Gemini's OpenAI-compatible list names models "models/gemini-…";
+		// chat requests take the bare id.
+		entry := UpstreamModel{ID: strings.TrimPrefix(m.ID, "models/")}
 		if p := parseUpstreamPricing(m.Pricing); p != nil {
 			entry.Pricing = p
 		}

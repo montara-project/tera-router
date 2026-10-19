@@ -490,3 +490,26 @@ func TestListElevenLabsModels(t *testing.T) {
 		t.Errorf("models = %v, want %s", ids, want)
 	}
 }
+
+// ListModels also reads Together's bare-array list and strips Gemini's
+// "models/" id prefix.
+func TestListModelsBareArrayAndGeminiPrefix(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/together/models" {
+			_, _ = w.Write([]byte(`[{"id":"meta-llama/Llama-3.3-70B-Instruct-Turbo","type":"chat"}]`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"object":"list","data":[{"id":"models/gemini-2.5-flash"}]}`))
+	}))
+	defer srv.Close()
+
+	svc := &UpstreamService{}
+	together, err := svc.ListModels(context.Background(), srv.URL+"/together/models", false, false, "k")
+	if err != nil || len(together) != 1 || together[0].ID != "meta-llama/Llama-3.3-70B-Instruct-Turbo" {
+		t.Errorf("together = %+v, err %v", together, err)
+	}
+	gemini, err := svc.ListModels(context.Background(), srv.URL+"/gemini/models", false, false, "k")
+	if err != nil || len(gemini) != 1 || gemini[0].ID != "gemini-2.5-flash" {
+		t.Errorf("gemini = %+v, err %v", gemini, err)
+	}
+}
