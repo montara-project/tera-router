@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Field, FieldGroup } from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
+import { InputOTP, REGEXP_ONLY_DIGITS } from '@/components/ui/input-otp'
 import { Label } from '@/components/ui/label'
 import { useAppForm } from '@/hooks/form'
 import { SignInSchema } from '@/lib/api/dtos/auth/schema'
@@ -78,16 +78,29 @@ export default function LoginSection({ className, ...props }: React.ComponentPro
           {needsCode ? (
             <Field>
               <Label htmlFor="otp">Authentication code</Label>
-              <Input
+              <InputOTP
                 id="otp"
                 value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                inputMode="numeric"
-                autoComplete="one-time-code"
+                onChange={setOtp}
                 maxLength={6}
-                placeholder="6-digit code from your authenticator app"
+                pattern={REGEXP_ONLY_DIGITS}
                 autoFocus
-              />
+              >
+                <InputOTP.Group>
+                  <InputOTP.Slot index={0} />
+                  <InputOTP.Slot index={1} />
+                  <InputOTP.Slot index={2} />
+                </InputOTP.Group>
+                <InputOTP.Separator />
+                <InputOTP.Group>
+                  <InputOTP.Slot index={3} />
+                  <InputOTP.Slot index={4} />
+                  <InputOTP.Slot index={5} />
+                </InputOTP.Group>
+              </InputOTP>
+              <p className="text-muted-foreground text-sm">
+                Enter the 6-digit code from your authenticator app.
+              </p>
             </Field>
           ) : (
             <>
