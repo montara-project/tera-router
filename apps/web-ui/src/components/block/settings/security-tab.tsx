@@ -14,7 +14,7 @@ import {
   CardHeading,
   CardTitle,
 } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
+import { InputOTP, REGEXP_ONLY_DIGITS } from '@/components/ui/input-otp'
 import { toastAxiosError } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
 import { cn } from '@/lib/utils'
@@ -29,17 +29,26 @@ function CodeInput({
   id: string
 }) {
   return (
-    <Input
+    <InputOTP
       id={id}
       value={value}
-      onChange={(e) => onChange(e.target.value.replace(/\D/g, ''))}
-      inputMode="numeric"
-      autoComplete="one-time-code"
+      onChange={onChange}
       maxLength={6}
-      placeholder="123456"
+      pattern={REGEXP_ONLY_DIGITS}
       aria-label="Authentication code"
-      className="w-32 font-mono tracking-widest"
-    />
+    >
+      <InputOTP.Group>
+        <InputOTP.Slot index={0} />
+        <InputOTP.Slot index={1} />
+        <InputOTP.Slot index={2} />
+      </InputOTP.Group>
+      <InputOTP.Separator />
+      <InputOTP.Group>
+        <InputOTP.Slot index={3} />
+        <InputOTP.Slot index={4} />
+        <InputOTP.Slot index={5} />
+      </InputOTP.Group>
+    </InputOTP>
   )
 }
 
