@@ -3,6 +3,20 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [1.4.0](https://github.com/montara-project/tera-router/compare/v1.3.1...v1.4.0) (2026-10-19)
+
+### Features
+
+* **web-ui:** add InputOTP component and use it for 2FA codes ([e24d72b](https://github.com/montara-project/tera-router/commit/e24d72ba33b0c092f5b338563f396e31807a1e0b))
+
+### Bug Fixes
+
+* **web-ui:** polish login form states, autofill, and branding ([120f2c0](https://github.com/montara-project/tera-router/commit/120f2c0d5ddcbc3a15cd10dfeb631124a711ce14))
+
+### Performance Improvements
+
+* **web-ui:** lazy-load heavy form fields and preload font in HTML ([e82b220](https://github.com/montara-project/tera-router/commit/e82b220f648962ec4b69eeb8861ac175ef1f28b2))
+
 ## [1.3.1](https://github.com/montara-project/tera-router/compare/v1.3.0...v1.3.1) (2026-10-19)
 
 ### Features
