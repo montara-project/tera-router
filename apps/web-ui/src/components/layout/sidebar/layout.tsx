@@ -19,15 +19,9 @@ import { capitalizeFirstLetter } from '@/lib/string'
 
 import AppSidebar from './app-sidebar'
 
-interface SidebarLayoutProps {
-  children: React.ReactNode
-}
-
-export default function SidebarLayout({ children }: SidebarLayoutProps) {
-  const pathname = useLocation().pathname
+// Owns the 1s tick so only this span re-renders, not the sidebar and header.
+function ServerClock() {
   const [now, setNow] = useState(() => new Date())
-
-  const { data: meData, isError, refetch } = useQuery(queries.auth.me())
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000)
@@ -39,6 +33,18 @@ export default function SidebarLayout({ children }: SidebarLayoutProps) {
     String(now.getUTCMinutes()).padStart(2, '0'),
     String(now.getUTCSeconds()).padStart(2, '0'),
   ].join(':')
+
+  return <span className="font-medium tabular-nums">{time}</span>
+}
+
+interface SidebarLayoutProps {
+  children: React.ReactNode
+}
+
+export default function SidebarLayout({ children }: SidebarLayoutProps) {
+  const pathname = useLocation().pathname
+
+  const { data: meData, isError, refetch } = useQuery(queries.auth.me())
 
   const renderBreadcrumb = () => {
     const pathSegments = pathname.split('/').filter(Boolean)
@@ -123,7 +129,7 @@ export default function SidebarLayout({ children }: SidebarLayoutProps) {
             <div className="inline-flex items-center rounded-full border p-1 text-xs whitespace-nowrap max-w-full overflow-hidden gap-1">
               <div className="inline-flex items-center px-1 gap-1">
                 <span className="hidden sm:inline">Server Time</span>
-                <span className="font-medium tabular-nums">{time}</span>
+                <ServerClock />
               </div>
               <span className="hidden sm:inline text-primary/70 border rounded-full bg-foreground/5 px-1.5 py-0.5">
                 UTC | UTC+00:00
