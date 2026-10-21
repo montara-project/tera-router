@@ -11,7 +11,7 @@ import {
   PolicyToggles,
   RoutingDiagram,
 } from '@/components/landing/mockups'
-import { ProviderAvatar } from '@/components/landing/provider-icons'
+import { ProviderAvatar, ProviderIconSprite } from '@/components/landing/provider-icons'
 import {
   DOCS_URL,
   GITHUB_URL,
@@ -29,6 +29,12 @@ import { Terminal } from '@/components/landing/terminal'
 import { pageMeta } from '@/lib/constants/meta'
 
 export const metadata: Metadata = pageMeta({ path: '/' })
+
+// Static content: let the Workers Cache (workersCacheCdnAdapter in
+// vite.config.ts) serve it from the edge instead of rendering per request.
+// ponytail: 10-min revalidate bounds staleness after a deploy; raise it once
+// cache invalidation on deploy is confirmed.
+export const revalidate = 600
 
 // Unique providers across every catalog group, for the hero marquee.
 const marqueeProviders = [
@@ -359,6 +365,7 @@ function CallToAction() {
 export default function Home() {
   return (
     <div className="min-h-screen">
+      <ProviderIconSprite />
       <SiteHeader />
       <main>
         <Hero />

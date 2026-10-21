@@ -22,6 +22,13 @@ const jsonLd = JSON.stringify({
   sameAs: ['https://github.com/montara-project/tera-router', 'https://docs.terarouter.xyz'],
 })
 
+// Linked from <head> rather than @import-ed in globals.css, so the font CSS
+// downloads in parallel with the app CSS instead of after it. Weights are the
+// ones the page uses: Outfit 300-500 (display), Plus Jakarta Sans 400-700,
+// JetBrains Mono 400.
+const FONTS_URL =
+  'https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400&display=swap'
+
 // Resolves the stored theme before first paint so the page never flashes the
 // wrong palette. Kept inline and dependency-free on purpose.
 const themeInit = `(function(){try{var t=localStorage.getItem('tera-theme');var d=t==='dark'||((!t||t==='system')&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);}catch(e){}})()`
@@ -30,6 +37,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <link href="https://fonts.googleapis.com" rel="preconnect" />
+        <link crossOrigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+        <link href={FONTS_URL} rel="stylesheet" />
         <script
           defer
           src="https://analytics.masb0ymas.com/script.js"

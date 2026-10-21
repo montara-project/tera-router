@@ -459,41 +459,68 @@ export const ProviderIcons = {
   ),
 }
 
-type Icon = (props: IconProps) => React.JSX.Element
+type IconKey = keyof typeof ProviderIcons
 
 // Slug substrings checked in order, mirroring web-ui's getProviderBrand:
 // distinct brands win before the dialect fallback, so cloudflare and nvidia
 // (OpenAI dialect) never wear the OpenAI logo.
-const brandBySlug: [string, Icon][] = [
-  ['muse', ProviderIcons.meta],
-  ['nvidia', ProviderIcons.nvidia],
-  ['openrouter', ProviderIcons.openrouter],
-  ['cloudflare', ProviderIcons.cloudflare],
-  ['cline', ProviderIcons.cline],
-  ['gemini', ProviderIcons.gemini],
-  ['mistral', ProviderIcons.mistral],
-  ['together', ProviderIcons.together],
-  ['firework', ProviderIcons.fireworks],
-  ['nebius', ProviderIcons.nebius],
-  ['voyage', ProviderIcons.voyage],
-  ['jina', ProviderIcons.jina],
-  ['groq', ProviderIcons.groq],
-  ['tavily', ProviderIcons.tavily],
-  ['firecrawl', ProviderIcons.firecrawl],
-  ['brave', ProviderIcons.brave],
-  ['serper', ProviderIcons.serper],
-  ['elevenlabs', ProviderIcons.elevenlabs],
-  ['deepgram', ProviderIcons.deepgram],
+const brandBySlug: [string, IconKey][] = [
+  ['muse', 'meta'],
+  ['nvidia', 'nvidia'],
+  ['openrouter', 'openrouter'],
+  ['cloudflare', 'cloudflare'],
+  ['cline', 'cline'],
+  ['gemini', 'gemini'],
+  ['mistral', 'mistral'],
+  ['together', 'together'],
+  ['firework', 'fireworks'],
+  ['nebius', 'nebius'],
+  ['voyage', 'voyage'],
+  ['jina', 'jina'],
+  ['groq', 'groq'],
+  ['tavily', 'tavily'],
+  ['firecrawl', 'firecrawl'],
+  ['brave', 'brave'],
+  ['serper', 'serper'],
+  ['elevenlabs', 'elevenlabs'],
+  ['deepgram', 'deepgram'],
 ]
 
-function brandIcon(slug: string): Icon | undefined {
+function brandIcon(slug: string): IconKey | undefined {
   // Exact match for exa: it is a substring of unrelated slugs ("hexagon").
-  if (slug === 'exa') return ProviderIcons.exa
+  if (slug === 'exa') return 'exa'
   const hit = brandBySlug.find(([key]) => slug.includes(key))
   if (hit) return hit[1]
-  if (slug.includes('anthropic')) return ProviderIcons.anthropic
-  if (slug.includes('openai') || slug === 'codex') return ProviderIcons.openai
+  if (slug.includes('anthropic')) return 'anthropic'
+  if (slug.includes('openai') || slug === 'codex') return 'openai'
   return undefined
+}
+
+const spriteId = (key: IconKey) => `provider-icon-${key}`
+
+/**
+ * Every brand mark once, as <symbol>s, so each avatar is a ~60-byte <use>
+ * instead of a full copy of the paths (the page shows ~60 avatars, and the
+ * RSC payload repeats the markup). Render it once per page. Not display:none:
+ * gradients inside a display:none SVG do not paint in Chrome.
+ */
+export function ProviderIconSprite() {
+  return (
+    <svg aria-hidden className="absolute size-0 overflow-hidden">
+      {(Object.keys(ProviderIcons) as IconKey[]).map((key) => {
+        const { children, viewBox, fill } = ProviderIcons[key]({}).props as {
+          children: React.ReactNode
+          viewBox?: string
+          fill?: string
+        }
+        return (
+          <symbol fill={fill} id={spriteId(key)} key={key} viewBox={viewBox}>
+            {children}
+          </symbol>
+        )
+      })}
+    </svg>
+  )
 }
 
 const SIZES = {
@@ -502,15 +529,17 @@ const SIZES = {
 } as const
 
 export function ProviderAvatar({ slug, size = 'md' }: { slug: string; size?: keyof typeof SIZES }) {
-  const Brand = brandIcon(slug)
+  const key = brandIcon(slug)
   const sizing = SIZES[size]
   return (
     <span
       aria-hidden
       className={`flex shrink-0 items-center justify-center rounded-lg bg-white text-zinc-900 ring-1 ring-line ${sizing.tile}`}
     >
-      {Brand ? (
-        <Brand className={sizing.icon} />
+      {key ? (
+        <svg className={sizing.icon}>
+          <use href={`#${spriteId(key)}`} />
+        </svg>
       ) : (
         <span className={`font-bold ${sizing.letter}`}>{slug.charAt(0).toUpperCase()}</span>
       )}
