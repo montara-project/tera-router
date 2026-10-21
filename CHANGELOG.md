@@ -3,6 +3,14 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [1.5.0](https://github.com/montara-project/tera-router/compare/v1.4.0...v1.5.0) (2026-10-21)
+
+### Performance Improvements
+
+* **web-ui:** drop lodash, split CLI icons, lazy-load rare form fields ([4fe6811](https://github.com/montara-project/tera-router/commit/4fe6811b189d8713b434ab7e8da040fd2ed6fb3e))
+* **web-ui:** isolate server clock tick from the sidebar layout ([652e521](https://github.com/montara-project/tera-router/commit/652e521e1a3a8821fa44755741deef25d3ed4732))
+* **web-ui:** lazy-load model test sheet and skill markdown renderer ([9f829ac](https://github.com/montara-project/tera-router/commit/9f829acdbe9a60e3863aacf053305b06dc02ba74))
+
 ## [1.4.0](https://github.com/montara-project/tera-router/compare/v1.3.1...v1.4.0) (2026-10-19)
 
 ### Features
