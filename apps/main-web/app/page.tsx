@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 
 import { ArrowRight, ArrowUpRight, Check } from 'lucide-react'
 
-import { CodeBlock } from '@/components/landing/code-block'
 import { providerGroups, steps } from '@/components/landing/data'
 import {
   DashboardMock,
@@ -26,6 +25,7 @@ import {
 } from '@/components/landing/section'
 import { SiteFooter } from '@/components/landing/site-footer'
 import { SiteHeader } from '@/components/landing/site-header'
+import { Terminal } from '@/components/landing/terminal'
 import { pageMeta } from '@/lib/constants/meta'
 
 export const metadata: Metadata = pageMeta({ path: '/' })
@@ -266,19 +266,24 @@ function GetStarted() {
     <Section id="get-started">
       <SectionHeading
         description="One container next to your stack, one base URL in every tool. From clone to first routed request in minutes."
-        title="Two commands to a unified endpoint."
+        title="One container, one base URL."
       />
       <div className="mt-16 grid gap-8 sm:mt-20 md:grid-cols-2 md:gap-5">
         <div>
           <p className="mb-3 text-sm">
             <span className="mr-2 font-mono text-faint">01</span>Run the gateway
           </p>
-          <CodeBlock
+          <Terminal
             className="elev-2"
             label="bash"
             lines={[
-              '$ git clone montara-project/tera-router',
-              '$ cd deploy && docker compose up -d',
+              '$ git clone https://github.com/montara-project/tera-router',
+              '$ cd tera-router/deploy',
+              '$ echo "APP_MACHINE_ID=1" > .env',
+              '$ echo "APP_SECRET=$(openssl rand -base64 48)" >> .env',
+              '$ docker compose up -d',
+              '✔ Container deploy-app-1  Started',
+              '✔ Gateway and dashboard on http://localhost:8080',
             ]}
           />
         </div>
@@ -286,7 +291,7 @@ function GetStarted() {
           <p className="mb-3 text-sm">
             <span className="mr-2 font-mono text-faint">02</span>Point your SDK
           </p>
-          <CodeBlock
+          <Terminal
             className="elev-2"
             label="python"
             lines={[

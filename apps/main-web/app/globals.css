@@ -198,6 +198,29 @@ html[data-theme-vt='active']::view-transition-new(root) {
   animation: beam 3.2s cubic-bezier(0.45, 0, 0.25, 1) infinite;
 }
 
+/* Terminal (components/landing/terminal.tsx): output lines drop in, the
+   caret blinks while a command is typed. */
+@keyframes terminal-line-in {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+}
+
+.terminal-line-in {
+  animation: terminal-line-in 0.3s ease-out both;
+}
+
+@keyframes terminal-caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+.terminal-caret {
+  animation: terminal-caret 1s steps(1) infinite;
+}
+
 @keyframes rise-in {
   from {
     opacity: 0;
