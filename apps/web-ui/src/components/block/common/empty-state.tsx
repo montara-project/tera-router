@@ -5,8 +5,8 @@ import { cn } from '@/lib/utils'
 
 interface EmptyStateProps {
   title: string
-  description?: string
-  icon?: typeof IconBarrierBlock
+  description?: React.ReactNode
+  icon?: React.ElementType
   /** CTA rendered under the header — e.g. a "Clear search" or "New …" button. */
   action?: React.ReactNode
   className?: string

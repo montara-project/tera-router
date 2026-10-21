@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 
 import type { Models } from '@/lib/api/models'
 
+import EmptyState from '@/components/block/common/empty-state'
 import SimpleAlertDialog from '@/components/block/common/simple-alert-dialog'
 import { Badge, BadgeDot } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -17,7 +18,6 @@ import {
   CardTitle,
   CardToolbar,
 } from '@/components/ui/card'
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { queries } from '@/lib/api/queries'
@@ -165,17 +165,12 @@ export default function AccountsPanel({
               <Skeleton className="h-10 w-full" />
             </div>
           ) : accounts.length === 0 ? (
-            <Empty className="border-0 py-12">
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <IconKey />
-                </EmptyMedia>
-                <EmptyTitle>No API keys yet</EmptyTitle>
-                <EmptyDescription>
-                  Add a credential to enable requests through this provider.
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
+            <EmptyState
+              className="py-12"
+              icon={IconKey}
+              title="No API keys yet"
+              description="Add a credential to enable requests through this provider."
+            />
           ) : (
             <div className="overflow-x-auto">
               <div className="min-w-175">

@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import type { Models } from '@/lib/api/models'
 import type { ApiKeyDetail } from '@/lib/api/models/key'
 
+import EmptyState from '@/components/block/common/empty-state'
 import { Badge } from '@/components/ui/badge'
 import {
   Card,
@@ -15,7 +16,6 @@ import {
   CardHeading,
   CardTitle,
 } from '@/components/ui/card'
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { toastAxiosError } from '@/lib/api/axios-error'
@@ -70,21 +70,19 @@ export default function KeySkillsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
             <Skeleton className="h-12 w-full rounded-lg" />
           </div>
         ) : skills.length === 0 ? (
-          <Empty className="py-14">
-            <EmptyHeader className="max-w-xl">
-              <EmptyMedia variant="icon" className="size-12 rounded-full">
-                <IconInbox />
-              </EmptyMedia>
-              <EmptyTitle>No custom skills yet</EmptyTitle>
-              <EmptyDescription>
+          <EmptyState
+            icon={IconInbox}
+            title="No custom skills yet"
+            description={
+              <>
                 Create one on the{' '}
                 <Link to="/skills" className="text-foreground underline">
                   Skills
                 </Link>{' '}
                 page, then switch it on here.
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
+              </>
+            }
+          />
         ) : (
           <div className="divide-y divide-border">
             {skills.map((skill) => (

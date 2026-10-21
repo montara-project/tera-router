@@ -2,9 +2,9 @@ import { IconGitBranch } from '@tabler/icons-react'
 
 import type { Models } from '@/lib/api/models'
 
+import EmptyState from '@/components/block/common/empty-state'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
 
 export default function RoutingPanel({
@@ -25,15 +25,12 @@ export default function RoutingPanel({
     )
   if (!chains.length) {
     return (
-      <Empty className="border">
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <IconGitBranch />
-          </EmptyMedia>
-          <EmptyTitle>No routing chains use this provider</EmptyTitle>
-          <EmptyDescription>Chains that include {slug} will appear here.</EmptyDescription>
-        </EmptyHeader>
-      </Empty>
+      <EmptyState
+        className="border"
+        icon={IconGitBranch}
+        title="No routing chains use this provider"
+        description={`Chains that include ${slug} will appear here.`}
+      />
     )
   }
   return (

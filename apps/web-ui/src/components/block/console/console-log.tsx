@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 
 import type { ConsoleLogEntry, LogLevel } from '@/lib/api/models/console'
 
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
+import EmptyState from '@/components/block/common/empty-state'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
@@ -167,7 +167,7 @@ export default function ConsoleLog({ entries }: ConsoleLogProps) {
                   ) : null}
                 </div>
                 {detailOpen && entry.detail ? (
-                  <div className="bg-muted/30 border-t border-border/60 px-4 py-2 pl-[7.75rem] font-mono text-xs whitespace-pre-wrap text-muted-foreground">
+                  <div className="bg-muted/30 border-t border-border/60 px-4 py-2 pl-31 font-mono text-xs whitespace-pre-wrap text-muted-foreground">
                     {entry.detail}
                   </div>
                 ) : null}
@@ -175,15 +175,12 @@ export default function ConsoleLog({ entries }: ConsoleLogProps) {
             )
           })}
           {filtered.length === 0 && (
-            <Empty className="rounded-none border-0 py-16">
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <IconSearch />
-                </EmptyMedia>
-                <EmptyTitle>No log entries found</EmptyTitle>
-                <EmptyDescription>Try a different search or level filter.</EmptyDescription>
-              </EmptyHeader>
-            </Empty>
+            <EmptyState
+              className="rounded-none py-16"
+              icon={IconSearch}
+              title="No log entries found"
+              description="Try a different search or level filter."
+            />
           )}
         </div>
       </div>

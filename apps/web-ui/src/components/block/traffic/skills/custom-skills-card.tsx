@@ -5,6 +5,7 @@ import { useState } from 'react'
 
 import type { Models } from '@/lib/api/models'
 
+import EmptyState from '@/components/block/common/empty-state'
 import IconBadge from '@/components/block/common/icon-badge'
 import CopySkillButton from '@/components/block/traffic/skills/copy-skill-button'
 import SkillDetailDialog, {
@@ -19,7 +20,6 @@ import {
   CardHeading,
   CardTitle,
 } from '@/components/ui/card'
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { skillUrl } from '@/lib/constants/skill'
@@ -135,17 +135,11 @@ export default function CustomSkillsCard({
             <CustomSkillsLoading />
           </div>
         ) : isEmpty ? (
-          <Empty className="py-14">
-            <EmptyHeader className="max-w-xl">
-              <EmptyMedia variant="icon" className="size-12 rounded-full">
-                <IconInbox />
-              </EmptyMedia>
-              <EmptyTitle>No custom skills yet</EmptyTitle>
-              <EmptyDescription>
-                Create a skill, then switch it on to add its prompt to every request.
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
+          <EmptyState
+            icon={IconInbox}
+            title="No custom skills yet"
+            description="Create a skill, then switch it on to add its prompt to every request."
+          />
         ) : (
           <div className="divide-y divide-border">
             {skills.map((skill) => (
