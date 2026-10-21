@@ -1,93 +1,77 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 @import 'tailwindcss';
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Light is the default; .dark on <html> flips every semantic token.
-   Every text token below is contrast-checked against every surface token it can
-   land on (canvas / surface / raised / subtle / panel) — smallest measured pair
-   is noted in each block. Do not shift a value without re-checking. */
+/* Light is the default; .dark on <html> flips every semantic token. A .dark
+   class on any element re-scopes its subtree, which is how the always-dark
+   bands work. Text tokens are contrast-checked against every surface they can
+   land on (canvas / surface / raised / panel): smallest pair noted per token. */
 :root {
   color-scheme: light;
 
-  --canvas: #f6f8fb;
-  --surface: #ffffff; /* 18.7:1 with --ink */
-  --raised: #eef2f7;
-  --subtle: #f1f5fa; /* band tone between canvas and surface */
+  --canvas: #f7f7f6; /* warm off-white ground */
+  --surface: #ffffff;
+  --raised: #f1f1ee;
   --panel: #ffffff;
-  --line: #dfe6ee; /* card hairline */
-  --divide: #e9eef4; /* section hairline, softer than --line */
-  --ink: #0b1220; /* ≥16.6:1 on every light surface */
-  --dim: #45536b; /* ≥6.9:1 */
-  --faint: #5a6678; /* ≥5.2:1 */
+  --line: #e2e2de; /* card hairline */
+  --divide: #ececea; /* inner dividers, softer than --line */
+  --dot: #c2c2bc; /* dotted rails and section nodes */
+  --ink: #151515; /* ≥16:1 */
+  --dim: #4f4f4a; /* ≥7.3:1 */
+  --faint: #6b6b66; /* ≥4.9:1 */
   --accent: #16a34a; /* decorative fills, rings, dots — not text-bearing */
   --accent-strong: #15803d; /* button fill: white label is 5.02:1 */
-  --accent-soft: #0f6f38; /* accent text: ≥5.4:1 even inside bg-accent/10 */
+  --accent-soft: #0f6f38; /* accent text: ≥5.4:1 */
   --on-accent: #ffffff;
-  --code: #14151a; /* terminal card — same in both themes */
+  --code: #0e0e11;
   --code-line: hsla(0, 0%, 100%, 9%);
-  --sheen: rgba(11, 18, 32, 0.05); /* top-edge hairline that defines light cards */
-  --grid-line: rgba(15, 23, 42, 0.045);
-  --glow: 0 10px 30px -12px hsla(142, 76%, 45%, 0.45);
-  --shadow-1: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.05);
-  --shadow-2: 0 4px 12px -2px rgba(15, 23, 42, 0.07), 0 2px 6px -3px rgba(15, 23, 42, 0.05);
-  --shadow-3: 0 18px 40px -18px rgba(15, 23, 42, 0.2), 0 6px 14px -10px rgba(15, 23, 42, 0.1);
-  --grad-1: #0f5c2c;
-  --grad-2: #12723a;
-  --grad-3: #16a34a;
+  --shadow-1: 0 1px 2px rgba(21, 21, 21, 0.04), 0 1px 3px rgba(21, 21, 21, 0.05);
+  --shadow-2: 0 6px 16px -6px rgba(21, 21, 21, 0.08), 0 2px 6px -3px rgba(21, 21, 21, 0.05);
+  --shadow-3: 0 30px 60px -30px rgba(21, 21, 21, 0.25), 0 10px 20px -14px rgba(21, 21, 21, 0.1);
 }
 
-/* Dark mirrors the docs home page palette (apps/docs → fumadocs neutral theme):
-   pure-neutral grays for surfaces and text, emerald/teal for accents. */
 .dark {
   color-scheme: dark;
 
-  --canvas: #0d0e11; /* fd-background */
-  --surface: #141519; /* fd-card */
-  --raised: #1b1d22; /* fd-muted */
-  --subtle: #101114; /* band tone between canvas and surface */
-  --panel: #17181d; /* fd-popover */
-  --line: hsla(0, 0%, 100%, 11%); /* fd-border */
-  --divide: hsla(0, 0%, 100%, 7%);
-  --ink: #f4f5f7; /* fd-foreground — ≥15.6:1 on every dark surface */
-  --dim: #b8b8b8; /* fd-muted-foreground — ≥9.3:1 */
-  --faint: #a3a3a3; /* fd-ring — ≥6.7:1 */
-  --accent: #22c55e; /* emerald-500, same as docs */
+  --canvas: #0c0c0f;
+  --surface: #141417;
+  --raised: #1a1a1e;
+  --panel: #111114;
+  --line: #27272d;
+  --divide: #1d1d22;
+  --dot: #3c3c43;
+  --ink: #eeeeec; /* ≥15:1 */
+  --dim: #b5b3ad; /* ≥8.4:1 */
+  --faint: #8f8e89; /* ≥5.1:1 */
+  --accent: #22c55e;
   --accent-strong: #22c55e; /* button fill: dark label is 6.5:1 */
-  --accent-soft: #34d399; /* emerald-400 — ≥8.8:1 on every dark surface */
+  --accent-soft: #4ade80; /* ≥9:1 */
   --on-accent: #052e16;
-  --code: #14151a; /* terminal card */
-  --code-line: hsla(0, 0%, 100%, 9%);
-  --sheen: hsla(0, 0%, 100%, 0.06);
-  --grid-line: hsla(0, 0%, 100%, 0.045);
-  --glow: 0 10px 34px -12px hsla(142, 71%, 45%, 0.5);
+  --code: #0a0a0d;
   --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.5);
   --shadow-2: 0 8px 20px -8px rgba(0, 0, 0, 0.65);
-  --shadow-3: 0 24px 50px -20px rgba(0, 0, 0, 0.8);
-  --grad-1: #34d399; /* emerald-400 */
-  --grad-2: #2dd4bf; /* teal-400 */
-  --grad-3: #5eead4; /* teal-300 */
+  --shadow-3: 0 30px 60px -24px rgba(0, 0, 0, 0.85);
 }
 
-/* The terminal renders with the dark card palette in both themes, so the
-   tokens its text sits on are pinned to their dark values here. */
+/* The terminal renders dark in both themes, so the tokens its text sits on
+   are pinned to their dark values here. */
 .terminal-island {
-  --sheen: hsla(0, 0%, 100%, 0.06);
-  --accent-soft: #34d399; /* emerald-400 */
-  --faint: #a3a3a3;
+  --accent-soft: #4ade80;
+  --faint: #8f8e89;
 }
 
 @theme inline {
-  --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: 'Outfit', 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
 
   --color-canvas: var(--canvas);
   --color-surface: var(--surface);
   --color-raised: var(--raised);
-  --color-subtle: var(--subtle);
   --color-panel: var(--panel);
   --color-line: var(--line);
   --color-divide: var(--divide);
+  --color-dot: var(--dot);
   --color-ink: var(--ink);
   --color-dim: var(--dim);
   --color-faint: var(--faint);
@@ -97,6 +81,9 @@
   --color-on-accent: var(--on-accent);
   --color-code: var(--code);
   --color-code-line: var(--code-line);
+  /* Always-dark band ground; a touch above the dark canvas so the band still
+     reads as its own plane when the whole page is dark. */
+  --color-band: #121215;
 }
 
 html {
@@ -127,9 +114,6 @@ body {
   border-radius: 4px;
 }
 
-/* Elevation: the SaaS depth ladder. Cards read as lifted planes instead of
-   outlines, so borders only define edges, not separation. Declared with
-   @utility so `hover:elev-2` composes like any Tailwind utility. */
 @utility elev-1 {
   box-shadow: var(--shadow-1);
 }
@@ -142,50 +126,122 @@ body {
   box-shadow: var(--shadow-3);
 }
 
-.sheen {
-  box-shadow: inset 0 1px 0 0 var(--sheen);
-}
-
-.text-gradient {
-  background: linear-gradient(120deg, var(--grad-1) 0%, var(--grad-2) 55%, var(--grad-3) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-/* Hero backdrop: a fine engineering grid, faded out radially so it only
-   suggests structure near the headline. */
-.grid-field {
-  background-image:
-    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
-  background-size: 56px 56px;
-  -webkit-mask-image: radial-gradient(ellipse 75% 60% at 50% 0%, #000 25%, transparent 78%);
-  mask-image: radial-gradient(ellipse 75% 60% at 50% 0%, #000 25%, transparent 78%);
-}
-
-/* Gradient hairline border drawn with two stacked backgrounds so the panel
-   keeps a crisp 1px edge against any surface behind it. */
-.hairline-gradient {
-  border: 1px solid transparent;
+/* Hero wash: a soft brand-tinted light falling from the top edge. */
+.hero-glow {
   background:
-    linear-gradient(var(--panel), var(--panel)) padding-box,
-    linear-gradient(150deg, hsla(142, 76%, 45%, 0.5), var(--divide) 45%, var(--divide)) border-box;
+    radial-gradient(
+      55% 60% at 45% 0%,
+      color-mix(in srgb, var(--accent) 13%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(35% 45% at 75% 5%, rgba(45, 212, 191, 0.1), transparent 70%);
 }
 
-/* Provider monogram: brand hue stays, but the text tone follows the theme so
-   light brand colors (xAI, Ollama) stay legible on a light background. */
-.brand-mark {
-  background: color-mix(in srgb, var(--brand) 12%, transparent);
-  color: color-mix(in srgb, var(--brand) 42%, #0b1220);
+/* Fades a row out at both ends (marquee, overflowing mockups). */
+.fade-x {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
 }
 
-.dark .brand-mark {
-  background: color-mix(in srgb, var(--brand) 10%, transparent);
-  /* Raw brand hues run 3.6:1–4.0:1 on the dark chip (DeepSeek, Gemini), so the
-     monogram is tinted toward the foreground ink: still recognisably brand,
-     but ≥4.5:1 at 11px. */
-  color: color-mix(in srgb, var(--brand) 78%, #f4f5f7);
+.fade-b {
+  -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent);
+  mask-image: linear-gradient(to bottom, #000 55%, transparent);
+}
+
+/* Theme reveal (see theme-toggle.tsx): the new snapshot is clipped by a JS
+   animation instead of the default cross-fade. Duration and starting clip
+   only apply while a theme reveal is running. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+html[data-theme-vt='active']::view-transition-group(root) {
+  animation-duration: var(--theme-vt-duration);
+}
+
+html[data-theme-vt='active']::view-transition-new(root) {
+  clip-path: var(--theme-vt-clip-from);
+}
+
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.marquee {
+  animation: marquee 50s linear infinite;
+}
+
+.marquee:hover {
+  animation-play-state: paused;
+}
+
+/* Animated beam: a short stroke segment (pathLength=1, dash 0.25) slides
+   along each connector from its start to its end, then waits off-path. */
+@keyframes beam {
+  from {
+    stroke-dashoffset: 0.25;
+  }
+  to {
+    stroke-dashoffset: -1;
+  }
+}
+
+.beam {
+  stroke-dasharray: 0.25 1;
+  stroke-dashoffset: 0.25;
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--accent) 70%, transparent));
+  animation: beam 3.2s cubic-bezier(0.45, 0, 0.25, 1) infinite;
+}
+
+/* Terminal (components/landing/terminal.tsx): output lines drop in, the
+   caret blinks while a command is typed. */
+@keyframes terminal-line-in {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+}
+
+.terminal-line-in {
+  animation: terminal-line-in 0.3s ease-out both;
+}
+
+@keyframes terminal-caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+.terminal-caret {
+  animation: terminal-caret 1s steps(1) infinite;
+}
+
+/* Live request log (components/landing/log-stream.tsx): a new row opens
+   from zero height so the rows below slide down, then its highlight fades. */
+@keyframes log-row-in {
+  from {
+    max-height: 0;
+    padding-block: 0;
+    opacity: 0;
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+  }
+  45% {
+    max-height: 2rem;
+    opacity: 1;
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+  }
+  to {
+    max-height: 2rem;
+    background: transparent;
+  }
+}
+
+.log-row-in {
+  animation: log-row-in 1.1s ease-out;
 }
 
 @keyframes rise-in {
@@ -207,7 +263,9 @@ body {
   html {
     scroll-behavior: auto;
   }
-  .rise-in {
+  .rise-in,
+  .marquee,
+  .beam {
     animation: none;
   }
   *,
