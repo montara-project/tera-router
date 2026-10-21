@@ -100,16 +100,17 @@ export function Terminal({ label, lines, className = '' }: TerminalProps) {
     if (line < 0 || line >= lines.length) return
     const text = lines[line] ?? ''
     const typed = text.startsWith('$ ')
-    const timer =
-      typed && chars < text.length
-        ? setTimeout(() => setChars((c) => Math.max(c + 1, PROMPT)), chars ? TYPE_MS : 0)
-        : setTimeout(
-            () => {
-              setLine((l) => l + 1)
-              setChars(0)
-            },
-            typed ? PAUSE_MS : PAUSE_MS / 2
-          )
+    const typing = typed && chars < text.length
+    // Next character on this line, or move on to the next line.
+    const delay = typing ? (chars ? TYPE_MS : 0) : typed ? PAUSE_MS : PAUSE_MS / 2
+    const timer = setTimeout(() => {
+      if (typing) {
+        setChars((c) => Math.max(c + 1, PROMPT))
+        return
+      }
+      setLine((l) => l + 1)
+      setChars(0)
+    }, delay)
     return () => clearTimeout(timer)
   }, [line, chars, lines])
 
