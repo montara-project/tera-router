@@ -1,19 +1,32 @@
 import {
+  Activity,
   Boxes,
   ChartColumn,
-  ChevronRight,
-  Ellipsis,
+  ChartLine,
+  Clock4,
+  Cloud,
+  Coins,
+  DollarSign,
   Feather,
+  HeartPulse,
+  Hexagon,
+  Image,
   KeyRound,
+  Layers,
   LayoutDashboard,
-  ListChecks,
   MessagesSquare,
-  Plug,
-  Route,
+  Network,
+  Package,
+  RefreshCw,
+  Replace,
   Search,
+  Server,
+  Settings,
   Shield,
+  ShieldCheck,
+  Sparkles,
   Terminal,
-  Users,
+  Wallet,
   Workflow,
 } from 'lucide-react'
 
@@ -182,222 +195,366 @@ export function RoutingDiagram() {
   )
 }
 
+// Mirrors apps/web-ui: the sidebar groups come from src/data/sidebar-menu.ts
+// (tabler icons swapped for their lucide look-alikes) and the content follows
+// the Overview page (routes/(protected)/dashboard, components/block/dashboard).
 const sidebar = [
-  { label: null, items: [{ name: 'Overview', Icon: LayoutDashboard }] },
+  { label: 'Overview', items: [{ name: 'Dashboard', Icon: LayoutDashboard }] },
   {
-    label: 'Gateway',
+    label: 'Traffic',
     items: [
-      { name: 'Providers', Icon: Plug },
-      { name: 'Accounts', Icon: Users },
-      { name: 'Routing chains', Icon: Route },
+      { name: 'Endpoints', Icon: Network },
+      { name: 'Chains', Icon: Layers },
+      { name: 'Skills', Icon: Sparkles },
+      { name: 'Model Alias', Icon: Replace },
+      { name: 'Pricing', Icon: Coins },
     ],
   },
   {
-    label: 'Access',
+    label: 'Connections',
     items: [
-      { name: 'API keys', Icon: KeyRound },
+      { name: 'API Keys', Icon: KeyRound },
+      { name: 'Providers', Icon: Package },
+      { name: 'Media', Icon: Image },
+      { name: 'Proxy Pools', Icon: Hexagon },
+    ],
+  },
+  {
+    label: 'Safety',
+    items: [
       { name: 'Guardrails', Icon: Shield },
+      { name: 'Provider Health', Icon: HeartPulse },
     ],
   },
   {
-    label: 'Insights',
+    label: 'Cost & Analytics',
     items: [
       { name: 'Usage', Icon: ChartColumn },
-      { name: 'Allowlists', Icon: ListChecks },
+      { name: 'Plans', Icon: Wallet },
+      { name: 'Quota Tracker', Icon: Clock4 },
+      { name: 'System', Icon: Activity },
+      { name: 'Settings', Icon: Settings },
+    ],
+  },
+  {
+    label: 'Developer',
+    items: [
+      { name: 'Console Log', Icon: Terminal },
+      { name: 'CLI Tools', Icon: Cloud },
     ],
   },
 ]
 
-const metrics = [
-  { label: 'Requests (24h)', value: '48,210', badge: '+12.4%' },
-  { label: 'Tokens metered', value: '12.6M', badge: 'SSE incl.' },
-  { label: 'p50 latency', value: '412 ms', badge: 'upstream' },
-  { label: 'Fallback rate', value: '1.8%', badge: '3 chains' },
+const statCards = [
+  {
+    label: 'Traffic',
+    Icon: Activity,
+    tile: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
+    big: '48.2K',
+    bigLabel: 'requests',
+    subs: [
+      { value: '9.8M', label: 'Input' },
+      { value: '2.8M', label: 'Output' },
+      { value: '6.1M', label: 'Cache read' },
+    ],
+  },
+  {
+    label: 'Spend & Value',
+    Icon: DollarSign,
+    tile: 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
+    big: '$184.32',
+    bigLabel: 'tracked cost',
+    subs: [
+      { value: '$412.80', label: 'Value saved', tone: 'text-accent-soft' },
+      { value: '$0.0038', label: 'Cost / Request' },
+      { value: '98%', label: 'Pricing coverage' },
+    ],
+  },
+  {
+    label: 'Reliability',
+    Icon: ShieldCheck,
+    tile: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
+    big: '99.2%',
+    bigLabel: 'successful',
+    subs: [
+      { value: '386', label: 'Failed', tone: 'text-red-600 dark:text-red-400' },
+      { value: '1.4s', label: 'Avg latency' },
+      { value: '412ms', label: 'TTFT' },
+    ],
+  },
 ]
 
-const OK = 'text-accent-soft'
-const WARN = 'text-amber-700 dark:text-amber-400'
-const FAIL = 'text-red-600 dark:text-red-400'
+// Requests per day over the last 30 days, in thousands (sample data).
+const trend = [
+  0.9, 1.1, 1.0, 1.3, 1.2, 1.6, 1.4, 1.2, 1.5, 1.7, 1.6, 1.9, 1.5, 1.3, 1.6, 1.8, 2.1, 1.9, 1.7,
+  2.0, 2.3, 2.2, 1.9, 2.1, 2.4, 2.6, 2.2, 2.5, 2.8, 2.7,
+]
+const TREND_W = 600
+const TREND_H = 160
+const trendMax = Math.max(...trend) * 1.1
+const trendLine = trend
+  .map((v, i) => {
+    const x = (i / (trend.length - 1)) * TREND_W
+    const y = TREND_H - (v / trendMax) * TREND_H
+    return `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`
+  })
+  .join(' ')
+const trendArea = `${trendLine} L${TREND_W} ${TREND_H} L0 ${TREND_H} Z`
 
-const requests = [
+const providerMix = [
   {
     slug: 'anthropic',
-    model: 'claude-sonnet-4.5',
-    route: 'anthropic · #1',
-    dialect: 'Messages',
-    status: '200 OK',
-    tone: OK,
-    usage: '18.2k tok · 1.9 s',
+    name: 'Anthropic',
+    success: '99.6%',
+    latency: '1.8s',
+    requests: '18.4k',
+    cost: '$96.10',
+    share: 38.2,
   },
   {
     slug: 'gemini',
-    model: 'gemini-2.5-pro',
-    route: 'gemini · #2',
-    dialect: 'Chat',
-    status: '200 OK',
-    tone: OK,
-    usage: '4.1k tok · 0.8 s',
+    name: 'Gemini',
+    success: '99.1%',
+    latency: '0.9s',
+    requests: '12.1k',
+    cost: '$31.42',
+    share: 25.1,
   },
   {
     slug: 'codex',
-    model: 'gpt-5-codex',
-    route: 'codex · oauth',
-    dialect: 'Responses',
-    status: '200 stream',
-    tone: OK,
-    usage: '22.7k tok · 3.4 s',
+    name: 'OpenAI Codex',
+    success: '98.7%',
+    latency: '3.2s',
+    requests: '9.6k',
+    cost: '$41.85',
+    share: 19.9,
   },
   {
     slug: 'openrouter',
-    model: 'kimi-k2',
-    route: 'openrouter · fallback',
-    dialect: 'Chat',
-    status: '429 → fallback',
-    tone: WARN,
-    usage: '6.3k tok · 1.2 s',
+    name: 'OpenRouter',
+    success: '97.9%',
+    latency: '1.3s',
+    requests: '5.2k',
+    cost: '$12.03',
+    share: 10.8,
   },
   {
     slug: 'groq',
-    model: 'llama-3.3-70b',
-    route: 'groq · #1',
-    dialect: 'Chat',
-    status: '200 OK',
-    tone: OK,
-    usage: '2.9k tok · 0.6 s',
-  },
-  {
-    slug: 'mistral',
-    model: 'mistral-large',
-    route: 'mistral · #1',
-    dialect: 'Chat',
-    status: 'cooling down',
-    tone: FAIL,
-    usage: '—',
+    name: 'Groq',
+    success: '99.8%',
+    latency: '0.4s',
+    requests: '2.9k',
+    cost: '$2.92',
+    share: 6.0,
   },
 ]
 
+const panel = 'rounded-xl border border-line bg-surface p-4 sm:p-5'
+
+function Segmented({ items, active }: { items: string[]; active: string }) {
+  return (
+    <span className="inline-flex rounded-lg border border-line bg-raised p-0.5 text-xs">
+      {items.map((item) => (
+        <span
+          className={`rounded-md px-2.5 py-1 ${item === active ? 'bg-surface font-medium text-ink elev-1' : 'text-faint'}`}
+          key={item}
+        >
+          {item}
+        </span>
+      ))}
+    </span>
+  )
+}
+
+function MockSidebar() {
+  return (
+    <aside className="hidden flex-col rounded-xl border border-line bg-panel p-2 lg:flex">
+      <div className="flex items-center gap-2.5 p-2">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-neutral-100 p-1">
+          <img
+            alt=""
+            className="rounded-md"
+            height={24}
+            src="/static/images/tera.png?v=3"
+            width={24}
+          />
+        </span>
+        <span className="grid gap-1 leading-none">
+          <span className="text-sm font-medium">Tera Router</span>
+          <span className="text-xs text-faint">AI Router</span>
+        </span>
+      </div>
+      {sidebar.map((group) => (
+        <div className="mt-2 px-1" key={group.label}>
+          <p className="px-2 py-1.5 text-xs text-faint">{group.label}</p>
+          {group.items.map(({ name, Icon }) => {
+            const active = name === 'Dashboard'
+            return (
+              <p
+                className={`flex h-8 items-center gap-2 rounded-md px-2 text-[13px] ${
+                  active ? 'bg-raised font-medium text-ink' : 'text-dim'
+                }`}
+                key={name}
+              >
+                <Icon aria-hidden className="size-4 shrink-0" />
+                {name}
+              </p>
+            )
+          })}
+        </div>
+      ))}
+    </aside>
+  )
+}
+
+// Only the top ~half is shown (max-h + fade-b), like the policy panel: enough
+// to read the stat cards and charts without a full-height dashboard.
 export function DashboardMock() {
   return (
     <div
-      aria-label="Preview of the Tera Router admin dashboard showing usage metrics and recently routed requests"
-      className="overflow-hidden rounded-2xl border border-line bg-panel elev-3"
+      aria-label="Preview of the Tera Router admin dashboard: traffic, spend, and reliability cards, a 30-day usage trend, and provider mix"
+      className="fade-b max-h-[640px] overflow-hidden rounded-2xl border border-line bg-raised/60 p-2"
       role="img"
     >
-      <div className="grid lg:grid-cols-[210px_1fr]">
-        <aside className="hidden border-r border-divide bg-raised/40 p-4 lg:block">
-          <div className="flex items-center gap-2 px-2">
-            <img
-              alt=""
-              className="size-5 mix-blend-multiply dark:mix-blend-screen dark:invert"
-              height={20}
-              src="/static/images/tera.png?v=3"
-              width={20}
-            />
-            <span className="text-sm font-semibold">Tera Router</span>
-            <span className="ml-auto rounded bg-accent/10 px-1.5 py-0.5 font-mono text-[9px] text-accent-soft">
-              ADMIN
-            </span>
-          </div>
-          {sidebar.map((group) => (
-            <div className="mt-5" key={group.label ?? 'root'}>
-              {group.label && <p className="mb-1.5 px-2 text-[11px] text-faint">{group.label}</p>}
-              {group.items.map(({ name, Icon }) => (
-                <p
-                  className={`flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] ${
-                    name === 'Usage' ? 'bg-surface text-ink elev-1' : 'text-dim'
-                  }`}
-                  key={name}
-                >
-                  <Icon
-                    aria-hidden
-                    className={`size-3.5 ${name === 'Usage' ? 'text-accent-soft' : 'text-faint'}`}
-                  />
-                  {name}
-                </p>
-              ))}
-            </div>
-          ))}
-        </aside>
+      <div className="grid gap-2 lg:grid-cols-[232px_minmax(0,1fr)]">
+        <MockSidebar />
 
-        <div className="min-w-0 p-5 sm:p-7">
-          <p className="flex items-center gap-1 text-xs text-faint">
-            Workspace <ChevronRight aria-hidden className="size-3" /> Insights
-            <ChevronRight aria-hidden className="size-3" /> <span className="text-dim">Usage</span>
-          </p>
-          <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0 rounded-xl border border-line bg-panel">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-divide px-5 py-4 sm:px-6">
             <div>
-              <div className="flex flex-wrap items-center gap-2.5">
-                <p className="font-display text-2xl font-medium tracking-tight sm:text-3xl">
-                  gateway-01
-                </p>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent-soft">
-                  <span className="size-1.5 rounded-full bg-accent" />
-                  Healthy · 3 dialects
-                </span>
-              </div>
-              <p className="mt-1.5 font-mono text-xs text-faint">
-                localhost:8080 · 7 providers · 12 accounts
+              <p className="text-xl font-semibold">Overview</p>
+              <p className="text-sm text-faint">
+                A concise view of traffic, spend, and routing performance.
               </p>
             </div>
-            <div className="hidden gap-2 sm:flex">
-              <span className="rounded-lg border border-line bg-surface px-3 py-1.5 text-[13px] text-dim">
-                Test connections
-              </span>
-              <span className="rounded-lg bg-accent/10 px-3 py-1.5 text-[13px] font-medium text-accent-soft">
-                New API key
+            <div className="flex items-center gap-2">
+              <Segmented active="30D" items={['Today', '7D', '30D']} />
+              <span className="flex size-8 items-center justify-center rounded-lg border border-line bg-surface text-dim">
+                <RefreshCw aria-hidden className="size-3.5" />
               </span>
             </div>
           </div>
 
-          <div className="mt-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
-            {metrics.map((metric) => (
-              <div className="rounded-xl border border-line bg-surface p-3.5" key={metric.label}>
-                <div className="flex items-center justify-between gap-2">
-                  <p className="truncate text-[11px] text-faint">{metric.label}</p>
-                  <span className="hidden rounded bg-raised px-1 py-0.5 font-mono text-[9px] text-faint sm:inline">
-                    {metric.badge}
-                  </span>
+          <div className="grid gap-4 p-4">
+            <div className="grid gap-4 xl:grid-cols-3">
+              {statCards.map(({ label, Icon, tile, big, bigLabel, subs }) => (
+                <div className={`${panel} grid content-start gap-4`} key={label}>
+                  <div className="flex items-center gap-2.5">
+                    <span className={`flex size-8 items-center justify-center rounded-lg ${tile}`}>
+                      <Icon aria-hidden className="size-4" />
+                    </span>
+                    <p className="text-xs font-semibold tracking-[0.14em] text-faint uppercase">
+                      {label}
+                    </p>
+                  </div>
+                  <p>
+                    <span className="text-3xl font-semibold">{big}</span>
+                    <span className="ml-2 text-sm text-faint">{bigLabel}</span>
+                  </p>
+                  <div className="grid grid-cols-3 gap-3 border-t border-divide pt-4">
+                    {subs.map((sub) => (
+                      <div className="min-w-0" key={sub.label}>
+                        <p className={`text-sm font-semibold ${sub.tone ?? ''}`}>{sub.value}</p>
+                        <p className="mt-0.5 text-[10px] tracking-wide text-faint uppercase">
+                          {sub.label}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <p className="mt-2 font-mono text-lg">{metric.value}</p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
 
-          <div className="mt-6 overflow-x-auto rounded-xl border border-line">
-            <table className="w-full min-w-[640px] text-left text-[13px]">
-              <thead className="border-b border-line bg-raised/50 text-[11px] text-faint uppercase">
-                <tr>
-                  <th className="px-4 py-2.5 font-medium">Model</th>
-                  <th className="px-4 py-2.5 font-medium">Dialect</th>
-                  <th className="px-4 py-2.5 font-medium">Status</th>
-                  <th className="px-4 py-2.5 font-medium">Usage</th>
-                  <th className="px-4 py-2.5 font-medium" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-divide">
-                {requests.map((row, i) => (
-                  <tr className={i === requests.length - 1 ? 'opacity-55' : ''} key={row.model}>
-                    <td className="px-4 py-3">
-                      <span className="flex items-center gap-3">
-                        <ProviderAvatar slug={row.slug} />
-                        <span>
-                          <span className="block font-mono text-[13px]">{row.model}</span>
-                          <span className="block font-mono text-[11px] text-faint">
-                            {row.route}
-                          </span>
+            <div className="grid gap-4 xl:grid-cols-5">
+              <div className={`${panel} flex flex-col xl:col-span-3`}>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="flex items-center gap-2 text-sm font-semibold">
+                      <ChartLine aria-hidden className="size-4 text-faint" />
+                      Usage trend
+                    </p>
+                    <p className="mt-0.5 text-xs text-faint">Busiest request bucket Oct 19</p>
+                  </div>
+                  <Segmented active="Requests" items={['Requests', 'Tokens', 'Cost', 'Failures']} />
+                </div>
+                <svg
+                  aria-hidden
+                  className="mt-5 h-40 w-full flex-1"
+                  preserveAspectRatio="none"
+                  viewBox={`0 0 ${TREND_W} ${TREND_H}`}
+                >
+                  <defs>
+                    <linearGradient id="trend-fill" x1="0" x2="0" y1="0" y2="1">
+                      <stop offset="0" style={{ stopColor: 'var(--accent)', stopOpacity: 0.25 }} />
+                      <stop offset="1" style={{ stopColor: 'var(--accent)', stopOpacity: 0 }} />
+                    </linearGradient>
+                  </defs>
+                  {[0.25, 0.5, 0.75].map((f) => (
+                    <line
+                      className="text-divide"
+                      key={f}
+                      stroke="currentColor"
+                      vectorEffect="non-scaling-stroke"
+                      x1="0"
+                      x2={TREND_W}
+                      y1={TREND_H * f}
+                      y2={TREND_H * f}
+                    />
+                  ))}
+                  <path d={trendArea} fill="url(#trend-fill)" />
+                  <path
+                    d={trendLine}
+                    fill="none"
+                    stroke="var(--accent)"
+                    strokeWidth={2}
+                    vectorEffect="non-scaling-stroke"
+                  />
+                </svg>
+                <div className="mt-2 flex justify-between font-mono text-[10px] text-faint">
+                  {['Sep 22', 'Sep 29', 'Oct 6', 'Oct 13', 'Oct 21'].map((d) => (
+                    <span key={d}>{d}</span>
+                  ))}
+                </div>
+              </div>
+
+              <div className={`${panel} xl:col-span-2`}>
+                <div className="flex items-start justify-between gap-3">
+                  <p className="flex items-center gap-2 text-sm font-semibold">
+                    <Server aria-hidden className="size-4 text-faint" />
+                    Provider mix
+                  </p>
+                  <p className="text-xs text-faint">{providerMix.length} providers</p>
+                </div>
+                <p className="mt-0.5 text-xs text-faint">Traffic share and delivery quality.</p>
+                <div className="mt-5 grid gap-4">
+                  {providerMix.map((row) => (
+                    <div key={row.slug}>
+                      <div className="flex items-center gap-3">
+                        <ProviderAvatar size="sm" slug={row.slug} />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium">{row.name}</p>
+                          <p className="truncate text-xs text-faint">
+                            {row.success} success · {row.latency} avg
+                          </p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <p className="text-sm font-semibold">{row.requests} req</p>
+                          <p className="text-xs text-faint">{row.cost}</p>
+                        </div>
+                      </div>
+                      <div className="mt-2 flex items-center gap-3">
+                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-raised">
+                          <div className="h-full bg-amber-500" style={{ width: `${row.share}%` }} />
+                        </div>
+                        <span className="w-10 text-right text-xs font-medium tabular-nums">
+                          {row.share}%
                         </span>
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-dim">{row.dialect}</td>
-                    <td className={`px-4 py-3 ${row.tone}`}>{row.status}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-dim">{row.usage}</td>
-                    <td className="px-4 py-3 text-right text-faint">
-                      <Ellipsis aria-hidden className="ml-auto size-4" />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
