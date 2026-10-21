@@ -149,6 +149,23 @@ body {
   mask-image: linear-gradient(to bottom, #000 55%, transparent);
 }
 
+/* Theme reveal (see theme-toggle.tsx): the new snapshot is clipped by a JS
+   animation instead of the default cross-fade. Duration and starting clip
+   only apply while a theme reveal is running. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+html[data-theme-vt='active']::view-transition-group(root) {
+  animation-duration: var(--theme-vt-duration);
+}
+
+html[data-theme-vt='active']::view-transition-new(root) {
+  clip-path: var(--theme-vt-clip-from);
+}
+
 @keyframes marquee {
   to {
     transform: translateX(-50%);

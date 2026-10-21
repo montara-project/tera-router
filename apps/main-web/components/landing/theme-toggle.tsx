@@ -1,7 +1,8 @@
 'use client'
 
 import { Monitor, Moon, Sun } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 
 export const THEME_STORAGE_KEY = 'tera-theme'
 
@@ -22,6 +23,65 @@ function applyTheme(theme: Theme) {
   document.documentElement.classList.toggle('dark', dark)
 }
 
+const REVEAL_MS = 400
+
+/**
+ * Circle reveal from Magic UI's AnimatedThemeToggler: snapshot the page with
+ * the View Transitions API, switch the theme, then grow the new snapshot out
+ * of the clicked button. Coordinates are percentages of the viewport because
+ * Chrome misplaces px clip-paths on fractional display scales (magicui#989).
+ * Falls back to an instant switch without the API or under reduced motion.
+ */
+function revealTheme(origin: HTMLElement, commit: () => void) {
+  if (
+    typeof document.startViewTransition !== 'function' ||
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  ) {
+    commit()
+    return
+  }
+
+  const w = window.innerWidth
+  const h = window.innerHeight
+  const { top, left, width, height } = origin.getBoundingClientRect()
+  const x = left + width / 2
+  const y = top + height / 2
+  const maxRadius = Math.hypot(Math.max(x, w - x), Math.max(y, h - y))
+  // circle() % radii resolve against hypot(w, h) / sqrt(2).
+  const radius = (maxRadius / (Math.hypot(w, h) / Math.SQRT2)) * 100
+  const at = `at ${(x / w) * 100}% ${(y / h) * 100}%`
+  const clipPath = [`circle(0% ${at})`, `circle(${radius}% ${at})`]
+
+  const root = document.documentElement
+  root.dataset.themeVt = 'active'
+  root.style.setProperty('--theme-vt-duration', `${REVEAL_MS}ms`)
+  // Pin the collapsed circle in CSS so Firefox never paints the new theme
+  // unclipped between the snapshot and the JS animation below.
+  root.style.setProperty('--theme-vt-clip-from', clipPath[0])
+
+  const transition = document.startViewTransition(() => flushSync(commit))
+  transition.ready
+    .then(() => {
+      root.animate(
+        { clipPath },
+        {
+          duration: REVEAL_MS,
+          easing: 'ease-in-out',
+          fill: 'forwards',
+          pseudoElement: '::view-transition-new(root)',
+        }
+      )
+    })
+    .catch(() => {})
+  transition.finished
+    .finally(() => {
+      delete root.dataset.themeVt
+      root.style.removeProperty('--theme-vt-duration')
+      root.style.removeProperty('--theme-vt-clip-from')
+    })
+    .catch(() => {})
+}
+
 function readStoredTheme(): Theme {
   try {
     const stored = localStorage.getItem(THEME_STORAGE_KEY)
@@ -35,6 +95,7 @@ function readStoredTheme(): Theme {
 export function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>('system')
   const [mounted, setMounted] = useState(false)
+  const revealing = useRef(false)
 
   useEffect(() => {
     const stored = readStoredTheme()
@@ -50,14 +111,28 @@ export function ThemeToggle() {
     return () => media.removeEventListener('change', onChange)
   }, [])
 
-  function select(next: Theme) {
-    setTheme(next)
-    try {
-      localStorage.setItem(THEME_STORAGE_KEY, next)
-    } catch {
-      // persistence is best-effort; the in-memory choice still applies
+  function select(next: Theme, origin: HTMLElement) {
+    const commit = () => {
+      setTheme(next)
+      try {
+        localStorage.setItem(THEME_STORAGE_KEY, next)
+      } catch {
+        // persistence is best-effort; the in-memory choice still applies
+      }
+      applyTheme(next)
     }
-    applyTheme(next)
+
+    const willBeDark = next === 'dark' || (next === 'system' && systemPrefersDark())
+    // Only animate a real palette flip, and never stack two reveals.
+    if (revealing.current || willBeDark === document.documentElement.classList.contains('dark')) {
+      if (!revealing.current) commit()
+      return
+    }
+    revealing.current = true
+    revealTheme(origin, commit)
+    setTimeout(() => {
+      revealing.current = false
+    }, REVEAL_MS)
   }
 
   return (
@@ -76,7 +151,7 @@ export function ThemeToggle() {
               active ? 'bg-accent/15 text-accent-soft' : 'text-faint hover:bg-raised hover:text-ink'
             }`}
             key={value}
-            onClick={() => select(value)}
+            onClick={(event) => select(value, event.currentTarget)}
             role="radio"
             type="button"
           >
