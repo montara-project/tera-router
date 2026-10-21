@@ -4,77 +4,81 @@ export const dialects = [
     endpoint: 'POST /v1/chat/completions',
     description:
       'The de-facto standard. Any OpenAI SDK, LangChain pipeline, Cursor config, or curl script works as-is — just swap the base URL.',
-    icon: 'messages',
   },
   {
     name: 'Anthropic Messages',
     endpoint: 'POST /v1/messages',
     description:
       'Native Messages API including /v1/messages/count_tokens, so Claude Code and Anthropic SDKs connect without a shim.',
-    icon: 'feather',
   },
   {
     name: 'OpenAI Responses',
     endpoint: 'POST /v1/responses',
     description:
       'The newer Responses API surface for agents and stateful workflows, routed to Responses-native providers like Codex.',
-    icon: 'workflow',
   },
 ] as const
 
+// Mirrors apps/server/internal/catalog (Listed() plus the hidden Codex
+// connect flow). Slugs drive the brand icon, same as the dashboard.
 export type ProviderGroup = {
   label: string
   hint: string
-  providers: { name: string; initials: string; color: string }[]
+  providers: { slug: string; name: string }[]
 }
 
 export const providerGroups: ProviderGroup[] = [
   {
-    label: 'API key',
+    label: 'Chat & LLM',
     hint: 'Bring your own key — catalog presets ship the base URL and dialect.',
     providers: [
-      { name: 'OpenAI', initials: 'OA', color: '#10a37f' },
-      { name: 'Anthropic', initials: 'AN', color: '#d97757' },
-      { name: 'Gemini', initials: 'GE', color: '#4285f4' },
-      { name: 'DeepSeek', initials: 'DS', color: '#4d6bfe' },
-      { name: 'xAI (Grok)', initials: 'X', color: '#e2e8f0' },
-      { name: 'GLM', initials: 'GL', color: '#38bdf8' },
-      { name: 'Kimi', initials: 'KI', color: '#c084fc' },
-      { name: 'MiniMax', initials: 'MM', color: '#fb7185' },
-      { name: 'Mistral', initials: 'MI', color: '#fa500f' },
-      { name: 'Groq', initials: 'GQ', color: '#f55036' },
-      { name: 'Cohere', initials: 'CO', color: '#7bb0a8' },
-      { name: 'Perplexity', initials: 'PX', color: '#20b8cd' },
-      { name: 'OpenRouter', initials: 'OR', color: '#a78bfa' },
-      { name: 'NVIDIA NIM', initials: 'NV', color: '#76b900' },
-      { name: 'Azure OpenAI', initials: 'AZ', color: '#38bdf8' },
-      { name: 'Ollama Cloud', initials: 'OL', color: '#e2e8f0' },
+      { slug: 'openai', name: 'OpenAI' },
+      { slug: 'anthropic', name: 'Anthropic' },
+      { slug: 'gemini', name: 'Gemini' },
+      { slug: 'openrouter', name: 'OpenRouter' },
+      { slug: 'nvidia', name: 'NVIDIA NIM' },
+      { slug: 'mistral', name: 'Mistral AI' },
+      { slug: 'together', name: 'Together AI' },
+      { slug: 'fireworks', name: 'Fireworks AI' },
+      { slug: 'nebius', name: 'Nebius Token Factory' },
+      { slug: 'groq', name: 'Groq' },
+      { slug: 'cline', name: 'Cline' },
+      { slug: 'cloudflare', name: 'Cloudflare AI' },
+      { slug: 'muse', name: 'Meta Muse' },
     ],
   },
   {
     label: 'Subscription / OAuth',
-    hint: 'Connect existing coding-plan sessions and route them like any other account.',
+    hint: 'Sign in with an existing ChatGPT subscription and route it over the Responses dialect.',
+    providers: [{ slug: 'codex', name: 'OpenAI Codex' }],
+  },
+  {
+    label: 'Search & embeddings',
+    hint: 'Served on /v1/search, /v1/web/fetch, and /v1/embeddings behind the same gateway keys.',
     providers: [
-      { name: 'Claude Code', initials: 'CC', color: '#d97757' },
-      { name: 'OpenAI Codex', initials: 'CX', color: '#10a37f' },
-      { name: 'GitHub Copilot', initials: 'GH', color: '#e2e8f0' },
-      { name: 'Kilo Code', initials: 'KC', color: '#f59e0b' },
+      { slug: 'exa', name: 'Exa' },
+      { slug: 'tavily', name: 'Tavily' },
+      { slug: 'firecrawl', name: 'Firecrawl' },
+      { slug: 'brave', name: 'Brave Search' },
+      { slug: 'serper', name: 'Serper' },
+      { slug: 'voyage-ai', name: 'Voyage AI' },
+      { slug: 'jina-ai', name: 'Jina AI' },
     ],
   },
   {
-    label: 'Self-hosted & key-less',
-    hint: 'Authenticates by network position — no credentials, no account rows.',
+    label: 'Voice',
+    hint: 'Text-to-speech and transcription on /v1/audio/speech and /v1/audio/transcriptions.',
     providers: [
-      { name: 'Ollama Local', initials: 'OL', color: '#e2e8f0' },
-      { name: 'vLLM', initials: 'VL', color: '#4ade80' },
+      { slug: 'elevenlabs', name: 'ElevenLabs' },
+      { slug: 'deepgram', name: 'Deepgram' },
     ],
   },
   {
     label: 'Custom',
     hint: 'Any OpenAI- or Anthropic-compatible endpoint, with per-account base URLs.',
     providers: [
-      { name: 'OpenAI-compatible', initials: 'C+', color: '#4ade80' },
-      { name: 'Anthropic-compatible', initials: 'C+', color: '#d97757' },
+      { slug: 'custom-openai', name: 'OpenAI-compatible' },
+      { slug: 'custom-anthropic', name: 'Anthropic-compatible' },
     ],
   },
 ]
@@ -83,73 +87,19 @@ export const steps = [
   {
     title: 'Connect providers',
     description:
-      'Pick from the built-in catalog — API keys, OAuth sessions, or key-less local endpoints. Multiple accounts per provider, each with its own base URL and priority.',
-    icon: 'key',
-    code: 'openai · anthropic · glm · ollama …',
+      'Pick from the built-in catalog — API keys, OAuth sessions, or custom OpenAI- and Anthropic-compatible endpoints. Multiple accounts per provider, each with its own base URL and priority.',
+    code: 'openai · anthropic · gemini · openrouter …',
   },
   {
     title: 'Route with fallback',
     description:
       'Every request enters one endpoint. The planner resolves accounts in priority order, cools down failures, and falls back across accounts and providers automatically.',
-    icon: 'route',
     code: 'glm-4.7 → kimi-k2 → claude-sonnet (fallback)',
   },
   {
     title: 'Observe everything',
     description:
       'Token usage is metered per request — including SSE streams — and lands in the admin dashboard: per key, per account, per model.',
-    icon: 'chart',
     code: 'GET /admin/usage → per-key analytics',
-  },
-] as const
-
-export const features = [
-  {
-    icon: 'layers',
-    title: 'Multi-account routing',
-    description:
-      'Several accounts per provider with priority ordering, cooldowns after failures, and automatic fallback attempts.',
-  },
-  {
-    icon: 'languages',
-    title: 'Dialect translation',
-    description:
-      'The transform engine rewrites between OpenAI Chat, Anthropic Messages, and Responses — request in one dialect, land on another.',
-  },
-  {
-    icon: 'list-checks',
-    title: 'Per-key allowlists',
-    description:
-      'Every gateway key can be restricted to specific models, so a teammate or agent only reaches what it should.',
-  },
-  {
-    icon: 'shield',
-    title: 'Guardrails',
-    description:
-      'A policy engine screens requests before traffic leaves your box — your rules, enforced centrally.',
-  },
-  {
-    icon: 'gauge',
-    title: 'Usage metering',
-    description:
-      'Per-request token accounting (streaming included) feeding per-key, per-account, per-model analytics.',
-  },
-  {
-    icon: 'radio',
-    title: 'Streaming first',
-    description:
-      'SSE pass-through for chat and messages with usage extracted from the stream — no buffering, no lost metrics.',
-  },
-  {
-    icon: 'server',
-    title: 'Self-hosted & light',
-    description:
-      'A single Go service you own: one container next to your stack. No SaaS middleman, no per-token markup.',
-  },
-  {
-    icon: 'blocks',
-    title: 'Any SDK works',
-    description:
-      'OpenAI and Anthropic client libraries, IDEs, and agent frameworks all connect by pointing at one base URL.',
   },
 ] as const

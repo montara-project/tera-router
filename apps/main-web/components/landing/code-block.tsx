@@ -43,7 +43,7 @@ type CodeBlockProps = {
 export function CodeBlock({ label, lines, className = '' }: CodeBlockProps) {
   return (
     <div
-      className={`terminal-island sheen overflow-hidden rounded-xl border border-code-line bg-code p-px ${className}`}
+      className={`terminal-island overflow-hidden rounded-xl border border-code-line bg-code p-px ${className}`}
     >
       <div className="flex items-center gap-2 px-4 py-2.5">
         <span aria-hidden className="size-2.5 shrink-0 rounded-full bg-[#f55036]" />
