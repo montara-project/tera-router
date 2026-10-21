@@ -2,6 +2,7 @@ import { format as formatDateFn } from 'date-fns'
 
 import type { UsageActivity, UsageActivityDay } from '@/lib/api/models/usage'
 
+import { formatCount } from '@/lib/format'
 import { type Second } from '@/types/time'
 
 /**
@@ -187,7 +188,6 @@ const shortMonthFormat = new Intl.DateTimeFormat('en-US', {
   month: 'short',
   timeZone: 'UTC',
 })
-const integerFormat = new Intl.NumberFormat('en-US')
 
 export type ActivityCell = {
   key: string
@@ -247,8 +247,7 @@ export function buildActivityCalendar(activity: UsageActivity) {
 }
 
 export function activityCellLabel(cell: ActivityCell): string {
-  const count =
-    cell.requests === 0 ? 'No requests' : `${integerFormat.format(cell.requests)} requests`
+  const count = cell.requests === 0 ? 'No requests' : `${formatCount(cell.requests)} requests`
   return `${count} on ${longDayFormat.format(cell.time)}`
 }
 
@@ -257,19 +256,12 @@ export function activityLevelRange(level: number, max: number): string {
   if (level === 0) return 'No requests'
   const lo = Math.floor(((level - 1) / 4) * max) + 1
   const hi = Math.floor((level / 4) * max)
-  return lo >= hi
-    ? `${integerFormat.format(hi)} requests`
-    : `${integerFormat.format(lo)}–${integerFormat.format(hi)} requests`
+  return lo >= hi ? `${formatCount(hi)} requests` : `${formatCount(lo)}–${formatCount(hi)} requests`
 }
 
 /** Short date for a calendar day, e.g. "Mon, Oct 5, 2026". */
 export function formatActivityDay(time: number): string {
   return dayFormat.format(time)
-}
-
-/** Integer grouping for request counts, e.g. "12,345". */
-export function formatCount(n: number): string {
-  return integerFormat.format(n)
 }
 
 /** Empty last-53-weeks window so a missing response still draws the grid. */

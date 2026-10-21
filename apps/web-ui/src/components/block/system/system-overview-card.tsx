@@ -13,8 +13,8 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { formatDuration } from '@/lib/date'
+import { formatCount, formatMb } from '@/lib/format'
 
-import { formatCount, formatMb } from './formatters'
 import StatRow from './stat-row'
 import SystemIconBadge from './system-icon-badge'
 import SystemProgress from './system-progress'

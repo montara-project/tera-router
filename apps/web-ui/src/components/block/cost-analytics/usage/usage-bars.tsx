@@ -6,8 +6,7 @@ import type { UsageTelemetryOverview } from '@/lib/api/models/usage'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-
-import { fmtCompact, fmtKb } from './format'
+import { formatCompact, formatKb } from '@/lib/format'
 
 export function QualityBar({ quality }: { quality: UsageTelemetryOverview['quality'] }) {
   const [expanded, setExpanded] = useState(false)
@@ -73,9 +72,9 @@ export function OptimizationBar({
 
   const stats = [
     { value: optimization.savedLabel, label: 'saved' },
-    { value: fmtCompact(optimization.tokensSaved), label: 'tokens' },
+    { value: formatCompact(optimization.tokensSaved), label: 'tokens' },
     { value: `${optimization.optimizedRequests}`, label: 'optimized' },
-    { value: fmtKb(optimization.promptReducedBytes), label: 'prompt reduced' },
+    { value: formatKb(optimization.promptReducedBytes), label: 'prompt reduced' },
   ]
 
   return (

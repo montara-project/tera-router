@@ -14,8 +14,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-
-import { fmtCompact, fmtLatency, fmtMoney, fmtRate } from './format'
+import { formatMicrosUsd } from '@/lib/currency'
+import { formatCompact, formatDecimal, formatLatency } from '@/lib/format'
 
 const STATUS_BADGES = {
   success: { label: 'Success', variant: 'success' },
@@ -71,7 +71,7 @@ export default function RequestDetailDialog({ open, onClose, row }: RequestDetai
       ? '×1 (1:1)'
       : row.tokenConsumptionRate === 0
         ? 'free token budget'
-        : `×${fmtRate(row.tokenConsumptionRate)}`
+        : `×${formatDecimal(row.tokenConsumptionRate)}`
 
   return (
     <Dialog
@@ -110,11 +110,11 @@ export default function RequestDetailDialog({ open, onClose, row }: RequestDetai
           <section className="space-y-3 rounded-xl border border-border p-4">
             <p className={SECTION_TITLE}>Token usage</p>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              <StatTile label="Input" value={fmtCompact(row.inputTokens)} />
-              <StatTile label="Cache read" value={fmtCompact(row.inputCacheRead)} />
-              <StatTile label="Cache write" value={fmtCompact(row.inputCacheWrite)} />
-              <StatTile label="Output" value={fmtCompact(row.outputTokens)} />
-              <StatTile label="Reasoning" value={fmtCompact(row.reasoningTokens)} />
+              <StatTile label="Input" value={formatCompact(row.inputTokens)} />
+              <StatTile label="Cache read" value={formatCompact(row.inputCacheRead)} />
+              <StatTile label="Cache write" value={formatCompact(row.inputCacheWrite)} />
+              <StatTile label="Output" value={formatCompact(row.outputTokens)} />
+              <StatTile label="Reasoning" value={formatCompact(row.reasoningTokens)} />
             </div>
             <p className="text-muted-foreground text-xs">
               Input counts uncached tokens only; cache read, cache write, and reasoning are tracked
@@ -133,7 +133,7 @@ export default function RequestDetailDialog({ open, onClose, row }: RequestDetai
                   </Badge>
                 </span>
               ) : (
-                fmtMoney(row.costMicros)
+                formatMicrosUsd(row.costMicros)
               )}
             </DetailRow>
             {row.costNote ? <DetailRow label="Note">{row.costNote}</DetailRow> : null}
@@ -147,8 +147,8 @@ export default function RequestDetailDialog({ open, onClose, row }: RequestDetai
           <div className="grid gap-4 sm:grid-cols-2">
             <section className="space-y-3 rounded-xl border border-border p-4">
               <p className={SECTION_TITLE}>Latency</p>
-              <DetailRow label="Total">{fmtLatency(row.latencyMs)}</DetailRow>
-              <DetailRow label="Upstream">{fmtLatency(row.upstreamMs)}</DetailRow>
+              <DetailRow label="Total">{formatLatency(row.latencyMs)}</DetailRow>
+              <DetailRow label="Upstream">{formatLatency(row.upstreamMs)}</DetailRow>
             </section>
 
             <section className="space-y-3 rounded-xl border border-border p-4">

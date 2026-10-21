@@ -7,8 +7,9 @@ import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { formatMicrosUsd } from '@/lib/currency'
+import { formatCompact, formatDecimal, formatLatency } from '@/lib/format'
 
-import { fmtCompact, fmtLatency, fmtMoney, fmtRate } from './format'
 import RequestDetailDialog from './request-detail-dialog'
 
 const COLUMNS = 'grid grid-cols-[1.1fr_1.6fr_1fr_1fr_1.1fr_1.1fr_0.7fr_0.7fr] items-center gap-4'
@@ -106,26 +107,26 @@ export default function UsageRecentRequests({ rows }: RecentRequestsProps) {
 
                     <div>
                       <p className="text-sm tabular-nums text-foreground">
-                        {fmtCompact(row.inputTokens)}
+                        {formatCompact(row.inputTokens)}
                       </p>
                       <p className="text-muted-foreground truncate text-xs">
-                        {fmtCompact(row.inputCacheRead)} read · {fmtCompact(row.inputCacheWrite)}{' '}
-                        write
+                        {formatCompact(row.inputCacheRead)} read ·{' '}
+                        {formatCompact(row.inputCacheWrite)} write
                       </p>
                     </div>
 
                     <div>
                       <p className="text-sm tabular-nums text-foreground">
-                        {fmtCompact(row.outputTokens)}
+                        {formatCompact(row.outputTokens)}
                       </p>
                       <p className="text-muted-foreground truncate text-xs">
-                        {fmtCompact(row.reasoningTokens)} reasoning
+                        {formatCompact(row.reasoningTokens)} reasoning
                       </p>
                     </div>
 
                     <div>
                       <p className="text-sm font-semibold tabular-nums text-foreground">
-                        {row.costMicros === null ? 'Unpriced' : fmtMoney(row.costMicros)}
+                        {row.costMicros === null ? 'Unpriced' : formatMicrosUsd(row.costMicros)}
                       </p>
                       {row.costNote ? (
                         <p className="text-muted-foreground text-xs">{row.costNote}</p>
@@ -140,17 +141,17 @@ export default function UsageRecentRequests({ rows }: RecentRequestsProps) {
                         <p className="text-muted-foreground text-xs">
                           {row.tokenConsumptionRate === 0
                             ? 'free token budget'
-                            : `×${fmtRate(row.tokenConsumptionRate)} token budget`}
+                            : `×${formatDecimal(row.tokenConsumptionRate)} token budget`}
                         </p>
                       ) : null}
                     </div>
 
                     <div>
                       <p className="text-sm tabular-nums text-foreground">
-                        {fmtLatency(row.latencyMs)}
+                        {formatLatency(row.latencyMs)}
                       </p>
                       <p className="text-muted-foreground truncate text-xs">
-                        upstream {fmtLatency(row.upstreamMs)}
+                        upstream {formatLatency(row.upstreamMs)}
                       </p>
                     </div>
 

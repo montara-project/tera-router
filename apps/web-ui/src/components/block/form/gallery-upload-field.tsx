@@ -15,12 +15,8 @@ import { Alert, AlertContent, AlertDescription, AlertIcon, AlertTitle } from '@/
 import { Button } from '@/components/ui/button'
 import { Field, FieldError } from '@/components/ui/field'
 import { useFieldContext } from '@/hooks/form-context'
-import {
-  type FileMetadata,
-  type FileWithPreview,
-  formatBytes,
-  useFileUpload,
-} from '@/hooks/use-file-upload'
+import { type FileMetadata, type FileWithPreview, useFileUpload } from '@/hooks/use-file-upload'
+import { formatBytes } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 interface GalleryUploadFieldProps {

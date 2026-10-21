@@ -11,8 +11,8 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { formatDuration } from '@/lib/date'
+import { formatMb, formatGb } from '@/lib/format'
 
-import { formatGb, formatMb } from './formatters'
 import StatsGrid from './stats-grid'
 import SystemIconBadge from './system-icon-badge'
 

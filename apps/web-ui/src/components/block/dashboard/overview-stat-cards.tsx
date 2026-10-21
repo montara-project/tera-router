@@ -2,8 +2,9 @@ import { Activity, DollarSign, ShieldCheck } from 'lucide-react'
 
 import type { UsageTelemetryOverview } from '@/lib/api/models/usage'
 
-import { fmtCompact, fmtLatency, fmtMoney } from '@/components/block/cost-analytics/usage/format'
 import { Card, CardContent } from '@/components/ui/card'
+import { formatMicrosUsd } from '@/lib/currency'
+import { formatCompact, formatLatency } from '@/lib/format'
 
 interface OverviewStatCardsProps {
   telemetry: UsageTelemetryOverview
@@ -69,28 +70,28 @@ export default function OverviewStatCards({ telemetry }: OverviewStatCardsProps)
         icon={Activity}
         label="Traffic"
         tileClass="bg-emerald-950 text-emerald-400"
-        big={fmtCompact(traffic.requests)}
+        big={formatCompact(traffic.requests)}
         bigLabel="requests"
         subs={[
-          { value: fmtCompact(totalInput), label: 'Input' },
-          { value: fmtCompact(traffic.outputTokens), label: 'Output' },
-          { value: fmtCompact(tokenComposition.cacheRead), label: 'Cache read' },
+          { value: formatCompact(totalInput), label: 'Input' },
+          { value: formatCompact(traffic.outputTokens), label: 'Output' },
+          { value: formatCompact(tokenComposition.cacheRead), label: 'Cache read' },
         ]}
       />
       <StatCard
         icon={DollarSign}
         label="Spend & Value"
         tileClass="bg-amber-950 text-amber-400"
-        big={fmtMoney(spend.costMicros)}
+        big={formatMicrosUsd(spend.costMicros)}
         bigLabel="tracked cost"
         subs={[
           {
-            value: fmtMoney(spend.valueSavedMicros),
+            value: formatMicrosUsd(spend.valueSavedMicros),
             label: 'Value saved',
             valueClass: 'text-emerald-500',
           },
           {
-            value: fmtMoney(Math.round(spend.costMicros / Math.max(traffic.requests, 1))),
+            value: formatMicrosUsd(Math.round(spend.costMicros / Math.max(traffic.requests, 1))),
             label: 'Cost / Request',
           },
           { value: `${quality.requestsCoverage}%`, label: 'Pricing coverage' },
@@ -104,8 +105,8 @@ export default function OverviewStatCards({ telemetry }: OverviewStatCardsProps)
         bigLabel="successful"
         subs={[
           { value: `${traffic.failed}`, label: 'Failed', valueClass: 'text-red-500' },
-          { value: fmtLatency(performance.avgLatencyMs), label: 'Avg latency' },
-          { value: fmtLatency(performance.ttftMs), label: 'TTFT' },
+          { value: formatLatency(performance.avgLatencyMs), label: 'Avg latency' },
+          { value: formatLatency(performance.ttftMs), label: 'TTFT' },
         ]}
       />
     </div>

@@ -6,7 +6,6 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 
 import type { UsageActivity } from '@/lib/api/models/usage'
 
-import { fmtCompact } from '@/components/block/cost-analytics/usage/format'
 import { Card, CardContent } from '@/components/ui/card'
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -18,9 +17,9 @@ import {
   DAY_MS,
   emptyActivity,
   formatActivityDay,
-  formatCount,
   type ActivityCell,
 } from '@/lib/date'
+import { formatCompact, formatCount } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 const MAX_MODELS = 5
@@ -115,7 +114,9 @@ function ActivityCalendar({ activity }: { activity: UsageActivity }) {
           <div className="min-w-0">
             <p className="text-sm font-semibold text-foreground">Usage activity</p>
             <p className="text-foreground mt-1">
-              <span className="text-2xl font-semibold">{fmtCompact(activity.total_requests)}</span>
+              <span className="text-2xl font-semibold">
+                {formatCompact(activity.total_requests)}
+              </span>
               <span className="text-muted-foreground ml-1.5 text-sm">
                 requests in the last year
               </span>

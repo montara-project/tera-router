@@ -10,8 +10,8 @@ import {
   CardHeading,
   CardTitle,
 } from '@/components/ui/card'
+import { formatCount, formatMb } from '@/lib/format'
 
-import { formatCount, formatMb } from './formatters'
 import StatsGrid from './stats-grid'
 import SystemIconBadge from './system-icon-badge'
 

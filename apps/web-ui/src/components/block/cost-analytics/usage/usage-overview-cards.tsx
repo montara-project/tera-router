@@ -3,8 +3,8 @@ import { Activity, DollarSign, ShieldCheck } from 'lucide-react'
 import type { UsageTelemetryOverview } from '@/lib/api/models/usage'
 
 import { Card, CardContent } from '@/components/ui/card'
-
-import { fmtCompact, fmtLatency, fmtMoney } from './format'
+import { formatMicrosUsd } from '@/lib/currency'
+import { formatCompact, formatLatency } from '@/lib/format'
 
 interface OverviewCardsProps {
   telemetry: UsageTelemetryOverview
@@ -68,13 +68,13 @@ export default function UsageOverviewCards({ telemetry }: OverviewCardsProps) {
         icon={Activity}
         label="Traffic"
         tileClass="bg-emerald-950 text-emerald-400"
-        big={fmtCompact(traffic.requests)}
+        big={formatCompact(traffic.requests)}
         bigLabel="requests"
         subs={[
-          { value: fmtCompact(traffic.inputTokens + traffic.outputTokens), label: 'Tokens' },
+          { value: formatCompact(traffic.inputTokens + traffic.outputTokens), label: 'Tokens' },
           { value: `${traffic.success} / ${traffic.failed}`, label: 'Success / Failed' },
           {
-            value: `${fmtCompact(traffic.inputTokens)} / ${fmtCompact(traffic.outputTokens)}`,
+            value: `${formatCompact(traffic.inputTokens)} / ${formatCompact(traffic.outputTokens)}`,
             label: 'Input / Output',
           },
         ]}
@@ -83,19 +83,19 @@ export default function UsageOverviewCards({ telemetry }: OverviewCardsProps) {
         icon={DollarSign}
         label="Spend & Savings"
         tileClass="bg-amber-950 text-amber-400"
-        big={fmtMoney(spend.costMicros)}
+        big={formatMicrosUsd(spend.costMicros)}
         bigLabel="tracked cost"
         subs={[
           {
-            value: fmtMoney(spend.valueSavedMicros),
+            value: formatMicrosUsd(spend.valueSavedMicros),
             label: 'Value saved',
             valueClass: 'text-emerald-500',
           },
           {
-            value: fmtMoney(Math.round(spend.costMicros / Math.max(traffic.requests, 1))),
+            value: formatMicrosUsd(Math.round(spend.costMicros / Math.max(traffic.requests, 1))),
             label: 'Cost / Request',
           },
-          { value: fmtCompact(spend.tokensSaved), label: 'Tokens saved' },
+          { value: formatCompact(spend.tokensSaved), label: 'Tokens saved' },
         ]}
       />
       <StatCard
@@ -105,9 +105,9 @@ export default function UsageOverviewCards({ telemetry }: OverviewCardsProps) {
         big={`${performance.successRate}%`}
         bigLabel="successful"
         subs={[
-          { value: fmtLatency(performance.avgLatencyMs), label: 'Avg latency' },
-          { value: fmtLatency(performance.ttftMs), label: 'TTFT' },
-          { value: fmtCompact(performance.tokensPerRequest), label: 'Tokens / Request' },
+          { value: formatLatency(performance.avgLatencyMs), label: 'Avg latency' },
+          { value: formatLatency(performance.ttftMs), label: 'TTFT' },
+          { value: formatCompact(performance.tokensPerRequest), label: 'Tokens / Request' },
         ]}
       />
     </div>
