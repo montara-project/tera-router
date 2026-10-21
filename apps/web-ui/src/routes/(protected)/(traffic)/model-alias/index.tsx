@@ -44,6 +44,50 @@ function ModelAliasRoute() {
 
   const activeCount = all.filter((a) => a.active).length
 
+  const renderAliases = () => {
+    if (isLoading) {
+      return (
+        <div className="space-y-3">
+          <Skeleton className="h-52 w-full rounded-xl" />
+          <Skeleton className="h-52 w-full rounded-xl" />
+        </div>
+      )
+    }
+
+    if (aliases.length === 0) {
+      return (
+        <EmptyState
+          icon={IconReplace}
+          title={search ? 'No aliases match your search' : 'No model aliases yet'}
+          description={
+            search
+              ? 'Try a shorter name or clear the search to see every alias.'
+              : 'Create an alias to give clients a stable model name backed by an ordered pool of provider targets.'
+          }
+          action={
+            search ? (
+              <Button variant="outline" size="sm" onClick={() => setSearch('')}>
+                Clear search
+              </Button>
+            ) : (
+              <Button size="sm" className={EMERALD_BUTTON_CLASS} onClick={() => setCreating(true)}>
+                <IconPlus /> New alias
+              </Button>
+            )
+          }
+        />
+      )
+    }
+
+    return (
+      <div className="space-y-3">
+        {aliases.map((alias) => (
+          <AliasCard key={alias.id} alias={alias} />
+        ))}
+      </div>
+    )
+  }
+
   return (
     <SectionCard
       title="Model Alias"
@@ -84,43 +128,7 @@ function ModelAliasRoute() {
           <AliasCard alias={blankAlias()} isNew onClose={() => setCreating(false)} />
         ) : null}
 
-        {isLoading ? (
-          <div className="space-y-3">
-            <Skeleton className="h-52 w-full rounded-xl" />
-            <Skeleton className="h-52 w-full rounded-xl" />
-          </div>
-        ) : aliases.length === 0 ? (
-          <EmptyState
-            icon={IconReplace}
-            title={search ? 'No aliases match your search' : 'No model aliases yet'}
-            description={
-              search
-                ? 'Try a shorter name or clear the search to see every alias.'
-                : 'Create an alias to give clients a stable model name backed by an ordered pool of provider targets.'
-            }
-            action={
-              search ? (
-                <Button variant="outline" size="sm" onClick={() => setSearch('')}>
-                  Clear search
-                </Button>
-              ) : (
-                <Button
-                  size="sm"
-                  className={EMERALD_BUTTON_CLASS}
-                  onClick={() => setCreating(true)}
-                >
-                  <IconPlus /> New alias
-                </Button>
-              )
-            }
-          />
-        ) : (
-          <div className="space-y-3">
-            {aliases.map((alias) => (
-              <AliasCard key={alias.id} alias={alias} />
-            ))}
-          </div>
-        )}
+        {renderAliases()}
       </div>
     </SectionCard>
   )

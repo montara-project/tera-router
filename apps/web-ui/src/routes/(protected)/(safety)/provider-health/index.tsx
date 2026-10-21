@@ -28,6 +28,12 @@ const TIME_RANGES = (['5m', '15m', '1h', '6h', '24h', '7d'] as const).map((value
   label: value,
 }))
 
+const ENTITY_LABELS = {
+  providers: 'Provider',
+  models: 'Model',
+  chains: 'Chain',
+} as const
+
 /** Rows per page in every health table. */
 const PAGE_SIZE = 10
 
@@ -108,7 +114,7 @@ function ProviderHealthContent() {
             // Keyed by tab so each tab starts on page 1.
             key={tab}
             pageSize={PAGE_SIZE}
-            entityLabel={tab === 'chains' ? 'Chain' : tab === 'models' ? 'Model' : 'Provider'}
+            entityLabel={ENTITY_LABELS[tab]}
             entries={data[tab]}
             onView={handleView}
           />

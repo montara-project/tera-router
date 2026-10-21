@@ -51,6 +51,65 @@ export default function KeySkillsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
     )
   }
 
+  const renderSkills = () => {
+    if (skillsQuery.isLoading) {
+      return (
+        <div className="space-y-4 p-5">
+          <Skeleton className="h-12 w-full rounded-lg" />
+          <Skeleton className="h-12 w-full rounded-lg" />
+        </div>
+      )
+    }
+
+    if (skills.length === 0) {
+      return (
+        <EmptyState
+          icon={IconInbox}
+          title="No custom skills yet"
+          description={
+            <>
+              Create one on the{' '}
+              <Link to="/skills" className="text-foreground underline">
+                Skills
+              </Link>{' '}
+              page, then switch it on here.
+            </>
+          }
+        />
+      )
+    }
+
+    return (
+      <div className="divide-y divide-border">
+        {skills.map((skill) => (
+          <div key={skill.id} className="flex items-center justify-between gap-4 px-5 py-4">
+            <div className="min-w-0 space-y-1">
+              <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-foreground">
+                {skill.name}
+                {skill.enabled ? (
+                  <Badge variant="secondary" size="sm">
+                    On for every key
+                  </Badge>
+                ) : null}
+              </p>
+              {skill.description && (
+                <p className="text-sm text-muted-foreground">{skill.description}</p>
+              )}
+            </div>
+            {/* A globally enabled skill is injected whatever this key selects. */}
+            <Switch
+              size="sm"
+              aria-label={`Use ${skill.name} with this key`}
+              checked={skill.enabled || selected.includes(skill.id)}
+              disabled={skill.enabled || saveMutation.isPending}
+              onCheckedChange={(checked) => handleToggle(skill, checked)}
+            />
+          </div>
+        ))}
+      </div>
+    )
+  }
+
   return (
     <Card className="bg-background">
       <CardHeader className="h-20">
@@ -63,56 +122,7 @@ export default function KeySkillsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
         </CardHeading>
       </CardHeader>
 
-      <CardContent className="p-0">
-        {skillsQuery.isLoading ? (
-          <div className="space-y-4 p-5">
-            <Skeleton className="h-12 w-full rounded-lg" />
-            <Skeleton className="h-12 w-full rounded-lg" />
-          </div>
-        ) : skills.length === 0 ? (
-          <EmptyState
-            icon={IconInbox}
-            title="No custom skills yet"
-            description={
-              <>
-                Create one on the{' '}
-                <Link to="/skills" className="text-foreground underline">
-                  Skills
-                </Link>{' '}
-                page, then switch it on here.
-              </>
-            }
-          />
-        ) : (
-          <div className="divide-y divide-border">
-            {skills.map((skill) => (
-              <div key={skill.id} className="flex items-center justify-between gap-4 px-5 py-4">
-                <div className="min-w-0 space-y-1">
-                  <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-foreground">
-                    {skill.name}
-                    {skill.enabled ? (
-                      <Badge variant="secondary" size="sm">
-                        On for every key
-                      </Badge>
-                    ) : null}
-                  </p>
-                  {skill.description && (
-                    <p className="text-sm text-muted-foreground">{skill.description}</p>
-                  )}
-                </div>
-                {/* A globally enabled skill is injected whatever this key selects. */}
-                <Switch
-                  size="sm"
-                  aria-label={`Use ${skill.name} with this key`}
-                  checked={skill.enabled || selected.includes(skill.id)}
-                  disabled={skill.enabled || saveMutation.isPending}
-                  onCheckedChange={(checked) => handleToggle(skill, checked)}
-                />
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
+      <CardContent className="p-0">{renderSkills()}</CardContent>
     </Card>
   )
 }

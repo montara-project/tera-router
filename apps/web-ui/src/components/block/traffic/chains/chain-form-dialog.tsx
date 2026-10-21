@@ -88,6 +88,7 @@ interface ChainFormProps {
 
 function ChainForm({ chain, onOpenChange }: ChainFormProps) {
   const editing = Boolean(chain?.id)
+  const submitLabel = editing ? 'Save changes' : 'Create chain'
 
   const createMutation = useMutation(queries.chains.create())
   const updateMutation = useMutation(queries.chains.update(chain?.id ?? ''))
@@ -467,7 +468,7 @@ function ChainForm({ chain, onOpenChange }: ChainFormProps) {
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting || saving}>
-              {isSubmitting || saving ? 'Saving…' : editing ? 'Save changes' : 'Create chain'}
+              {isSubmitting || saving ? 'Saving…' : submitLabel}
             </Button>
           </div>
         </div>

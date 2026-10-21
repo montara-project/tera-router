@@ -27,6 +27,7 @@ import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 import { toastAxiosError } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
 import { formatDate } from '@/lib/date'
+import { selectAllState } from '@/lib/utils'
 
 type ColumnType = ColumnDef<typeof features, Models.ApiKey, unknown>
 
@@ -56,6 +57,12 @@ function KeyCopyCell({ record }: { record: Models.ApiKey }) {
     }
   }
 
+  const renderCopyIcon = () => {
+    if (revealMutation.isPending) return <IconLoader2 className="animate-spin" />
+    if (copied) return <IconCheck className="text-emerald-600 dark:text-emerald-300" />
+    return <IconCopy />
+  }
+
   return (
     <div className="flex items-center gap-2">
       <IconLink className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -69,13 +76,7 @@ function KeyCopyCell({ record }: { record: Models.ApiKey }) {
         size="sm"
         variant="ghost"
       >
-        {revealMutation.isPending ? (
-          <IconLoader2 className="animate-spin" />
-        ) : copied ? (
-          <IconCheck className="text-emerald-600 dark:text-emerald-300" />
-        ) : (
-          <IconCopy />
-        )}
+        {renderCopyIcon()}
       </Button>
     </div>
   )
@@ -90,13 +91,10 @@ export function KeysColumn({ loading }: BaseColumnProps) {
           <div className="flex items-center gap-2.5">
             <Checkbox
               aria-label="Select all keys"
-              checked={
-                table.getIsAllPageRowsSelected()
-                  ? true
-                  : table.getIsSomePageRowsSelected()
-                    ? 'indeterminate'
-                    : false
-              }
+              checked={selectAllState(
+                table.getIsAllPageRowsSelected(),
+                table.getIsSomePageRowsSelected()
+              )}
               onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
               size="sm"
             />

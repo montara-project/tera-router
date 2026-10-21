@@ -26,6 +26,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EMERALD_BUTTON_CLASS } from '@/lib/constants/ui'
+import { selectAllState } from '@/lib/utils'
 
 import EmptyState from '../common/empty-state'
 
@@ -102,25 +103,52 @@ export default function ModelsCatalog({
     onSelectedChange(checked ? [...selected, id] : selected.filter((x) => x !== id))
   }
 
-  return (
-    <Card className="bg-background">
-      <CardHeader className="h-20">
-        <CardHeading>
-          <CardTitle>Model catalog</CardTitle>
-          <CardDescription>
-            {catalog
-              ? `${enabledCount} of ${totalCount} models enabled in this catalog. Disabled models are excluded from routing.`
-              : 'Sync from /models to import the provider model list into the catalog.'}
-          </CardDescription>
-        </CardHeading>
-        <CardToolbar>
-          <Button size="sm" className={EMERALD_BUTTON_CLASS} disabled={syncing} onClick={onSync}>
-            {syncing ? <IconRefresh className="animate-spin" /> : <IconDownload />} Sync from
-            /models
-          </Button>
-        </CardToolbar>
-      </CardHeader>
-      {loading ? (
+  const renderModels = () => {
+    if (filteredTotal === 0) {
+      return (
+        <EmptyState
+          className="border-0"
+          icon={IconSearch}
+          title={`No models match "${searchValue}"`}
+          description="Try a shorter name or clear the search to see the full catalog."
+          action={
+            <Button size="sm" variant="outline" onClick={() => onSearchChange('')}>
+              Clear search
+            </Button>
+          }
+        />
+      )
+    }
+
+    if (models.length === 0) {
+      return (
+        <p className="px-5 py-8 text-center text-sm text-muted-foreground">
+          No models on this page — go back a page.
+        </p>
+      )
+    }
+
+    return (
+      <div className="grid gap-3 p-5 md:grid-cols-2 xl:grid-cols-3">
+        {models.map((model) => (
+          <ModelCard
+            key={model.id}
+            providerSlug={providerSlug}
+            providerId={providerId}
+            variant={variant}
+            model={model}
+            selected={selected.includes(model.id)}
+            onToggleSelect={toggleSelect}
+            onToggleState={toggleModel}
+          />
+        ))}
+      </div>
+    )
+  }
+
+  const renderCatalog = () => {
+    if (loading) {
+      return (
         <CardContent className="p-5">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {Array.from({ length: 6 }, (_, i) => (
@@ -128,7 +156,11 @@ export default function ModelsCatalog({
             ))}
           </div>
         </CardContent>
-      ) : totalCount === 0 ? (
+      )
+    }
+
+    if (totalCount === 0) {
+      return (
         <CardContent className="p-0">
           <EmptyState
             className="border-0"
@@ -147,107 +179,100 @@ export default function ModelsCatalog({
             }
           />
         </CardContent>
-      ) : (
-        <CardContent className="p-0">
-          <div className="flex flex-wrap items-center gap-3 border-b border-border px-5 py-3">
-            <div className="relative min-w-56 flex-1 md:max-w-sm">
-              <IconSearch className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={searchValue}
-                onChange={(e) => onSearchChange(e.target.value)}
-                placeholder="Search by model name or ID..."
-                className="h-9 pl-9"
-              />
-            </div>
-            {selectedInPage.length > 0 ? (
-              <div className="flex flex-wrap items-center gap-2">
-                <Button size="sm" variant="outline" onClick={() => bulkToggle('active')}>
-                  <IconCircleCheck /> Enable ({selectedInPage.length})
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => bulkToggle('disabled')}>
-                  <IconEyeOff /> Disable ({selectedInPage.length})
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => onSelectedChange([])}>
-                  Clear
-                </Button>
-              </div>
-            ) : (
-              <div className="ml-auto flex items-center gap-3">
-                <span className="text-xs text-muted-foreground">{filteredTotal} shown</span>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Checkbox
-                    size="sm"
-                    checked={allSelected ? true : someSelected ? 'indeterminate' : false}
-                    onCheckedChange={(checked) =>
-                      onSelectedChange(checked === true ? models.map((m) => m.id) : [])
-                    }
-                    aria-label="Select all models on this page"
-                  />
-                  Select all
-                </div>
-              </div>
-            )}
-          </div>
-          {filteredTotal === 0 ? (
-            <EmptyState
-              className="border-0"
-              icon={IconSearch}
-              title={`No models match "${searchValue}"`}
-              description="Try a shorter name or clear the search to see the full catalog."
-              action={
-                <Button size="sm" variant="outline" onClick={() => onSearchChange('')}>
-                  Clear search
-                </Button>
-              }
+      )
+    }
+
+    return (
+      <CardContent className="p-0">
+        <div className="flex flex-wrap items-center gap-3 border-b border-border px-5 py-3">
+          <div className="relative min-w-56 flex-1 md:max-w-sm">
+            <IconSearch className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={searchValue}
+              onChange={(e) => onSearchChange(e.target.value)}
+              placeholder="Search by model name or ID..."
+              className="h-9 pl-9"
             />
-          ) : models.length === 0 ? (
-            <p className="px-5 py-8 text-center text-sm text-muted-foreground">
-              No models on this page — go back a page.
-            </p>
+          </div>
+          {selectedInPage.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <Button size="sm" variant="outline" onClick={() => bulkToggle('active')}>
+                <IconCircleCheck /> Enable ({selectedInPage.length})
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => bulkToggle('disabled')}>
+                <IconEyeOff /> Disable ({selectedInPage.length})
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => onSelectedChange([])}>
+                Clear
+              </Button>
+            </div>
           ) : (
-            <div className="grid gap-3 p-5 md:grid-cols-2 xl:grid-cols-3">
-              {models.map((model) => (
-                <ModelCard
-                  key={model.id}
-                  providerSlug={providerSlug}
-                  providerId={providerId}
-                  variant={variant}
-                  model={model}
-                  selected={selected.includes(model.id)}
-                  onToggleSelect={toggleSelect}
-                  onToggleState={toggleModel}
+            <div className="ml-auto flex items-center gap-3">
+              <span className="text-xs text-muted-foreground">{filteredTotal} shown</span>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Checkbox
+                  size="sm"
+                  checked={selectAllState(allSelected, someSelected)}
+                  onCheckedChange={(checked) =>
+                    onSelectedChange(checked === true ? models.map((m) => m.id) : [])
+                  }
+                  aria-label="Select all models on this page"
                 />
-              ))}
+                Select all
+              </div>
             </div>
           )}
-          {filteredTotal > CATALOG_PAGE_SIZE ? (
-            <div className="flex items-center justify-between border-t border-border px-5 py-3">
-              <p className="text-xs text-muted-foreground">{filteredTotal} models</p>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={pageIndex === 0}
-                  onClick={() => onPageChange(Math.max(0, pageIndex - 1))}
-                >
-                  Previous
-                </Button>
-                <span className="text-xs tabular-nums text-muted-foreground">
-                  {pageIndex + 1} / {pages}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={pageIndex >= pages - 1}
-                  onClick={() => onPageChange(Math.min(pages - 1, pageIndex + 1))}
-                >
-                  Next
-                </Button>
-              </div>
+        </div>
+        {renderModels()}
+        {filteredTotal > CATALOG_PAGE_SIZE ? (
+          <div className="flex items-center justify-between border-t border-border px-5 py-3">
+            <p className="text-xs text-muted-foreground">{filteredTotal} models</p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={pageIndex === 0}
+                onClick={() => onPageChange(Math.max(0, pageIndex - 1))}
+              >
+                Previous
+              </Button>
+              <span className="text-xs tabular-nums text-muted-foreground">
+                {pageIndex + 1} / {pages}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={pageIndex >= pages - 1}
+                onClick={() => onPageChange(Math.min(pages - 1, pageIndex + 1))}
+              >
+                Next
+              </Button>
             </div>
-          ) : null}
-        </CardContent>
-      )}
+          </div>
+        ) : null}
+      </CardContent>
+    )
+  }
+
+  return (
+    <Card className="bg-background">
+      <CardHeader className="h-20">
+        <CardHeading>
+          <CardTitle>Model catalog</CardTitle>
+          <CardDescription>
+            {catalog
+              ? `${enabledCount} of ${totalCount} models enabled in this catalog. Disabled models are excluded from routing.`
+              : 'Sync from /models to import the provider model list into the catalog.'}
+          </CardDescription>
+        </CardHeading>
+        <CardToolbar>
+          <Button size="sm" className={EMERALD_BUTTON_CLASS} disabled={syncing} onClick={onSync}>
+            {syncing ? <IconRefresh className="animate-spin" /> : <IconDownload />} Sync from
+            /models
+          </Button>
+        </CardToolbar>
+      </CardHeader>
+      {renderCatalog()}
     </Card>
   )
 }

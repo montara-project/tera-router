@@ -250,46 +250,9 @@ export default function ModelTestSheet({
                         role="log"
                         aria-live="polite"
                       >
-                        {messages.map((message, index) =>
-                          message.role === 'user' ? (
-                            <div key={index} className="flex justify-end">
-                              <div className="max-w-[85%] rounded-2xl bg-muted px-3.5 py-2.5 text-sm whitespace-pre-wrap">
-                                {message.content}
-                              </div>
-                            </div>
-                          ) : (
-                            <div key={index} className="space-y-1.5">
-                              {message.state === 'pending' ? (
-                                <div
-                                  className="flex items-center gap-1 py-2"
-                                  role="status"
-                                  aria-label="Waiting for response"
-                                >
-                                  <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground/60" />
-                                  <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:150ms]" />
-                                  <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:300ms]" />
-                                </div>
-                              ) : message.state === 'error' ? (
-                                <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-3.5 py-2.5 text-sm text-destructive">
-                                  {message.error}
-                                </div>
-                              ) : (
-                                <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                                  {message.content}
-                                </p>
-                              )}
-                              {message.meta ? (
-                                <p className="text-xs tabular-nums text-muted-foreground/80">
-                                  {message.meta.latencyMs} ms · {message.meta.inputTokens} in ·{' '}
-                                  {message.meta.outputTokens} out
-                                  {message.state === 'error'
-                                    ? ` · HTTP ${message.meta.status}`
-                                    : ''}
-                                </p>
-                              ) : null}
-                            </div>
-                          )
-                        )}
+                        {messages.map((message, index) => (
+                          <TestMessageBubble key={index} message={message} />
+                        ))}
                       </div>
                     )}
                   </motion.div>
@@ -348,4 +311,51 @@ export default function ModelTestSheet({
       </Sheet>
     </MotionConfig>
   )
+}
+
+function TestMessageBubble({ message }: { message: TestMessage }) {
+  if (message.role === 'user') {
+    return (
+      <div className="flex justify-end">
+        <div className="max-w-[85%] rounded-2xl bg-muted px-3.5 py-2.5 text-sm whitespace-pre-wrap">
+          {message.content}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <AssistantMessageBody message={message} />
+      {message.meta ? (
+        <p className="text-xs tabular-nums text-muted-foreground/80">
+          {message.meta.latencyMs} ms · {message.meta.inputTokens} in · {message.meta.outputTokens}{' '}
+          out
+          {message.state === 'error' ? ` · HTTP ${message.meta.status}` : ''}
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
+function AssistantMessageBody({ message }: { message: TestMessage }) {
+  if (message.state === 'pending') {
+    return (
+      <div className="flex items-center gap-1 py-2" role="status" aria-label="Waiting for response">
+        <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground/60" />
+        <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:150ms]" />
+        <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:300ms]" />
+      </div>
+    )
+  }
+
+  if (message.state === 'error') {
+    return (
+      <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-3.5 py-2.5 text-sm text-destructive">
+        {message.error}
+      </div>
+    )
+  }
+
+  return <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
 }

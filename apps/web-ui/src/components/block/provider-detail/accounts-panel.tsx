@@ -125,6 +125,108 @@ export default function AccountsPanel({
     }
   }
 
+  const renderAccounts = () => {
+    if (loading) {
+      return (
+        <div className="space-y-2 p-5">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+      )
+    }
+
+    if (accounts.length === 0) {
+      return (
+        <EmptyState
+          className="py-12"
+          icon={IconKey}
+          title="No API keys yet"
+          description="Add a credential to enable requests through this provider."
+        />
+      )
+    }
+
+    return (
+      <div className="overflow-x-auto">
+        <div className="min-w-175">
+          <div className="border-b border-border px-5 py-2.5">
+            <p className="text-xs text-muted-foreground">
+              {accounts.length} connected {accounts.length === 1 ? 'account' : 'accounts'}
+            </p>
+          </div>
+          <div className="grid grid-cols-[1.5fr_1fr_0.8fr_1fr_1fr] gap-4 border-b border-border px-5 py-3 text-xs text-muted-foreground">
+            <span>Account</span>
+            <span>Auth</span>
+            <span>Priority</span>
+            <span>Connection</span>
+            <span className="text-right">Actions</span>
+          </div>
+          {visibleAccounts.map((account) => (
+            <div
+              key={account.id}
+              className="grid grid-cols-[1.5fr_1fr_0.8fr_1fr_1fr] items-center gap-4 border-b border-border/60 px-5 py-3 hover:bg-muted/30"
+            >
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium">{account.label || 'API key'}</p>
+                <p className="font-mono text-xs text-muted-foreground">
+                  {account.key_fingerprint || 'Credential stored securely'}
+                </p>
+              </div>
+              <span className="text-sm">
+                {account.auth_kind === 'api_key' ? 'API key' : account.auth_kind}
+              </span>
+              <span className="font-mono text-sm">{account.priority}</span>
+              <div className="flex items-center gap-2">
+                <Badge
+                  variant={
+                    account.disabled || account.status !== 'active' ? 'secondary' : 'success'
+                  }
+                  appearance="light"
+                  size="sm"
+                >
+                  <BadgeDot />
+                  {account.disabled || account.status !== 'active'
+                    ? 'Disabled'
+                    : 'Direct connection'}
+                </Badge>
+                <Switch
+                  size="sm"
+                  checked={!account.disabled}
+                  disabled={togglingId === account.id}
+                  onCheckedChange={() => toggleAccount(account)}
+                  aria-label={`${account.disabled ? 'Enable' : 'Disable'} ${account.label || 'API key'}`}
+                />
+              </div>
+              <div className="flex justify-end gap-1">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  aria-label={`Test ${account.label}`}
+                  disabled={testingId === account.id}
+                  onClick={() => testAccount(account.id)}
+                >
+                  {testingId === account.id ? (
+                    <IconRefresh className="animate-spin" />
+                  ) : (
+                    <IconCircleCheck />
+                  )}
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  aria-label={`Delete ${account.label}`}
+                  onClick={() => setDeleteAccountId(account.id)}
+                >
+                  <IconTrash />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <>
       <Card className="bg-background">
@@ -159,97 +261,7 @@ export default function AccountsPanel({
               Priority determines first-choice routing.
             </p>
           </div>
-          {loading ? (
-            <div className="space-y-2 p-5">
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-            </div>
-          ) : accounts.length === 0 ? (
-            <EmptyState
-              className="py-12"
-              icon={IconKey}
-              title="No API keys yet"
-              description="Add a credential to enable requests through this provider."
-            />
-          ) : (
-            <div className="overflow-x-auto">
-              <div className="min-w-175">
-                <div className="border-b border-border px-5 py-2.5">
-                  <p className="text-xs text-muted-foreground">
-                    {accounts.length} connected {accounts.length === 1 ? 'account' : 'accounts'}
-                  </p>
-                </div>
-                <div className="grid grid-cols-[1.5fr_1fr_0.8fr_1fr_1fr] gap-4 border-b border-border px-5 py-3 text-xs text-muted-foreground">
-                  <span>Account</span>
-                  <span>Auth</span>
-                  <span>Priority</span>
-                  <span>Connection</span>
-                  <span className="text-right">Actions</span>
-                </div>
-                {visibleAccounts.map((account) => (
-                  <div
-                    key={account.id}
-                    className="grid grid-cols-[1.5fr_1fr_0.8fr_1fr_1fr] items-center gap-4 border-b border-border/60 px-5 py-3 hover:bg-muted/30"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{account.label || 'API key'}</p>
-                      <p className="font-mono text-xs text-muted-foreground">
-                        {account.key_fingerprint || 'Credential stored securely'}
-                      </p>
-                    </div>
-                    <span className="text-sm">
-                      {account.auth_kind === 'api_key' ? 'API key' : account.auth_kind}
-                    </span>
-                    <span className="font-mono text-sm">{account.priority}</span>
-                    <div className="flex items-center gap-2">
-                      <Badge
-                        variant={
-                          account.disabled || account.status !== 'active' ? 'secondary' : 'success'
-                        }
-                        appearance="light"
-                        size="sm"
-                      >
-                        <BadgeDot />
-                        {account.disabled || account.status !== 'active'
-                          ? 'Disabled'
-                          : 'Direct connection'}
-                      </Badge>
-                      <Switch
-                        size="sm"
-                        checked={!account.disabled}
-                        disabled={togglingId === account.id}
-                        onCheckedChange={() => toggleAccount(account)}
-                        aria-label={`${account.disabled ? 'Enable' : 'Disable'} ${account.label || 'API key'}`}
-                      />
-                    </div>
-                    <div className="flex justify-end gap-1">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        aria-label={`Test ${account.label}`}
-                        disabled={testingId === account.id}
-                        onClick={() => testAccount(account.id)}
-                      >
-                        {testingId === account.id ? (
-                          <IconRefresh className="animate-spin" />
-                        ) : (
-                          <IconCircleCheck />
-                        )}
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        aria-label={`Delete ${account.label}`}
-                        onClick={() => setDeleteAccountId(account.id)}
-                      >
-                        <IconTrash />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {renderAccounts()}
           {accounts.length > PAGE_SIZE ? (
             <div className="flex items-center justify-between border-t border-border px-5 py-3">
               <p className="text-xs text-muted-foreground">{accounts.length} total</p>

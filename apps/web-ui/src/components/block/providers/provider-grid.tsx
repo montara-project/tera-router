@@ -30,6 +30,40 @@ const EMPTY_COPY = {
   },
 } as const
 
+function ProviderStatusBadge({ connected, official }: { connected: boolean; official?: boolean }) {
+  if (connected) {
+    return (
+      <Badge
+        variant="success"
+        appearance="light"
+        size="sm"
+        shape="circle"
+        className="absolute right-3 top-3"
+      >
+        <BadgeDot />
+        Connected
+      </Badge>
+    )
+  }
+
+  if (official === false) {
+    return (
+      <Badge
+        variant="warning"
+        appearance="light"
+        size="sm"
+        shape="circle"
+        className="absolute right-3 top-3"
+      >
+        <IconAlertTriangle />
+        unofficial
+      </Badge>
+    )
+  }
+
+  return null
+}
+
 interface ProviderGridProps {
   providers: Models.Provider[]
   variant: 'connected' | 'available'
@@ -81,29 +115,7 @@ export default function ProviderGrid({
               selected && 'border-destructive/60 ring-1 ring-destructive/40'
             )}
           >
-            {variant === 'connected' ? (
-              <Badge
-                variant="success"
-                appearance="light"
-                size="sm"
-                shape="circle"
-                className="absolute right-3 top-3"
-              >
-                <BadgeDot />
-                Connected
-              </Badge>
-            ) : provider.official === false ? (
-              <Badge
-                variant="warning"
-                appearance="light"
-                size="sm"
-                shape="circle"
-                className="absolute right-3 top-3"
-              >
-                <IconAlertTriangle />
-                unofficial
-              </Badge>
-            ) : null}
+            <ProviderStatusBadge connected={variant === 'connected'} official={provider.official} />
 
             <ProviderAvatar slug={provider.slug} apiKind={provider.api_kind} />
 

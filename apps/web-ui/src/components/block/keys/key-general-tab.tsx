@@ -93,9 +93,15 @@ export default function KeyGeneralTab({ apiKey }: { apiKey: ApiKeyDetail }) {
   )
 }
 
+const KEY_STATUS_VARIANTS: Partial<
+  Record<ApiKeyDetail['status'], 'success' | 'warning' | 'secondary'>
+> = {
+  active: 'success',
+  restricted: 'warning',
+}
+
 export function KeyStatusBadge({ status }: { status: ApiKeyDetail['status'] }) {
-  const variant =
-    status === 'active' ? 'success' : status === 'restricted' ? 'warning' : 'secondary'
+  const variant = KEY_STATUS_VARIANTS[status] ?? 'secondary'
   const label = status.charAt(0).toUpperCase() + status.slice(1)
 
   return (

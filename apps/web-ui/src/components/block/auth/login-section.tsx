@@ -12,6 +12,11 @@ import { SignInSchema } from '@/lib/api/dtos/auth/schema'
 import { signInWithEmail } from '@/lib/auth/email-auth'
 import { cn } from '@/lib/utils'
 
+const SUBMIT_LABELS = {
+  signIn: { idle: 'Sign in', pending: 'Signing in…' },
+  verify: { idle: 'Verify', pending: 'Verifying…' },
+} as const
+
 export default function LoginSection({ className, ...props }: React.ComponentProps<'div'>) {
   const { navigate } = useRouter()
   const [isLoading, setIsLoading] = useState(false)
@@ -61,6 +66,9 @@ export default function LoginSection({ className, ...props }: React.ComponentPro
     setError(null)
     form.setFieldValue('password', '', { dontValidate: true })
   }
+
+  const labels = needsCode ? SUBMIT_LABELS.verify : SUBMIT_LABELS.signIn
+  const submitLabel = isLoading ? labels.pending : labels.idle
 
   return (
     <div className={cn('flex flex-col gap-6', className)} {...props}>
@@ -145,13 +153,7 @@ export default function LoginSection({ className, ...props }: React.ComponentPro
             {error && <FieldError>{error}</FieldError>}
             <Button type="submit" disabled={isLoading || (needsCode && otp.length !== 6)}>
               {isLoading && <IconLoader2 className="size-4 animate-spin" />}
-              {needsCode
-                ? isLoading
-                  ? 'Verifying…'
-                  : 'Verify'
-                : isLoading
-                  ? 'Signing in…'
-                  : 'Sign in'}
+              {submitLabel}
             </Button>
             {needsCode && (
               <Button type="button" variant="ghost" onClick={cancelCode} disabled={isLoading}>

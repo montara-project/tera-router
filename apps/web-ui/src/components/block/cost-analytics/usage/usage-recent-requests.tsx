@@ -10,6 +10,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { formatMicrosUsd } from '@/lib/currency'
 import { formatCompact, formatDecimal, formatLatency } from '@/lib/format'
 
+import { RequestStatusBadge, RequestUsageBadge } from './request-badges'
 import RequestDetailDialog from './request-detail-dialog'
 
 const COLUMNS = 'grid grid-cols-[1.1fr_1.6fr_1fr_1fr_1.1fr_1.1fr_0.7fr_0.7fr] items-center gap-4'
@@ -65,32 +66,8 @@ export default function UsageRecentRequests({ rows }: RecentRequestsProps) {
                 {visible.map((row) => (
                   <div key={row.id} className={`${COLUMNS} gap-4 py-3.5`}>
                     <div className="flex flex-col items-start gap-1">
-                      {row.status === 'success' ? (
-                        <Badge variant="success" appearance="light" size="sm">
-                          Success
-                        </Badge>
-                      ) : row.status === 'failed' ? (
-                        <Badge variant="destructive" appearance="light" size="sm">
-                          Failed
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary" size="sm">
-                          Cancelled
-                        </Badge>
-                      )}
-                      {row.usage === 'provider' ? (
-                        <Badge variant="success" appearance="light" size="sm">
-                          Provider usage
-                        </Badge>
-                      ) : row.usage === 'estimate' ? (
-                        <Badge variant="warning" appearance="light" size="sm">
-                          Usage estimate
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary" size="sm">
-                          No usage reported
-                        </Badge>
-                      )}
+                      <RequestStatusBadge status={row.status} />
+                      <RequestUsageBadge usage={row.usage} />
                     </div>
 
                     <div className="flex items-center gap-3">
@@ -128,13 +105,14 @@ export default function UsageRecentRequests({ rows }: RecentRequestsProps) {
                       <p className="text-sm font-semibold tabular-nums text-foreground">
                         {row.costMicros === null ? 'Unpriced' : formatMicrosUsd(row.costMicros)}
                       </p>
-                      {row.costNote ? (
+                      {row.costNote && (
                         <p className="text-muted-foreground text-xs">{row.costNote}</p>
-                      ) : row.costMicros === null ? (
+                      )}
+                      {!row.costNote && row.costMicros === null && (
                         <Badge variant="destructive" appearance="light" size="sm">
                           Missing price
                         </Badge>
-                      ) : null}
+                      )}
                       {row.tokenConsumptionRate !== undefined &&
                       row.tokenConsumptionRate !== null &&
                       row.tokenConsumptionRate !== 1 ? (

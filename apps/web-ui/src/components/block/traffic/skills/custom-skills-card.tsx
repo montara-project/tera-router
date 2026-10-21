@@ -110,6 +110,42 @@ export default function CustomSkillsCard({
   const isEmpty = skills.length === 0
   const [viewing, setViewing] = useState<SkillDetailTarget | null>(null)
 
+  const renderSkills = () => {
+    if (loading && isEmpty) {
+      return (
+        <div className="p-5">
+          <CustomSkillsLoading />
+        </div>
+      )
+    }
+
+    if (isEmpty) {
+      return (
+        <EmptyState
+          icon={IconInbox}
+          title="No custom skills yet"
+          description="Create a skill, then switch it on to add its prompt to every request."
+        />
+      )
+    }
+
+    return (
+      <div className="divide-y divide-border">
+        {skills.map((skill) => (
+          <CustomSkillRow
+            key={skill.id}
+            skill={skill}
+            deleting={deletingId === skill.id}
+            toggling={togglingId === skill.id}
+            onToggle={onToggle}
+            onView={(s) => setViewing({ slug: s.id, name: s.name })}
+            onDelete={onDelete}
+          />
+        ))}
+      </div>
+    )
+  }
+
   return (
     <Card className="bg-background">
       <CardHeader className="h-20">
@@ -129,33 +165,7 @@ export default function CustomSkillsCard({
           </CardHeading>
         </div>
       </CardHeader>
-      <CardContent className="p-0">
-        {loading && isEmpty ? (
-          <div className="p-5">
-            <CustomSkillsLoading />
-          </div>
-        ) : isEmpty ? (
-          <EmptyState
-            icon={IconInbox}
-            title="No custom skills yet"
-            description="Create a skill, then switch it on to add its prompt to every request."
-          />
-        ) : (
-          <div className="divide-y divide-border">
-            {skills.map((skill) => (
-              <CustomSkillRow
-                key={skill.id}
-                skill={skill}
-                deleting={deletingId === skill.id}
-                toggling={togglingId === skill.id}
-                onToggle={onToggle}
-                onView={(s) => setViewing({ slug: s.id, name: s.name })}
-                onDelete={onDelete}
-              />
-            ))}
-          </div>
-        )}
-      </CardContent>
+      <CardContent className="p-0">{renderSkills()}</CardContent>
       <SkillDetailDialog skill={viewing} onClose={() => setViewing(null)} />
     </Card>
   )

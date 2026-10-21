@@ -90,20 +90,14 @@ export const useFileUpload = (
 
   const validateFile = useCallback(
     (file: File | FileMetadata): string | null => {
-      if (file instanceof File) {
-        if (file.size > maxSize) {
-          return `File "${file.name}" exceeds the maximum size of ${formatBytes(maxSize)}.`
-        }
-      } else {
-        if (file.size > maxSize) {
-          return `File "${file.name}" exceeds the maximum size of ${formatBytes(maxSize)}.`
-        }
+      if (file.size > maxSize) {
+        return `File "${file.name}" exceeds the maximum size of ${formatBytes(maxSize)}.`
       }
 
       if (accept !== '*') {
         const acceptedTypes = accept.split(',').map((type) => type.trim())
-        const fileType = file instanceof File ? file.type || '' : file.type
-        const fileExtension = `.${file instanceof File ? file.name.split('.').pop() : file.name.split('.').pop()}`
+        const fileType = file.type || ''
+        const fileExtension = `.${file.name.split('.').pop()}`
 
         const isAccepted = acceptedTypes.some((type) => {
           if (type.startsWith('.')) {
@@ -241,7 +235,9 @@ export const useFileUpload = (
             files: newFiles,
             errors,
           }
-        } else if (errors.length > 0) {
+        }
+
+        if (errors.length > 0) {
           onError?.(errors)
           return {
             ...prev,

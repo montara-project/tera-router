@@ -61,6 +61,28 @@ export default function KeyModelsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
     handleSave(parsePatterns(draft))
   }
 
+  const renderPlanAccess = () => {
+    if (plansQuery.isLoading) {
+      return 'Loading plan access…'
+    }
+
+    if (plan) {
+      return (
+        <>
+          Plan <span className="text-foreground font-medium">{plan.name}</span> allows{' '}
+          {plan.allowed_models?.length ? (
+            <span className="text-foreground font-mono">{plan.allowed_models.join(', ')}</span>
+          ) : (
+            <span className="text-foreground">every model</span>
+          )}
+          . A key allowlist can only narrow that set, never widen it.
+        </>
+      )
+    }
+
+    return 'This key is not bound to a plan, so only the key allowlist applies.'
+  }
+
   return (
     <>
       <Card className="bg-background">
@@ -116,25 +138,7 @@ export default function KeyModelsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
             </div>
           </div>
 
-          <div className="text-muted-foreground text-xs">
-            {plansQuery.isLoading ? (
-              'Loading plan access…'
-            ) : plan ? (
-              <>
-                Plan <span className="text-foreground font-medium">{plan.name}</span> allows{' '}
-                {plan.allowed_models?.length ? (
-                  <span className="text-foreground font-mono">
-                    {plan.allowed_models.join(', ')}
-                  </span>
-                ) : (
-                  <span className="text-foreground">every model</span>
-                )}
-                . A key allowlist can only narrow that set, never widen it.
-              </>
-            ) : (
-              'This key is not bound to a plan, so only the key allowlist applies.'
-            )}
-          </div>
+          <div className="text-muted-foreground text-xs">{renderPlanAccess()}</div>
         </CardContent>
       </Card>
 

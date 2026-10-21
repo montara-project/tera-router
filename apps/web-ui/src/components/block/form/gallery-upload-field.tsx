@@ -19,6 +19,27 @@ import { type FileMetadata, type FileWithPreview, useFileUpload } from '@/hooks/
 import { formatBytes } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
+const DROP_TONES = {
+  invalid: {
+    area: 'border-destructive bg-destructive/5',
+    badge: 'bg-destructive/10',
+    icon: 'text-destructive',
+  },
+  dragging: { area: 'border-primary bg-primary/5', badge: 'bg-primary/10', icon: 'text-primary' },
+  idle: {
+    area: 'border-muted-foreground/25 hover:border-muted-foreground/50',
+    badge: 'bg-muted',
+    icon: 'text-muted-foreground',
+  },
+} as const
+
+/** Invalid wins over dragging so the error state stays visible mid-drag. */
+function getDropTone(isInvalid: boolean, isDragging: boolean): keyof typeof DROP_TONES {
+  if (isInvalid) return 'invalid'
+  if (isDragging) return 'dragging'
+  return 'idle'
+}
+
 interface GalleryUploadFieldProps {
   label?: string
   minFiles?: number
@@ -69,12 +90,10 @@ export default function GalleryUploadField({
     onFilesChange,
   })
 
-  const isImage = (file: File | FileMetadata) => {
-    const type = file instanceof File ? file.type : file.type
-    return type.startsWith('image/')
-  }
+  const isImage = (file: File | FileMetadata) => file.type.startsWith('image/')
 
   const errorsUpload = Array.from(new Set(errors))
+  const tone = DROP_TONES[getDropTone(isInvalid, isDragging)]
 
   return (
     <Field data-invalid={isInvalid}>
@@ -83,11 +102,7 @@ export default function GalleryUploadField({
         <div
           className={cn(
             'relative rounded-lg border border-dashed p-8 text-center transition-colors',
-            isInvalid
-              ? 'border-destructive bg-destructive/5'
-              : isDragging
-                ? 'border-primary bg-primary/5'
-                : 'border-muted-foreground/25 hover:border-muted-foreground/50'
+            tone.area
           )}
           onDragEnter={handleDragEnter}
           onDragLeave={handleDragLeave}
@@ -98,21 +113,9 @@ export default function GalleryUploadField({
 
           <div className="flex flex-col items-center gap-4">
             <div
-              className={cn(
-                'flex h-16 w-16 items-center justify-center rounded-full',
-                isInvalid ? 'bg-destructive/10' : isDragging ? 'bg-primary/10' : 'bg-muted'
-              )}
+              className={cn('flex h-16 w-16 items-center justify-center rounded-full', tone.badge)}
             >
-              <IconPhoto
-                className={cn(
-                  'h-5 w-5',
-                  isInvalid
-                    ? 'text-destructive'
-                    : isDragging
-                      ? 'text-primary'
-                      : 'text-muted-foreground'
-                )}
-              />
+              <IconPhoto className={cn('h-5 w-5', tone.icon)} />
             </div>
 
             <div className="space-y-2">

@@ -69,6 +69,22 @@ export default function SkillDetailDialog({ skill, onClose }: SkillDetailDialogP
     enabled: Boolean(skill),
   })
 
+  const renderDoc = () => {
+    if (isLoading) {
+      return DOC_SKELETON
+    }
+
+    if (isError) {
+      return <p className="text-sm text-destructive">Could not load this skill. Try again later.</p>
+    }
+
+    return (
+      <Suspense fallback={DOC_SKELETON}>
+        <SkillMarkdown>{data?.body ?? ''}</SkillMarkdown>
+      </Suspense>
+    )
+  }
+
   return (
     <Dialog open={Boolean(skill)} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-3xl p-0">
@@ -89,15 +105,7 @@ export default function SkillDetailDialog({ skill, onClose }: SkillDetailDialogP
         </div>
 
         <DialogBody className="max-h-[70vh] overflow-y-auto px-6 py-4 text-foreground">
-          {isLoading ? (
-            DOC_SKELETON
-          ) : isError ? (
-            <p className="text-sm text-destructive">Could not load this skill. Try again later.</p>
-          ) : (
-            <Suspense fallback={DOC_SKELETON}>
-              <SkillMarkdown>{data?.body ?? ''}</SkillMarkdown>
-            </Suspense>
-          )}
+          {renderDoc()}
         </DialogBody>
       </DialogContent>
     </Dialog>

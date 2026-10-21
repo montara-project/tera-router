@@ -17,17 +17,7 @@ import {
 import { formatMicrosUsd } from '@/lib/currency'
 import { formatCompact, formatDecimal, formatLatency } from '@/lib/format'
 
-const STATUS_BADGES = {
-  success: { label: 'Success', variant: 'success' },
-  failed: { label: 'Failed', variant: 'destructive' },
-  cancelled: { label: 'Cancelled', variant: 'secondary' },
-} as const
-
-const USAGE_BADGES = {
-  provider: { label: 'Provider usage', variant: 'success' },
-  estimate: { label: 'Usage estimate', variant: 'warning' },
-  none: { label: 'No usage reported', variant: 'secondary' },
-} as const
+import { RequestStatusBadge, RequestUsageBadge } from './request-badges'
 
 const SECTION_TITLE = 'text-muted-foreground text-xs font-semibold uppercase tracking-[0.14em]'
 
@@ -51,6 +41,13 @@ function StatTile({ label, value }: { label: string; value: string }) {
   )
 }
 
+/** How fast this request drains the account's token budget (1:1 when unset). */
+function formatBudgetDrain(rate: number | null | undefined): string {
+  if (rate === undefined || rate === null) return '×1 (1:1)'
+  if (rate === 0) return 'free token budget'
+  return `×${formatDecimal(rate)}`
+}
+
 interface RequestDetailDialogProps {
   open: boolean
   onClose: () => void
@@ -63,15 +60,6 @@ export default function RequestDetailDialog({ open, onClose, row }: RequestDetai
   if (!row) {
     return null
   }
-
-  const statusBadge = STATUS_BADGES[row.status]
-  const usageBadge = USAGE_BADGES[row.usage]
-  const budgetDrain =
-    row.tokenConsumptionRate === undefined || row.tokenConsumptionRate === null
-      ? '×1 (1:1)'
-      : row.tokenConsumptionRate === 0
-        ? 'free token budget'
-        : `×${formatDecimal(row.tokenConsumptionRate)}`
 
   return (
     <Dialog
@@ -98,12 +86,8 @@ export default function RequestDetailDialog({ open, onClose, row }: RequestDetai
               </p>
             </div>
             <div className="flex shrink-0 flex-col items-end gap-1">
-              <Badge variant={statusBadge.variant} appearance="light" size="sm">
-                {statusBadge.label}
-              </Badge>
-              <Badge variant={usageBadge.variant} appearance="light" size="sm">
-                {usageBadge.label}
-              </Badge>
+              <RequestStatusBadge status={row.status} />
+              <RequestUsageBadge usage={row.usage} />
             </div>
           </div>
 
@@ -137,7 +121,9 @@ export default function RequestDetailDialog({ open, onClose, row }: RequestDetai
               )}
             </DetailRow>
             {row.costNote ? <DetailRow label="Note">{row.costNote}</DetailRow> : null}
-            <DetailRow label="Token budget drain">{budgetDrain}</DetailRow>
+            <DetailRow label="Token budget drain">
+              {formatBudgetDrain(row.tokenConsumptionRate)}
+            </DetailRow>
             <p className="text-muted-foreground text-xs">
               The consumption rate scales how fast the account's token budget drains; cost
               accounting always uses real tokens.
