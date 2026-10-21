@@ -3,11 +3,11 @@ import type { Metadata } from 'next'
 import { ArrowRight, ArrowUpRight, Check } from 'lucide-react'
 
 import { providerGroups, steps } from '@/components/landing/data'
+import { LogStream } from '@/components/landing/log-stream'
 import {
   DashboardMock,
   DialectTiles,
   FallbackMonitor,
-  LogStream,
   PolicyToggles,
   RoutingDiagram,
 } from '@/components/landing/mockups'

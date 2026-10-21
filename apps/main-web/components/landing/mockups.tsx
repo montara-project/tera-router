@@ -19,7 +19,6 @@ import {
   Package,
   RefreshCw,
   Replace,
-  Search,
   Server,
   Settings,
   Shield,
@@ -558,72 +557,6 @@ export function DashboardMock() {
           </div>
         </div>
       </div>
-    </div>
-  )
-}
-
-const logLevel = {
-  INF: 'text-faint',
-  WRN: 'bg-amber-400/15 text-amber-300',
-  ERR: 'bg-red-500/15 text-red-300',
-} as const
-
-const logs = [
-  {
-    time: '17:02:11',
-    level: 'INF',
-    source: 'chat',
-    text: 'gemini-2.5-pro → gemini#2 · 200 · 1,204 tok',
-  },
-  {
-    time: '17:02:11',
-    level: 'WRN',
-    source: 'messages',
-    text: 'anthropic#1 429 · cooling down 60s',
-  },
-  {
-    time: '17:02:12',
-    level: 'INF',
-    source: 'messages',
-    text: 'claude-sonnet-4.5 → anthropic#2 · fallback · 200',
-  },
-  {
-    time: '17:02:13',
-    level: 'ERR',
-    source: 'guardrail',
-    text: 'key tr_live_…9f2 · model not in allowlist',
-  },
-  {
-    time: '17:02:14',
-    level: 'INF',
-    source: 'responses',
-    text: 'gpt-5-codex → codex · stream · 22.7k tok',
-  },
-] as const
-
-export function LogStream() {
-  return (
-    <div className="fade-b overflow-hidden rounded-xl border border-line bg-panel p-3 sm:p-4">
-      <div className="flex items-center gap-2.5 rounded-lg border border-line bg-raised/60 px-3 py-2 text-sm text-faint">
-        <Search aria-hidden className="size-3.5" />
-        <span className="flex-1 truncate">Filter requests, keys, models…</span>
-        <span className="flex items-center gap-1.5 font-mono text-[11px] text-accent-soft">
-          <span className="size-1.5 rounded-full bg-accent" />
-          live
-        </span>
-      </div>
-      <ul className="mt-3 grid gap-2.5 overflow-hidden font-mono text-xs">
-        {logs.map((log) => (
-          <li className="flex items-center gap-3 whitespace-nowrap" key={log.time + log.text}>
-            <span className="text-faint">{log.time}</span>
-            <span className={`rounded px-1 py-0.5 text-[10px] ${logLevel[log.level]}`}>
-              {log.level}
-            </span>
-            <span className="w-20 shrink-0 text-ink">{log.source}</span>
-            <span className="truncate text-dim">{log.text}</span>
-          </li>
-        ))}
-      </ul>
     </div>
   )
 }
