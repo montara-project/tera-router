@@ -163,6 +163,24 @@ body {
   animation-play-state: paused;
 }
 
+/* Animated beam: a short stroke segment (pathLength=1, dash 0.25) slides
+   along each connector from its start to its end, then waits off-path. */
+@keyframes beam {
+  from {
+    stroke-dashoffset: 0.25;
+  }
+  to {
+    stroke-dashoffset: -1;
+  }
+}
+
+.beam {
+  stroke-dasharray: 0.25 1;
+  stroke-dashoffset: 0.25;
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--accent) 70%, transparent));
+  animation: beam 3.2s cubic-bezier(0.45, 0, 0.25, 1) infinite;
+}
+
 @keyframes rise-in {
   from {
     opacity: 0;
@@ -183,7 +201,8 @@ body {
     scroll-behavior: auto;
   }
   .rise-in,
-  .marquee {
+  .marquee,
+  .beam {
     animation: none;
   }
   *,

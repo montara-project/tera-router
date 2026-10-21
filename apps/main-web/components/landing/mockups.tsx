@@ -40,18 +40,82 @@ const accounts = [
   { slug: 'custom-openai', name: 'Self-hosted vLLM', detail: 'custom endpoint', note: ':8000/v1' },
 ]
 
-// Row centres as a % of the card height, so the connector curves land on
-// each row. Decorative: an approximation that holds at lg widths only.
-const anchors = [26, 41.5, 57, 72.5, 88]
+// Fixed card geometry (lg+): 1px border + p-5 + h-5 header + mb-4, then
+// h-14 rows on gap-2. That pins every row centre to an exact y, so the SVG
+// connectors (viewBox height = card height) land on the rows without
+// measuring the DOM. Change the classes below and these numbers together.
+const CARD_H = 390
+const NODE_Y = CARD_H / 2
+const rowY = (i: number) => 85 + i * 64
 
-const rowCard =
-  'flex items-center gap-3 rounded-xl border border-line bg-surface px-3.5 py-2.5 elev-1'
+const card = 'rounded-2xl border border-line bg-raised/50 p-4 sm:p-5'
+const cardHeader = 'mb-4 flex h-5 items-center justify-between px-1'
+const rowCard = 'flex h-14 items-center gap-3 rounded-xl border border-line bg-surface px-3 elev-1'
+
+// Requests flow in from the tools, then out to the chosen accounts: left beams
+// end at the router, right beams start there, staggered so the eye follows.
+function Connectors() {
+  const left = tools.map((_, i) => `M0 ${rowY(i)} C 55 ${rowY(i)}, 45 ${NODE_Y}, 100 ${NODE_Y}`)
+  const right = accounts.map(
+    (_, i) => `M100 ${NODE_Y} C 155 ${NODE_Y}, 145 ${rowY(i)}, 200 ${rowY(i)}`
+  )
+  const beams = [
+    ...left.map((d, i) => ({ d, delay: i * 0.55 })),
+    ...right.map((d, i) => ({ d, delay: 1.6 + i * 0.55 })),
+  ]
+  return (
+    <svg
+      aria-hidden
+      className="absolute inset-0 hidden size-full overflow-visible lg:block"
+      fill="none"
+      preserveAspectRatio="none"
+      viewBox={`0 0 200 ${CARD_H}`}
+    >
+      <defs>
+        <linearGradient
+          gradientUnits="userSpaceOnUse"
+          id="beam-stroke"
+          x1="0"
+          x2="200"
+          y1="0"
+          y2="0"
+        >
+          <stop offset="0" style={{ stopColor: 'var(--accent)' }} />
+          <stop offset="0.5" stopColor="#2dd4bf" />
+          <stop offset="1" style={{ stopColor: 'var(--accent)' }} />
+        </linearGradient>
+      </defs>
+      {beams.map(({ d }) => (
+        <path
+          className="text-dot"
+          d={d}
+          key={`line-${d}`}
+          stroke="currentColor"
+          vectorEffect="non-scaling-stroke"
+        />
+      ))}
+      {beams.map(({ d, delay }) => (
+        <path
+          className="beam"
+          d={d}
+          key={`beam-${d}`}
+          pathLength={1}
+          stroke="url(#beam-stroke)"
+          strokeLinecap="round"
+          strokeWidth={2}
+          style={{ animationDelay: `${delay}s` }}
+          vectorEffect="non-scaling-stroke"
+        />
+      ))}
+    </svg>
+  )
+}
 
 export function RoutingDiagram() {
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_180px_1fr] lg:gap-0">
-      <div className="rounded-2xl border border-line bg-raised/50 p-4 sm:p-5">
-        <div className="mb-4 flex items-center justify-between px-1">
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,330px)_1fr_minmax(0,330px)] lg:gap-0">
+      <div className={card}>
+        <div className={cardHeader}>
           <p className="text-sm font-medium">Your tools</p>
           <p className="font-mono text-[11px] text-faint">native SDKs</p>
         </div>
@@ -62,7 +126,7 @@ export function RoutingDiagram() {
                 <Icon aria-hidden className="size-4" />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[15px]">{name}</span>
+                <span className="block truncate text-sm">{name}</span>
                 <span className="block truncate font-mono text-[11px] text-faint">{via}</span>
               </span>
               <span className="hidden font-mono text-[11px] text-dim sm:block">{endpoint}</span>
@@ -72,30 +136,9 @@ export function RoutingDiagram() {
       </div>
 
       <div className="relative flex items-center justify-center py-2 lg:py-0">
-        <svg
-          aria-hidden
-          className="absolute inset-0 hidden size-full text-dot lg:block"
-          fill="none"
-          preserveAspectRatio="none"
-          viewBox="0 0 200 100"
-        >
-          {anchors.map((y) => (
-            <g key={y}>
-              <path
-                d={`M0 ${y} C 60 ${y}, 50 50, 100 50`}
-                stroke="currentColor"
-                vectorEffect="non-scaling-stroke"
-              />
-              <path
-                d={`M100 50 C 150 50, 140 ${y}, 200 ${y}`}
-                stroke="currentColor"
-                vectorEffect="non-scaling-stroke"
-              />
-            </g>
-          ))}
-        </svg>
-        <div className="relative flex flex-col items-center text-center">
-          <span className="flex size-14 items-center justify-center rounded-2xl border border-line bg-surface elev-2">
+        <Connectors />
+        <div className="relative flex flex-col items-center text-center lg:block">
+          <span className="relative flex size-14 items-center justify-center rounded-2xl border border-line bg-surface elev-2">
             <img
               alt=""
               className="size-8 mix-blend-multiply dark:mix-blend-screen dark:invert"
@@ -104,15 +147,19 @@ export function RoutingDiagram() {
               width={32}
             />
           </span>
-          <p className="mt-3 rounded-md bg-canvas px-2 pt-1 text-sm font-medium">Tera Router</p>
-          <p className="rounded-md bg-canvas px-2 pb-1 font-mono text-[11px] text-faint">
-            plan · transform · meter
-          </p>
+          {/* Absolutely placed on lg so the logo, not the label, sits on the
+              point where every connector meets. */}
+          <div className="mt-3 lg:absolute lg:top-full lg:left-1/2 lg:-translate-x-1/2 lg:whitespace-nowrap">
+            <p className="rounded-md bg-canvas px-2 pt-1 text-sm font-medium">Tera Router</p>
+            <p className="rounded-md bg-canvas px-2 pb-1 font-mono text-[11px] text-faint">
+              plan · transform · meter
+            </p>
+          </div>
         </div>
       </div>
 
-      <div className="rounded-2xl border border-line bg-raised/50 p-4 sm:p-5">
-        <div className="mb-4 flex items-center justify-between px-1">
+      <div className={card}>
+        <div className={cardHeader}>
           <p className="text-sm font-medium">Your accounts</p>
           <p className="font-mono text-[11px] text-faint">priority order</p>
         </div>
@@ -121,7 +168,7 @@ export function RoutingDiagram() {
             <li className={rowCard} key={account.name}>
               <ProviderAvatar slug={account.slug} />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[15px]">{account.name}</span>
+                <span className="block truncate text-sm">{account.name}</span>
                 <span className="block truncate font-mono text-[11px] text-faint">
                   {account.detail}
                 </span>
