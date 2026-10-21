@@ -1,13 +1,16 @@
 import { IconCopy, IconEye, IconEyeOff, IconMessageChatbot } from '@tabler/icons-react'
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { toast } from 'sonner'
 
 import type { Models } from '@/lib/api/models'
 
-import ModelTestSheet from '@/components/block/provider-detail/model-test-sheet'
 import { Badge, BadgeDot } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+
+// Mounted on first open, then kept so its exit animation plays: keeps motion
+// out of the route chunk and avoids one sheet root per never-tested card.
+const ModelTestSheet = lazy(() => import('@/components/block/provider-detail/model-test-sheet'))
 
 export default function ModelCard({
   providerSlug,
@@ -30,6 +33,7 @@ export default function ModelCard({
   const active = model.state === 'active'
   const composite = `${providerSlug}/${model.id}`
   const [testOpen, setTestOpen] = useState(false)
+  const [testMounted, setTestMounted] = useState(false)
 
   const copy = async () => {
     try {
@@ -79,7 +83,10 @@ export default function ModelCard({
             size="icon"
             variant="ghost"
             aria-label={`Test ${model.id}`}
-            onClick={() => setTestOpen(true)}
+            onClick={() => {
+              setTestMounted(true)
+              setTestOpen(true)
+            }}
           >
             <IconMessageChatbot />
           </Button>
@@ -96,14 +103,18 @@ export default function ModelCard({
           </Button>
         </div>
       </div>
-      <ModelTestSheet
-        open={testOpen}
-        onOpenChange={setTestOpen}
-        variant={variant}
-        providerId={providerId}
-        providerSlug={providerSlug}
-        modelId={model.id}
-      />
+      {testMounted && (
+        <Suspense fallback={null}>
+          <ModelTestSheet
+            open={testOpen}
+            onOpenChange={setTestOpen}
+            variant={variant}
+            providerId={providerId}
+            providerSlug={providerSlug}
+            modelId={model.id}
+          />
+        </Suspense>
+      )}
     </div>
   )
 }
