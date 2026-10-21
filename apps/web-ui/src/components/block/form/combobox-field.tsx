@@ -38,6 +38,7 @@ export default function ComboboxField<TData>({
   const errors = useSelector(field.store, (state) => state.meta.errors)
 
   const isInvalid = !!errors?.length
+  const singleSelection = field.state.value ? [field.state.value] : []
 
   return (
     <Field data-invalid={isInvalid}>
@@ -49,7 +50,7 @@ export default function ComboboxField<TData>({
         label={label}
         defaultValues={defaultValues || []}
         // live selection so external field changes (e.g. a reset) are reflected
-        selection={multiple ? undefined : field.state.value ? [field.state.value] : []}
+        selection={multiple ? undefined : singleSelection}
         options={options}
         disabled={disabled}
         multiple={multiple}

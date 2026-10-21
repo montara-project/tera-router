@@ -3,10 +3,10 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 
 import type { UsageTelemetryOverview } from '@/lib/api/models/usage'
 
+import SegmentedControl from '@/components/block/common/segmented-control'
 import { Card, CardContent } from '@/components/ui/card'
-import { cn } from '@/lib/utils'
-
-import { fmtCompact, fmtMoney } from './format'
+import { formatMicrosUsd } from '@/lib/currency'
+import { formatCompact } from '@/lib/format'
 
 const METRICS = [
   { value: 'requests', label: 'Requests' },
@@ -78,7 +78,8 @@ export default function UsageTrendCard({ telemetry }: { telemetry: UsageTelemetr
     .join(' ')
   const areaPath = `${linePath} L${x(values.length - 1).toFixed(1)},${y(0).toFixed(1)} L${x(0).toFixed(1)},${y(0).toFixed(1)} Z`
 
-  const formatY = (value: number) => (metric === 'cost' ? fmtMoney(value) : fmtCompact(value))
+  const formatY = (value: number) =>
+    metric === 'cost' ? formatMicrosUsd(value) : formatCompact(value)
   const gridValues = [0, step, step * 2, step * 3, top]
   const labelEvery = Math.ceil(trend.length / 10)
 
@@ -94,24 +95,12 @@ export default function UsageTrendCard({ telemetry }: { telemetry: UsageTelemetr
             <p className="text-muted-foreground mt-0.5 text-xs">Busiest request bucket {busiest}</p>
           </div>
 
-          <div className="inline-flex items-center gap-1 rounded-lg border border-border bg-card p-1">
-            {METRICS.map((item) => (
-              <button
-                key={item.value}
-                type="button"
-                aria-pressed={metric === item.value}
-                onClick={() => setMetric(item.value)}
-                className={cn(
-                  'cursor-pointer rounded-md px-2.5 py-1 text-xs transition-colors',
-                  metric === item.value
-                    ? 'bg-accent font-medium text-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            aria-label="Trend metric"
+            options={METRICS}
+            value={metric}
+            onChange={setMetric}
+          />
         </div>
 
         <div ref={chartRef} className="mt-4 min-h-40 flex-1">

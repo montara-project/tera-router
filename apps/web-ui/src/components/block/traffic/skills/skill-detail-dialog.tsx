@@ -1,11 +1,8 @@
 'use client'
 
-import type { Components } from 'react-markdown'
-
 import { IconBook2 } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
-import Markdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
+import { lazy, Suspense } from 'react'
 
 import IconBadge from '@/components/block/common/icon-badge'
 import CopySkillButton from '@/components/block/traffic/skills/copy-skill-button'
@@ -17,6 +14,11 @@ import DialogContent, {
 } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { skillUrl } from '@/lib/constants/skill'
+
+// The markdown pipeline (micromark, GFM) is only needed once a skill is opened;
+// the query starts loading it alongside the doc fetch.
+const loadSkillMarkdown = () => import('@/components/block/traffic/skills/skill-markdown')
+const SkillMarkdown = lazy(loadSkillMarkdown)
 
 /** The skill the dialog shows: a reference slug or a custom skill id. */
 export type SkillDetailTarget = { slug: string; name: string }
@@ -43,57 +45,14 @@ function parseSkillDoc(doc: string) {
   return { description, body: doc.slice(match[0].length) }
 }
 
-// Tailwind styling per element, in place of a typography plugin. `node` is
-// react-markdown's AST node; it must not reach the DOM.
-const MARKDOWN_COMPONENTS: Components = {
-  h1: ({ node: _node, ...props }) => (
-    <h1 className="mt-6 mb-3 text-xl font-semibold first:mt-0" {...props} />
-  ),
-  h2: ({ node: _node, ...props }) => (
-    <h2 className="mt-6 mb-3 border-b border-border pb-1.5 text-base font-semibold" {...props} />
-  ),
-  h3: ({ node: _node, ...props }) => <h3 className="mt-5 mb-2 text-sm font-semibold" {...props} />,
-  p: ({ node: _node, ...props }) => <p className="my-3 text-sm leading-6" {...props} />,
-  ul: ({ node: _node, ...props }) => (
-    <ul className="my-3 list-disc space-y-1 ps-5 text-sm leading-6" {...props} />
-  ),
-  ol: ({ node: _node, ...props }) => (
-    <ol className="my-3 list-decimal space-y-1 ps-5 text-sm leading-6" {...props} />
-  ),
-  a: ({ node: _node, children, ...props }) => (
-    <a
-      className="font-medium text-primary underline underline-offset-2"
-      target="_blank"
-      rel="noopener noreferrer"
-      {...props}
-    >
-      {children}
-    </a>
-  ),
-  code: ({ node: _node, ...props }) => (
-    <code className="rounded bg-muted px-1 py-0.5 font-mono text-[0.85em]" {...props} />
-  ),
-  pre: ({ node: _node, ...props }) => (
-    <pre
-      className="my-3 overflow-x-auto rounded-lg border border-border bg-muted/60 p-3 font-mono text-xs leading-5 [&>code]:bg-transparent [&>code]:p-0"
-      {...props}
-    />
-  ),
-  table: ({ node: _node, ...props }) => (
-    <div className="my-3 overflow-x-auto rounded-lg border border-border">
-      <table className="w-full text-left text-sm" {...props} />
-    </div>
-  ),
-  th: ({ node: _node, ...props }) => (
-    <th className="bg-muted/60 px-3 py-2 text-xs font-semibold" {...props} />
-  ),
-  td: ({ node: _node, ...props }) => (
-    <td className="border-t border-border px-3 py-2 align-top" {...props} />
-  ),
-  blockquote: ({ node: _node, ...props }) => (
-    <blockquote className="my-3 border-s-2 border-border ps-3 text-muted-foreground" {...props} />
-  ),
-}
+const DOC_SKELETON = (
+  <div className="space-y-3">
+    <Skeleton className="h-5 w-1/3 rounded-lg" />
+    <Skeleton className="h-4 w-full rounded-lg" />
+    <Skeleton className="h-4 w-5/6 rounded-lg" />
+    <Skeleton className="h-24 w-full rounded-lg" />
+  </div>
+)
 
 export default function SkillDetailDialog({ skill, onClose }: SkillDetailDialogProps) {
   const url = skill ? skillUrl(skill.slug) : ''
@@ -102,12 +61,29 @@ export default function SkillDetailDialog({ skill, onClose }: SkillDetailDialogP
   const { data, isLoading, isError } = useQuery({
     queryKey: ['skill-doc', url],
     queryFn: async () => {
+      void loadSkillMarkdown()
       const res = await fetch(url)
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       return parseSkillDoc(await res.text())
     },
     enabled: Boolean(skill),
   })
+
+  const renderDoc = () => {
+    if (isLoading) {
+      return DOC_SKELETON
+    }
+
+    if (isError) {
+      return <p className="text-sm text-destructive">Could not load this skill. Try again later.</p>
+    }
+
+    return (
+      <Suspense fallback={DOC_SKELETON}>
+        <SkillMarkdown>{data?.body ?? ''}</SkillMarkdown>
+      </Suspense>
+    )
+  }
 
   return (
     <Dialog open={Boolean(skill)} onOpenChange={(open) => !open && onClose()}>
@@ -129,20 +105,7 @@ export default function SkillDetailDialog({ skill, onClose }: SkillDetailDialogP
         </div>
 
         <DialogBody className="max-h-[70vh] overflow-y-auto px-6 py-4 text-foreground">
-          {isLoading ? (
-            <div className="space-y-3">
-              <Skeleton className="h-5 w-1/3 rounded-lg" />
-              <Skeleton className="h-4 w-full rounded-lg" />
-              <Skeleton className="h-4 w-5/6 rounded-lg" />
-              <Skeleton className="h-24 w-full rounded-lg" />
-            </div>
-          ) : isError ? (
-            <p className="text-sm text-destructive">Could not load this skill. Try again later.</p>
-          ) : (
-            <Markdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>
-              {data?.body ?? ''}
-            </Markdown>
-          )}
+          {renderDoc()}
         </DialogBody>
       </DialogContent>
     </Dialog>

@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { toastAxiosError } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
+import { EMERALD_BUTTON_CLASS } from '@/lib/constants/ui'
 
 export const Route = createFileRoute('/(protected)/(connection)/proxy-pools/')({
   component: RouteComponent,
@@ -71,7 +72,7 @@ function RouteComponent() {
         <div className="flex flex-wrap items-center gap-2.5">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button className="bg-emerald-600 text-white hover:bg-emerald-500 dark:bg-emerald-600 dark:hover:bg-emerald-500">
+              <Button className={EMERALD_BUTTON_CLASS}>
                 <IconRocket />
                 <span>Deploy Relay</span>
                 <ChevronDown className="opacity-70" />

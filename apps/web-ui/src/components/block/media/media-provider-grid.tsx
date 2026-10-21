@@ -3,9 +3,9 @@ import { Link } from '@tanstack/react-router'
 import type { MediaCapability, MediaProvider } from '@/lib/api/models/media'
 import type { Provider } from '@/lib/api/models/provider'
 
+import EmptyState from '@/components/block/common/empty-state'
 import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
 import { Badge, BadgeDot } from '@/components/ui/badge'
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 
 const CAPABILITY_LABELS: Record<MediaCapability, string> = {
   embed: 'Embed',
@@ -33,17 +33,14 @@ export default function MediaProviderGrid({
   emptyIcon,
 }: MediaProviderGridProps) {
   if (providers.length === 0) {
-    const EmptyIcon = emptyIcon
-
     return (
       <div className="p-4">
-        <Empty className="border">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">{EmptyIcon ? <EmptyIcon /> : null}</EmptyMedia>
-            <EmptyTitle>No providers available</EmptyTitle>
-            <EmptyDescription>Providers for this capability will appear here.</EmptyDescription>
-          </EmptyHeader>
-        </Empty>
+        <EmptyState
+          className="border"
+          icon={emptyIcon}
+          title="No providers available"
+          description="Providers for this capability will appear here."
+        />
       </div>
     )
   }

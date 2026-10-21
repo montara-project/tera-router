@@ -27,10 +27,10 @@ import {
   CardHeading,
   CardTitle,
 } from '@/components/ui/card'
-import { formatBytes } from '@/hooks/use-file-upload'
 import { toastAxiosError } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
 import { readJsonObject, saveFile } from '@/lib/file'
+import { formatBytes } from '@/lib/format'
 
 /** Take the picked file and reset the input so the same file can be picked again. */
 function takeFile(e: ChangeEvent<HTMLInputElement>): File | undefined {

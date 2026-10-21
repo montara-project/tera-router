@@ -2,9 +2,9 @@ import { IconActivity } from '@tabler/icons-react'
 
 import type { ProbeEntry } from '@/lib/api/models/provider-health'
 
+import EmptyState from '@/components/block/common/empty-state'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 
 import TablePagination, { usePagedRows } from '../common/table-pagination'
 
@@ -32,15 +32,11 @@ export default function ProbesTable({ entries, pageSize }: ProbesTableProps) {
           </div>
 
           {entries.length === 0 ? (
-            <Empty className="border-0 py-14">
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <IconActivity />
-                </EmptyMedia>
-                <EmptyTitle>No probe runs yet</EmptyTitle>
-                <EmptyDescription>Run a provider probe to populate this list.</EmptyDescription>
-              </EmptyHeader>
-            </Empty>
+            <EmptyState
+              icon={IconActivity}
+              title="No probe runs yet"
+              description="Run a provider probe to populate this list."
+            />
           ) : (
             <div className="divide-y divide-border/60">
               {paged.rows.map((probe) => (

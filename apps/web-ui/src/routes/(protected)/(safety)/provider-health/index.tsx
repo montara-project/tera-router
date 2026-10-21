@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import type { HealthWindow } from '@/lib/api/models/provider-health'
 
 import SectionCard from '@/components/block/common/section-card'
+import SegmentedControl from '@/components/block/common/segmented-control'
 import HealthSummaryCard from '@/components/block/provider-health/health-summary-card'
 import HealthTable from '@/components/block/provider-health/health-table'
 import ProbesTable from '@/components/block/provider-health/probes-table'
@@ -22,7 +23,16 @@ export const Route = createFileRoute('/(protected)/(safety)/provider-health/')({
   component: RouteComponent,
 })
 
-const TIME_RANGES = ['5m', '15m', '1h', '6h', '24h', '7d'] as const
+const TIME_RANGES = (['5m', '15m', '1h', '6h', '24h', '7d'] as const).map((value) => ({
+  value,
+  label: value,
+}))
+
+const ENTITY_LABELS = {
+  providers: 'Provider',
+  models: 'Model',
+  chains: 'Chain',
+} as const
 
 /** Rows per page in every health table. */
 const PAGE_SIZE = 10
@@ -33,10 +43,10 @@ function RouteSkeleton() {
       <div className="rounded-lg border border-border bg-background p-4">
         <div className="space-y-2">
           <Skeleton className="h-6 w-44 rounded-lg" />
-          <Skeleton className="h-4 w-[28rem] rounded-lg" />
+          <Skeleton className="h-4 w-md rounded-lg" />
         </div>
 
-        <Skeleton className="mt-4 h-[104px] w-full rounded-xl" />
+        <Skeleton className="mt-4 h-26 w-full rounded-xl" />
 
         <Skeleton className="mt-4 h-10 w-72 rounded-lg" />
 
@@ -74,24 +84,13 @@ function ProviderHealthContent() {
       description="Monitor the health of every AI provider connected to Tera Router. See which are failing or slow, why, which routing chains are affected, and what to do next."
       toolbar={
         <>
-          <div className="inline-flex items-center gap-1 rounded-lg border border-border bg-background p-1">
-            {TIME_RANGES.map((option) => (
-              <button
-                key={option}
-                type="button"
-                aria-pressed={range === option}
-                onClick={() => setRange(option)}
-                className={cn(
-                  'cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
-                  range === option
-                    ? 'bg-accent text-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
-              >
-                {option}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            aria-label="Time range"
+            className="bg-background"
+            options={TIME_RANGES}
+            value={range}
+            onChange={setRange}
+          />
           <Button variant="outline" disabled={isFetching} onClick={handleRefresh}>
             <IconRefresh className={cn(isFetching && 'animate-spin')} />
             <span>Refresh</span>
@@ -115,7 +114,7 @@ function ProviderHealthContent() {
             // Keyed by tab so each tab starts on page 1.
             key={tab}
             pageSize={PAGE_SIZE}
-            entityLabel={tab === 'chains' ? 'Chain' : tab === 'models' ? 'Model' : 'Provider'}
+            entityLabel={ENTITY_LABELS[tab]}
             entries={data[tab]}
             onView={handleView}
           />

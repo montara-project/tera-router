@@ -45,6 +45,31 @@ export default function SelectField<TData>({
 
   const isInvalid = !!errors?.length
 
+  const renderOptions = () => {
+    if (loading) {
+      return (
+        <SelectItem disabled value="-">
+          Loading...
+        </SelectItem>
+      )
+    }
+
+    if (options.length > 0) {
+      return options.map((option) => (
+        <SelectItem key={option.value} value={option.value}>
+          {itemRender && itemRender(option)}
+          {!itemRender && option.label}
+        </SelectItem>
+      ))
+    }
+
+    return (
+      <SelectItem disabled value="-">
+        No options available
+      </SelectItem>
+    )
+  }
+
   return (
     <Field data-invalid={isInvalid}>
       <FieldLabel htmlFor={field.name} className="gap-1">
@@ -68,24 +93,7 @@ export default function SelectField<TData>({
         >
           <SelectValue placeholder={loading ? 'Loading...' : placeholder} />
         </SelectTrigger>
-        <SelectContent position="popper">
-          {loading ? (
-            <SelectItem disabled value="-">
-              Loading...
-            </SelectItem>
-          ) : options.length > 0 ? (
-            options.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {itemRender && itemRender(option)}
-                {!itemRender && option.label}
-              </SelectItem>
-            ))
-          ) : (
-            <SelectItem disabled value="-">
-              No options available
-            </SelectItem>
-          )}
-        </SelectContent>
+        <SelectContent position="popper">{renderOptions()}</SelectContent>
       </Select>
       {isInvalid && <FieldError errors={field.state.meta.errors} />}
     </Field>

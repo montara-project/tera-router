@@ -7,6 +7,7 @@ import ProxyPoolRow from '@/components/block/proxy-pool/pool-row'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardToolbar } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
+import { selectAllState } from '@/lib/utils'
 
 /**
  * The registered-pool list card: select-all header, active-count pill, health
@@ -39,7 +40,7 @@ export default function PoolsCard({
         <div className="flex items-center gap-3">
           <Checkbox
             aria-label="Select all pools"
-            checked={allSelected ? true : someSelected ? 'indeterminate' : false}
+            checked={selectAllState(allSelected, someSelected)}
             onCheckedChange={(value) => onToggleAll(value === true)}
             size="sm"
           />

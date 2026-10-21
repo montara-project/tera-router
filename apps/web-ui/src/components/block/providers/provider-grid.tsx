@@ -10,35 +10,58 @@ import { Link } from '@tanstack/react-router'
 
 import type { Models } from '@/lib/api/models'
 
+import EmptyState from '@/components/block/common/empty-state'
 import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
 import { Badge, BadgeDot } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { cn } from '@/lib/utils'
 
-function EmptyState({ variant }: { variant: 'connected' | 'available' }) {
-  const isConnected = variant === 'connected'
+const EMPTY_COPY = {
+  connected: {
+    icon: IconPlugConnected,
+    title: 'No connected providers yet',
+    description: 'Providers with linked accounts will show up here.',
+  },
+  available: {
+    icon: IconSearch,
+    title: 'No providers found',
+    description: 'Try a different search or capability filter.',
+  },
+} as const
 
-  return (
-    <div className="p-4">
-      <Empty className="border">
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            {isConnected ? <IconPlugConnected /> : <IconSearch />}
-          </EmptyMedia>
-          <EmptyTitle>
-            {isConnected ? 'No connected providers yet' : 'No providers found'}
-          </EmptyTitle>
-          <EmptyDescription>
-            {isConnected
-              ? 'Providers with linked accounts will show up here.'
-              : 'Try a different search or capability filter.'}
-          </EmptyDescription>
-        </EmptyHeader>
-      </Empty>
-    </div>
-  )
+function ProviderStatusBadge({ connected, official }: { connected: boolean; official?: boolean }) {
+  if (connected) {
+    return (
+      <Badge
+        variant="success"
+        appearance="light"
+        size="sm"
+        shape="circle"
+        className="absolute right-3 top-3"
+      >
+        <BadgeDot />
+        Connected
+      </Badge>
+    )
+  }
+
+  if (official === false) {
+    return (
+      <Badge
+        variant="warning"
+        appearance="light"
+        size="sm"
+        shape="circle"
+        className="absolute right-3 top-3"
+      >
+        <IconAlertTriangle />
+        unofficial
+      </Badge>
+    )
+  }
+
+  return null
 }
 
 interface ProviderGridProps {
@@ -67,7 +90,11 @@ export default function ProviderGrid({
   onToggleSelect,
 }: ProviderGridProps) {
   if (providers.length === 0) {
-    return <EmptyState variant={variant} />
+    return (
+      <div className="p-4">
+        <EmptyState className="border" {...EMPTY_COPY[variant]} />
+      </div>
+    )
   }
 
   return (
@@ -88,29 +115,7 @@ export default function ProviderGrid({
               selected && 'border-destructive/60 ring-1 ring-destructive/40'
             )}
           >
-            {variant === 'connected' ? (
-              <Badge
-                variant="success"
-                appearance="light"
-                size="sm"
-                shape="circle"
-                className="absolute right-3 top-3"
-              >
-                <BadgeDot />
-                Connected
-              </Badge>
-            ) : provider.official === false ? (
-              <Badge
-                variant="warning"
-                appearance="light"
-                size="sm"
-                shape="circle"
-                className="absolute right-3 top-3"
-              >
-                <IconAlertTriangle />
-                unofficial
-              </Badge>
-            ) : null}
+            <ProviderStatusBadge connected={variant === 'connected'} official={provider.official} />
 
             <ProviderAvatar slug={provider.slug} apiKind={provider.api_kind} />
 

@@ -2,7 +2,9 @@ import { Activity, CircleDot, Server } from 'lucide-react'
 
 import type { Models } from '@/lib/api/models'
 
-import { formatCompactNumber, formatCost } from './quota-formatters'
+import { formatUsd } from '@/lib/currency'
+import { formatCompact } from '@/lib/format'
+
 import QuotaSummaryCard from './quota-summary-card'
 
 interface QuotaSummarySectionProps {
@@ -30,9 +32,9 @@ export default function QuotaSummarySection({ summary }: QuotaSummarySectionProp
         iconTone="amber"
         label="Period Usage"
         stats={[
-          { value: formatCompactNumber(summary.input_tokens), label: 'Input' },
-          { value: formatCompactNumber(summary.output_tokens), label: 'Output' },
-          { value: formatCost(summary.attributed_cost), label: 'Attributed cost' },
+          { value: formatCompact(summary.input_tokens), label: 'Input' },
+          { value: formatCompact(summary.output_tokens), label: 'Output' },
+          { value: formatUsd(summary.attributed_cost), label: 'Attributed cost' },
         ]}
         value={summary.requests}
         valueLabel="requests"

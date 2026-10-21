@@ -23,18 +23,26 @@ const HEIGHT = 230
 const PADDING = { top: 10, right: 12, bottom: 26, left: 42 }
 const X_LABELS = 7
 
+/** Snap a 1–10 fraction to 1, 2, 5 or 10: nearest step when rounding, next step up otherwise. */
+function niceFraction(fraction: number, round: boolean): number {
+  if (round) {
+    if (fraction < 1.5) return 1
+    if (fraction < 3) return 2
+    if (fraction < 7) return 5
+    return 10
+  }
+
+  if (fraction <= 1) return 1
+  if (fraction <= 2) return 2
+  if (fraction <= 5) return 5
+  return 10
+}
+
 function niceNum(range: number, round: boolean) {
   const exponent = Math.floor(Math.log10(range))
   const fraction = range / 10 ** exponent
 
-  let nice: number
-  if (round) {
-    nice = fraction < 1.5 ? 1 : fraction < 3 ? 2 : fraction < 7 ? 5 : 10
-  } else {
-    nice = fraction <= 1 ? 1 : fraction <= 2 ? 2 : fraction <= 5 ? 5 : 10
-  }
-
-  return nice * 10 ** exponent
+  return niceFraction(fraction, round) * 10 ** exponent
 }
 
 function niceTicks(min: number, max: number, tickCount = 6) {

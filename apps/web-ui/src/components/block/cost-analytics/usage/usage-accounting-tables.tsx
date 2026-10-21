@@ -9,8 +9,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-
-import { fmtCompact, fmtLatency, fmtMoney } from './format'
+import { formatMicrosUsd } from '@/lib/currency'
+import { formatCompact, formatLatency } from '@/lib/format'
 
 function AvatarCell({ slug, apiKind }: { slug: string; apiKind?: string }) {
   return <ProviderAvatar slug={slug} apiKind={apiKind} size="sm" />
@@ -83,38 +83,38 @@ export function ProviderAccountingTable({ rows }: { rows: UsageProviderAccountin
 
                   <div>
                     <p className="text-sm tabular-nums text-foreground">
-                      {fmtCompact(row.inputTokens)} input
+                      {formatCompact(row.inputTokens)} input
                     </p>
                     <p className="text-muted-foreground truncate text-xs">
-                      {fmtCompact(row.cacheReadTokens)} cache read ·{' '}
-                      {fmtCompact(row.cacheWriteTokens)} write
+                      {formatCompact(row.cacheReadTokens)} cache read ·{' '}
+                      {formatCompact(row.cacheWriteTokens)} write
                     </p>
                   </div>
 
                   <div>
                     <p className="text-sm tabular-nums text-foreground">
-                      {fmtCompact(row.outputTokens)} output
+                      {formatCompact(row.outputTokens)} output
                     </p>
                     <p className="text-muted-foreground truncate text-xs">
-                      {fmtCompact(row.reasoningTokens)} reasoning subset
+                      {formatCompact(row.reasoningTokens)} reasoning subset
                     </p>
                   </div>
 
                   <div>
                     <p className="text-sm font-semibold tabular-nums text-foreground">
-                      {fmtMoney(row.costMicros)}
+                      {formatMicrosUsd(row.costMicros)}
                     </p>
                     <p className="text-xs tabular-nums text-emerald-500">
-                      {fmtMoney(row.savedMicros)} saved
+                      {formatMicrosUsd(row.savedMicros)} saved
                     </p>
                   </div>
 
                   <div>
                     <p className="text-sm tabular-nums text-foreground">
-                      {fmtLatency(row.latencyMs)}
+                      {formatLatency(row.latencyMs)}
                     </p>
                     <p className="text-muted-foreground truncate text-xs">
-                      TTFT {fmtLatency(row.ttftMs)}
+                      TTFT {formatLatency(row.ttftMs)}
                     </p>
                   </div>
 
@@ -249,20 +249,20 @@ export function ModelAccountingTable({ rows }: { rows: UsageModelAccountingRow[]
 
                   <div>
                     <p className="text-sm font-semibold tabular-nums text-foreground">
-                      {fmtCompact(row.inputTokens + row.outputTokens)}
+                      {formatCompact(row.inputTokens + row.outputTokens)}
                     </p>
                     <p className="text-muted-foreground truncate text-xs">
-                      {fmtCompact(row.inputTokens)} in · {fmtCompact(row.outputTokens)} out
+                      {formatCompact(row.inputTokens)} in · {formatCompact(row.outputTokens)} out
                     </p>
                     <p className="text-muted-foreground truncate text-xs">
-                      {fmtCompact(row.cachedTokens)} cached · {fmtCompact(row.reasoningTokens)}{' '}
-                      reasoning
+                      {formatCompact(row.cachedTokens)} cached ·{' '}
+                      {formatCompact(row.reasoningTokens)} reasoning
                     </p>
                   </div>
 
                   <div>
                     <p className="text-sm font-semibold tabular-nums text-foreground">
-                      {row.costMicros === null ? 'Unpriced' : fmtMoney(row.costMicros)}
+                      {row.costMicros === null ? 'Unpriced' : formatMicrosUsd(row.costMicros)}
                     </p>
                     {row.costMicros === null ? (
                       <Badge variant="destructive" appearance="light" size="sm">
@@ -270,17 +270,17 @@ export function ModelAccountingTable({ rows }: { rows: UsageModelAccountingRow[]
                       </Badge>
                     ) : (
                       <p className="text-xs tabular-nums text-emerald-500">
-                        {fmtMoney(row.savedMicros)} saved
+                        {formatMicrosUsd(row.savedMicros)} saved
                       </p>
                     )}
                   </div>
 
                   <div>
                     <p className="text-sm tabular-nums text-foreground">
-                      {fmtLatency(row.latencyMs)}
+                      {formatLatency(row.latencyMs)}
                     </p>
                     <p className="text-muted-foreground truncate text-xs">
-                      TTFT {fmtLatency(row.ttftMs)}
+                      TTFT {formatLatency(row.ttftMs)}
                     </p>
                   </div>
 

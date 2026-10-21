@@ -14,20 +14,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { formatMicrosUsd } from '@/lib/currency'
+import { formatCompact, formatDecimal, formatLatency } from '@/lib/format'
 
-import { fmtCompact, fmtLatency, fmtMoney, fmtRate } from './format'
-
-const STATUS_BADGES = {
-  success: { label: 'Success', variant: 'success' },
-  failed: { label: 'Failed', variant: 'destructive' },
-  cancelled: { label: 'Cancelled', variant: 'secondary' },
-} as const
-
-const USAGE_BADGES = {
-  provider: { label: 'Provider usage', variant: 'success' },
-  estimate: { label: 'Usage estimate', variant: 'warning' },
-  none: { label: 'No usage reported', variant: 'secondary' },
-} as const
+import { RequestStatusBadge, RequestUsageBadge } from './request-badges'
 
 const SECTION_TITLE = 'text-muted-foreground text-xs font-semibold uppercase tracking-[0.14em]'
 
@@ -51,6 +41,13 @@ function StatTile({ label, value }: { label: string; value: string }) {
   )
 }
 
+/** How fast this request drains the account's token budget (1:1 when unset). */
+function formatBudgetDrain(rate: number | null | undefined): string {
+  if (rate === undefined || rate === null) return '×1 (1:1)'
+  if (rate === 0) return 'free token budget'
+  return `×${formatDecimal(rate)}`
+}
+
 interface RequestDetailDialogProps {
   open: boolean
   onClose: () => void
@@ -63,15 +60,6 @@ export default function RequestDetailDialog({ open, onClose, row }: RequestDetai
   if (!row) {
     return null
   }
-
-  const statusBadge = STATUS_BADGES[row.status]
-  const usageBadge = USAGE_BADGES[row.usage]
-  const budgetDrain =
-    row.tokenConsumptionRate === undefined || row.tokenConsumptionRate === null
-      ? '×1 (1:1)'
-      : row.tokenConsumptionRate === 0
-        ? 'free token budget'
-        : `×${fmtRate(row.tokenConsumptionRate)}`
 
   return (
     <Dialog
@@ -98,23 +86,19 @@ export default function RequestDetailDialog({ open, onClose, row }: RequestDetai
               </p>
             </div>
             <div className="flex shrink-0 flex-col items-end gap-1">
-              <Badge variant={statusBadge.variant} appearance="light" size="sm">
-                {statusBadge.label}
-              </Badge>
-              <Badge variant={usageBadge.variant} appearance="light" size="sm">
-                {usageBadge.label}
-              </Badge>
+              <RequestStatusBadge status={row.status} />
+              <RequestUsageBadge usage={row.usage} />
             </div>
           </div>
 
           <section className="space-y-3 rounded-xl border border-border p-4">
             <p className={SECTION_TITLE}>Token usage</p>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              <StatTile label="Input" value={fmtCompact(row.inputTokens)} />
-              <StatTile label="Cache read" value={fmtCompact(row.inputCacheRead)} />
-              <StatTile label="Cache write" value={fmtCompact(row.inputCacheWrite)} />
-              <StatTile label="Output" value={fmtCompact(row.outputTokens)} />
-              <StatTile label="Reasoning" value={fmtCompact(row.reasoningTokens)} />
+              <StatTile label="Input" value={formatCompact(row.inputTokens)} />
+              <StatTile label="Cache read" value={formatCompact(row.inputCacheRead)} />
+              <StatTile label="Cache write" value={formatCompact(row.inputCacheWrite)} />
+              <StatTile label="Output" value={formatCompact(row.outputTokens)} />
+              <StatTile label="Reasoning" value={formatCompact(row.reasoningTokens)} />
             </div>
             <p className="text-muted-foreground text-xs">
               Input counts uncached tokens only; cache read, cache write, and reasoning are tracked
@@ -133,11 +117,13 @@ export default function RequestDetailDialog({ open, onClose, row }: RequestDetai
                   </Badge>
                 </span>
               ) : (
-                fmtMoney(row.costMicros)
+                formatMicrosUsd(row.costMicros)
               )}
             </DetailRow>
             {row.costNote ? <DetailRow label="Note">{row.costNote}</DetailRow> : null}
-            <DetailRow label="Token budget drain">{budgetDrain}</DetailRow>
+            <DetailRow label="Token budget drain">
+              {formatBudgetDrain(row.tokenConsumptionRate)}
+            </DetailRow>
             <p className="text-muted-foreground text-xs">
               The consumption rate scales how fast the account's token budget drains; cost
               accounting always uses real tokens.
@@ -147,8 +133,8 @@ export default function RequestDetailDialog({ open, onClose, row }: RequestDetai
           <div className="grid gap-4 sm:grid-cols-2">
             <section className="space-y-3 rounded-xl border border-border p-4">
               <p className={SECTION_TITLE}>Latency</p>
-              <DetailRow label="Total">{fmtLatency(row.latencyMs)}</DetailRow>
-              <DetailRow label="Upstream">{fmtLatency(row.upstreamMs)}</DetailRow>
+              <DetailRow label="Total">{formatLatency(row.latencyMs)}</DetailRow>
+              <DetailRow label="Upstream">{formatLatency(row.upstreamMs)}</DetailRow>
             </section>
 
             <section className="space-y-3 rounded-xl border border-border p-4">

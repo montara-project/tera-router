@@ -1,5 +1,4 @@
 import axios, { AxiosError, type AxiosInstance } from 'axios'
-import { isEmpty } from 'lodash'
 
 import { getAccessToken } from '../auth/auth-client'
 import { clearAuthTokens } from '../auth/token-storage'
@@ -22,7 +21,7 @@ function createAxios({ baseURL, storageKey }: CreateAxiosProps) {
   const axiosInstance = axios.create({ baseURL, timeout })
 
   // Interceptor Request
-  if (storageKey && !isEmpty(storageKey)) {
+  if (storageKey) {
     axiosInstance.interceptors.request.use(async (config) => {
       const currentConfig = { ...config }
 

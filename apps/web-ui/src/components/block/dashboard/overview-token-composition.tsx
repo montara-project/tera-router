@@ -2,8 +2,8 @@ import { Layers } from 'lucide-react'
 
 import type { UsageTelemetryOverview } from '@/lib/api/models/usage'
 
-import { fmtCompact } from '@/components/block/cost-analytics/usage/format'
 import { Card, CardContent } from '@/components/ui/card'
+import { formatCompact } from '@/lib/format'
 
 interface OverviewTokenCompositionProps {
   telemetry: UsageTelemetryOverview
@@ -58,7 +58,7 @@ export default function OverviewTokenComposition({ telemetry }: OverviewTokenCom
           <div className="min-w-0">
             <p className="text-sm font-semibold text-foreground">Token composition</p>
             <p className="text-foreground mt-1">
-              <span className="text-2xl font-semibold">{fmtCompact(total)}</span>
+              <span className="text-2xl font-semibold">{formatCompact(total)}</span>
               <span className="text-muted-foreground ml-1.5 text-sm">tokens</span>
             </p>
             <p className="text-muted-foreground text-xs">
@@ -72,7 +72,7 @@ export default function OverviewTokenComposition({ telemetry }: OverviewTokenCom
             className="flex h-2.5 overflow-hidden rounded-full bg-muted"
             role="img"
             aria-label={`Token composition: ${segments
-              .map((segment) => `${fmtCompact(segment.value)} ${segment.label}`)
+              .map((segment) => `${formatCompact(segment.value)} ${segment.label}`)
               .join(', ')}`}
           >
             {segments.map((segment) => {
@@ -82,7 +82,7 @@ export default function OverviewTokenComposition({ telemetry }: OverviewTokenCom
                 <div
                   key={segment.key}
                   className={segment.barClass}
-                  title={`${segment.label}: ${fmtCompact(segment.value)}`}
+                  title={`${segment.label}: ${formatCompact(segment.value)}`}
                   style={{ width: `${(segment.value / total) * 100}%` }}
                 />
               )
@@ -100,12 +100,12 @@ export default function OverviewTokenComposition({ telemetry }: OverviewTokenCom
                     {segment.label}
                   </p>
                   <p className="mt-1 text-sm font-semibold text-foreground">
-                    {fmtCompact(segment.value)}
+                    {formatCompact(segment.value)}
                   </p>
                   <p className="text-muted-foreground text-xs">
                     {share.toFixed(1)}% of total
                     {segment.key === 'output' && tokenComposition.reasoning > 0
-                      ? ` · ${fmtCompact(tokenComposition.reasoning)} reasoning`
+                      ? ` · ${formatCompact(tokenComposition.reasoning)} reasoning`
                       : ''}
                   </p>
                 </div>

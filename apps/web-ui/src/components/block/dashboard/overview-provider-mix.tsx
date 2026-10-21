@@ -3,10 +3,11 @@ import { useState } from 'react'
 
 import type { UsageProviderAccountingRow } from '@/lib/api/models/usage'
 
-import { fmtLatency, fmtMoney } from '@/components/block/cost-analytics/usage/format'
 import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { formatMicrosUsd } from '@/lib/currency'
+import { formatLatency } from '@/lib/format'
 
 const PAGE_SIZE = 5
 
@@ -45,12 +46,14 @@ export default function OverviewProviderMix({ rows }: OverviewProviderMixProps) 
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-foreground">{row.provider}</p>
                     <p className="text-muted-foreground truncate text-xs">
-                      {row.successPct}% success · {fmtLatency(row.latencyMs)} avg
+                      {row.successPct}% success · {formatLatency(row.latencyMs)} avg
                     </p>
                   </div>
                   <div className="shrink-0 text-right">
                     <p className="text-sm font-semibold text-foreground">{row.requests} req</p>
-                    <p className="text-muted-foreground text-xs">{fmtMoney(row.costMicros)}</p>
+                    <p className="text-muted-foreground text-xs">
+                      {formatMicrosUsd(row.costMicros)}
+                    </p>
                   </div>
                 </div>
 

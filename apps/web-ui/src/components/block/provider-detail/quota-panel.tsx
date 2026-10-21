@@ -52,6 +52,46 @@ function AccountQuotaCard({ account }: { account: Models.Account }) {
   const query = useQuery({ ...queries.accounts.quota(account.id), refetchInterval: REFRESH_MS })
   const quota = query.data?.data
 
+  const renderWindows = () => {
+    if (query.isLoading) {
+      return (
+        <div className="grid gap-4 md:grid-cols-2">
+          <Skeleton className="h-24 rounded-xl" />
+          <Skeleton className="h-24 rounded-xl" />
+        </div>
+      )
+    }
+
+    if (query.isError) {
+      return (
+        <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-3.5 py-2.5 text-sm text-destructive">
+          {axiosErrorMessage(query.error)}
+        </p>
+      )
+    }
+
+    if (!quota?.windows.length) {
+      return (
+        <p className="flex items-center gap-2 text-sm text-muted-foreground">
+          <IconGauge className="size-4" />
+          {quota?.quota_note || 'No quota windows reported for this account.'}
+        </p>
+      )
+    }
+
+    return (
+      <div className="grid gap-4 md:grid-cols-2">
+        {quota.windows.map((quotaWindow) => (
+          <QuotaWindowTile
+            key={quotaWindow.key}
+            quotaWindow={quotaWindow}
+            asOf={query.dataUpdatedAt}
+          />
+        ))}
+      </div>
+    )
+  }
+
   return (
     <Card className="bg-background">
       <CardHeader className="h-20">
@@ -81,35 +121,15 @@ function AccountQuotaCard({ account }: { account: Models.Account }) {
           </Button>
         </CardToolbar>
       </CardHeader>
-      <CardContent className="p-5">
-        {query.isLoading ? (
-          <div className="grid gap-4 md:grid-cols-2">
-            <Skeleton className="h-24 rounded-xl" />
-            <Skeleton className="h-24 rounded-xl" />
-          </div>
-        ) : query.isError ? (
-          <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-3.5 py-2.5 text-sm text-destructive">
-            {axiosErrorMessage(query.error)}
-          </p>
-        ) : !quota?.windows.length ? (
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <IconGauge className="size-4" />
-            {quota?.quota_note || 'No quota windows reported for this account.'}
-          </p>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2">
-            {quota.windows.map((quotaWindow) => (
-              <QuotaWindowTile
-                key={quotaWindow.key}
-                quotaWindow={quotaWindow}
-                asOf={query.dataUpdatedAt}
-              />
-            ))}
-          </div>
-        )}
-      </CardContent>
+      <CardContent className="p-5">{renderWindows()}</CardContent>
     </Card>
   )
+}
+
+function usageTone(used: number) {
+  if (used >= 90) return { bar: 'bg-red-500', text: 'text-red-500' }
+  if (used >= 70) return { bar: 'bg-amber-500', text: 'text-amber-500' }
+  return { bar: 'bg-emerald-500', text: 'text-emerald-500' }
 }
 
 /** asOf is when the snapshot was fetched; the countdown is measured from it so
@@ -117,12 +137,7 @@ function AccountQuotaCard({ account }: { account: Models.Account }) {
 function QuotaWindowTile({ quotaWindow, asOf }: { quotaWindow: QuotaWindow; asOf: number }) {
   const label = WINDOW_LABELS[quotaWindow.key] ?? { title: quotaWindow.key, hint: '' }
   const used = Math.min(100, Math.max(0, quotaWindow.utilization))
-  const tone =
-    used >= 90
-      ? { bar: 'bg-red-500', text: 'text-red-500' }
-      : used >= 70
-        ? { bar: 'bg-amber-500', text: 'text-amber-500' }
-        : { bar: 'bg-emerald-500', text: 'text-emerald-500' }
+  const tone = usageTone(used)
   const resetsAt = quotaWindow.resets_at
   const secondsLeft = resetsAt
     ? Math.max(0, Math.round((new Date(resetsAt).getTime() - asOf) / 1000))

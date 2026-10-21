@@ -104,6 +104,103 @@ export default function SecurityTab() {
     )
   }
 
+  let statusLabel = enabled ? 'Enabled' : 'Off'
+  if (isLoading) statusLabel = '…'
+
+  const renderBody = () => {
+    if (enabled && disabling) {
+      return (
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-muted-foreground text-sm">
+            Enter a current code to turn two-factor authentication off.
+          </p>
+          <CodeInput id="totp-disable" value={code} onChange={setCode} />
+          <Button
+            type="button"
+            variant="destructive"
+            disabled={code.length !== 6 || disableMutation.isPending}
+            onClick={confirmDisable}
+          >
+            Disable
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => {
+              setDisabling(false)
+              setCode('')
+            }}
+          >
+            Cancel
+          </Button>
+        </div>
+      )
+    }
+
+    if (enabled) {
+      return (
+        <div className="flex items-center justify-between gap-4">
+          <p className="text-muted-foreground text-sm">
+            Sign-in asks for a code from your authenticator app.
+          </p>
+          <Button type="button" variant="outline" onClick={() => setDisabling(true)}>
+            Turn off
+          </Button>
+        </div>
+      )
+    }
+
+    if (setup) {
+      return (
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+          <div className="shrink-0 rounded-lg bg-white p-3">
+            <QRCodeSVG value={setup.otpauth_url} size={160} />
+          </div>
+          <div className="flex min-w-0 flex-col gap-3">
+            <p className="text-sm">
+              Scan the QR code with your authenticator app, then enter the 6-digit code it shows.
+            </p>
+            <div>
+              <p className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">
+                Can't scan? Enter this key
+              </p>
+              <p className="text-foreground mt-0.5 font-mono text-sm break-all select-all">
+                {setup.secret}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <CodeInput id="totp-enable" value={code} onChange={setCode} />
+              <Button
+                type="button"
+                disabled={code.length !== 6 || enableMutation.isPending}
+                onClick={confirmEnable}
+              >
+                Enable
+              </Button>
+              <Button type="button" variant="ghost" onClick={() => setupMutation.reset()}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    return (
+      <div className="flex items-center justify-between gap-4">
+        <p className="text-muted-foreground text-sm">Sign-in only asks for your password.</p>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={isLoading || setupMutation.isPending}
+          onClick={startSetup}
+        >
+          Set up
+        </Button>
+      </div>
+    )
+  }
+
   return (
     <Card className="bg-background">
       <CardHeader className="h-20">
@@ -129,94 +226,12 @@ export default function SecurityTab() {
               enabled ? 'bg-emerald-950 text-emerald-400' : 'bg-muted text-muted-foreground'
             )}
           >
-            {isLoading ? '…' : enabled ? 'Enabled' : 'Off'}
+            {statusLabel}
           </span>
         </div>
       </CardHeader>
 
-      <CardContent className="border-t border-border px-5 py-4">
-        {enabled ? (
-          disabling ? (
-            <div className="flex flex-wrap items-center gap-3">
-              <p className="text-muted-foreground text-sm">
-                Enter a current code to turn two-factor authentication off.
-              </p>
-              <CodeInput id="totp-disable" value={code} onChange={setCode} />
-              <Button
-                type="button"
-                variant="destructive"
-                disabled={code.length !== 6 || disableMutation.isPending}
-                onClick={confirmDisable}
-              >
-                Disable
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => {
-                  setDisabling(false)
-                  setCode('')
-                }}
-              >
-                Cancel
-              </Button>
-            </div>
-          ) : (
-            <div className="flex items-center justify-between gap-4">
-              <p className="text-muted-foreground text-sm">
-                Sign-in asks for a code from your authenticator app.
-              </p>
-              <Button type="button" variant="outline" onClick={() => setDisabling(true)}>
-                Turn off
-              </Button>
-            </div>
-          )
-        ) : setup ? (
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-            <div className="shrink-0 rounded-lg bg-white p-3">
-              <QRCodeSVG value={setup.otpauth_url} size={160} />
-            </div>
-            <div className="flex min-w-0 flex-col gap-3">
-              <p className="text-sm">
-                Scan the QR code with your authenticator app, then enter the 6-digit code it shows.
-              </p>
-              <div>
-                <p className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">
-                  Can't scan? Enter this key
-                </p>
-                <p className="text-foreground mt-0.5 font-mono text-sm break-all select-all">
-                  {setup.secret}
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center gap-3">
-                <CodeInput id="totp-enable" value={code} onChange={setCode} />
-                <Button
-                  type="button"
-                  disabled={code.length !== 6 || enableMutation.isPending}
-                  onClick={confirmEnable}
-                >
-                  Enable
-                </Button>
-                <Button type="button" variant="ghost" onClick={() => setupMutation.reset()}>
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center justify-between gap-4">
-            <p className="text-muted-foreground text-sm">Sign-in only asks for your password.</p>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isLoading || setupMutation.isPending}
-              onClick={startSetup}
-            >
-              Set up
-            </Button>
-          </div>
-        )}
-      </CardContent>
+      <CardContent className="border-t border-border px-5 py-4">{renderBody()}</CardContent>
     </Card>
   )
 }

@@ -4,11 +4,12 @@ import { useState } from 'react'
 
 import type { UsageTerminalRequestRow } from '@/lib/api/models/usage'
 
-import { fmtCompact } from '@/components/block/cost-analytics/usage/format'
+import { RequestStatusBadge } from '@/components/block/cost-analytics/usage/request-badges'
 import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { formatMicrosUsd } from '@/lib/currency'
+import { formatCompact, formatCount, formatLatency } from '@/lib/format'
 
 const COLUMNS = 'grid grid-cols-[0.9fr_1.8fr_1fr_0.9fr_0.9fr_0.7fr] items-center gap-4'
 const PAGE_SIZE = 10
@@ -17,9 +18,11 @@ interface OverviewRecentRequestsProps {
   rows: UsageTerminalRequestRow[]
 }
 
-function fmtCost(micros: number): string {
-  const dollars = micros / 1e6
-  return `$${dollars.toFixed(4)}`
+/** Secondary token line: reasoning wins over cache reads; neither shows nothing. */
+function describeTokenDetail(row: UsageTerminalRequestRow): string | null {
+  if (row.reasoningTokens > 0) return `${formatCount(row.reasoningTokens)} reasoning`
+  if (row.inputCacheRead > 0) return `${formatCompact(row.inputCacheRead)} cached`
+  return null
 }
 
 export default function OverviewRecentRequests({ rows }: OverviewRecentRequestsProps) {
@@ -68,19 +71,12 @@ export default function OverviewRecentRequests({ rows }: OverviewRecentRequestsP
             <div className="divide-y divide-border/60">
               {visible.map((row) => {
                 const totalTokens = row.inputTokens + row.outputTokens
+                const tokenDetail = describeTokenDetail(row)
 
                 return (
                   <div key={row.id} className={`${COLUMNS} gap-4 py-3.5`}>
                     <div>
-                      {row.status === 'success' ? (
-                        <Badge variant="success" appearance="light" size="sm">
-                          Success
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary" size="sm">
-                          Cancelled
-                        </Badge>
-                      )}
+                      <RequestStatusBadge status={row.status} />
                     </div>
 
                     <div className="flex items-center gap-3">
@@ -95,25 +91,19 @@ export default function OverviewRecentRequests({ rows }: OverviewRecentRequestsP
 
                     <div>
                       <p className="text-sm font-semibold tabular-nums text-foreground">
-                        {totalTokens.toLocaleString('en-US')}
+                        {formatCount(totalTokens)}
                       </p>
-                      {row.reasoningTokens > 0 ? (
-                        <p className="text-muted-foreground truncate text-xs">
-                          {row.reasoningTokens} reasoning
-                        </p>
-                      ) : row.inputCacheRead > 0 ? (
-                        <p className="text-muted-foreground truncate text-xs">
-                          {fmtCompact(row.inputCacheRead)} cached
-                        </p>
-                      ) : null}
+                      {tokenDetail && (
+                        <p className="text-muted-foreground truncate text-xs">{tokenDetail}</p>
+                      )}
                     </div>
 
                     <p className="text-sm tabular-nums text-foreground">
-                      {row.costMicros === null ? 'Unpriced' : fmtCost(row.costMicros)}
+                      {row.costMicros === null ? 'Unpriced' : formatMicrosUsd(row.costMicros)}
                     </p>
 
                     <p className="text-sm tabular-nums text-foreground">
-                      {(row.latencyMs / 1000).toFixed(2)}s
+                      {formatLatency(row.latencyMs)}
                     </p>
 
                     <p className="text-muted-foreground text-xs">{row.time}</p>

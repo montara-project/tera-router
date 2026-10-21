@@ -14,8 +14,8 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toastAxiosError } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
-
-import { formatCompactNumber, formatCost } from './quota-formatters'
+import { formatUsd } from '@/lib/currency'
+import { formatCompact } from '@/lib/format'
 
 type ColumnType = ColumnDef<typeof features, Models.QuotaAccount, unknown>
 
@@ -129,7 +129,7 @@ export function QuotaAccountColumn({ loading }: BaseColumnProps) {
                 <span className="text-muted-foreground font-normal">req</span>
               </div>
               <div className="text-muted-foreground text-xs tabular-nums">
-                {formatCompactNumber(row.original.input_tokens + row.original.output_tokens)} tokens
+                {formatCompact(row.original.input_tokens + row.original.output_tokens)} tokens
               </div>
             </div>
           )
@@ -144,7 +144,7 @@ export function QuotaAccountColumn({ loading }: BaseColumnProps) {
             <Skeleton className="h-5 w-full" />
           ) : (
             <div className="text-right font-semibold tabular-nums">
-              {formatCost(row.original.attributed_cost)}
+              {formatUsd(row.original.attributed_cost)}
             </div>
           )
         },

@@ -10,6 +10,17 @@ export const formatCurrency = (value: string) => {
   }).format(Number(value))
 }
 
+/** USD amount: 2 decimals from $1 up, 4 below so sub-cent costs stay visible. */
+export function formatUsd(dollars: number): string {
+  if (dollars === 0) return '$0.00'
+  return `$${dollars.toFixed(dollars >= 1 ? 2 : 4)}`
+}
+
+/** USD amount stored as micros (1e-6 USD). */
+export function formatMicrosUsd(micros: number): string {
+  return formatUsd(micros / 1_000_000)
+}
+
 /** Render a USD-per-million rate; 0 shows "free" so a real zero is visible. */
 export function formatRate(micros: number): string {
   if (micros === 0) return 'free'

@@ -2,7 +2,7 @@ import { IconApps } from '@tabler/icons-react'
 
 import type { Models } from '@/lib/api/models'
 
-import { fmtLatency } from '@/components/block/cost-analytics/usage/format'
+import EmptyState from '@/components/block/common/empty-state'
 import {
   Card,
   CardContent,
@@ -11,8 +11,8 @@ import {
   CardHeading,
   CardTitle,
 } from '@/components/ui/card'
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
+import { formatLatency } from '@/lib/format'
 
 export default function ObservedPanel({
   models,
@@ -30,18 +30,12 @@ export default function ObservedPanel({
     )
   if (!models.length) {
     return (
-      <Empty className="border">
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <IconApps />
-          </EmptyMedia>
-          <EmptyTitle>No observed models yet</EmptyTitle>
-          <EmptyDescription>
-            Models appear here after this provider has terminal usage. The catalog tab lists every
-            model the provider exposes.
-          </EmptyDescription>
-        </EmptyHeader>
-      </Empty>
+      <EmptyState
+        className="border"
+        icon={IconApps}
+        title="No observed models yet"
+        description="Models appear here after this provider has terminal usage. The catalog tab lists every model the provider exposes."
+      />
     )
   }
   return (
@@ -65,7 +59,7 @@ export default function ObservedPanel({
               </div>
               <span className="text-sm tabular-nums">{model.requests} requests</span>
               <span className="text-sm tabular-nums">{model.successPct}% success</span>
-              <span className="text-sm tabular-nums">{fmtLatency(model.latencyMs)} avg</span>
+              <span className="text-sm tabular-nums">{formatLatency(model.latencyMs)} avg</span>
             </div>
           ))}
         </div>
