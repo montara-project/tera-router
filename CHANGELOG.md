@@ -3,6 +3,27 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [1.6.0](https://github.com/montara-project/tera-router/compare/v1.5.0...v1.6.0) (2026-10-21)
+
+### Features
+
+* **main-web:** animate routing diagram connectors with beams ([4d75f0e](https://github.com/montara-project/tera-router/commit/4d75f0e607144f5c0e4ff7f88efd42c1b23ad602))
+* **main-web:** animate theme switch with a circle reveal ([d9bec9a](https://github.com/montara-project/tera-router/commit/d9bec9a7cc04f8397269fd8209f4a721be9488dd))
+* **main-web:** mirror the admin dashboard in the landing mockup ([6db2fdd](https://github.com/montara-project/tera-router/commit/6db2fdd7795d763e094c261c24ef4e859639a88d))
+* **main-web:** redesign landing page with blueprint layout ([d953822](https://github.com/montara-project/tera-router/commit/d953822f4843ade0ebd52f43d4926e0fa9a8e8fe))
+* **main-web:** stream the request log live ([3655857](https://github.com/montara-project/tera-router/commit/365585732203b6c27c1e6522c8290a149e5f21b1))
+* **main-web:** type out the get-started terminals ([9dbb554](https://github.com/montara-project/tera-router/commit/9dbb554d4bda6a0fa48671dcd1baa0554927e042))
+
+### Bug Fixes
+
+* **main-web:** escape the JSON-LD and add version and author ([7a2e9a1](https://github.com/montara-project/tera-router/commit/7a2e9a1dabc30f145867fb9ac1caee87c18945ae))
+* **main-web:** hold the theme reveal lock until the transition ends ([98075b4](https://github.com/montara-project/tera-router/commit/98075b420db2b25ecd90dcffc8aaaba612db5b50))
+* **main-web:** stop divider nodes from adding horizontal scroll ([fb7ef46](https://github.com/montara-project/tera-router/commit/fb7ef460852ff1cdce1727e7638fc3b04bf98723))
+
+### Performance Improvements
+
+* **main-web:** load fonts in parallel, share icon paths, cache at the edge ([a8b1258](https://github.com/montara-project/tera-router/commit/a8b12583a51329646bacfcf3932c09690c19c826))
+
 ## [1.5.0](https://github.com/montara-project/tera-router/compare/v1.4.0...v1.5.0) (2026-10-21)
 
 ### Performance Improvements
