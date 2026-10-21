@@ -31,13 +31,16 @@ const REVEAL_MS = 400
  * of the clicked button. Coordinates are percentages of the viewport because
  * Chrome misplaces px clip-paths on fractional display scales (magicui#989).
  * Falls back to an instant switch without the API or under reduced motion.
+ * `onDone` runs once the switch is fully over: right after the commit in the
+ * fallback, or when the view transition finishes (or is skipped).
  */
-function revealTheme(origin: HTMLElement, commit: () => void) {
+function revealTheme(origin: HTMLElement, commit: () => void, onDone: () => void) {
   if (
     typeof document.startViewTransition !== 'function' ||
     window.matchMedia('(prefers-reduced-motion: reduce)').matches
   ) {
     commit()
+    onDone()
     return
   }
 
@@ -78,6 +81,7 @@ function revealTheme(origin: HTMLElement, commit: () => void) {
       delete root.dataset.themeVt
       root.style.removeProperty('--theme-vt-duration')
       root.style.removeProperty('--theme-vt-clip-from')
+      onDone()
     })
     .catch(() => {})
 }
@@ -129,10 +133,9 @@ export function ThemeToggle() {
       return
     }
     revealing.current = true
-    revealTheme(origin, commit)
-    setTimeout(() => {
+    revealTheme(origin, commit, () => {
       revealing.current = false
-    }, REVEAL_MS)
+    })
   }
 
   return (
