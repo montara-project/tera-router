@@ -21,7 +21,9 @@ export const secondaryButton =
 
 export function Divider() {
   return (
-    <div aria-hidden className="border-t border-dotted border-dot">
+    // overflow-x-clip: when the rails sit on the viewport edge, the outer half
+    // of each node would otherwise add a few px of horizontal scroll.
+    <div aria-hidden className="overflow-x-clip border-t border-dotted border-dot">
       <div className="relative mx-auto max-w-7xl">
         <span className="absolute -top-1 -left-[3.5px] size-[7px] rounded-full bg-dot" />
         <span className="absolute -top-1 -right-[3.5px] size-[7px] rounded-full bg-dot" />
