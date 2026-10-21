@@ -2,7 +2,7 @@ import { IconChevronRight, IconCircleCheck, IconInfoCircle } from '@tabler/icons
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 
-import { Icons } from '@/components/block/common/icons'
+import { Icons } from '@/components/block/cli-tools/icons'
 import { Card } from '@/components/ui/card'
 import { queries } from '@/lib/api/queries'
 
