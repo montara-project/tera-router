@@ -19,7 +19,7 @@ import (
 )
 
 // Prefix is the human-visible prefix on every issued key.
-const Prefix = "sk_tr_"
+const Prefix = "sk_tr_0x"
 
 // secretBytes is the entropy of the random portion of an API key.
 const secretBytes = 24
