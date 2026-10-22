@@ -32,7 +32,7 @@ RUN pnpm --filter @tera/web exec vite build
 # ====================================================================================
 # Stage 2: server (Go build)
 # ====================================================================================
-FROM golang:1.26-alpine AS server
+FROM golang:1.27.3-alpine AS server
 
 WORKDIR /build
 
