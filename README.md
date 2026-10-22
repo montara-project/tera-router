@@ -31,7 +31,7 @@ a dashboard for accounts, routing, model catalogs, and cost analytics.
 
 | App                | Path            | Stack                                           |
 | ------------------ | --------------- | ----------------------------------------------- |
-| API + gateway      | `apps/server`   | Go 1.26, Fiber v3, SQLite                       |
+| API + gateway      | `apps/server`   | Go 1.27, Fiber v3, SQLite                       |
 | Admin dashboard    | `apps/web-ui`   | React, Vite, TanStack Router/Query, Tailwind v4 |
 | Main web (landing) | `apps/main-web` | vinext on Cloudflare Workers                    |
 | Documentation site | `apps/docs`     | Next.js (Fumadocs) → [docs.terarouter.xyz]      |
@@ -41,7 +41,7 @@ release-it. Container images live under `deploy/`.
 
 ## Getting started
 
-Prerequisites: **Go 1.26+**, **Node 22+**, **pnpm**.
+Prerequisites: **Go 1.27+**, **Node 22+**, **pnpm**.
 
 ```sh
 pnpm install
