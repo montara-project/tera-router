@@ -317,3 +317,31 @@ func (r *AccountRepository) countByProviderExec(ctx context.Context) (map[string
 	}
 	return counts, errtrace.Wrap(rows.Err())
 }
+
+// CountUsableByProvider returns how many accounts each provider has that can
+// serve traffic — the same filter as ListUsable.
+func (r *AccountRepository) CountUsableByProvider(ctx context.Context) (map[string]int, error) {
+	return r.countUsableByProviderExec(ctx)
+}
+
+func (r *AccountRepository) countUsableByProviderExec(ctx context.Context) (map[string]int, error) {
+	rows, err := r.queryContext(ctx, r.DB, `
+		SELECT provider, count(*) FROM accounts
+		WHERE disabled = false AND needs_reconnect = false
+		GROUP BY provider`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	counts := map[string]int{}
+	for rows.Next() {
+		var provider string
+		var n int
+		if err := rows.Scan(&provider, &n); err != nil {
+			return nil, errtrace.Wrap(err)
+		}
+		counts[provider] = n
+	}
+	return counts, errtrace.Wrap(rows.Err())
+}

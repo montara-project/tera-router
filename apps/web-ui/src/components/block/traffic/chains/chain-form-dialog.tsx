@@ -132,11 +132,11 @@ function ChainForm({ open, chain, onOpenChange }: ChainFormProps) {
   const saving = createMutation.isPending || updateMutation.isPending
   const isSubmitting = useSelector(form.store, (state) => state.isSubmitting)
 
-  // Provider combobox lists connected providers only — a chain step has to be
+  // Provider combobox lists usable providers only — a chain step has to be
   // able to serve traffic. Model comboboxes read the selected provider's
   // stored catalog (limit = server page cap), active models only.
   const providersQuery = useQuery(queries.providers.list())
-  const connectedProviders = providersQuery.data?.data?.connected ?? []
+  const connectedProviders = (providersQuery.data?.data?.connected ?? []).filter((p) => p.usable)
   const providerOptions: Option<string>[] = connectedProviders.map((p) => ({
     value: p.slug,
     label: p.name || p.slug,

@@ -155,6 +155,14 @@ func (h *providersHandler) Index(c fiber.Ctx) error {
 			APIKind:      c.APIKind,
 		})
 	}
+
+	usable, err := h.app.Repos.Accounts.CountUsableByProvider(c.Context())
+	if err != nil {
+		return err
+	}
+	for i := range connected {
+		connected[i].Usable = usable[connected[i].Slug] > 0
+	}
 	return dtos.OK(c, dtos.ProviderOverview{Connected: connected, Available: available})
 }
 

@@ -10,7 +10,8 @@
 //	Delete/deleteExec
 //
 // Not every family exists on every repository — Count, for instance, is only
-// present as the targeted CountByProvider/CountByPlan reads.
+// present as the targeted CountByProvider/CountUsableByProvider/CountByPlan
+// reads.
 //
 // Statements in this package never reach the driver directly; they go through
 // the BaseRepository helpers, which log every query when debug mode is on.

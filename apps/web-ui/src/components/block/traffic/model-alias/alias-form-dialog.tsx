@@ -130,14 +130,11 @@ function AliasForm({ open, alias, onOpenChange }: AliasFormProps) {
   )
   const hasIncompleteTarget = useSelector(form.store, (s) => s.values.targets.some(isPartialTarget))
 
-  // Provider combobox lists the catalog + custom providers; model comboboxes
-  // read the selected provider's stored catalog (limit = server page cap).
+  // Provider combobox lists usable providers only — a target has to be able
+  // to serve traffic. Model comboboxes read the selected provider's stored
+  // catalog (limit = server page cap).
   const providersQuery = useQuery(queries.providers.list())
-  const providersOverview = providersQuery.data?.data
-  const providers = [
-    ...(providersOverview?.connected ?? []),
-    ...(providersOverview?.available ?? []),
-  ]
+  const providers = (providersQuery.data?.data?.connected ?? []).filter((p) => p.usable)
   const providerOptions: Option<string>[] = providers.map((p) => ({
     value: p.slug,
     label: p.name || p.slug,
