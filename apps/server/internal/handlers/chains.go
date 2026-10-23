@@ -251,7 +251,12 @@ func (h *chainsHandler) AliasPut(c fiber.Ctx) error {
 		alias.Targets[i].Position = i + 1
 	}
 
-	if err := h.app.Repos.Aliases.Upsert(c.Context(), alias); err != nil {
+	if req.PreviousName != "" && req.PreviousName != alias.Name {
+		if err := h.app.Repos.Aliases.Rename(c.Context(), req.PreviousName, alias); err != nil {
+			return err
+		}
+		auditRecord(c.Context(), h.app, actorFrom(c), "alias.rename", alias.Name, map[string]string{"from": req.PreviousName})
+	} else if err := h.app.Repos.Aliases.Upsert(c.Context(), alias); err != nil {
 		return err
 	}
 	auditRecord(c.Context(), h.app, actorFrom(c), "alias.put", alias.Name, map[string]int{"targets": len(alias.Targets)})

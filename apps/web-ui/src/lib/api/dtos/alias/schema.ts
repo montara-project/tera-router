@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { optionalBoolean, optionalNumber, requiredString } from '@/lib/validation'
+import { optionalBoolean, optionalNumber, optionalString, requiredString } from '@/lib/validation'
 
 import type { AliasTarget, ModelAlias } from '../../models/provider-catalog'
 
@@ -9,6 +9,8 @@ type AliasTargetPayload = Pick<AliasTarget, 'provider' | 'model'> & { active?: b
 
 type AliasPayload = Pick<ModelAlias, 'name'> &
   Partial<Pick<ModelAlias, 'context_window' | 'active'>> & {
+    /** the stored name to rename from; omit to upsert by name */
+    previous_name?: string
     targets: AliasTargetPayload[]
   }
 
@@ -25,6 +27,7 @@ export const AliasTargetSchema = z.object({
  */
 export const AliasSchema = z.object({
   name: requiredString('name'),
+  previous_name: optionalString('previous name'),
   context_window: optionalNumber('context window'),
   active: optionalBoolean('active'),
   targets: z.array(AliasTargetSchema, { error: 'The targets field must be an array.' }),

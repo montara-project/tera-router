@@ -130,6 +130,8 @@ function AliasForm({ alias, onOpenChange }: AliasFormProps) {
         // PUT replaces name, targets, and active together server-side.
         await upsertMutation.mutateAsync({
           name: value.name.trim(),
+          // Renames the stored pool when the name changed.
+          previous_name: alias?.name,
           context_window: Number(value.context_window) || undefined,
           active: value.active,
           targets,
@@ -210,8 +212,14 @@ function AliasForm({ alias, onOpenChange }: AliasFormProps) {
       <div className="space-y-5">
         <form.AppField name="name">
           {(field) => (
-            // The alias name is the upsert key, so it stays fixed once created.
-            <field.TextField label="Name" asterisk placeholder="alias-name" readOnly={editing} />
+            <div className="space-y-1.5">
+              <field.TextField label="Name" asterisk placeholder="alias-name" />
+              {editing && field.state.value.trim() !== alias?.name ? (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  Clients, keys, and plans still using “{alias?.name}” will stop resolving.
+                </p>
+              ) : null}
+            </div>
           )}
         </form.AppField>
 
