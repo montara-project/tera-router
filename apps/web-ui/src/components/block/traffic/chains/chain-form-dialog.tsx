@@ -1,4 +1,4 @@
-import { IconChevronDown, IconChevronUp, IconPlus, IconStack2, IconX } from '@tabler/icons-react'
+import { IconChevronDown, IconChevronUp, IconPlus, IconX } from '@tabler/icons-react'
 import { useSelector } from '@tanstack/react-form'
 import { useMutation, useQueries, useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -7,14 +7,8 @@ import z from 'zod'
 import type { Models } from '@/lib/api/models'
 import type { Option } from '@/types/select'
 
-import IconBadge from '@/components/block/common/icon-badge'
+import SimpleAlertScrollableDialogForm from '@/components/block/common/simple-alert-scrollable-dialog-form'
 import { Button } from '@/components/ui/button'
-import DialogContent, {
-  Dialog,
-  DialogBody,
-  DialogDescription,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { Switch } from '@/components/ui/switch'
 import { useAppForm } from '@/hooks/form'
 import { toastAxiosError } from '@/lib/api/axios-error'
@@ -36,10 +30,6 @@ const ChainFormSchema = z.object({
 /** Model combobox page size — the server caps the catalog page at 100. */
 const MODEL_OPTIONS_LIMIT = 100
 
-/** The blue info tone the chains page uses for chain identity. */
-const CHAIN_BADGE_CLASS =
-  'bg-blue-50 text-blue-600 ring-1 ring-blue-200/70 dark:bg-blue-950/30 dark:text-blue-300 dark:ring-blue-900/60'
-
 interface ChainFormDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -48,45 +38,28 @@ interface ChainFormDialogProps {
 }
 
 /**
- * Create/edit dialog for one chain. The inner form is keyed by chain id so
- * every open starts from fresh defaults instead of the previous session's
+ * Create/edit dialog for one chain. The form is keyed by chain id + open state
+ * so every open starts from fresh defaults instead of the previous session's
  * values.
  */
 export default function ChainFormDialog({ open, onOpenChange, chain }: ChainFormDialogProps) {
-  const editing = Boolean(chain?.id)
-
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl p-0">
-        <div className="border-border border-b px-6 pt-5 pb-4">
-          <div className="flex items-start gap-3">
-            <IconBadge icon={IconStack2} className={CHAIN_BADGE_CLASS} iconClassName="size-5" />
-            <div className="min-w-0">
-              <DialogTitle className="text-base">
-                {editing ? 'Edit Chain' : 'Create Chain'}
-              </DialogTitle>
-              <DialogDescription>
-                Ordered provider/model steps the router walks through when the primary target cannot
-                serve a request.
-              </DialogDescription>
-            </div>
-          </div>
-        </div>
-
-        <DialogBody className="px-6 py-5">
-          <ChainForm key={chain?.id ?? 'new'} chain={chain} onOpenChange={onOpenChange} />
-        </DialogBody>
-      </DialogContent>
-    </Dialog>
+    <ChainForm
+      key={`${chain?.id ?? 'new'}-${open}`}
+      open={open}
+      chain={chain}
+      onOpenChange={onOpenChange}
+    />
   )
 }
 
 interface ChainFormProps {
+  open: boolean
   chain?: Models.Chain | null
   onOpenChange: (open: boolean) => void
 }
 
-function ChainForm({ chain, onOpenChange }: ChainFormProps) {
+function ChainForm({ open, chain, onOpenChange }: ChainFormProps) {
   const editing = Boolean(chain?.id)
   const submitLabel = editing ? 'Save changes' : 'Create chain'
 
@@ -159,11 +132,11 @@ function ChainForm({ chain, onOpenChange }: ChainFormProps) {
   const saving = createMutation.isPending || updateMutation.isPending
   const isSubmitting = useSelector(form.store, (state) => state.isSubmitting)
 
-  // Provider combobox lists connected providers only — a chain step has to be
+  // Provider combobox lists usable providers only — a chain step has to be
   // able to serve traffic. Model comboboxes read the selected provider's
   // stored catalog (limit = server page cap), active models only.
   const providersQuery = useQuery(queries.providers.list())
-  const connectedProviders = providersQuery.data?.data?.connected ?? []
+  const connectedProviders = (providersQuery.data?.data?.connected ?? []).filter((p) => p.usable)
   const providerOptions: Option<string>[] = connectedProviders.map((p) => ({
     value: p.slug,
     label: p.name || p.slug,
@@ -222,11 +195,17 @@ function ChainForm({ chain, onOpenChange }: ChainFormProps) {
   })
 
   return (
-    <form
+    <SimpleAlertScrollableDialogForm
+      open={open}
+      onOpenChange={onOpenChange}
+      title={editing ? 'Edit Chain' : 'Create Chain'}
+      description="Ordered provider/model steps the router walks through when the primary target cannot serve a request."
       onSubmit={(event) => {
         event.preventDefault()
         form.handleSubmit()
       }}
+      confirmText={submitLabel}
+      loading={isSubmitting || saving}
     >
       <div className="space-y-5">
         <form.AppField name="name">
@@ -459,20 +438,10 @@ function ChainForm({ chain, onOpenChange }: ChainFormProps) {
           </div>
         </div>
 
-        <div className="border-border flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-muted-foreground text-xs">
-            Steps run top to bottom — later steps only serve when earlier ones fail.
-          </p>
-          <div className="flex shrink-0 justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isSubmitting || saving}>
-              {isSubmitting || saving ? 'Saving…' : submitLabel}
-            </Button>
-          </div>
-        </div>
+        <p className="text-muted-foreground text-xs">
+          Steps run top to bottom — later steps only serve when earlier ones fail.
+        </p>
       </div>
-    </form>
+    </SimpleAlertScrollableDialogForm>
   )
 }

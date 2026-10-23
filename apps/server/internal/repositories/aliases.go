@@ -14,7 +14,7 @@ type AliasRepository struct {
 	BaseRepository
 }
 
-const aliasColumns = `id, name, context_window, active, created_at, updated_at`
+const aliasColumns = `id, name, group_name, context_window, active, created_at, updated_at`
 
 // Upsert writes an alias and replaces its target list in one transaction.
 func (r *AliasRepository) Upsert(ctx context.Context, a models.ModelAlias) error {
@@ -42,11 +42,11 @@ func (r *AliasRepository) Rename(ctx context.Context, from string, a models.Mode
 
 func (r *AliasRepository) upsertExec(ctx context.Context, ex Executor, a models.ModelAlias) error {
 	if _, err := r.execContext(ctx, ex, `
-		INSERT INTO model_aliases (id, name, context_window, active)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO model_aliases (id, name, group_name, context_window, active)
+		VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT (name) DO UPDATE
-		SET context_window = EXCLUDED.context_window, active = EXCLUDED.active, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now')`,
-		a.ID, a.Name, a.ContextWindow, a.Active,
+		SET group_name = EXCLUDED.group_name, context_window = EXCLUDED.context_window, active = EXCLUDED.active, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now')`,
+		a.ID, a.Name, a.Group, a.ContextWindow, a.Active,
 	); err != nil {
 		return err
 	}
@@ -78,7 +78,7 @@ func (r *AliasRepository) GetByName(ctx context.Context, name string) (models.Mo
 func (r *AliasRepository) getByNameExec(ctx context.Context, name string) (models.ModelAlias, error) {
 	row := r.queryRowContext(ctx, r.DB, `SELECT `+aliasColumns+` FROM model_aliases WHERE name = $1`, name)
 	var a models.ModelAlias
-	if err := row.Scan(&a.ID, &a.Name, &a.ContextWindow, &a.Active, &a.CreatedAt, &a.UpdatedAt); err != nil {
+	if err := row.Scan(&a.ID, &a.Name, &a.Group, &a.ContextWindow, &a.Active, &a.CreatedAt, &a.UpdatedAt); err != nil {
 		return models.ModelAlias{}, translateNotFound(err)
 	}
 
@@ -106,7 +106,7 @@ func (r *AliasRepository) listExec(ctx context.Context) ([]models.ModelAlias, er
 	aliases := []models.ModelAlias{}
 	for rows.Next() {
 		var a models.ModelAlias
-		if err := rows.Scan(&a.ID, &a.Name, &a.ContextWindow, &a.Active, &a.CreatedAt, &a.UpdatedAt); err != nil {
+		if err := rows.Scan(&a.ID, &a.Name, &a.Group, &a.ContextWindow, &a.Active, &a.CreatedAt, &a.UpdatedAt); err != nil {
 			return nil, errtrace.Wrap(err)
 		}
 		aliases = append(aliases, a)

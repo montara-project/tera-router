@@ -58,3 +58,23 @@ func TestAliasRename(t *testing.T) {
 		t.Fatalf("rename missing err = %v, want not found", err)
 	}
 }
+
+// TestAliasGroup stores the group on insert and replaces it on the next PUT.
+func TestAliasGroup(t *testing.T) {
+	aliases := newProviderRepos(t).Aliases
+	ctx := context.Background()
+
+	if err := aliases.Upsert(ctx, models.ModelAlias{ID: "a1", Name: "fast", Group: "coding", Active: true}); err != nil {
+		t.Fatalf("upsert: %v", err)
+	}
+	if err := aliases.Upsert(ctx, models.ModelAlias{ID: "a2", Name: "fast", Group: "chat", Active: true}); err != nil {
+		t.Fatalf("re-upsert: %v", err)
+	}
+	list, err := aliases.List(ctx)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if len(list) != 1 || list[0].Group != "chat" {
+		t.Fatalf("aliases = %+v, want one alias in group chat", list)
+	}
+}

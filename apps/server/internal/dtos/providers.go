@@ -119,10 +119,13 @@ type CatalogProvider struct {
 // ProviderView matches the web UI Provider model: id, name, slug, connected,
 // accounts, capabilities, official.
 type ProviderView struct {
-	ID           string   `json:"id"`
-	Name         string   `json:"name"`
-	Slug         string   `json:"slug"`
-	Connected    bool     `json:"connected"`
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Slug      string `json:"slug"`
+	Connected bool   `json:"connected"`
+	// Usable reports at least one account that can serve traffic (enabled,
+	// not awaiting re-authentication) — what chain/alias pickers offer.
+	Usable       bool     `json:"usable,omitempty"`
 	Accounts     int      `json:"accounts,omitempty"`
 	Capabilities []string `json:"capabilities"`
 	Official     bool     `json:"official,omitempty"`

@@ -12,6 +12,8 @@ export type Provider = {
   name: string
   slug: string
   connected: boolean
+  /** At least one account can serve traffic (enabled, no re-auth pending). */
+  usable?: boolean
   /** false renders the "unofficial" badge */
   official?: boolean
   /** upstream wire format: openai, anthropic, openai_responses */

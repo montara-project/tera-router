@@ -39,6 +39,7 @@ type Alias struct {
 	Name string `json:"name"`
 	// PreviousName, when set and different from Name, renames that pool.
 	PreviousName  string        `json:"previous_name"`
+	Group         string        `json:"group"`
 	ContextWindow int           `json:"context_window"`
 	Active        *bool         `json:"active"`
 	Targets       []AliasTarget `json:"targets"`

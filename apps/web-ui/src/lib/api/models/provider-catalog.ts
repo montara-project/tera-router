@@ -68,6 +68,8 @@ export type ModelTestResult = {
 export type ModelAlias = {
   id: string
   name: string
+  /** display-only label the alias list groups under; empty is ungrouped */
+  group?: string
   context_window: number
   active: boolean
   targets: AliasTarget[]
