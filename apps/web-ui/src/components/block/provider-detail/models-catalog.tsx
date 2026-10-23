@@ -3,12 +3,15 @@ import {
   IconCircleCheck,
   IconDownload,
   IconEyeOff,
+  IconLoader2,
+  IconPlayerPlay,
   IconRefresh,
   IconSearch,
 } from '@tabler/icons-react'
 import { useMemo } from 'react'
 import { toast } from 'sonner'
 
+import type { ModelTestStatus } from '@/components/block/provider-detail/models-panel'
 import type { Models } from '@/lib/api/models'
 
 import ModelCard from '@/components/block/provider-detail/model-card'
@@ -47,6 +50,9 @@ export default function ModelsCatalog({
   syncing,
   onSync,
   onUpdate,
+  testResults,
+  testingAll,
+  onTestAll,
 }: {
   /** catalog providers are keyed by slug; customs by their uuid */
   variant: 'catalog' | 'custom'
@@ -65,6 +71,9 @@ export default function ModelsCatalog({
   onUpdate: (body: {
     models: { id: string; state: Models.ProviderModelState }[]
   }) => Promise<unknown>
+  testResults: Record<string, ModelTestStatus>
+  testingAll: boolean
+  onTestAll: () => void
 }) {
   const models = useMemo(() => catalog?.models ?? [], [catalog])
   const enabledCount = catalog?.enabled ?? 0
@@ -76,6 +85,8 @@ export default function ModelsCatalog({
   const selectedInPage = selected.filter((id) => models.some((m) => m.id === id))
   const allSelected = models.length > 0 && selectedInPage.length === models.length
   const someSelected = selectedInPage.length > 0 && !allSelected
+  const testStatuses = Object.values(testResults)
+  const testedCount = testStatuses.filter((r) => r.state !== 'pending').length
 
   const toggleModel = async (id: string, state: Models.ProviderModelState) => {
     try {
@@ -140,6 +151,7 @@ export default function ModelsCatalog({
             selected={selected.includes(model.id)}
             onToggleSelect={toggleSelect}
             onToggleState={toggleModel}
+            testResult={testResults[model.id]}
           />
         ))}
       </div>
@@ -266,6 +278,15 @@ export default function ModelsCatalog({
           </CardDescription>
         </CardHeading>
         <CardToolbar>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={testingAll || enabledCount === 0}
+            onClick={onTestAll}
+          >
+            {testingAll ? <IconLoader2 className="animate-spin" /> : <IconPlayerPlay />}
+            {testingAll ? `Testing ${testedCount}/${testStatuses.length}` : 'Test all enabled'}
+          </Button>
           <Button size="sm" className={EMERALD_BUTTON_CLASS} disabled={syncing} onClick={onSync}>
             {syncing ? <IconRefresh className="animate-spin" /> : <IconDownload />} Sync from
             /models

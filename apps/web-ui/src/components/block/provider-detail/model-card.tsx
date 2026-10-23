@@ -1,7 +1,8 @@
-import { IconCopy, IconEye, IconEyeOff, IconMessageChatbot } from '@tabler/icons-react'
+import { IconCopy, IconEye, IconEyeOff, IconLoader2, IconMessageChatbot } from '@tabler/icons-react'
 import { lazy, Suspense, useState } from 'react'
 import { toast } from 'sonner'
 
+import type { ModelTestStatus } from '@/components/block/provider-detail/models-panel'
 import type { Models } from '@/lib/api/models'
 
 import { Badge, BadgeDot } from '@/components/ui/badge'
@@ -20,6 +21,7 @@ export default function ModelCard({
   selected,
   onToggleSelect,
   onToggleState,
+  testResult,
 }: {
   providerSlug: string
   /** matches the API path key: slug for catalog providers, uuid for customs */
@@ -29,6 +31,8 @@ export default function ModelCard({
   selected: boolean
   onToggleSelect: (id: string, checked: boolean) => void
   onToggleState: (id: string, state: Models.ProviderModelState) => void
+  /** Outcome from the catalog's "Test all" run; absent when not tested. */
+  testResult?: ModelTestStatus
 }) {
   const active = model.state === 'active'
   const composite = `${providerSlug}/${model.id}`
@@ -61,9 +65,27 @@ export default function ModelCard({
             {active ? 'Enabled' : 'Disabled'}
           </Badge>
         </div>
-        <Badge variant="outline" size="sm">
-          llm
-        </Badge>
+        <div className="flex items-center gap-1.5">
+          {testResult?.state === 'pending' && (
+            <Badge variant="outline" size="sm">
+              <IconLoader2 className="animate-spin" />
+              Testing
+            </Badge>
+          )}
+          {testResult?.state === 'success' && (
+            <Badge variant="success" appearance="light" size="sm">
+              Success · {testResult.latencyMs} ms
+            </Badge>
+          )}
+          {testResult?.state === 'failed' && (
+            <Badge variant="destructive" appearance="light" size="sm" title={testResult.detail}>
+              Failed
+            </Badge>
+          )}
+          <Badge variant="outline" size="sm">
+            llm
+          </Badge>
+        </div>
       </div>
       <p className="mt-3 truncate text-sm font-semibold" title={model.id}>
         {model.id}
