@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"tera-router/server/internal/app"
@@ -294,12 +295,23 @@ func TestImport9RouterBackup(t *testing.T) {
 		t.Errorf("deepseek account = %+v, want one disabled account", deepseek)
 	}
 
-	key, err := h.app.Repos.APIKeys.GetByLookup(ctx, apikey.LookupHash("sk-9router-client-key-xyz"))
-	if err != nil {
-		t.Fatalf("imported key lookup: %v", err)
+	if _, err := h.app.Repos.APIKeys.GetByLookup(ctx, apikey.LookupHash("sk-9router-client-key-xyz")); err == nil {
+		t.Error("the original 9router key string must not be kept; the import mints a new key")
 	}
-	if ok, _ := apikey.Verify("sk-9router-client-key-xyz", key.KeyHash); !ok {
-		t.Error("the original 9router key string does not verify against the imported hash")
+	keys, _, err := h.app.Repos.APIKeys.List(ctx, 0, 10)
+	if err != nil || len(keys) != 1 || keys[0].Name != "Laptop" {
+		t.Fatalf("imported keys = %+v (%v), want one key named Laptop", keys, err)
+	}
+	plaintext, err := h.app.Secrets.OpenString(keys[0].Secret)
+	if err != nil || !strings.HasPrefix(plaintext, apikey.Prefix) {
+		t.Fatalf("revealed key = %q (%v), want a fresh %s key", plaintext, err, apikey.Prefix)
+	}
+	key, err := h.app.Repos.APIKeys.GetByLookup(ctx, apikey.LookupHash(plaintext))
+	if err != nil {
+		t.Fatalf("regenerated key lookup: %v", err)
+	}
+	if ok, _ := apikey.Verify(plaintext, key.KeyHash); !ok {
+		t.Error("the regenerated key does not verify against its stored hash")
 	}
 
 	chain, err := h.app.Repos.Chains.GetByName(ctx, "smart")

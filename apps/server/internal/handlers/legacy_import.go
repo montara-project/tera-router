@@ -12,7 +12,6 @@ import (
 	"tera-router/server/internal/legacyimport"
 	"tera-router/server/internal/lib/apikey"
 	"tera-router/server/internal/lib/apperr"
-	"tera-router/server/internal/lib/password"
 	"tera-router/server/internal/models"
 
 	"github.com/gofiber/fiber/v3"
@@ -234,31 +233,42 @@ func (h *legacyImportHandler) duplicateAccount(ctx context.Context, oauthDedup *
 	}
 }
 
-// importKeys re-hashes each key string, so a client still configured with
-// the old router's key authenticates against Tera Router unchanged.
+// importKeys mints a fresh sk_tr_ key for each legacy key rather than keeping
+// the old string, whose entropy Tera Router cannot vouch for. Clients must
+// switch to the new key (revealable from the dashboard). Keys are matched by
+// name, so re-running an import skips the ones it already created.
 func (h *legacyImportHandler) importKeys(ctx context.Context, keys []legacyimport.PlannedKey, res *legacyImportResult) error {
+	if len(keys) == 0 {
+		return nil
+	}
+	// ponytail: one page of 10k keys for the name check; add GetByName if an install outgrows it.
+	existing, _, err := h.app.Repos.APIKeys.List(ctx, 0, 10000)
+	if err != nil {
+		return err
+	}
+	names := make(map[string]bool, len(existing))
+	for _, k := range existing {
+		names[k.Name] = true
+	}
 	for _, k := range keys {
-		lookup := apikey.LookupHash(k.Key)
-		if _, err := h.app.Repos.APIKeys.GetByLookup(ctx, lookup); err == nil {
-			res.skip("api_key", k.Name, "this key already exists")
+		if names[k.Name] {
+			res.skip("api_key", k.Name, "a key with this name already exists")
 			continue
-		} else if !errors.Is(err, apperr.ErrNotFound) {
-			return err
 		}
-		hash, err := password.Hash(k.Key)
+		gen, err := apikey.Generate()
 		if err != nil {
 			return err
 		}
-		sealed, err := h.app.Secrets.SealString(k.Key)
+		sealed, err := h.app.Secrets.SealString(gen.Plaintext)
 		if err != nil {
 			return err
 		}
 		key := models.APIKey{
 			ID:         uuid.NewString(),
 			Name:       k.Name,
-			KeyHash:    hash,
-			LookupHash: lookup,
-			Display:    fingerprint(k.Key),
+			KeyHash:    gen.Hash,
+			LookupHash: gen.Lookup,
+			Display:    gen.Display,
 			Disabled:   k.Disabled,
 			Secret:     sealed,
 		}
