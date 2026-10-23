@@ -57,7 +57,7 @@ export default function ChainFormDialog({ open, onOpenChange, chain }: ChainForm
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl p-0">
+      <DialogContent className="max-w-4xl p-0">
         <div className="border-border border-b px-6 pt-5 pb-4">
           <div className="flex items-start gap-3">
             <IconBadge icon={IconStack2} className={CHAIN_BADGE_CLASS} iconClassName="size-5" />
