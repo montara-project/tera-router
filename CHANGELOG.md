@@ -3,6 +3,20 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [1.8.0](https://github.com/montara-project/tera-router/compare/v1.7.0...v1.8.0) (2026-10-23)
+
+### Features
+
+* allow renaming a model alias ([5074aba](https://github.com/montara-project/tera-router/commit/5074abad04f72ffcf74e51422a728ce48957440a))
+* **web-ui:** show model aliases as a list with detail and edit dialogs ([7dc3fe8](https://github.com/montara-project/tera-router/commit/7dc3fe8aa2ad1977f27f17a5de64bb6a820ff3c8))
+
+### Bug Fixes
+
+* **server:** regenerate API keys on legacy import ([9d81983](https://github.com/montara-project/tera-router/commit/9d819831066f3c3797e86ff0e14b06897b5e10e1))
+* **server:** restore the sk_tr_ API key prefix ([4ccc227](https://github.com/montara-project/tera-router/commit/4ccc227610fee00d9bd6b38139e9a59408c9a168))
+* update form model alias & chains ([3f190b9](https://github.com/montara-project/tera-router/commit/3f190b9893a526d409068c4d2fbd25707554c667))
+* **web-ui:** stretch the login OTP input to the form width ([c498a8b](https://github.com/montara-project/tera-router/commit/c498a8bf6de30486d3748d87f3b8281c5e2e30a6))
+
 ## [1.7.0](https://github.com/montara-project/tera-router/compare/v1.6.0...v1.7.0) (2026-10-22)
 
 ### Bug Fixes
