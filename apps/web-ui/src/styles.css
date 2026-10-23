@@ -137,6 +137,27 @@
   }
 }
 
+/* Thin scrollbar on a transparent track, so a scroll body blends into its
+   surface; the thumb only gains contrast while the pointer is over it. */
+@utility scrollbar-seamless {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+  &:hover {
+    scrollbar-color: color-mix(in oklch, var(--muted-foreground) 50%, transparent) transparent;
+  }
+  /* Safari, which ignores scrollbar-color */
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 9999px;
+  }
+}
+
 /* Color palettes — applied via [data-theme] on <html> by ThemePaletteProvider */
 [data-theme='sage-terra'] {
   --primary: #4c5f3d;
