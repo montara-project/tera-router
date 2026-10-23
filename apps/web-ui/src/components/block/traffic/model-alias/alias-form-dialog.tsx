@@ -39,6 +39,7 @@ export function contextWindowLabel(value: number) {
 
 const AliasFormSchema = z.object({
   name: requiredString('name'),
+  group: z.string(),
   context_window: requiredString('context window'),
   active: z.boolean(),
   targets: z.array(AliasTargetSchema.extend({ active: z.boolean() })),
@@ -81,10 +82,16 @@ function AliasForm({ open, alias, onOpenChange }: AliasFormProps) {
   const submitLabel = editing ? 'Save changes' : 'Create alias'
 
   const upsertMutation = useMutation(queries.aliases.upsert())
+  // Existing groups feed the Group input's suggestions; any new name is fine.
+  const aliasesQuery = useQuery(queries.aliases.list())
+  const groups = [
+    ...new Set((aliasesQuery.data?.data ?? []).map((a) => a.group?.trim() ?? '').filter(Boolean)),
+  ].sort()
 
   const form = useAppForm({
     defaultValues: {
       name: alias?.name ?? '',
+      group: alias?.group ?? '',
       context_window: String(alias?.context_window ?? 0),
       active: alias?.active ?? true,
       targets:
@@ -108,6 +115,7 @@ function AliasForm({ open, alias, onOpenChange }: AliasFormProps) {
         // PUT replaces name, targets, and active together server-side.
         await upsertMutation.mutateAsync({
           name: value.name.trim(),
+          group: value.group.trim(),
           // Renames the stored pool when the name changed.
           previous_name: alias?.name,
           context_window: Number(value.context_window) || undefined,
@@ -201,6 +209,24 @@ function AliasForm({ open, alias, onOpenChange }: AliasFormProps) {
                   Clients, keys, and plans still using “{alias?.name}” will stop resolving.
                 </p>
               ) : null}
+            </div>
+          )}
+        </form.AppField>
+
+        <form.AppField name="group">
+          {(field) => (
+            <div className="space-y-1.5">
+              <field.TextField label="Group" placeholder="coding" list="alias-group-options" />
+              <datalist id="alias-group-options">
+                {groups.map((group) => (
+                  <option key={group} value={group}>
+                    {group}
+                  </option>
+                ))}
+              </datalist>
+              <p className="text-muted-foreground text-xs">
+                Groups only organise the alias list; leave empty for Ungrouped.
+              </p>
             </div>
           )}
         </form.AppField>

@@ -5,8 +5,10 @@ import "time"
 // ModelAlias is a model alias pool: one bare name mapping to an ordered list
 // of provider/model targets.
 type ModelAlias struct {
-	ID            string        `json:"id"`
-	Name          string        `json:"name"`
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	// Group is a display-only label for the alias list; empty is ungrouped.
+	Group         string        `json:"group"`
 	ContextWindow int           `json:"context_window"`
 	Active        bool          `json:"active"`
 	Targets       []AliasTarget `json:"targets"`

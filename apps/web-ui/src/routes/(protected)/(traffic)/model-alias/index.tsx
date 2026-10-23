@@ -1,4 +1,4 @@
-import { IconPlus, IconReplace, IconSearch } from '@tabler/icons-react'
+import { IconChevronRight, IconPlus, IconReplace, IconSearch } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useMemo, useState } from 'react'
@@ -46,7 +46,7 @@ function ModelAliasRoute() {
   const aliases = useMemo(() => {
     const q = search.trim().toLowerCase()
     return all.filter((alias) => {
-      if (q && !alias.name.toLowerCase().includes(q)) {
+      if (q && !alias.name.toLowerCase().includes(q) && !alias.group?.toLowerCase().includes(q)) {
         return false
       }
       if (status === 'active' && !alias.active) {
@@ -60,6 +60,20 @@ function ModelAliasRoute() {
   }, [all, search, status])
 
   const filtering = search.trim() !== '' || status !== 'all'
+
+  // Named groups alphabetically, Ungrouped ('') last. Stays flat until at
+  // least one alias carries a group.
+  const groups = useMemo(() => {
+    const byGroup = new Map<string, Models.ModelAlias[]>()
+    for (const alias of aliases) {
+      const group = alias.group?.trim() ?? ''
+      byGroup.set(group, [...(byGroup.get(group) ?? []), alias])
+    }
+    return [...byGroup.entries()].sort(([a], [b]) => {
+      if (a === '' || b === '') return a === '' ? 1 : -1
+      return a.localeCompare(b)
+    })
+  }, [aliases])
 
   const renderAliases = () => {
     if (isLoading) {
@@ -93,10 +107,29 @@ function ModelAliasRoute() {
       )
     }
 
-    return (
+    const renderRows = (rows: Models.ModelAlias[]) => (
       <div className="divide-border border-border divide-y rounded-xl border">
-        {aliases.map((alias) => (
+        {rows.map((alias) => (
           <AliasRow key={alias.id} alias={alias} onShow={setViewing} onEdit={setEditing} />
+        ))}
+      </div>
+    )
+
+    if (groups.length === 1 && groups[0][0] === '') {
+      return renderRows(aliases)
+    }
+
+    return (
+      <div className="space-y-3">
+        {groups.map(([group, rows]) => (
+          <details key={group || '__ungrouped'} open className="group/alias space-y-2">
+            <summary className="hover:text-foreground text-muted-foreground flex cursor-pointer list-none items-center gap-1.5 text-sm font-medium select-none [&::-webkit-details-marker]:hidden">
+              <IconChevronRight className="size-4 transition-transform group-open/alias:rotate-90" />
+              <span className="text-foreground">{group || 'Ungrouped'}</span>
+              <span className="tabular-nums">({rows.length})</span>
+            </summary>
+            {renderRows(rows)}
+          </details>
         ))}
       </div>
     )

@@ -8,7 +8,7 @@ import type { AliasTarget, ModelAlias } from '../../models/provider-catalog'
 type AliasTargetPayload = Pick<AliasTarget, 'provider' | 'model'> & { active?: boolean }
 
 type AliasPayload = Pick<ModelAlias, 'name'> &
-  Partial<Pick<ModelAlias, 'context_window' | 'active'>> & {
+  Partial<Pick<ModelAlias, 'group' | 'context_window' | 'active'>> & {
     /** the stored name to rename from; omit to upsert by name */
     previous_name?: string
     targets: AliasTargetPayload[]
@@ -28,6 +28,7 @@ export const AliasTargetSchema = z.object({
 export const AliasSchema = z.object({
   name: requiredString('name'),
   previous_name: optionalString('previous name'),
+  group: optionalString('group'),
   context_window: optionalNumber('context window'),
   active: optionalBoolean('active'),
   targets: z.array(AliasTargetSchema, { error: 'The targets field must be an array.' }),

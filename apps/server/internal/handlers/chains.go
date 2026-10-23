@@ -3,6 +3,7 @@ package handlers
 import (
 	"cmp"
 	"errors"
+	"strings"
 	"time"
 
 	"tera-router/server/internal/app"
@@ -209,6 +210,7 @@ func (h *chainsHandler) Usage(c fiber.Ctx) error {
 func aliasFromRequest(req dtos.Alias) models.ModelAlias {
 	alias := models.ModelAlias{
 		Name:          req.Name,
+		Group:         strings.TrimSpace(req.Group),
 		ContextWindow: req.ContextWindow,
 		Active:        true,
 		Targets:       make([]models.AliasTarget, 0, len(req.Targets)),
