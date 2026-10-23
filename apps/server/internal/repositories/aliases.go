@@ -23,6 +23,23 @@ func (r *AliasRepository) Upsert(ctx context.Context, a models.ModelAlias) error
 	})
 }
 
+// Rename moves the pool stored under `from` to a.Name, then writes a over it,
+// in one transaction. A missing `from` is apperr.ErrNotFound; a taken a.Name
+// is a 409.
+func (r *AliasRepository) Rename(ctx context.Context, from string, a models.ModelAlias) error {
+	return r.withTx(ctx, func(tx Executor) error {
+		res, err := r.execContext(ctx, tx, `
+			UPDATE model_aliases SET name = $2 WHERE name = $1`, from, a.Name)
+		if err != nil {
+			return translateUnique(err, "alias name already exists")
+		}
+		if err := requireAffected(res, "model alias"); err != nil {
+			return err
+		}
+		return r.upsertExec(ctx, tx, a)
+	})
+}
+
 func (r *AliasRepository) upsertExec(ctx context.Context, ex Executor, a models.ModelAlias) error {
 	if _, err := r.execContext(ctx, ex, `
 		INSERT INTO model_aliases (id, name, context_window, active)

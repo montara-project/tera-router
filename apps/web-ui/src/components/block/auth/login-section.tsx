@@ -105,17 +105,18 @@ export default function LoginSection({ className, ...props }: React.ComponentPro
                 pattern={REGEXP_ONLY_DIGITS}
                 aria-invalid={!!error}
                 autoFocus
+                containerClassName="w-full"
               >
-                <InputOTP.Group>
-                  <InputOTP.Slot index={0} />
-                  <InputOTP.Slot index={1} />
-                  <InputOTP.Slot index={2} />
+                <InputOTP.Group className="flex-1">
+                  <InputOTP.Slot index={0} className="flex-1" />
+                  <InputOTP.Slot index={1} className="flex-1" />
+                  <InputOTP.Slot index={2} className="flex-1" />
                 </InputOTP.Group>
                 <InputOTP.Separator />
-                <InputOTP.Group>
-                  <InputOTP.Slot index={3} />
-                  <InputOTP.Slot index={4} />
-                  <InputOTP.Slot index={5} />
+                <InputOTP.Group className="flex-1">
+                  <InputOTP.Slot index={3} className="flex-1" />
+                  <InputOTP.Slot index={4} className="flex-1" />
+                  <InputOTP.Slot index={5} className="flex-1" />
                 </InputOTP.Group>
               </InputOTP>
               <p className="text-muted-foreground text-sm">

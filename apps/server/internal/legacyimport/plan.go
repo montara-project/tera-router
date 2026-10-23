@@ -56,8 +56,8 @@ type PlannedAccount struct {
 	ProxyPoolRef   string
 }
 
-// PlannedKey is an inbound API key imported with its original key string, so
-// clients configured against the old router keep working.
+// PlannedKey is an inbound API key from the backup. The import mints a fresh
+// key under the same name; Key only proves the backup carried a real one.
 type PlannedKey struct {
 	Name     string
 	Key      string

@@ -36,7 +36,9 @@ type AliasTarget struct {
 
 // Alias is the model alias pool upsert body (PUT /v1/models/alias).
 type Alias struct {
-	Name          string        `json:"name"`
+	Name string `json:"name"`
+	// PreviousName, when set and different from Name, renames that pool.
+	PreviousName  string        `json:"previous_name"`
 	ContextWindow int           `json:"context_window"`
 	Active        *bool         `json:"active"`
 	Targets       []AliasTarget `json:"targets"`

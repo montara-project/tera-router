@@ -173,8 +173,8 @@ export default function ImportExportTab() {
               </div>
               <p className="text-muted-foreground mt-3 text-xs leading-relaxed">
                 Imports provider connections (API keys &amp; OAuth tokens re-sealed), custom
-                provider nodes, API keys (re-hashed — same key string keeps working), combos (→
-                chains), proxy pools, and model aliases.
+                provider nodes, API keys (re-generated — reveal the new key and update your
+                clients), combos (→ chains), proxy pools, and model aliases.
               </p>
               <Button
                 type="button"
