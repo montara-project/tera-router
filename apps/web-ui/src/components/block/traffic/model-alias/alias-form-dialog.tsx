@@ -1,4 +1,4 @@
-import { IconChevronDown, IconChevronUp, IconPlus, IconReplace, IconX } from '@tabler/icons-react'
+import { IconChevronDown, IconChevronUp, IconPlus, IconX } from '@tabler/icons-react'
 import { useSelector } from '@tanstack/react-form'
 import { useMutation, useQueries, useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -7,14 +7,8 @@ import z from 'zod'
 import type { Models } from '@/lib/api/models'
 import type { Option } from '@/types/select'
 
-import IconBadge from '@/components/block/common/icon-badge'
+import SimpleAlertScrollableDialogForm from '@/components/block/common/simple-alert-scrollable-dialog-form'
 import { Button } from '@/components/ui/button'
-import DialogContent, {
-  Dialog,
-  DialogBody,
-  DialogDescription,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { Switch } from '@/components/ui/switch'
 import { useAppForm } from '@/hooks/form'
 import { toastAxiosError } from '@/lib/api/axios-error'
@@ -61,44 +55,28 @@ interface AliasFormDialogProps {
 }
 
 /**
- * Create/edit dialog for one alias pool. The inner form is keyed by alias id
- * so every open starts from fresh defaults instead of the previous session's
- * values.
+ * Create/edit dialog for one alias pool. The form is keyed by alias id + open
+ * state so every open starts from fresh defaults instead of the previous
+ * session's values.
  */
 export default function AliasFormDialog({ open, onOpenChange, alias }: AliasFormDialogProps) {
-  const editing = Boolean(alias?.id)
-
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl p-0">
-        <div className="border-border border-b px-6 pt-5 pb-4">
-          <div className="flex items-start gap-3">
-            <IconBadge icon={IconReplace} iconClassName="size-5" />
-            <div className="min-w-0">
-              <DialogTitle className="text-base">
-                {editing ? 'Edit Alias' : 'Create Alias'}
-              </DialogTitle>
-              <DialogDescription>
-                One alias name mapped to an ordered pool of provider/model targets.
-              </DialogDescription>
-            </div>
-          </div>
-        </div>
-
-        <DialogBody className="px-6 py-5">
-          <AliasForm key={alias?.id ?? 'new'} alias={alias} onOpenChange={onOpenChange} />
-        </DialogBody>
-      </DialogContent>
-    </Dialog>
+    <AliasForm
+      key={`${alias?.id ?? 'new'}-${open}`}
+      open={open}
+      alias={alias}
+      onOpenChange={onOpenChange}
+    />
   )
 }
 
 interface AliasFormProps {
+  open: boolean
   alias?: Models.ModelAlias | null
   onOpenChange: (open: boolean) => void
 }
 
-function AliasForm({ alias, onOpenChange }: AliasFormProps) {
+function AliasForm({ open, alias, onOpenChange }: AliasFormProps) {
   const editing = Boolean(alias?.id)
   const submitLabel = editing ? 'Save changes' : 'Create alias'
 
@@ -203,11 +181,18 @@ function AliasForm({ alias, onOpenChange }: AliasFormProps) {
   })
 
   return (
-    <form
+    <SimpleAlertScrollableDialogForm
+      open={open}
+      onOpenChange={onOpenChange}
+      title={editing ? 'Edit Alias' : 'Create Alias'}
+      description="One alias name mapped to an ordered pool of provider/model targets."
       onSubmit={(event) => {
         event.preventDefault()
         form.handleSubmit()
       }}
+      confirmText={submitLabel}
+      loading={saving}
+      disabled={hasIncompleteTarget}
     >
       <div className="space-y-5">
         <form.AppField name="name">
@@ -401,20 +386,10 @@ function AliasForm({ alias, onOpenChange }: AliasFormProps) {
           }}
         </form.AppField>
 
-        <div className="border-border flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-muted-foreground text-xs">
-            Targets run top to bottom — later targets only serve when earlier ones fail.
-          </p>
-          <div className="flex shrink-0 justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={saving || hasIncompleteTarget}>
-              {saving ? 'Saving…' : submitLabel}
-            </Button>
-          </div>
-        </div>
+        <p className="text-muted-foreground text-xs">
+          Targets run top to bottom — later targets only serve when earlier ones fail.
+        </p>
       </div>
-    </form>
+    </SimpleAlertScrollableDialogForm>
   )
 }
