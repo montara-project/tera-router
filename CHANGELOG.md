@@ -3,6 +3,18 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [1.9.0](https://github.com/montara-project/tera-router/compare/v1.8.0...v1.9.0) (2026-10-23)
+
+### Features
+
+* group model aliases on the model alias page ([e93d3f4](https://github.com/montara-project/tera-router/commit/e93d3f4a16c96cf3f1bc0ff9966e7c2c53fc7263))
+* limit chain and alias provider pickers to usable providers ([42a9c3c](https://github.com/montara-project/tera-router/commit/42a9c3c3c52f7320aec652426d55727e302c157e))
+* **web-ui:** test all enabled models from the provider catalog ([3e53ffe](https://github.com/montara-project/tera-router/commit/3e53ffe6815805c31fd7a2c0661da508e6e94aaa))
+
+### Bug Fixes
+
+* **web-ui:** use scrollable dialog form for chain and model alias forms ([4dcb401](https://github.com/montara-project/tera-router/commit/4dcb401443029ded1f21eb82f0ff201a9ce2c08c))
+
 ## [1.8.0](https://github.com/montara-project/tera-router/compare/v1.7.0...v1.8.0) (2026-10-23)
 
 ### Features
