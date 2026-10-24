@@ -5,10 +5,13 @@ import {
   optionalNumber,
   optionalObject,
   optionalString,
+  requiredNumber,
   requiredString,
 } from '@/lib/validation'
 
 import type { CustomProvider } from '../../models/provider-catalog'
+
+import { ACCOUNT_STRATEGIES, type ProviderRouting } from '../../models/provider'
 
 /**
  * pricing and metadata travel as JSON objects on the wire; the CustomProvider
@@ -35,4 +38,12 @@ export const CustomProviderSchema = z.object({
   metadata: optionalObject('metadata'),
 }) satisfies z.ZodType<CustomProviderPayload>
 
+/** Account strategy body (PUT /v1/providers/:id/routing). */
+export const ProviderRoutingSchema = z.object({
+  strategy: z.enum(ACCOUNT_STRATEGIES),
+  sticky_limit: requiredNumber('requests before rotating').min(1).max(1000),
+  affinity_hours: requiredNumber('session affinity').min(1).max(720),
+}) satisfies z.ZodType<ProviderRouting>
+
 export type CustomProviderDto = z.infer<typeof CustomProviderSchema>
+export type ProviderRoutingDto = z.infer<typeof ProviderRoutingSchema>

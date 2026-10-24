@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 
 import SectionCard from '@/components/block/common/section-card'
 import SimpleAlertDialog from '@/components/block/common/simple-alert-dialog'
+import AccountStrategyCard from '@/components/block/provider-detail/account-strategy-card'
 import AccountsPanel from '@/components/block/provider-detail/accounts-panel'
 import DetailSkeleton from '@/components/block/provider-detail/detail-skeleton'
 import ModelsPanel from '@/components/block/provider-detail/models-panel'
@@ -317,7 +318,8 @@ function CustomProviderDetailRoute() {
               />
             </TabsContent>
 
-            <TabsContent value="routing" className="mt-4">
+            <TabsContent value="routing" className="mt-4 space-y-4">
+              {slug ? <AccountStrategyCard slug={slug} /> : null}
               <RoutingPanel chains={chains} loading={chainsQuery.isLoading} slug={slug ?? ''} />
             </TabsContent>
 

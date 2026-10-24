@@ -1,6 +1,6 @@
 import type { AxiosDeleteResponse, AxiosItemResponse, AxiosListResponse } from '@/types/api'
 
-import type { CreateKeyDto, UpdateKeyDto } from '../../dtos/key/schema'
+import type { CreateKeyDto, RevealKeyDto, UpdateKeyDto } from '../../dtos/key/schema'
 import type { PaginateDto } from '../../dtos/paginate'
 import type { ApiKey, ApiKeyDetail } from '../../models/key'
 
@@ -11,5 +11,8 @@ export type KeyResources = {
   update: (id: string, payload: UpdateKeyDto) => Promise<AxiosItemResponse<ApiKey>>
   toggleStatus: (id: string, disabled: boolean) => Promise<AxiosItemResponse<{ id: string }>>
   remove: (id: string) => Promise<AxiosDeleteResponse>
-  reveal: (id: string) => Promise<AxiosItemResponse<{ id: string; full_key: string }>>
+  reveal: (
+    id: string,
+    payload: RevealKeyDto
+  ) => Promise<AxiosItemResponse<{ id: string; full_key: string } | { totp_required: true }>>
 }

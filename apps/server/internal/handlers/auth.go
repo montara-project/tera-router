@@ -75,21 +75,26 @@ func (h *authHandler) signIn(ctx context.Context, email, plainPassword, otp stri
 		return dtos.Session{}, err
 	}
 
+	if err := h.verifyFactors(ctx, user, plainPassword, otp); err != nil {
+		return dtos.Session{}, err
+	}
+	return h.issueSession(ctx, user)
+}
+
+// verifyFactors checks the password, and the TOTP code when the user enabled
+// it. errTOTPRequired means the password passed but no code was sent.
+func (h *authHandler) verifyFactors(ctx context.Context, user models.User, plainPassword, otp string) error {
 	ok, err := password.Verify(plainPassword, user.PasswordHash)
 	if err != nil || !ok || !user.IsActive || user.IsBlocked {
-		return dtos.Session{}, ErrBadCredentials
+		return ErrBadCredentials
 	}
-
-	if user.TOTPEnabled {
-		if otp == "" {
-			return dtos.Session{}, errTOTPRequired
-		}
-		if err := h.checkTOTP(ctx, user, otp); err != nil {
-			return dtos.Session{}, err
-		}
+	if !user.TOTPEnabled {
+		return nil
 	}
-
-	return h.issueSession(ctx, user)
+	if otp == "" {
+		return errTOTPRequired
+	}
+	return h.checkTOTP(ctx, user, otp)
 }
 
 // Refresh rotates the presented refresh token: the presented token is

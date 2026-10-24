@@ -5,7 +5,7 @@ import type { ApiItemResponse } from '@/types/api'
 import { getQueryClient } from '@/lib/providers/react-query'
 
 import type { PaginateDto } from '../dtos/paginate'
-import type { CustomProviderDto } from '../dtos/provider/schema'
+import type { CustomProviderDto, ProviderRoutingDto } from '../dtos/provider/schema'
 import type { Models } from '../models'
 
 import { services } from '../services'
@@ -19,6 +19,10 @@ export const LIST_PROVIDER_QUERY_KEY = () => {
 
 export const LIST_CUSTOM_PROVIDER_QUERY_KEY = () => {
   return [CUSTOM_PROVIDER_QUERY_KEY, 'list']
+}
+
+export const GET_PROVIDER_ROUTING_QUERY_KEY = (slug: string) => {
+  return [PROVIDER_QUERY_KEY, 'routing', slug]
 }
 
 export const GET_CUSTOM_PROVIDER_QUERY_KEY = (id: string) => {
@@ -217,6 +221,30 @@ const catalogModels = (slug: string, params?: ProviderModelListParams) =>
     },
   })
 
+const routing = (slug: string) =>
+  queryOptions({
+    queryKey: GET_PROVIDER_ROUTING_QUERY_KEY(slug),
+    queryFn: async () => {
+      const res = await services.providers.routing(slug)
+      return res.data
+    },
+    enabled: !!slug,
+  })
+
+const updateRouting = (slug: string) => {
+  const qc = getQueryClient()
+
+  return mutationOptions({
+    mutationFn: async (reqBody: ProviderRoutingDto) => {
+      const res = await services.providers.updateRouting(slug, reqBody)
+      return res.data
+    },
+    onSuccess: (res) => {
+      qc.setQueryData(GET_PROVIDER_ROUTING_QUERY_KEY(slug), res)
+    },
+  })
+}
+
 const catalogModelsSync = (slug: string) => {
   const qc = getQueryClient()
 
@@ -300,6 +328,8 @@ export const providerQueries = {
   customModelsSync,
   customModelsUpdate,
   catalogModels,
+  routing,
+  updateRouting,
   catalogModelsSync,
   catalogModelsUpdate,
   catalogModelTest,

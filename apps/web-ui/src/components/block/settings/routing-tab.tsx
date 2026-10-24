@@ -55,7 +55,7 @@ export default function RoutingTab({ settings, onUpdate }: RoutingTabProps) {
         <div className="divide-y divide-border">
           <SettingRow
             title="Provider group round robin"
-            description="Cycle through accounts in the same provider/model group"
+            description="Cycle through accounts in the same provider. A provider can override this under Account strategy on its page."
           >
             <Switch
               aria-label="Enable provider group round robin"

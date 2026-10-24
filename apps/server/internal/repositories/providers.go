@@ -178,7 +178,8 @@ func (r *ProviderRepository) DeleteEmpty(ctx context.Context, ids []string) ([]s
 }
 
 // cascadeExec removes what is scoped to a provider besides its accounts —
-// pricing and capability overrides and the stored model catalog — and then
+// pricing and capability overrides, the stored model catalog and the account
+// strategy — and then
 // the provider row itself.
 func (r *ProviderRepository) cascadeExec(ctx context.Context, tx Executor, id, slug string) error {
 	if _, err := r.execAffected(ctx, tx,
@@ -189,9 +190,10 @@ func (r *ProviderRepository) cascadeExec(ctx context.Context, tx Executor, id, s
 		`DELETE FROM model_capability_overrides WHERE provider = $1`, slug); err != nil {
 		return err
 	}
-	// The stored catalog is a settings row, not a table of its own.
+	// The stored catalog and account strategy are settings rows, not tables
+	// of their own.
 	if _, err := r.execAffected(ctx, tx,
-		`DELETE FROM settings WHERE key = $1`, ProviderModelsSettingsKey(slug)); err != nil {
+		`DELETE FROM settings WHERE key IN ($1, $2)`, ProviderModelsSettingsKey(slug), ProviderRoutingSettingsKey(slug)); err != nil {
 		return err
 	}
 	return r.deleteExec(ctx, tx, id)

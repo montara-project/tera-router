@@ -142,3 +142,16 @@ type ProviderOverview struct {
 	Connected []ProviderView `json:"connected"`
 	Available []ProviderView `json:"available"`
 }
+
+// ProviderRouting is a provider's account strategy body
+// (PUT /v1/providers/:id/routing). The numeric bounds are checked in the
+// handler: the map validator has no integer rules.
+type ProviderRouting struct {
+	Strategy      string `json:"strategy"`
+	StickyLimit   int    `json:"sticky_limit"`
+	AffinityHours int    `json:"affinity_hours"`
+}
+
+func (d *ProviderRouting) Validate(v *validator.MapValidator) {
+	v.Field("strategy").Required().WithinS("default", "fill-first", "round-robin", "smart-round-robin")
+}

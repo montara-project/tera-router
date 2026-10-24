@@ -27,14 +27,16 @@ type attempt struct {
 //
 // Targets that cannot be routed (unknown provider, non-routable dialect, no
 // connector for the dialect) are skipped. For each routable target the
-// provider's usable accounts are expanded in priority order. Providers that
+// provider's usable accounts are expanded in the order its account strategy
+// picks (see accountStrategy); session identifies the conversation for smart
+// round robin. Providers that
 // authenticate by network position (AuthNone: self-hosted vLLM, local Ollama)
 // with no account rows still get one synthetic credential-less attempt, so a
 // correctly configured local endpoint works without a fake account.
 //
 // The result is capped at maxAttempts to bound the work a single request can
 // trigger.
-func (s *Server) plan(ctx context.Context, targets []target) []attempt {
+func (s *Server) plan(ctx context.Context, targets []target, session string) []attempt {
 	out := make([]attempt, 0, len(targets))
 
 	for _, t := range targets {
@@ -74,6 +76,9 @@ func (s *Server) plan(ctx context.Context, targets []target) []attempt {
 			}
 			continue
 		}
+
+		usable := func(id string) bool { return !s.cooldowns.active(id) }
+		accounts = s.accountRotation.order(t.Provider, accounts, s.accountStrategy(ctx, t.Provider), session, usable, time.Now())
 
 		for _, acc := range accounts {
 			if len(out) >= maxAttempts {

@@ -53,7 +53,7 @@ Kalau key diikat ke plan, model yang diizinkan adalah **irisan** allowlist key d
 ## Siklus hidup
 
 - **Disable** — key dinonaktifkan langsung menolak request dengan `401`; cache verifikasi (5 menit) tidak berlaku untuk key yang dimatikan.
-- **Reveal** — `POST /v1/keys/:id/reveal` mengembalikan plaintext. Tiap reveal tercatat di audit log.
+- **Reveal** — `POST /v1/keys/:id/reveal` mengembalikan plaintext setelah kamu memasukkan ulang password: kirim `{ "password": "..." }`, dan saat autentikasi dua faktor aktif server menjawab `{ "totp_required": true }` sampai kamu mengirim ulang dengan `"otp"`. Password atau kode yang salah dihitung ke blokir IP, sama seperti login gagal. Tiap reveal tercatat di audit log.
 - **last used** — pemakaian pertama tiap key dicatat `last_used_at`, terlihat di daftar key.
 
 <Callout type="info" title="Satu key per perangkat">

@@ -9,8 +9,21 @@ For every request, the router:
 
 1. **Translates `model`** following the order in [Models & routing](/docs/gateway/model-addressing): `chain:<name>` → alias → `provider/model` → plain name. The result is an ordered list of targets.
 2. **Checks access** — key ∩ plan allowlist, and active budgets.
-3. **Picks an account** — the highest-priority account that isn't cooling down and isn't disabled; if the provider uses round-robin, accounts rotate.
+3. **Picks an account** — following the provider's [account strategy](#account-strategy), skipping accounts that are cooling down or disabled. The other accounts stay as fallbacks.
 4. **Forwards the request** — and moves up to the next target if it fails.
+
+## Account strategy
+
+Each provider decides how its accounts share requests (**Providers → pick a provider → Routing → Account strategy**, or `PUT /v1/providers/:slug/routing`):
+
+| Strategy          | `strategy`          | Behavior                                                                                                                                                                |
+| ----------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Router default    | `default`           | Follows **Settings → Routing**: round robin with the global sticky limit when provider round robin is on, fill first when it is off.                                    |
+| Fill first        | `fill-first`        | The highest-priority healthy account takes everything until it is unavailable.                                                                                          |
+| Round robin       | `round-robin`       | Each account takes `sticky_limit` requests, then the next one takes over.                                                                                               |
+| Smart round robin | `smart-round-robin` | New conversations rotate (every `sticky_limit` of them); every later turn of a conversation stays on the account it started on, until it is quiet for `affinity_hours`. |
+
+Smart round robin recognizes a conversation by the session id the client sends (Claude Code's `metadata.user_id`, Codex's `prompt_cache_key`), otherwise by its opening: the system prompt plus the first user message, per API key. Keeping a conversation on one account keeps the provider's prompt cache warm. Rotation state lives in memory, so a restart starts every provider from its first account again.
 
 ## Fallback chains
 
