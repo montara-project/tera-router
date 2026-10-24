@@ -63,16 +63,12 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	protected.Get("/keys", h.Keys.Index)
 	protected.Post("/keys", h.Keys.Store)
 	protected.Get("/keys/:id", h.Keys.Get)
-	protected.Put("/keys/:id", h.Keys.Update)
 	protected.Patch("/keys/:id", h.Keys.Update)
 	protected.Post("/keys/:id/reveal", h.Keys.Reveal)
 	protected.Delete("/keys/:id", h.Keys.Delete)
 
 	protected.Get("/plans", h.Plans.Index)
 	protected.Post("/plans", h.Plans.Store)
-	protected.Get("/plans/:id", h.Plans.Get)
-	protected.Get("/plans/:id/keys", h.Plans.Keys)
-	protected.Put("/plans/:id", h.Plans.Update)
 	protected.Patch("/plans/:id", h.Plans.Update)
 	protected.Delete("/plans/:id", h.Plans.Delete)
 
@@ -80,9 +76,7 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	protected.Get("/chains", h.Chains.Index)
 	protected.Post("/chains", h.Chains.Store)
 	protected.Get("/chains/:id", h.Chains.Get)
-	protected.Get("/chains/:id/usage", h.Chains.Usage)
 	protected.Put("/chains/:id", h.Chains.Update)
-	protected.Patch("/chains/:id", h.Chains.Update)
 	protected.Delete("/chains/:id", h.Chains.Delete)
 
 	protected.Get("/models/alias", h.Chains.AliasIndex)
@@ -91,13 +85,11 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 
 	// Providers & accounts
 	protected.Get("/providers", h.Providers.Index)
-	protected.Get("/providers/rates", h.Providers.Rates)
 	protected.Get("/custom-providers", h.Providers.CustomIndex)
 	protected.Post("/custom-providers", h.Providers.CustomStore)
 	protected.Post("/custom-providers/bulk-delete", h.Providers.CustomBulkDelete)
 	protected.Get("/custom-providers/by-slug/:slug", h.Providers.CustomShowBySlug)
 	protected.Get("/custom-providers/:id", h.Providers.CustomShow)
-	protected.Put("/custom-providers/:id", h.Providers.CustomUpdate)
 	protected.Patch("/custom-providers/:id", h.Providers.CustomUpdate)
 	protected.Delete("/custom-providers/:id", h.Providers.CustomDelete)
 	protected.Get("/custom-providers/:id/models", h.Providers.CustomModels)
@@ -112,23 +104,13 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	protected.Patch("/providers/:id/models", h.Providers.CatalogModelsUpdate)
 	protected.Post("/providers/:id/models/test", h.Providers.CatalogModelTest)
 
-	protected.Post("/validate-key", h.Accounts.ValidateKey)
 	protected.Get("/accounts", h.Accounts.Index)
 	protected.Post("/accounts", h.Accounts.Store)
-	protected.Post("/accounts/bulk", h.Accounts.Bulk)
 	protected.Get("/accounts/:id", h.Accounts.Get)
-	protected.Put("/accounts/:id", h.Accounts.Update)
 	protected.Patch("/accounts/:id", h.Accounts.Update)
 	protected.Delete("/accounts/:id", h.Accounts.Delete)
 	protected.Post("/accounts/:id/test", h.Accounts.Test)
 	protected.Get("/accounts/:id/quota", h.Accounts.Quota)
-	protected.Post("/accounts/:id/quota/reset", h.Accounts.QuotaReset)
-
-	// Provider-scoped bulk account operations (provider slug as :id).
-	protected.Post("/providers/:id/accounts/disable-all", h.Providers.AccountsBulkDisable)
-	protected.Post("/providers/:id/accounts/enable-all", h.Providers.AccountsBulkEnable)
-	protected.Delete("/providers/:id/accounts/disabled", h.Providers.AccountsBulkDeleteDisabled)
-	protected.Delete("/providers/:id/accounts/all", h.Providers.AccountsBulkDeleteAll)
 
 	// OAuth connection flows (anthropic, codex): start a PKCE flow against
 	// the provider's official web, then exchange the returned code for sealed
@@ -145,9 +127,6 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	protected.Patch("/budgets/:id", h.Budgets.Update)
 	protected.Delete("/budgets/:id", h.Budgets.Delete)
 
-	protected.Get("/usage", h.Usage.Summary)
-	protected.Get("/usage/models", h.Usage.Models)
-	protected.Get("/usage/insights", h.Usage.Insights)
 	protected.Get("/usage/telemetry", h.Usage.Telemetry)
 	protected.Get("/usage/activity", h.Usage.Activity)
 
@@ -164,8 +143,6 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	protected.Get("/proxy-pools", h.ProxyPools.Index)
 	protected.Post("/proxy-pools", h.ProxyPools.Store)
 	protected.Post("/proxy-pools/health-check", h.ProxyPools.HealthCheck)
-	protected.Put("/proxy-pools/:id", h.ProxyPools.Update)
-	protected.Patch("/proxy-pools/:id", h.ProxyPools.Update)
 	protected.Delete("/proxy-pools/:id", h.ProxyPools.Delete)
 	protected.Post("/proxy-pools/:id/test", h.ProxyPools.Test)
 
@@ -185,13 +162,11 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	protected.Post("/guardrails", h.Guardrails.Store)
 	protected.Put("/guardrails/settings", h.Guardrails.UpdateSettings)
 	protected.Post("/guardrails/evaluate", h.Guardrails.Evaluate)
-	protected.Put("/guardrails/:id", h.Guardrails.Update)
 	protected.Patch("/guardrails/:id", h.Guardrails.Update)
 	protected.Delete("/guardrails/:id", h.Guardrails.Delete)
 
 	// Settings, skills, console, system, media, CLI tools
 	protected.Get("/settings", h.Settings.Get)
-	protected.Put("/settings", h.Settings.Update)
 	protected.Patch("/settings", h.Settings.Update)
 
 	// Backup & migration: JSON configuration backup (optionally passphrase

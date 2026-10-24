@@ -73,24 +73,6 @@ func (r *ProxyPoolRepository) getExec(ctx context.Context, id string) (models.Pr
 	return scanProxyPool(row)
 }
 
-// Update rewrites a proxy pool.
-func (r *ProxyPoolRepository) Update(ctx context.Context, p models.ProxyPool) error {
-	return r.updateExec(ctx, p)
-}
-
-func (r *ProxyPoolRepository) updateExec(ctx context.Context, p models.ProxyPool) error {
-	res, err := r.execContext(ctx, r.DB, `
-		UPDATE proxy_pools
-		SET name = $2, url = $3, mode = $4, label = $5, status = $6, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now')
-		WHERE id = $1`,
-		p.ID, p.Name, p.URL, p.Mode, p.Label, p.Status,
-	)
-	if err != nil {
-		return err
-	}
-	return requireAffected(res, "proxy pool")
-}
-
 // UpdateTestedAt records the outcome of a health probe.
 func (r *ProxyPoolRepository) UpdateTestedAt(ctx context.Context, id string, at time.Time, status string) error {
 	return r.updateTestedAtExec(ctx, id, at, status)

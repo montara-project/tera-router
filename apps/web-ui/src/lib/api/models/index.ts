@@ -52,12 +52,9 @@ export namespace Models {
   export type TailscaleStatus = import('./tunnel').TailscaleStatus
   export type TunnelStatus = import('./tunnel').TunnelStatus
   export type UpstreamModels = import('./provider-catalog').UpstreamModels
-  export type UsageByModel = import('./usage').UsageByModel
-  export type UsageDaily = import('./usage').UsageDaily
   export type UsageModelAccountingRow = import('./usage').UsageModelAccountingRow
   export type UsageProviderAccountingRow = import('./usage').UsageProviderAccountingRow
   export type UsageRange = import('./usage').UsageRange
-  export type UsageSummary = import('./usage').UsageSummary
   export type UsageTelemetryOverview = import('./usage').UsageTelemetryOverview
   export type UsageTerminalRequestRow = import('./usage').UsageTerminalRequestRow
   export type User = import('./user').User

@@ -39,6 +39,6 @@ Pemakaian berjalan dilihat lewat `GET /v1/budgets/status` atau halaman **Quota T
 
 ## Harga model
 
-Biaya dihitung dari tabel harga per juta token: input, output, cache read, dan cache write. Harga bawaan diambil dari snapshot provider (`GET /v1/providers/rates`), dan bisa ditimpa per model lewat _pricing overrides_ (halaman **Plans** atau API `model-pricing-overrides`).
+Biaya dihitung dari tabel harga per juta token: input, output, cache read, dan cache write. Harga bawaan diambil dari snapshot provider, dan bisa ditimpa per model lewat _pricing overrides_ (halaman **Plans** atau API `model-pricing-overrides`).
 
 Model yang tidak punya harga dihitung nol — kalau angka spend di **Usage** terasa terlalu kecil, cek dulu apakah model yang dipakai sudah punya harga.

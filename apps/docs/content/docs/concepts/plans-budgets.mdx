@@ -39,6 +39,6 @@ Running usage is visible via `GET /v1/budgets/status` or the **Quota Tracker** p
 
 ## Model pricing
 
-Cost is computed from a per-million-token price table: input, output, cache read, and cache write. Default prices come from provider snapshots (`GET /v1/providers/rates`), and can be overridden per model via _pricing overrides_ (**Plans** page or the `model-pricing-overrides` API).
+Cost is computed from a per-million-token price table: input, output, cache read, and cache write. Default prices come from provider snapshots, and can be overridden per model via _pricing overrides_ (**Plans** page or the `model-pricing-overrides` API).
 
 Models without a price are counted as zero — if the spend numbers on **Usage** feel too small, first check whether the models you use actually have prices.

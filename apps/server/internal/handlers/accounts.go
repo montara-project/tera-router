@@ -208,56 +208,6 @@ func (h *accountsHandler) Store(c fiber.Ctx) error {
 	return dtos.Created(c, accountView(account), "Account created")
 }
 
-func (h *accountsHandler) Bulk(c fiber.Ctx) error {
-	var req dtos.BulkAccounts
-	if err := lib.ValidateRequestBody(c, &req); err != nil {
-		return err
-	}
-	if len(req.Accounts) == 0 {
-		return apperr.New(apperr.KindBadRequest, "accounts must not be empty")
-	}
-
-	accounts := make([]models.Account, 0, len(req.Accounts))
-	for _, item := range req.Accounts {
-		in := accountInputFrom(item)
-		account := models.Account{
-			ID:       uuid.NewString(),
-			Provider: in.Provider,
-			Label:    in.Label,
-			AuthKind: in.AuthKind,
-			Priority: in.Priority,
-			Metadata: orEmptyJSON(in.Metadata),
-		}
-		if in.ProxyPoolID != "" {
-			poolID := in.ProxyPoolID
-			account.ProxyPoolID = &poolID
-		}
-		if err := sealCredential(h.app, &account, in); err != nil {
-			return err
-		}
-		accounts = append(accounts, account)
-	}
-
-	if err := h.app.Repos.Accounts.BulkInsert(c.Context(), accounts); err != nil {
-		return err
-	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "account.bulk_create", fmt.Sprintf("%d accounts", len(accounts)), map[string]int{"count": len(accounts)})
-	return dtos.Created(c, len(accounts), "Accounts created")
-}
-
-func (h *accountsHandler) ValidateKey(c fiber.Ctx) error {
-	var req dtos.ValidateKey
-	if err := lib.ValidateRequestBody(c, &req); err != nil {
-		return err
-	}
-
-	result, err := h.probe(c.Context(), req.Provider, encodeMetadata(req.Metadata), req.APIKey, false)
-	if err != nil {
-		return err
-	}
-	return dtos.OK(c, result)
-}
-
 func (h *accountsHandler) Get(c fiber.Ctx) error {
 	id, err := lib.ContextParamUUID(c, "id")
 	if err != nil {
@@ -477,20 +427,6 @@ func (h *accountsHandler) Quota(c fiber.Ctx) error {
 		"windows":          windows,
 		"fetched_at":       time.Now().UTC(),
 	})
-}
-
-// QuotaReset clears in-memory rate/quota strikes for the account.
-func (h *accountsHandler) QuotaReset(c fiber.Ctx) error {
-	id, err := lib.ContextParamUUID(c, "id")
-	if err != nil {
-		return apperr.ErrBadRequest
-	}
-
-	if _, err := h.app.Repos.Accounts.Get(c.Context(), id.String()); err != nil {
-		return err
-	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "account.quota_reset", id.String(), nil)
-	return dtos.Message(c, fiber.StatusOK, "Quota state reset")
 }
 
 // orEmptyJSON normalizes an empty metadata payload to an empty JSON object.

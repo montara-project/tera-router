@@ -199,15 +199,6 @@ func catalogOverviewViews(listed []dtos.CatalogProvider, counts map[string]int, 
 	return connected, available
 }
 
-// Rates returns the pricing snapshot (overrides + catalog fallbacks).
-func (h *providersHandler) Rates(c fiber.Ctx) error {
-	overrides, err := h.app.Repos.Pricing.List(c.Context(), "")
-	if err != nil {
-		return err
-	}
-	return dtos.OK(c, fiber.Map{"overrides": overrides})
-}
-
 func (h *providersHandler) CustomIndex(c fiber.Ctx) error {
 	providers, err := h.app.Repos.Providers.List(c.Context())
 	if err != nil {
@@ -948,46 +939,4 @@ func (h *providersHandler) CustomModelTest(c fiber.Ctx) error {
 	anthropic := kind == "anthropic"
 	apiKey, oauth := h.usableCredential(c.Context(), provider.Slug)
 	return h.runModelTest(c, base, anthropic, apiKey, oauth, nil)
-}
-
-// --- Provider-scoped bulk account operations ---
-
-func (h *providersHandler) AccountsBulkDisable(c fiber.Ctx) error {
-	provider := c.Params("id")
-	updated, err := h.app.Repos.Accounts.SetDisabledByProvider(c.Context(), provider, true)
-	if err != nil {
-		return err
-	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "account.bulk_disable", provider, map[string]any{"disabled": true, "updated": updated})
-	return dtos.OK(c, fiber.Map{"updated": updated})
-}
-
-func (h *providersHandler) AccountsBulkEnable(c fiber.Ctx) error {
-	provider := c.Params("id")
-	updated, err := h.app.Repos.Accounts.SetDisabledByProvider(c.Context(), provider, false)
-	if err != nil {
-		return err
-	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "account.bulk_enable", provider, map[string]any{"disabled": false, "updated": updated})
-	return dtos.OK(c, fiber.Map{"updated": updated})
-}
-
-func (h *providersHandler) AccountsBulkDeleteDisabled(c fiber.Ctx) error {
-	provider := c.Params("id")
-	deleted, err := h.app.Repos.Accounts.DeleteDisabled(c.Context(), provider)
-	if err != nil {
-		return err
-	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "account.delete_disabled", provider, map[string]int64{"deleted": deleted})
-	return dtos.OK(c, fiber.Map{"deleted": deleted})
-}
-
-func (h *providersHandler) AccountsBulkDeleteAll(c fiber.Ctx) error {
-	provider := c.Params("id")
-	deleted, err := h.app.Repos.Accounts.DeleteAll(c.Context(), provider)
-	if err != nil {
-		return err
-	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "account.delete_all", provider, map[string]int64{"deleted": deleted})
-	return dtos.OK(c, fiber.Map{"deleted": deleted})
 }

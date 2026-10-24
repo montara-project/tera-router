@@ -35,13 +35,11 @@ Account credentials are stored encrypted (envelope encryption with a key derived
 
 ## Adding an account
 
-Via the dashboard (**Providers → pick a provider → Connect**) or the API. Chat providers sync their model list right after connecting; search, voice, and embedding-only providers (Exa, ElevenLabs, Voyage AI, …) only need the key, which is checked on first use because those APIs have no free test call. Test before saving:
+Via the dashboard (**Providers → pick a provider → Connect**) or the API. Chat providers sync their model list right after connecting; search, voice, and embedding-only providers (Exa, ElevenLabs, Voyage AI, …) only need the key, which is checked on first use because those APIs have no free test call. Test the connection after saving:
 
 ```bash
-curl -X POST http://localhost:8080/v1/validate-key \
-  -H "Authorization: Bearer <dashboard-jwt>" \
-  -H "Content-Type: application/json" \
-  -d '{ "provider": "openai", "auth_kind": "api_key", "api_key": "sk-..." }'
+curl -X POST http://localhost:8080/v1/accounts/<account-id>/test \
+  -H "Authorization: Bearer <dashboard-jwt>"
 ```
 
 Important fields when creating an account:

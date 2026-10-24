@@ -36,11 +36,6 @@ const resources = (): ChainResources => {
       const url = `${path}/${id}`
       return api.delete(url)
     },
-    /** per-chain model usage aggregation (GET /v1/chains/:id/usage) */
-    usage: (id) => {
-      const url = `${path}/${id}/usage`
-      return api.get(url)
-    },
   }
 }
 

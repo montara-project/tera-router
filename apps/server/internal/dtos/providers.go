@@ -3,7 +3,7 @@ package dtos
 import "tera-router/server/internal/lib/validator"
 
 // CustomProvider is the OpenAI-compatible upstream registration body
-// (POST/PUT/PATCH /v1/custom-providers).
+// (POST/PATCH /v1/custom-providers).
 type CustomProvider struct {
 	Name    string         `json:"name"`
 	Slug    string         `json:"slug"`

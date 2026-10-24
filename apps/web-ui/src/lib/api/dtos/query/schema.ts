@@ -32,7 +32,7 @@ export const QuotaOverviewSchema = z.object({
 
 export const UsageRangeSchema = z.enum(USAGE_RANGES, { error: 'The selected range is invalid.' })
 
-/** Usage window query (GET /v1/usage, /v1/usage/models, /v1/usage/insights). */
+/** Usage window query (GET /v1/usage/telemetry). */
 export const UsageQuerySchema = z.object({
   range: UsageRangeSchema.optional(),
 })

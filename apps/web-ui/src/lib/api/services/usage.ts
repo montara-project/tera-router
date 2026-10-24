@@ -16,20 +16,6 @@ const api = new ClientFetchApi({
 
 const resources = (): UsageResources => {
   return {
-    summary: (range) => {
-      const url = path
-      return api.get(url, { params: parseDto(UsageQuerySchema, { range }) })
-    },
-    /** per-provider/model breakdown */
-    models: (range) => {
-      const url = `${path}/models`
-      return api.get(url, { params: parseDto(UsageQuerySchema, { range }) })
-    },
-    /** daily series plus summary and model ranking */
-    insights: (range) => {
-      const url = `${path}/insights`
-      return api.get(url, { params: parseDto(UsageQuerySchema, { range }) })
-    },
     /** full Usage page payload: traffic, spend, composition, tables, requests */
     telemetry: (range) => {
       const url = `${path}/telemetry`
