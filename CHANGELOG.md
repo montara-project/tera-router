@@ -3,6 +3,12 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [1.10.0](https://github.com/montara-project/tera-router/compare/v1.9.0...v1.10.0) (2026-10-24)
+
+### Bug Fixes
+
+* **server:** remove account api key reveal endpoint ([6432fcf](https://github.com/montara-project/tera-router/commit/6432fcf67ab0433e2aefe76371b2c8e6a19c7dd0))
+
 ## [1.9.0](https://github.com/montara-project/tera-router/compare/v1.8.0...v1.9.0) (2026-10-23)
 
 ### Features
