@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import SimpleAlertScrollableDialogForm from '@/components/block/common/simple-alert-scrollable-dialog-form'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { toastAxiosError } from '@/lib/api/axios-error'
+import { useReauthDialog } from '@/hooks/use-reauth-dialog'
 import { queries } from '@/lib/api/queries'
 import { saveFile } from '@/lib/file'
 
@@ -21,6 +21,7 @@ interface ConfigExportDialogProps {
  */
 export default function ConfigExportDialog({ open, onOpenChange }: ConfigExportDialogProps) {
   const exportMutation = useMutation(queries.backup.exportConfig())
+  const { confirm: reauth, dialog } = useReauthDialog()
   const [passphrase, setPassphrase] = useState('')
   const [confirm, setConfirm] = useState('')
 
@@ -34,65 +35,66 @@ export default function ConfigExportDialog({ open, onOpenChange }: ConfigExportD
     onOpenChange(next)
   }
 
-  const handleSubmit: React.SubmitEventHandler<HTMLFormElement> = (e) => {
+  // A passphrase the caller picks decrypts every credential in the file, so
+  // the export re-authenticates first.
+  const handleSubmit: React.SubmitEventHandler<HTMLFormElement> = async (e) => {
     e.preventDefault()
     if (mismatch) return
-    exportMutation.mutate(
-      { passphrase: passphrase || undefined },
-      {
-        onSuccess: (file) => {
-          saveFile(file.blob, file.filename)
-          toast.success(passphrase ? 'Portable backup downloaded' : 'Backup downloaded')
-          handleOpenChange(false)
-        },
-        onError: toastAxiosError,
-      }
+    const file = await reauth('export the configuration', (creds) =>
+      exportMutation.mutateAsync({ ...creds, passphrase: passphrase || undefined })
     )
+    if (!file) return
+    saveFile(file.blob, file.filename)
+    toast.success(passphrase ? 'Portable backup downloaded' : 'Backup downloaded')
+    handleOpenChange(false)
   }
 
   return (
-    <SimpleAlertScrollableDialogForm
-      open={open}
-      onOpenChange={handleOpenChange}
-      title="Download JSON backup"
-      description="Exports providers, accounts, API keys, plans, chains, aliases, proxy pools, budgets, guardrails, overrides, skills and settings."
-      onSubmit={handleSubmit}
-      confirmText="Download"
-      loading={exportMutation.isPending}
-      disabled={mismatch}
-      size="md"
-    >
-      <div className="space-y-2">
-        <Label htmlFor="export-passphrase">Passphrase (portable mode)</Label>
-        <Input
-          id="export-passphrase"
-          type="password"
-          autoComplete="new-password"
-          placeholder="Leave empty to keep credentials sealed to this install"
-          value={passphrase}
-          onChange={(e) => setPassphrase(e.target.value)}
-        />
-      </div>
-      {passphrase && (
+    <>
+      <SimpleAlertScrollableDialogForm
+        open={open}
+        onOpenChange={handleOpenChange}
+        title="Download JSON backup"
+        description="Exports providers, accounts, API keys, plans, chains, aliases, proxy pools, budgets, guardrails, overrides, skills and settings."
+        onSubmit={handleSubmit}
+        confirmText="Download"
+        loading={exportMutation.isPending}
+        disabled={mismatch}
+        size="md"
+      >
         <div className="space-y-2">
-          <Label htmlFor="export-passphrase-confirm">Confirm passphrase</Label>
+          <Label htmlFor="export-passphrase">Passphrase (portable mode)</Label>
           <Input
-            id="export-passphrase-confirm"
+            id="export-passphrase"
             type="password"
             autoComplete="new-password"
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
+            placeholder="Leave empty to keep credentials sealed to this install"
+            value={passphrase}
+            onChange={(e) => setPassphrase(e.target.value)}
           />
-          {mismatch && confirm && (
-            <p className="text-destructive text-xs">The passphrases do not match.</p>
-          )}
         </div>
-      )}
-      <p className="text-muted-foreground text-xs leading-relaxed">
-        {passphrase
-          ? 'Credentials are re-encrypted with this passphrase, so the file imports on any Tera Router install. Keep the passphrase — it cannot be recovered.'
-          : 'Without a passphrase, credentials stay encrypted with this install’s APP_SECRET and only an install with the same secret can import them.'}
-      </p>
-    </SimpleAlertScrollableDialogForm>
+        {passphrase && (
+          <div className="space-y-2">
+            <Label htmlFor="export-passphrase-confirm">Confirm passphrase</Label>
+            <Input
+              id="export-passphrase-confirm"
+              type="password"
+              autoComplete="new-password"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+            />
+            {mismatch && confirm && (
+              <p className="text-destructive text-xs">The passphrases do not match.</p>
+            )}
+          </div>
+        )}
+        <p className="text-muted-foreground text-xs leading-relaxed">
+          {passphrase
+            ? 'Credentials are re-encrypted with this passphrase, so the file imports on any Tera Router install. Keep the passphrase — it cannot be recovered.'
+            : 'Without a passphrase, credentials stay encrypted with this install’s APP_SECRET and only an install with the same secret can import them.'}
+        </p>
+      </SimpleAlertScrollableDialogForm>
+      {dialog}
+    </>
   )
 }

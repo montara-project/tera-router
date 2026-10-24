@@ -16,15 +16,21 @@ import (
 	"tera-router/server/internal/app"
 	"tera-router/server/internal/config"
 	"tera-router/server/internal/database"
+	"tera-router/server/internal/lib"
 	"tera-router/server/internal/lib/apikey"
 	"tera-router/server/internal/lib/sealer"
 	"tera-router/server/internal/middlewares"
 	"tera-router/server/internal/migrator"
 	"tera-router/server/internal/models"
 	"tera-router/server/internal/repositories"
+	"tera-router/server/internal/seeders"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 )
+
+// backupAdminPassword is the seeded admin's password in every harness.
+const backupAdminPassword = "pw"
 
 // backupHarness is one install: a migrated database file, a sealer derived
 // from its own APP_SECRET, and a Fiber app exposing the backup routes.
@@ -44,6 +50,10 @@ func newBackupHarness(t *testing.T, appSecret string) backupHarness {
 	if err := migrator.Up(db, "../../migrations"); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
+	// Exports and downloads re-authenticate the signed-in admin.
+	t.Setenv("ADMIN_PASSWORD", backupAdminPassword)
+	seeders.RoleSeeder{DB: db}.Seed()
+	seeders.AdminUserSeeder{DB: db}.Seed()
 	secrets, err := sealer.FromSecret(appSecret)
 	if err != nil {
 		t.Fatalf("sealer: %v", err)
@@ -56,11 +66,13 @@ func newBackupHarness(t *testing.T, appSecret string) backupHarness {
 	}
 
 	f := fiber.New(fiber.Config{ErrorHandler: middlewares.ErrorHandler, BodyLimit: 32 * 1024 * 1024})
+	admin := uuid.MustParse("00000000-0000-0000-0000-0000000000ff")
+	f.Use(func(c fiber.Ctx) error { lib.ContextSetUID(c, admin); return c.Next() })
 	b := &backupHandler{app: a}
 	li := &legacyImportHandler{app: a}
 	f.Post("/backup/config/export", b.ConfigExport)
 	f.Post("/backup/config/import", b.ConfigImport)
-	f.Get("/backup/database/download", b.DatabaseDownload)
+	f.Post("/backup/database/download", b.DatabaseDownload)
 	f.Post("/backup/database/restore", b.DatabaseRestore)
 	f.Post("/import/:source", li.Import)
 	return backupHarness{app: a, fiber: f}
@@ -133,14 +145,14 @@ func TestConfigBackupPortableAcrossInstalls(t *testing.T) {
 	src.seedAccount(t, "openai", "sk-live-source-key-123456")
 	src.seedChain(t, "coding")
 
-	status, portable := src.postJSON(t, "/backup/config/export", map[string]string{"passphrase": "correct horse"})
+	status, portable := src.postJSON(t, "/backup/config/export", map[string]string{"passphrase": "correct horse", "password": backupAdminPassword})
 	if status != http.StatusOK {
 		t.Fatalf("portable export status = %d: %s", status, portable)
 	}
 	if bytes.Contains(portable, []byte("sk-live-source-key-123456")) {
 		t.Fatal("portable export leaked the plaintext credential")
 	}
-	status, sealedOnly := src.postJSON(t, "/backup/config/export", map[string]string{})
+	status, sealedOnly := src.postJSON(t, "/backup/config/export", map[string]string{"password": backupAdminPassword})
 	if status != http.StatusOK {
 		t.Fatalf("plain export status = %d: %s", status, sealedOnly)
 	}
@@ -197,7 +209,7 @@ func TestDatabaseDownloadRestoreRoundTrip(t *testing.T) {
 	h := newBackupHarness(t, "secret")
 	h.seedAccount(t, "openai", "sk-snapshot-key-123456")
 
-	status, snapshot := h.do(t, httptest.NewRequest(http.MethodGet, "/backup/database/download", nil))
+	status, snapshot := h.postJSON(t, "/backup/database/download", map[string]string{"password": backupAdminPassword})
 	if status != http.StatusOK || !bytes.HasPrefix(snapshot, []byte("SQLite format 3\x00")) {
 		t.Fatalf("download status = %d, body is not a SQLite file", status)
 	}
@@ -368,5 +380,23 @@ func TestImportOmniRouteBackup(t *testing.T) {
 	}
 	if _, err := h.app.Repos.APIKeys.GetByLookup(context.Background(), apikey.LookupHash("sk-9router-client-key-xyz")); err == nil {
 		t.Error("OmniRoute API keys must not be imported")
+	}
+}
+
+// TestBackupsRequireReauth pins that neither backup leaves the server without
+// the signed-in user's password: the snapshot and the export (whose passphrase
+// would decrypt every credential) both refuse a missing or wrong one.
+func TestBackupsRequireReauth(t *testing.T) {
+	h := newBackupHarness(t, "test-secret")
+	for _, path := range []string{"/backup/database/download", "/backup/config/export"} {
+		if status, _ := h.postJSON(t, path, map[string]string{}); status == http.StatusOK {
+			t.Fatalf("%s without password = 200", path)
+		}
+		if status, body := h.postJSON(t, path, map[string]string{"password": "wrong"}); status != http.StatusUnprocessableEntity {
+			t.Fatalf("%s with wrong password = %d: %s", path, status, body)
+		}
+		if status, _ := h.postJSON(t, path, map[string]string{"password": backupAdminPassword}); status != http.StatusOK {
+			t.Fatalf("%s with password = %d", path, status)
+		}
 	}
 }

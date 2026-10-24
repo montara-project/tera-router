@@ -4,7 +4,8 @@ import { AUTH_STORAGE_KEYS } from '@/lib/constants/auth'
 import type { KeyResources } from './types/key'
 
 import { ClientFetchApi } from '../client-fetch'
-import { CreateKeySchema, RevealKeySchema, UpdateKeySchema } from '../dtos/key/schema'
+import { ReauthSchema } from '../dtos/auth/schema'
+import { CreateKeySchema, UpdateKeySchema } from '../dtos/key/schema'
 import { parseDto } from '../dtos/parse'
 
 const path = '/v1/keys'
@@ -46,7 +47,7 @@ const resources = (): KeyResources => {
      * TOTP code); answers totp_required until the code is sent. Audit-logged. */
     reveal: (id, payload) => {
       const url = `${path}/${id}/reveal`
-      return api.post(url, parseDto(RevealKeySchema, payload))
+      return api.post(url, parseDto(ReauthSchema, payload))
     },
   }
 }

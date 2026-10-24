@@ -15,17 +15,6 @@ func (d *CreateKey) Validate(v *validator.MapValidator) {
 	v.Field("name").Required().String()
 }
 
-// RevealKey re-authenticates a key reveal (POST /v1/keys/{id}/reveal): the
-// signed-in user's password, plus the authenticator code once TOTP is on.
-type RevealKey struct {
-	Password string `json:"password"`
-	OTP      string `json:"otp"`
-}
-
-func (d *RevealKey) Validate(v *validator.MapValidator) {
-	v.Field("password").Required().String()
-}
-
 // UpdateKey is the key mutation request body (PATCH /v1/keys/{id}).
 // Pointer fields are optional: absent fields keep their stored values.
 type UpdateKey struct {

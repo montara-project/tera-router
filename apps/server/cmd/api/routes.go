@@ -179,7 +179,7 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	protected.Post("/backup/config/export", h.Backup.ConfigExport)
 	protected.Post("/backup/config/import", h.Backup.ConfigImport)
 	protected.Get("/backup/database", h.Backup.DatabaseInfo)
-	protected.Get("/backup/database/download", h.Backup.DatabaseDownload)
+	protected.Post("/backup/database/download", h.Backup.DatabaseDownload)
 	protected.Post("/backup/database/restore", h.Backup.DatabaseRestore)
 	protected.Post("/import/:source", h.LegacyImport.Import)
 

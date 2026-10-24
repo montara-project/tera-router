@@ -150,13 +150,17 @@ Enabling and disabling are audit-logged. See [Remote access](/docs/getting-start
 
 ### Misc
 
-| Method       | Path               | Notes                                            |
-| ------------ | ------------------ | ------------------------------------------------ |
-| GET / PATCH  | `/v1/settings`     | Router settings (timeout, round-robin, etc.)     |
-| GET / POST   | `/v1/skills`       | List / create skills                             |
-| PATCH        | `/v1/skills/:id`   | Switch gateway injection (`enabled`)             |
-| DELETE       | `/v1/skills/:id`   | Delete skill                                     |
-| GET / DELETE | `/v1/console`      | Ring buffer log (500 entries) / clear            |
-| GET          | `/v1/system/stats` | Host & process metrics                           |
-| GET          | `/v1/media`        | Catalog providers grouped by non-chat capability |
-| GET          | `/health`          | Server health (no auth)                          |
+| Method       | Path                           | Notes                                            |
+| ------------ | ------------------------------ | ------------------------------------------------ |
+| GET / PATCH  | `/v1/settings`                 | Router settings (timeout, round-robin, etc.)     |
+| GET / POST   | `/v1/skills`                   | List / create skills                             |
+| PATCH        | `/v1/skills/:id`               | Switch gateway injection (`enabled`)             |
+| DELETE       | `/v1/skills/:id`               | Delete skill                                     |
+| GET / DELETE | `/v1/console`                  | Ring buffer log (500 entries) / clear            |
+| GET          | `/v1/system/stats`             | Host & process metrics                           |
+| GET          | `/v1/media`                    | Catalog providers grouped by non-chat capability |
+| GET          | `/health`                      | Server health (no auth)                          |
+| POST         | `/v1/backup/database/download` | SQLite snapshot; needs password (+ TOTP)         |
+| POST         | `/v1/backup/config/export`     | JSON config backup; needs password (+ TOTP)      |
+
+The key reveal and both backup downloads re-authenticate: send `"password"`, and when two-factor auth is on the server answers `{ "totp_required": true }` until you resend with `"otp"`. Wrong passwords or codes return `422` and count toward the IP block, like failed sign-ins.

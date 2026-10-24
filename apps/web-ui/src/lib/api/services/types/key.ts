@@ -1,6 +1,7 @@
 import type { AxiosDeleteResponse, AxiosItemResponse, AxiosListResponse } from '@/types/api'
 
-import type { CreateKeyDto, RevealKeyDto, UpdateKeyDto } from '../../dtos/key/schema'
+import type { ReauthDto } from '../../dtos/auth/schema'
+import type { CreateKeyDto, UpdateKeyDto } from '../../dtos/key/schema'
 import type { PaginateDto } from '../../dtos/paginate'
 import type { ApiKey, ApiKeyDetail } from '../../models/key'
 
@@ -13,6 +14,6 @@ export type KeyResources = {
   remove: (id: string) => Promise<AxiosDeleteResponse>
   reveal: (
     id: string,
-    payload: RevealKeyDto
+    payload: ReauthDto
   ) => Promise<AxiosItemResponse<{ id: string; full_key: string } | { totp_required: true }>>
 }

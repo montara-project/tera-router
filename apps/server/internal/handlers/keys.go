@@ -1,9 +1,7 @@
 package handlers
 
 import (
-	"errors"
 	"fmt"
-	"time"
 
 	"tera-router/server/internal/app"
 	"tera-router/server/internal/dtos"
@@ -221,45 +219,25 @@ func (h *keysHandler) Delete(c fiber.Ctx) error {
 	return dtos.Deleted(c, "Key deleted")
 }
 
-// Reveal failures are 422, not 401: the web client treats any 401 as an
-// expired session and signs the user out.
-var (
-	errRevealBadPassword = apperr.New(apperr.KindUnprocessable, "invalid password")
-	errRevealBadTOTP     = apperr.New(apperr.KindUnprocessable, "invalid authentication code")
-)
-
 // Reveal decrypts the stored key plaintext for explicit, audit-logged
 // recovery. Auth never consults these columns. The caller re-enters their
-// password (and TOTP code when enabled) on every reveal, so a stolen session
-// alone cannot read keys; failures count toward the client's IP block.
+// password (and TOTP code when enabled) on every reveal; see reauthenticate.
 func (h *keysHandler) Reveal(c fiber.Ctx) error {
 	id, err := lib.ContextParamUUID(c, "id")
 	if err != nil {
 		return apperr.ErrBadRequest
 	}
 
-	var req dtos.RevealKey
+	var req dtos.Reauth
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
 	}
-
-	auth := &authHandler{app: h.app}
-	user, err := auth.currentUser(c)
+	needsCode, err := reauthenticate(c, h.app, req.Password, req.OTP)
 	if err != nil {
 		return err
 	}
-	switch err := auth.verifyFactors(c.Context(), user, req.Password, req.OTP); {
-	case errors.Is(err, errTOTPRequired):
-		// Password checked out; the client asks for the code and resubmits.
-		return dtos.OK(c, fiber.Map{"totp_required": true})
-	case errors.Is(err, ErrBadCredentials):
-		h.failReveal(c)
-		return errRevealBadPassword
-	case errors.Is(err, ErrBadTOTP):
-		h.failReveal(c)
-		return errRevealBadTOTP
-	case err != nil:
-		return err
+	if needsCode {
+		return totpRequired(c)
 	}
 
 	key, err := h.app.Repos.APIKeys.Get(c.Context(), id.String())
@@ -283,12 +261,4 @@ func statusLabel(disabled bool) string {
 		return "disabled"
 	}
 	return "active"
-}
-
-// failReveal feeds a failed reveal re-authentication to the IP block guard,
-// the same brute-force limit failed sign-ins hit.
-func (h *keysHandler) failReveal(c fiber.Ctx) {
-	if ip := lib.ContextClientIP(c); ip.IsValid() && h.app.IPBlocks != nil {
-		_ = h.app.IPBlocks.Fail(c.Context(), ip, time.Now())
-	}
 }

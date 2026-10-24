@@ -92,10 +92,19 @@ type configBackup struct {
 // ConfigExport renders every configuration table as one JSON document. With
 // a passphrase the credentials are re-keyed so the file imports on any
 // install; without one they stay sealed under this install's APP_SECRET.
+// The caller re-authenticates first: a passphrase they choose decrypts every
+// credential in the file.
 func (h *backupHandler) ConfigExport(c fiber.Ctx) error {
 	var req dtos.ConfigExport
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
+	}
+	needsCode, err := reauthenticate(c, h.app, req.Password, req.OTP)
+	if err != nil {
+		return err
+	}
+	if needsCode {
+		return totpRequired(c)
 	}
 	ctx := c.Context()
 
@@ -301,8 +310,20 @@ func (h *backupHandler) DatabaseInfo(c fiber.Ctx) error {
 }
 
 // DatabaseDownload streams a consistent VACUUM INTO snapshot of the live
-// database.
+// database. Like the config export it requires re-authentication: the file
+// carries every sealed credential.
 func (h *backupHandler) DatabaseDownload(c fiber.Ctx) error {
+	var req dtos.Reauth
+	if err := lib.ValidateRequestBody(c, &req); err != nil {
+		return err
+	}
+	needsCode, err := reauthenticate(c, h.app, req.Password, req.OTP)
+	if err != nil {
+		return err
+	}
+	if needsCode {
+		return totpRequired(c)
+	}
 	ctx := c.Context()
 	tmp := h.siblingPath(fmt.Sprintf("export-%d.db", time.Now().UnixNano()))
 	if err := h.app.Repos.Backup.VacuumInto(ctx, tmp); err != nil {
