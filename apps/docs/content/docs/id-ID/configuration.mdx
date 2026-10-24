@@ -57,16 +57,16 @@ Dashboard berjalan di port `5173` (`pnpm dev` di `apps/web-ui`).
 
 ## Batas bawaan
 
-| Batas                            | Nilai                |
-| -------------------------------- | -------------------- |
-| Ukuran body request maksimum     | 32 MiB               |
-| Read timeout server              | 20 detik             |
-| Write timeout server             | 3 menit              |
-| Deadline request unary           | 90 detik             |
-| Deadline stream                  | 3 menit              |
-| Heartbeat SSE                    | 15 detik             |
-| Konkurensi gateway (in-flight)   | 100                  |
-| Rate limit dashboard             | 100 req/menit per IP |
-| Cache verifikasi key             | 5 menit              |
-| Retry per request (maks)         | 10                   |
-| Cooldown akun (429 / auth gagal) | 30 detik / 5 menit   |
+| Batas                            | Nilai                                          |
+| -------------------------------- | ---------------------------------------------- |
+| Ukuran body request maksimum     | 32 MiB                                         |
+| Read timeout server              | 20 detik                                       |
+| Write timeout server             | 3 menit                                        |
+| Deadline request unary           | 90 detik                                       |
+| Deadline stream                  | 3 menit                                        |
+| Heartbeat SSE                    | 15 detik                                       |
+| Konkurensi gateway (in-flight)   | 100                                            |
+| Rate limit dashboard             | 100 req/menit per IP (`/assets/` dikecualikan) |
+| Cache verifikasi key             | 5 menit                                        |
+| Retry per request (maks)         | 10                                             |
+| Cooldown akun (429 / auth gagal) | 30 detik / 5 menit                             |

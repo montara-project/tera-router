@@ -93,10 +93,12 @@ func serve(app *app.Application) error {
 
 	// Rate Limit: the dashboard is throttled per client IP. Inference traffic
 	// is exempt — coding agents legitimately burst from one address, and the
-	// gateway applies its own in-flight concurrency limit instead.
+	// gateway applies its own in-flight concurrency limit instead. The web-ui
+	// bundle under /assets/ is exempt too: one page load fetches dozens of
+	// hashed chunks, which would otherwise eat the dashboard's request budget.
 	server.Use(middlewares.RateLimit(
 		app.Config.App.Env == config.EnvDevelopment,
-		gateway.IsGatewayPath,
+		func(p string) bool { return gateway.IsGatewayPath(p) || strings.HasPrefix(p, "/assets/") },
 		app.Config.App.RateLimitExemptIPs,
 		app.Services.Tunnel.Running,
 	))

@@ -57,16 +57,16 @@ The dashboard runs on port `5173` (`pnpm dev` in `apps/web-ui`).
 
 ## Built-in limits
 
-| Limit                              | Value                  |
-| ---------------------------------- | ---------------------- |
-| Maximum request body size          | 32 MiB                 |
-| Server read timeout                | 20 seconds             |
-| Server write timeout               | 3 minutes              |
-| Unary request deadline             | 90 seconds             |
-| Stream deadline                    | 3 minutes              |
-| SSE heartbeat                      | 15 seconds             |
-| Gateway concurrency (in-flight)    | 100                    |
-| Dashboard rate limit               | 100 req/min per IP     |
-| Key verification cache             | 5 minutes              |
-| Retries per request (max)          | 10                     |
-| Account cooldown (429 / auth fail) | 30 seconds / 5 minutes |
+| Limit                              | Value                                  |
+| ---------------------------------- | -------------------------------------- |
+| Maximum request body size          | 32 MiB                                 |
+| Server read timeout                | 20 seconds                             |
+| Server write timeout               | 3 minutes                              |
+| Unary request deadline             | 90 seconds                             |
+| Stream deadline                    | 3 minutes                              |
+| SSE heartbeat                      | 15 seconds                             |
+| Gateway concurrency (in-flight)    | 100                                    |
+| Dashboard rate limit               | 100 req/min per IP (`/assets/` exempt) |
+| Key verification cache             | 5 minutes                              |
+| Retries per request (max)          | 10                                     |
+| Account cooldown (429 / auth fail) | 30 seconds / 5 minutes                 |
