@@ -69,7 +69,7 @@ Useful for verifying that chains/aliases/fallbacks landed on the target you expe
 
 Both live on the same port, but their auth differs:
 
-|             | Gateway (`/v1/chat/...`)     | Dashboard API (`/v1/keys`, `/v1/usage`, ...)       |
+|             | Gateway (`/v1/chat/...`)     | Dashboard API (`/v1/keys`, `/v1/accounts`, ...)    |
 | ----------- | ---------------------------- | -------------------------------------------------- |
 | Credentials | API key `sk_tr_`             | JWT from `POST /v1/auth/sign-in`                   |
 | Used by     | Apps and coding agents       | Dashboard UI and admin scripts                     |

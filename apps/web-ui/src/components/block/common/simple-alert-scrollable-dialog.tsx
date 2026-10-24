@@ -66,7 +66,7 @@ export default function SimpleAlertScrollableDialog({
 
           <Separator />
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6 pt-4">
+          <div className="scrollbar-seamless min-h-0 flex-1 overflow-y-auto px-6 py-6 pt-4">
             <div className="space-y-4 pr-1">{children}</div>
           </div>
 

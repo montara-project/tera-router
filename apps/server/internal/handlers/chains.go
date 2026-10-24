@@ -4,14 +4,12 @@ import (
 	"cmp"
 	"errors"
 	"strings"
-	"time"
 
 	"tera-router/server/internal/app"
 	"tera-router/server/internal/dtos"
 	"tera-router/server/internal/lib"
 	"tera-router/server/internal/lib/apperr"
 	"tera-router/server/internal/models"
-	"tera-router/server/internal/repositories"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -173,35 +171,6 @@ func (h *chainsHandler) Delete(c fiber.Ctx) error {
 	}
 	auditRecord(c.Context(), h.app, actorFrom(c), "chain.delete", id.String(), nil)
 	return dtos.Deleted(c, "Chain deleted")
-}
-
-// Usage aggregates the models targeted by the chain's steps.
-func (h *chainsHandler) Usage(c fiber.Ctx) error {
-	id, err := lib.ContextParamUUID(c, "id")
-	if err != nil {
-		return apperr.ErrBadRequest
-	}
-
-	chain, err := h.app.Repos.Chains.Get(c.Context(), id.String())
-	if err != nil {
-		return err
-	}
-	all, err := h.app.Repos.Usage.ByModel(c.Context(), time.Time{})
-	if err != nil {
-		return err
-	}
-
-	targets := map[string]bool{}
-	for _, step := range chain.Steps {
-		targets[step.Provider+"\x00"+step.Model] = true
-	}
-	out := []repositories.UsageByModel{}
-	for _, row := range all {
-		if targets[row.Provider+"\x00"+row.Model] {
-			out = append(out, row)
-		}
-	}
-	return dtos.List(c, out, dtos.TotalMeta(len(out)))
 }
 
 // --- Model aliases ---

@@ -29,50 +29,6 @@ func rangeStart(rng string) time.Time {
 	}
 }
 
-// Summary returns totals for the requested range (?range=today|24h|7d|30d).
-func (h *usageHandler) Summary(c fiber.Ctx) error {
-	summary, err := h.app.Repos.Usage.Summary(c.Context(), rangeStart(c.Query("range", "30d")))
-	if err != nil {
-		return err
-	}
-	return dtos.OK(c, summary)
-}
-
-// Models returns the per-provider/model breakdown.
-func (h *usageHandler) Models(c fiber.Ctx) error {
-	rows, err := h.app.Repos.Usage.ByModel(c.Context(), rangeStart(c.Query("range", "30d")))
-	if err != nil {
-		return err
-	}
-	return dtos.List(c, rows, dtos.TotalMeta(len(rows)))
-}
-
-// Insights returns the daily series plus summary and model ranking.
-func (h *usageHandler) Insights(c fiber.Ctx) error {
-	rng := c.Query("range", "30d")
-	from := rangeStart(rng)
-
-	summary, err := h.app.Repos.Usage.Summary(c.Context(), from)
-	if err != nil {
-		return err
-	}
-	daily, err := h.app.Repos.Usage.Daily(c.Context(), from)
-	if err != nil {
-		return err
-	}
-	byModel, err := h.app.Repos.Usage.ByModel(c.Context(), from)
-	if err != nil {
-		return err
-	}
-
-	return dtos.OK(c, fiber.Map{
-		"range":    rng,
-		"summary":  summary,
-		"daily":    daily,
-		"by_model": byModel,
-	})
-}
-
 // activityWeeks is how many week columns the activity calendar shows,
 // including the current partial week.
 const activityWeeks = 53

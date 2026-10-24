@@ -59,52 +59,6 @@ func (h *proxyPoolsHandler) Store(c fiber.Ctx) error {
 	return dtos.Created(c, poolView(pool), "Proxy pool created")
 }
 
-func (h *proxyPoolsHandler) Get(c fiber.Ctx) error {
-	id, err := lib.ContextParamUUID(c, "id")
-	if err != nil {
-		return apperr.ErrBadRequest
-	}
-
-	pool, err := h.app.Repos.ProxyPools.Get(c.Context(), id.String())
-	if err != nil {
-		return err
-	}
-	return dtos.OK(c, poolView(pool))
-}
-
-func (h *proxyPoolsHandler) Update(c fiber.Ctx) error {
-	id, err := lib.ContextParamUUID(c, "id")
-	if err != nil {
-		return apperr.ErrBadRequest
-	}
-
-	var req dtos.ProxyPool
-	if err := lib.ValidateRequestBody(c, &req); err != nil {
-		return err
-	}
-
-	// Status/last_tested_at are owned by the health check (UpdateTestedAt), so
-	// carry the stored values through instead of blanking them.
-	stored, err := h.app.Repos.ProxyPools.Get(c.Context(), id.String())
-	if err != nil {
-		return err
-	}
-	pool := models.ProxyPool{
-		ID: id.String(), Name: req.Name, URL: req.URL, Mode: req.Mode, Label: req.Label,
-		Status: stored.Status, LastTestedAt: stored.LastTestedAt,
-	}
-	if err := h.app.Repos.ProxyPools.Update(c.Context(), pool); err != nil {
-		return err
-	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "proxy_pool.update", pool.ID, nil)
-
-	updated, err := h.app.Repos.ProxyPools.Get(c.Context(), pool.ID)
-	if err != nil {
-		return err
-	}
-	return dtos.OK(c, poolView(updated))
-}
-
 func (h *proxyPoolsHandler) Delete(c fiber.Ctx) error {
 	id, err := lib.ContextParamUUID(c, "id")
 	if err != nil {

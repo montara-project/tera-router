@@ -135,7 +135,8 @@ account.
 
 - **Trusted proxies** — `--trusted-proxies=your_private_network_ip` must match the subnet your reverse proxy or
   load balancer actually sits in, so the server reads real client IPs for rate limiting and logs.
-  Adjust the value before deploying.
+  Adjust the value before deploying. Behind Cloudflare and Traefik, see
+  [below](#behind-cloudflare-and-traefik-dokploy).
 - **IP blocking** — **Settings → Security → Blocked IPs** refuses addresses or CIDR ranges with 403,
   and an address with 10 failed sign-ins in 15 minutes is blocked for 15 minutes. Both key on the
   client IP, so set trusted proxies first: otherwise every visitor shares the proxy's address and
@@ -147,6 +148,81 @@ account.
 - **Upgrades** — bump the image tag, then `docker compose up -d`. Pending migrations apply on boot
   while `MIGRATE_ON_BOOT=true`; pinning the tag keeps the dashboard bundle and server binary in
   sync.
+
+## Behind Cloudflare and Traefik (Dokploy)
+
+When requests travel client → Cloudflare → Traefik → container, two hops sit in front of the
+server. Traefik drops any `X-Forwarded-For` that arrives from an address it does not trust and
+writes the Cloudflare edge IP instead, so every visitor looks like Cloudflare. Trust both hops:
+
+1. **Traefik trusts Cloudflare.** In Dokploy's Traefik config (usually
+   `/etc/dokploy/traefik/traefik.yml`), add Cloudflare's ranges to both entrypoints, then restart
+   Traefik. Check the list against [cloudflare.com/ips](https://www.cloudflare.com/ips/) since it
+   can change.
+
+   ```yaml title="traefik.yml"
+   entryPoints:
+     web:
+       address: ':80'
+       forwardedHeaders:
+         trustedIPs: &cloudflare
+           - 173.245.48.0/20
+           - 103.21.244.0/22
+           - 103.22.200.0/22
+           - 103.31.4.0/22
+           - 141.101.64.0/18
+           - 108.162.192.0/18
+           - 190.93.240.0/20
+           - 188.114.96.0/20
+           - 197.234.240.0/22
+           - 198.41.128.0/17
+           - 162.158.0.0/15
+           - 104.16.0.0/13
+           - 104.24.0.0/14
+           - 172.64.0.0/13
+           - 131.0.72.0/22
+           - 2400:cb00::/32
+           - 2606:4700::/32
+           - 2803:f800::/32
+           - 2405:b500::/32
+           - 2405:8100::/32
+           - 2a06:98c0::/29
+           - 2c0f:f248::/32
+     websecure:
+       address: ':443'
+       forwardedHeaders:
+         trustedIPs: *cloudflare
+   ```
+
+   Only the `forwardedHeaders` blocks are new: merge them into Dokploy's existing entrypoints and
+   keep everything else (providers, TLS, `certificatesResolvers`) as it is. Traefik now forwards
+   `X-Forwarded-For: <client>, <cloudflare-edge>`.
+
+2. **tera-router trusts Traefik and Cloudflare.** Set `TRUSTED_PROXIES` to the Docker network
+   Traefik runs on plus the same Cloudflare ranges, comma-separated:
+
+   ```bash
+   docker network inspect dokploy-network --format '{{(index .IPAM.Config 0).Subnet}}'
+   ```
+
+   ```bash title=".env"
+   TRUSTED_PROXIES=10.0.1.0/24,173.245.48.0/20,103.21.244.0/22,...,2c0f:f248::/32
+   ```
+
+   Without the Traefik subnet the header is ignored (the direct peer is Traefik). Without the
+   Cloudflare ranges the server stops at the edge IP and reports it as the client.
+
+The server reads `X-Forwarded-For` right to left and returns the first address that is not a
+trusted proxy, so entries a client forges on the left are skipped. A request that bypasses
+Cloudflare and hits the origin directly comes from an untrusted address: Traefik discards its
+forwarded headers and the server sees the caller's real IP. Do not switch to `CF-Connecting-IP`:
+Traefik passes it through untouched, so anyone reaching the origin directly could forge it.
+Optionally, firewall ports 80/443 to Cloudflare's ranges so the origin cannot be reached around
+Cloudflare at all.
+
+To verify, fail a sign-in from another network (e.g. a phone on mobile data) and check
+**Settings → Security**: the recorded address should be the phone's, not a Cloudflare or `10.x`
+address.
 
 ## Next steps
 

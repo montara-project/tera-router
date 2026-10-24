@@ -15,7 +15,7 @@ func (d *CreateKey) Validate(v *validator.MapValidator) {
 	v.Field("name").Required().String()
 }
 
-// UpdateKey is the key mutation request body (PUT/PATCH /v1/keys/{id}).
+// UpdateKey is the key mutation request body (PATCH /v1/keys/{id}).
 // Pointer fields are optional: absent fields keep their stored values.
 type UpdateKey struct {
 	Name          string    `json:"name"`

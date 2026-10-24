@@ -5,7 +5,6 @@ import type { Models } from '../../models'
 
 export type ProviderResources = {
   list: () => Promise<AxiosItemResponse<Models.ProvidersOverview>>
-  rates: () => Promise<AxiosItemResponse<{ overrides: Models.PricingOverride[] }>>
   customList: () => Promise<AxiosListResponse<Models.CustomProvider>>
   customGet: (id: string) => Promise<AxiosItemResponse<Models.CustomProvider>>
   customGetBySlug: (slug: string) => Promise<AxiosItemResponse<Models.CustomProvider>>
@@ -49,8 +48,4 @@ export type ProviderResources = {
     id: string,
     payload: { model: string; messages: Models.ModelTestMessage[] }
   ) => Promise<AxiosItemResponse<Models.ModelTestResult>>
-  accountsBulkDisable: (slug: string) => Promise<AxiosItemResponse<{ updated: number }>>
-  accountsBulkEnable: (slug: string) => Promise<AxiosItemResponse<{ updated: number }>>
-  accountsBulkDeleteDisabled: (slug: string) => Promise<AxiosItemResponse<{ deleted: number }>>
-  accountsBulkDeleteAll: (slug: string) => Promise<AxiosItemResponse<{ deleted: number }>>
 }

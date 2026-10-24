@@ -43,20 +43,4 @@ export const AccountSchema = z.object({
   disabled: optionalBoolean('disabled'),
 }) satisfies z.ZodType<AccountPayload>
 
-/** Bulk credential import body (POST /v1/accounts/bulk). */
-export const BulkAccountsSchema = z.object({
-  accounts: z
-    .array(AccountSchema, { error: 'The accounts field must be an array.' })
-    .min(1, 'The accounts field must not be empty.'),
-}) satisfies z.ZodType<{ accounts: AccountPayload[] }>
-
-/** Pre-save credential probe body (POST /v1/validate-key). */
-export const ValidateKeySchema = z.object({
-  provider: requiredString('provider'),
-  api_key: requiredString('api key'),
-  metadata: optionalObject('metadata'),
-}) satisfies z.ZodType<{ provider: string; api_key: string; metadata?: Record<string, unknown> }>
-
 export type AccountDto = z.infer<typeof AccountSchema>
-export type BulkAccountsDto = z.infer<typeof BulkAccountsSchema>
-export type ValidateKeyDto = z.infer<typeof ValidateKeySchema>

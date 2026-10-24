@@ -9,5 +9,4 @@ export type ChainResources = {
   store: (payload: ChainDto) => Promise<AxiosItemResponse<Models.Chain>>
   update: (id: string, payload: ChainDto) => Promise<AxiosItemResponse<Models.Chain>>
   remove: (id: string) => Promise<AxiosDeleteResponse>
-  usage: (id: string) => Promise<AxiosListResponse<Models.UsageByModel>>
 }

@@ -150,19 +150,6 @@ func (h *plansHandler) Store(c fiber.Ctx) error {
 	return dtos.Created(c, planView(plan, 0), "Plan created")
 }
 
-func (h *plansHandler) Get(c fiber.Ctx) error {
-	id, err := lib.ContextParamUUID(c, "id")
-	if err != nil {
-		return apperr.ErrBadRequest
-	}
-
-	plan, err := h.app.Repos.Plans.Get(c.Context(), id.String())
-	if err != nil {
-		return err
-	}
-	return dtos.OK(c, planView(plan, 0))
-}
-
 func (h *plansHandler) Update(c fiber.Ctx) error {
 	id, err := lib.ContextParamUUID(c, "id")
 	if err != nil {
@@ -202,29 +189,4 @@ func (h *plansHandler) Delete(c fiber.Ctx) error {
 	}
 	auditRecord(c.Context(), h.app, actorFrom(c), "plan.delete", id.String(), nil)
 	return dtos.Deleted(c, "Plan deleted")
-}
-
-// Keys lists the keys assigned to one plan.
-func (h *plansHandler) Keys(c fiber.Ctx) error {
-	id, err := lib.ContextParamUUID(c, "id")
-	if err != nil {
-		return apperr.ErrBadRequest
-	}
-
-	if _, err := h.app.Repos.Plans.Get(c.Context(), id.String()); err != nil {
-		return err
-	}
-
-	keys, _, err := h.app.Repos.APIKeys.List(c.Context(), 0, 100)
-	if err != nil {
-		return err
-	}
-
-	out := []fiber.Map{}
-	for _, k := range keys {
-		if k.PlanID != nil && *k.PlanID == id.String() {
-			out = append(out, keyView(k))
-		}
-	}
-	return dtos.List(c, out, dtos.TotalMeta(len(out)))
 }

@@ -24,11 +24,6 @@ const resources = (): ProviderResources => {
       const url = path
       return api.get(url)
     },
-    /** pricing snapshot (overrides + catalog fallbacks) */
-    rates: () => {
-      const url = `${path}/rates`
-      return api.get(url)
-    },
     customList: () => {
       const url = customPath
       return api.get(url)
@@ -94,23 +89,6 @@ const resources = (): ProviderResources => {
     customModelsTest: (id, payload) => {
       const url = `${customPath}/${id}/models/test`
       return api.post(url, payload)
-    },
-    /** provider-scoped bulk account operations (provider slug as :id) */
-    accountsBulkDisable: (slug) => {
-      const url = `${path}/${slug}/accounts/disable-all`
-      return api.post(url)
-    },
-    accountsBulkEnable: (slug) => {
-      const url = `${path}/${slug}/accounts/enable-all`
-      return api.post(url)
-    },
-    accountsBulkDeleteDisabled: (slug) => {
-      const url = `${path}/${slug}/accounts/disabled`
-      return api.delete(url)
-    },
-    accountsBulkDeleteAll: (slug) => {
-      const url = `${path}/${slug}/accounts/all`
-      return api.delete(url)
     },
   }
 }

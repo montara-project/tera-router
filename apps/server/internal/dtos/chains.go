@@ -10,7 +10,7 @@ type ChainStep struct {
 	Active *bool `json:"active"`
 }
 
-// Chain is the chain create/update request body (POST/PUT/PATCH /v1/chains).
+// Chain is the chain create/update request body (POST/PUT /v1/chains).
 type Chain struct {
 	Name             string `json:"name"`
 	Strategy         string `json:"strategy"`

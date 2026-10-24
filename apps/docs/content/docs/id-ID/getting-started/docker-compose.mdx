@@ -134,7 +134,8 @@ Compose melaporkan `healthy` setelah healthcheck bawaan lulus
 
 - **Trusted proxies** — `--trusted-proxies=your_private_network_ip` harus cocok dengan subnet tempat reverse
   proxy atau load balancer kamu benar-benar berada, supaya server membaca IP klien asli untuk rate
-  limiting dan log. Sesuaikan nilainya sebelum deploy.
+  limiting dan log. Sesuaikan nilainya sebelum deploy. Di belakang Cloudflare dan Traefik, lihat
+  [di bawah](#di-belakang-cloudflare-dan-traefik-dokploy).
 - **Blokir IP** — **Settings → Security → Blocked IPs** menolak alamat atau rentang CIDR dengan 403,
   dan alamat yang gagal login 10 kali dalam 15 menit diblokir selama 15 menit. Keduanya memakai IP
   klien, jadi atur trusted proxies dulu: kalau tidak, semua pengunjung terlihat memakai alamat proxy
@@ -146,6 +147,80 @@ Compose melaporkan `healthy` setelah healthcheck bawaan lulus
 - **Upgrade** — naikkan tag image, lalu `docker compose up -d`. Migrasi yang belum diterapkan
   berjalan saat boot selama `MIGRATE_ON_BOOT=true`; mem-pin tag menjaga bundle dashboard dan binary
   server tetap sinkron.
+
+## Di belakang Cloudflare dan Traefik (Dokploy)
+
+Saat request melewati klien → Cloudflare → Traefik → container, ada dua hop di depan server.
+Traefik membuang `X-Forwarded-For` yang datang dari alamat yang tidak ia percaya dan menggantinya
+dengan IP edge Cloudflare, sehingga semua pengunjung terlihat sebagai Cloudflare. Percayai kedua hop:
+
+1. **Traefik memercayai Cloudflare.** Di konfigurasi Traefik Dokploy (biasanya
+   `/etc/dokploy/traefik/traefik.yml`), tambahkan rentang IP Cloudflare ke kedua entrypoint, lalu
+   restart Traefik. Cocokkan daftarnya dengan [cloudflare.com/ips](https://www.cloudflare.com/ips/)
+   karena bisa berubah.
+
+   ```yaml title="traefik.yml"
+   entryPoints:
+     web:
+       address: ':80'
+       forwardedHeaders:
+         trustedIPs: &cloudflare
+           - 173.245.48.0/20
+           - 103.21.244.0/22
+           - 103.22.200.0/22
+           - 103.31.4.0/22
+           - 141.101.64.0/18
+           - 108.162.192.0/18
+           - 190.93.240.0/20
+           - 188.114.96.0/20
+           - 197.234.240.0/22
+           - 198.41.128.0/17
+           - 162.158.0.0/15
+           - 104.16.0.0/13
+           - 104.24.0.0/14
+           - 172.64.0.0/13
+           - 131.0.72.0/22
+           - 2400:cb00::/32
+           - 2606:4700::/32
+           - 2803:f800::/32
+           - 2405:b500::/32
+           - 2405:8100::/32
+           - 2a06:98c0::/29
+           - 2c0f:f248::/32
+     websecure:
+       address: ':443'
+       forwardedHeaders:
+         trustedIPs: *cloudflare
+   ```
+
+   Yang baru hanya blok `forwardedHeaders`: gabungkan ke entrypoint Dokploy yang sudah ada dan
+   biarkan bagian lain (providers, TLS, `certificatesResolvers`) apa adanya. Traefik sekarang
+   meneruskan `X-Forwarded-For: <klien>, <edge-cloudflare>`.
+
+2. **tera-router memercayai Traefik dan Cloudflare.** Isi `TRUSTED_PROXIES` dengan subnet network
+   Docker tempat Traefik berjalan ditambah rentang Cloudflare yang sama, dipisah koma:
+
+   ```bash
+   docker network inspect dokploy-network --format '{{(index .IPAM.Config 0).Subnet}}'
+   ```
+
+   ```bash title=".env"
+   TRUSTED_PROXIES=10.0.1.0/24,173.245.48.0/20,103.21.244.0/22,...,2c0f:f248::/32
+   ```
+
+   Tanpa subnet Traefik, header diabaikan (peer langsungnya adalah Traefik). Tanpa rentang
+   Cloudflare, server berhenti di IP edge dan melaporkannya sebagai klien.
+
+Server membaca `X-Forwarded-For` dari kanan ke kiri dan mengambil alamat pertama yang bukan trusted
+proxy, jadi isian palsu dari klien di sebelah kiri dilewati. Request yang melewati Cloudflare dan
+langsung mengenai origin datang dari alamat yang tidak dipercaya: Traefik membuang header
+forwarded-nya dan server melihat IP asli pemanggil. Jangan beralih ke `CF-Connecting-IP`: Traefik
+meneruskannya apa adanya, sehingga siapa pun yang mengakses origin langsung bisa memalsukannya.
+Opsional, batasi port 80/443 di firewall hanya untuk rentang Cloudflare agar origin tidak bisa
+diakses tanpa lewat Cloudflare.
+
+Untuk memastikan, coba login gagal dari jaringan lain (mis. HP dengan data seluler) lalu cek
+**Settings → Security**: alamat yang tercatat harus IP HP, bukan IP Cloudflare atau `10.x`.
 
 ## Langkah berikutnya
 

@@ -2,7 +2,7 @@ package dtos
 
 import "tera-router/server/internal/lib/validator"
 
-// Plan is the plan create/update request body (POST/PUT/PATCH /v1/plans).
+// Plan is the plan create/update request body (POST/PATCH /v1/plans).
 type Plan struct {
 	Name         string   `json:"name"`
 	Description  string   `json:"description"`

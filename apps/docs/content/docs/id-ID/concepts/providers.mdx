@@ -35,13 +35,11 @@ Kredensial akun disimpan terenkripsi (enkripsi amplop dengan kunci turunan dari 
 
 ## Menambah akun
 
-Lewat dashboard (**Providers → pilih provider → Connect**) atau API. Provider chat langsung menyinkronkan daftar modelnya setelah terhubung; provider search, voice, dan khusus embeddings (Exa, ElevenLabs, Voyage AI, …) cukup diberi key, yang dicek saat pertama dipakai karena API-nya tidak punya panggilan uji gratis. Uji dulu sebelum disimpan:
+Lewat dashboard (**Providers → pilih provider → Connect**) atau API. Provider chat langsung menyinkronkan daftar modelnya setelah terhubung; provider search, voice, dan khusus embeddings (Exa, ElevenLabs, Voyage AI, …) cukup diberi key, yang dicek saat pertama dipakai karena API-nya tidak punya panggilan uji gratis. Uji koneksinya setelah disimpan:
 
 ```bash
-curl -X POST http://localhost:8080/v1/validate-key \
-  -H "Authorization: Bearer <jwt-dashboard>" \
-  -H "Content-Type: application/json" \
-  -d '{ "provider": "openai", "auth_kind": "api_key", "api_key": "sk-..." }'
+curl -X POST http://localhost:8080/v1/accounts/<account-id>/test \
+  -H "Authorization: Bearer <jwt-dashboard>"
 ```
 
 Field penting saat membuat akun:
