@@ -44,5 +44,9 @@ next-env.d.ts
 .omc/
 .impeccable/
 .trail/
+.agents/
+.agent/
+.claude/
+.zcode/
 .openclaude/
 __pycache__/
