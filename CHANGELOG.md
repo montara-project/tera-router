@@ -3,6 +3,17 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [1.11.0](https://github.com/montara-project/tera-router/compare/v1.10.0...v1.11.0) (2026-10-24)
+
+### Features
+
+* per-provider account strategy with smart round robin ([f880434](https://github.com/montara-project/tera-router/commit/f8804349c354a4afad49511ce719be3bf4c330f4))
+* require password and TOTP to reveal API keys ([c8f3beb](https://github.com/montara-project/tera-router/commit/c8f3bebf24a8bc8e166a2f9f047df4649d6e2ecc))
+
+### Bug Fixes
+
+* **server:** exempt web-ui assets from the dashboard rate limit ([9fdfe6c](https://github.com/montara-project/tera-router/commit/9fdfe6caa21611f3f72ea098e181b74a2c15c91e))
+
 ## [1.10.0](https://github.com/montara-project/tera-router/compare/v1.9.0...v1.10.0) (2026-10-24)
 
 ### Bug Fixes
