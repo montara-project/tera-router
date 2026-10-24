@@ -7,7 +7,6 @@ import {
   IconEye,
   IconEyeOff,
   IconLink,
-  IconLoader2,
   IconTrash,
 } from '@tabler/icons-react'
 import { useMutation } from '@tanstack/react-query'
@@ -24,6 +23,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
+import { useRevealKey } from '@/hooks/use-reveal-key'
 import { toastAxiosError } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
 import { formatDate } from '@/lib/date'
@@ -39,26 +39,21 @@ const STATUS_DOTS: Record<Models.ApiKeyStatus, string> = {
 
 function KeyCopyCell({ record }: { record: Models.ApiKey }) {
   const { copied, copy } = useCopyToClipboard()
-  const revealMutation = useMutation(queries.keys.reveal())
+  const { reveal, dialog } = useRevealKey()
 
   // The list payload only carries the masked preview, so copying the real
-  // credential goes through the audit-logged reveal endpoint (same as the
+  // credential goes through the re-authenticated reveal dialog (same as the
   // detail page). An optional full_key — e.g. right after creation — skips it.
   const handleCopy = async () => {
     if (record.full_key) {
       copy(record.full_key)
       return
     }
-    try {
-      const res = await revealMutation.mutateAsync(record.id)
-      copy(res.data.full_key)
-    } catch (error) {
-      toastAxiosError(error)
-    }
+    const key = await reveal(record.id)
+    if (key) copy(key)
   }
 
   const renderCopyIcon = () => {
-    if (revealMutation.isPending) return <IconLoader2 className="animate-spin" />
     if (copied) return <IconCheck className="text-emerald-600 dark:text-emerald-300" />
     return <IconCopy />
   }
@@ -70,7 +65,6 @@ function KeyCopyCell({ record }: { record: Models.ApiKey }) {
       <Button
         aria-label={copied ? `Copied ${record.name} key` : `Copy ${record.name} key`}
         className="text-muted-foreground hover:text-foreground"
-        disabled={revealMutation.isPending}
         mode="icon"
         onClick={() => void handleCopy()}
         size="sm"
@@ -78,6 +72,7 @@ function KeyCopyCell({ record }: { record: Models.ApiKey }) {
       >
         {renderCopyIcon()}
       </Button>
+      {dialog}
     </div>
   )
 }

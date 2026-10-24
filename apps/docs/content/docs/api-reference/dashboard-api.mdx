@@ -57,12 +57,12 @@ Pagination uses the `offset` (0-based) and `limit` (default 10, max 100) query p
 
 ### Keys
 
-| Method      | Path                  | Notes                          |
-| ----------- | --------------------- | ------------------------------ |
-| GET / POST  | `/v1/keys`            | List / create keys             |
-| GET / PATCH | `/v1/keys/:id`        | Detail / update key            |
-| POST        | `/v1/keys/:id/reveal` | Return key plaintext (audited) |
-| DELETE      | `/v1/keys/:id`        | Delete key                     |
+| Method      | Path                  | Notes                                       |
+| ----------- | --------------------- | ------------------------------------------- |
+| GET / POST  | `/v1/keys`            | List / create keys                          |
+| GET / PATCH | `/v1/keys/:id`        | Detail / update key                         |
+| POST        | `/v1/keys/:id/reveal` | Plaintext; needs password (+ TOTP), audited |
+| DELETE      | `/v1/keys/:id`        | Delete key                                  |
 
 ### Plans
 

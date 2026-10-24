@@ -57,12 +57,12 @@ Pagination memakai query `offset` (0-based) dan `limit` (default 10, maks 100).
 
 ### Keys
 
-| Method      | Path                  | Keterangan                          |
-| ----------- | --------------------- | ----------------------------------- |
-| GET / POST  | `/v1/keys`            | Daftar / buat key                   |
-| GET / PATCH | `/v1/keys/:id`        | Detail / ubah key                   |
-| POST        | `/v1/keys/:id/reveal` | Kembalikan plaintext key (teraudit) |
-| DELETE      | `/v1/keys/:id`        | Hapus key                           |
+| Method      | Path                  | Keterangan                                   |
+| ----------- | --------------------- | -------------------------------------------- |
+| GET / POST  | `/v1/keys`            | Daftar / buat key                            |
+| GET / PATCH | `/v1/keys/:id`        | Detail / ubah key                            |
+| POST        | `/v1/keys/:id/reveal` | Plaintext; perlu password (+ TOTP), teraudit |
+| DELETE      | `/v1/keys/:id`        | Hapus key                                    |
 
 ### Plans
 

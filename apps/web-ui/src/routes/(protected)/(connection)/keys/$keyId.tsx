@@ -12,10 +12,9 @@ import {
   IconShield,
   IconStack2,
 } from '@tabler/icons-react'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useParams } from '@tanstack/react-router'
 import { useState } from 'react'
-import { toast } from 'sonner'
 
 import SectionCard from '@/components/block/common/section-card'
 import KeyGeneralTab, { KeyStatusBadge } from '@/components/block/keys/key-general-tab'
@@ -26,7 +25,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
-import { axiosErrorMessage } from '@/lib/api/axios-error'
+import { useRevealKey } from '@/hooks/use-reveal-key'
 import { queries } from '@/lib/api/queries'
 import { formatDate } from '@/lib/date'
 import { cn } from '@/lib/utils'
@@ -71,22 +70,15 @@ function KeyDetailRoute() {
   const keyQuery = useQuery(queries.keys.get(keyId))
   const key = keyQuery.data
 
-  const revealMutation = useMutation(queries.keys.reveal())
+  const { reveal, dialog } = useRevealKey()
 
   // The masked preview is all GET returns, so copying the real credential goes
-  // through the audit-logged reveal endpoint first.
+  // through the re-authenticated reveal dialog first; the result is kept for
+  // this visit so copy after reveal does not ask again.
   const handleCopy = async () => {
-    let value = revealed
-    if (!value) {
-      try {
-        const res = await revealMutation.mutateAsync(keyId)
-        value = res.data.full_key
-        setRevealed(value)
-      } catch (error) {
-        toast.error(axiosErrorMessage(error as Error))
-        return
-      }
-    }
+    const value = revealed ?? (await reveal(keyId))
+    if (!value) return
+    setRevealed(value)
     copy(value)
   }
 
@@ -95,12 +87,7 @@ function KeyDetailRoute() {
       setRevealed(null)
       return
     }
-    try {
-      const res = await revealMutation.mutateAsync(keyId)
-      setRevealed(res.data.full_key)
-    } catch (error) {
-      toast.error(axiosErrorMessage(error as Error))
-    }
+    setRevealed(await reveal(keyId))
   }
 
   if (keyQuery.isLoading) return <DetailSkeleton />
@@ -227,6 +214,7 @@ function KeyDetailRoute() {
           <KeyGuardrailsTab apiKey={key} />
         </TabsContent>
       </Tabs>
+      {dialog}
     </div>
   )
 }

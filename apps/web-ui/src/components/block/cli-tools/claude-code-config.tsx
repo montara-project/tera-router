@@ -38,6 +38,7 @@ import {
 } from '@/components/ui/select'
 import { env } from '@/config/env'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
+import { useRevealKey } from '@/hooks/use-reveal-key'
 import { toastAxiosError } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
 import { cn } from '@/lib/utils'
@@ -72,7 +73,7 @@ export default function ClaudeCodeConfig({ status, apiKeys }: ClaudeCodeConfigPr
   const { copied, copy } = useCopyToClipboard()
 
   const applyMutation = useMutation(queries.cliTools.applyClaudeCode())
-  const revealMutation = useMutation(queries.keys.reveal())
+  const { reveal, dialog } = useRevealKey()
 
   const selectedKey = apiKeys.find((key) => key.id === keyId)
   const normalizedUrl = baseUrl.trim().replace(/\/+$/, '')
@@ -92,19 +93,14 @@ export default function ClaudeCodeConfig({ status, apiKeys }: ClaudeCodeConfigPr
   }
 
   // The list payload carries only the masked preview, so copying a usable
-  // snippet goes through the audit-logged reveal endpoint once per key.
+  // snippet goes through the re-authenticated reveal dialog once per key.
   const handleCopy = async () => {
     if (!selectedKey) return
     let token = revealed?.id === selectedKey.id ? revealed.value : null
     if (!token) {
-      try {
-        const res = await revealMutation.mutateAsync(selectedKey.id)
-        token = res.data.full_key
-        setRevealed({ id: selectedKey.id, value: token })
-      } catch (error) {
-        toastAxiosError(error)
-        return
-      }
+      token = await reveal(selectedKey.id)
+      if (!token) return
+      setRevealed({ id: selectedKey.id, value: token })
     }
     copy(settingsJson(normalizedUrl, token, trimmedModel))
   }
@@ -246,12 +242,7 @@ export default function ClaudeCodeConfig({ status, apiKeys }: ClaudeCodeConfigPr
               </CardHeading>
             </div>
             <CardToolbar>
-              <Button
-                size="lg"
-                variant="outline"
-                disabled={!selectedKey || revealMutation.isPending}
-                onClick={handleCopy}
-              >
+              <Button size="lg" variant="outline" disabled={!selectedKey} onClick={handleCopy}>
                 <span className="grid *:col-start-1 *:row-start-1">
                   <IconCopy
                     className={cn('transition-all duration-200', copied && 'scale-50 opacity-0')}
@@ -283,6 +274,7 @@ export default function ClaudeCodeConfig({ status, apiKeys }: ClaudeCodeConfigPr
           </CardContent>
         </Card>
       )}
+      {dialog}
     </>
   )
 }

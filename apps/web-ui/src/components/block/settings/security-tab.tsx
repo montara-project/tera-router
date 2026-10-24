@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 
 import IconBadge from '@/components/block/common/icon-badge'
+import TotpCodeInput from '@/components/block/common/totp-code-input'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -14,43 +15,9 @@ import {
   CardHeading,
   CardTitle,
 } from '@/components/ui/card'
-import { InputOTP, REGEXP_ONLY_DIGITS } from '@/components/ui/input-otp'
 import { toastAxiosError } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
 import { cn } from '@/lib/utils'
-
-function CodeInput({
-  value,
-  onChange,
-  id,
-}: {
-  value: string
-  onChange: (value: string) => void
-  id: string
-}) {
-  return (
-    <InputOTP
-      id={id}
-      value={value}
-      onChange={onChange}
-      maxLength={6}
-      pattern={REGEXP_ONLY_DIGITS}
-      aria-label="Authentication code"
-    >
-      <InputOTP.Group>
-        <InputOTP.Slot index={0} />
-        <InputOTP.Slot index={1} />
-        <InputOTP.Slot index={2} />
-      </InputOTP.Group>
-      <InputOTP.Separator />
-      <InputOTP.Group>
-        <InputOTP.Slot index={3} />
-        <InputOTP.Slot index={4} />
-        <InputOTP.Slot index={5} />
-      </InputOTP.Group>
-    </InputOTP>
-  )
-}
 
 export default function SecurityTab() {
   const { data, isLoading } = useQuery(queries.auth.me())
@@ -114,7 +81,7 @@ export default function SecurityTab() {
           <p className="text-muted-foreground text-sm">
             Enter a current code to turn two-factor authentication off.
           </p>
-          <CodeInput id="totp-disable" value={code} onChange={setCode} />
+          <TotpCodeInput id="totp-disable" value={code} onChange={setCode} />
           <Button
             type="button"
             variant="destructive"
@@ -169,7 +136,7 @@ export default function SecurityTab() {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
-              <CodeInput id="totp-enable" value={code} onChange={setCode} />
+              <TotpCodeInput id="totp-enable" value={code} onChange={setCode} />
               <Button
                 type="button"
                 disabled={code.length !== 6 || enableMutation.isPending}
