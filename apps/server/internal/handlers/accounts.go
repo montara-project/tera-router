@@ -436,29 +436,6 @@ func (h *accountsHandler) probe(ctx context.Context, providerSlug, metadataRaw, 
 	return h.app.Services.Upstream.ProbeCredential(ctx, endpoint, anthropic, oauth, apiKey)
 }
 
-// Reveal decrypts the stored api key of an account (audit-logged).
-func (h *accountsHandler) Reveal(c fiber.Ctx) error {
-	id, err := lib.ContextParamUUID(c, "id")
-	if err != nil {
-		return apperr.ErrBadRequest
-	}
-
-	account, err := h.app.Repos.Accounts.Get(c.Context(), id.String())
-	if err != nil {
-		return err
-	}
-	if account.Secret.Empty() {
-		return apperr.New(apperr.KindUnprocessable, "account has no recoverable secret")
-	}
-
-	plaintext, err := h.app.Secrets.OpenString(account.Secret)
-	if err != nil {
-		return err
-	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "account.reveal", id.String(), nil)
-	return dtos.OK(c, fiber.Map{"id": id.String(), "api_key": plaintext})
-}
-
 // Quota reports an account's quota snapshot. Claude subscription (anthropic
 // OAuth) accounts read their live session (5-hour) and weekly windows from
 // Anthropic; every other account is usage-only.

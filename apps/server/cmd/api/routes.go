@@ -121,7 +121,6 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	protected.Patch("/accounts/:id", h.Accounts.Update)
 	protected.Delete("/accounts/:id", h.Accounts.Delete)
 	protected.Post("/accounts/:id/test", h.Accounts.Test)
-	protected.Post("/accounts/:id/reveal", h.Accounts.Reveal)
 	protected.Get("/accounts/:id/quota", h.Accounts.Quota)
 	protected.Post("/accounts/:id/quota/reset", h.Accounts.QuotaReset)
 

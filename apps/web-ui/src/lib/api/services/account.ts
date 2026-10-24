@@ -52,11 +52,6 @@ const resources = (): AccountResources => {
       const url = `${path}/${id}/test`
       return api.post(url)
     },
-    /** decrypts the stored api key plaintext (audit-logged on the server) */
-    reveal: (id) => {
-      const url = `${path}/${id}/reveal`
-      return api.post(url)
-    },
     /** usage-based quota snapshot for one account */
     quota: (id) => {
       const url = `${path}/${id}/quota`
