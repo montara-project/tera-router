@@ -5,7 +5,7 @@ import type { ProviderResources } from './types/provider'
 
 import { ClientFetchApi } from '../client-fetch'
 import { parseDto } from '../dtos/parse'
-import { CustomProviderSchema } from '../dtos/provider/schema'
+import { CustomProviderSchema, ProviderRoutingSchema } from '../dtos/provider/schema'
 
 const path = '/v1/providers'
 
@@ -79,6 +79,15 @@ const resources = (): ProviderResources => {
     modelsUpdate: (slug, payload) => {
       const url = `${path}/${slug}/models`
       return api.patch(url, payload)
+    },
+    /** account strategy of any provider (catalog or custom slug) */
+    routing: (slug) => {
+      const url = `${path}/${slug}/routing`
+      return api.get(url)
+    },
+    updateRouting: (slug, payload) => {
+      const url = `${path}/${slug}/routing`
+      return api.put(url, parseDto(ProviderRoutingSchema, payload))
     },
     /** catalog-provider one-shot model test (chat completion with the stored credential) */
     modelsTest: (slug, payload) => {

@@ -104,6 +104,11 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	protected.Patch("/providers/:id/models", h.Providers.CatalogModelsUpdate)
 	protected.Post("/providers/:id/models/test", h.Providers.CatalogModelTest)
 
+	// Account strategy per provider (any provider slug as :id): router default,
+	// fill first, round robin, or smart round robin.
+	protected.Get("/providers/:id/routing", h.Providers.Routing)
+	protected.Put("/providers/:id/routing", h.Providers.RoutingUpdate)
+
 	protected.Get("/accounts", h.Accounts.Index)
 	protected.Post("/accounts", h.Accounts.Store)
 	protected.Get("/accounts/:id", h.Accounts.Get)

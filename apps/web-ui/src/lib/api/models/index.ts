@@ -35,6 +35,7 @@ export namespace Models {
   export type Plan = import('./plan').Plan
   export type Provider = import('./provider').Provider
   export type ProviderCapability = import('./provider').ProviderCapability
+  export type ProviderRouting = import('./provider').ProviderRouting
   export type ProviderModel = import('./provider-catalog').ProviderModel
   export type ProviderModelState = import('./provider-catalog').ProviderModelState
   export type ProvidersOverview = import('./provider').ProvidersOverview

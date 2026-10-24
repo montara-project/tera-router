@@ -9,8 +9,21 @@ Untuk setiap request, router:
 
 1. **Menerjemahkan `model`** mengikuti urutan di [Model & routing](/id-ID/docs/gateway/model-addressing): `chain:<nama>` → alias → `provider/model` → nama polos. Hasilnya daftar target berurutan.
 2. **Memeriksa akses** — allowlist key ∩ plan, dan budget aktif.
-3. **Memilih akun** — akun dengan prioritas tertinggi yang tidak cooldown dan tidak dinonaktifkan; kalau provider memakai round-robin, akun diputar.
+3. **Memilih akun** — mengikuti [strategi akun](#strategi-akun) provider, melewati akun yang sedang cooldown atau dinonaktifkan. Akun lain tetap jadi fallback.
 4. **Meneruskan request** — dan naik ke target berikutnya kalau gagal.
+
+## Strategi akun
+
+Tiap provider menentukan cara akunnya berbagi request (**Providers → pilih provider → Routing → Account strategy**, atau `PUT /v1/providers/:slug/routing`):
+
+| Strategi          | `strategy`          | Perilaku                                                                                                                                                                    |
+| ----------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Router default    | `default`           | Mengikuti **Settings → Routing**: round robin dengan sticky limit global saat provider round robin aktif, fill first saat nonaktif.                                         |
+| Fill first        | `fill-first`        | Akun sehat dengan prioritas tertinggi menerima semua request sampai tidak tersedia.                                                                                         |
+| Round robin       | `round-robin`       | Tiap akun menerima `sticky_limit` request, lalu akun berikutnya mengambil alih.                                                                                             |
+| Smart round robin | `smart-round-robin` | Percakapan baru diputar (setiap `sticky_limit` percakapan); giliran berikutnya dalam satu percakapan tetap di akun awalnya, sampai percakapan diam selama `affinity_hours`. |
+
+Smart round robin mengenali percakapan dari session id yang dikirim klien (`metadata.user_id` dari Claude Code, `prompt_cache_key` dari Codex), atau dari pembukaannya: system prompt plus pesan user pertama, per API key. Menjaga satu percakapan di satu akun membuat prompt cache provider tetap hangat. State rotasi disimpan di memori, jadi restart memulai tiap provider dari akun pertamanya lagi.
 
 ## Fallback chain
 

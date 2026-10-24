@@ -2,6 +2,11 @@ package repositories
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+
+	"tera-router/server/internal/lib/apperr"
+	"tera-router/server/internal/models"
 )
 
 // SettingRepository stores the dashboard settings document as raw JSON values
@@ -17,6 +22,38 @@ type SettingRepository struct {
 // importing modelcatalog — which imports this one.
 func ProviderModelsSettingsKey(providerSlug string) string {
 	return "provider_models_" + providerSlug
+}
+
+// ProviderRoutingSettingsKey returns the settings key holding one provider's
+// account strategy (models.ProviderRouting).
+func ProviderRoutingSettingsKey(providerSlug string) string {
+	return "provider_routing_" + providerSlug
+}
+
+// ProviderRouting returns a provider's account strategy, or the default when
+// the operator never set one.
+func (r *SettingRepository) ProviderRouting(ctx context.Context, providerSlug string) (models.ProviderRouting, error) {
+	raw, err := r.getExec(ctx, ProviderRoutingSettingsKey(providerSlug))
+	if errors.Is(err, apperr.ErrNotFound) {
+		return models.DefaultProviderRouting(), nil
+	}
+	if err != nil {
+		return models.ProviderRouting{}, err
+	}
+	out := models.DefaultProviderRouting()
+	if err := json.Unmarshal([]byte(raw), &out); err != nil {
+		return models.ProviderRouting{}, err
+	}
+	return out, nil
+}
+
+// SetProviderRouting stores a provider's account strategy.
+func (r *SettingRepository) SetProviderRouting(ctx context.Context, providerSlug string, routing models.ProviderRouting) error {
+	raw, err := json.Marshal(routing)
+	if err != nil {
+		return err
+	}
+	return r.upsertExec(ctx, ProviderRoutingSettingsKey(providerSlug), string(raw))
 }
 
 // CloudflareTunnelSettingsKey holds a JSON boolean: whether the Cloudflare

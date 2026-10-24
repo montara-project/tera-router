@@ -940,3 +940,61 @@ func (h *providersHandler) CustomModelTest(c fiber.Ctx) error {
 	apiKey, oauth := h.usableCredential(c.Context(), provider.Slug)
 	return h.runModelTest(c, base, anthropic, apiKey, oauth, nil)
 }
+
+// Bounds for a provider's account strategy knobs.
+const (
+	maxStickyLimit   = 1000
+	maxAffinityHours = 24 * 30
+)
+
+// routingProvider resolves :id to a provider slug accounts can belong to: a
+// built-in catalog slug or an existing custom provider's slug.
+func (h *providersHandler) routingProvider(c fiber.Ctx) (string, error) {
+	slug := c.Params("id")
+	if _, ok := catalog.Lookup(slug); ok {
+		return slug, nil
+	}
+	if _, err := h.app.Repos.Providers.GetBySlug(c.Context(), slug); err != nil {
+		return "", err
+	}
+	return slug, nil
+}
+
+// Routing returns a provider's account strategy (GET /v1/providers/:id/routing).
+func (h *providersHandler) Routing(c fiber.Ctx) error {
+	slug, err := h.routingProvider(c)
+	if err != nil {
+		return err
+	}
+	routing, err := h.app.Repos.Settings.ProviderRouting(c.Context(), slug)
+	if err != nil {
+		return err
+	}
+	return dtos.OK(c, routing)
+}
+
+// RoutingUpdate stores a provider's account strategy
+// (PUT /v1/providers/:id/routing).
+func (h *providersHandler) RoutingUpdate(c fiber.Ctx) error {
+	slug, err := h.routingProvider(c)
+	if err != nil {
+		return err
+	}
+	var req dtos.ProviderRouting
+	if err := lib.ValidateRequestBody(c, &req); err != nil {
+		return err
+	}
+	if req.StickyLimit < 1 || req.StickyLimit > maxStickyLimit {
+		return apperr.New(apperr.KindUnprocessable, "sticky_limit must be between 1 and %d", maxStickyLimit)
+	}
+	if req.AffinityHours < 1 || req.AffinityHours > maxAffinityHours {
+		return apperr.New(apperr.KindUnprocessable, "affinity_hours must be between 1 and %d", maxAffinityHours)
+	}
+
+	routing := models.ProviderRouting{Strategy: req.Strategy, StickyLimit: req.StickyLimit, AffinityHours: req.AffinityHours}
+	if err := h.app.Repos.Settings.SetProviderRouting(c.Context(), slug, routing); err != nil {
+		return err
+	}
+	auditRecord(c.Context(), h.app, actorFrom(c), "provider.routing_update", slug, routing)
+	return dtos.OK(c, routing)
+}

@@ -84,15 +84,16 @@ Pagination uses the `offset` (0-based) and `limit` (default 10, max 100) query p
 
 ### Providers & accounts
 
-| Method               | Path                       | Notes                                |
-| -------------------- | -------------------------- | ------------------------------------ |
-| GET                  | `/v1/providers`            | Connected/available provider summary |
-| GET / POST           | `/v1/custom-providers`     | Custom providers                     |
-| PATCH / DELETE       | `/v1/custom-providers/:id` | Manage custom provider               |
-| GET / POST           | `/v1/accounts`             | List / add accounts                  |
-| GET / PATCH / DELETE | `/v1/accounts/:id`         | Manage account                       |
-| POST                 | `/v1/accounts/:id/test`    | Test account connection              |
-| GET                  | `/v1/accounts/:id/quota`   | Account quota                        |
+| Method               | Path                        | Notes                                         |
+| -------------------- | --------------------------- | --------------------------------------------- |
+| GET                  | `/v1/providers`             | Connected/available provider summary          |
+| GET / POST           | `/v1/custom-providers`      | Custom providers                              |
+| PATCH / DELETE       | `/v1/custom-providers/:id`  | Manage custom provider                        |
+| GET / POST           | `/v1/accounts`              | List / add accounts                           |
+| GET / PATCH / DELETE | `/v1/accounts/:id`          | Manage account                                |
+| POST                 | `/v1/accounts/:id/test`     | Test account connection                       |
+| GET                  | `/v1/accounts/:id/quota`    | Account quota                                 |
+| GET / PUT            | `/v1/providers/:id/routing` | Account strategy (`:id` is the provider slug) |
 
 ### Budgets & usage
 

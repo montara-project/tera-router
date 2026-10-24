@@ -162,6 +162,9 @@ func (s *Server) handleChat(c fiber.Ctx, dialect core.Dialect) error {
 
 	// Strip reasoning suffixes carried by alias targets / chain steps.
 	applyTargetSuffixes(req, resolved.Targets)
+	// Read before skills and token saving rewrite the system prompt, so the
+	// conversation fingerprint only depends on what the client sent.
+	session := sessionKey(req)
 
 	plan, err := s.planForKey(routeCtx, key)
 	if err != nil {
@@ -237,7 +240,7 @@ func (s *Server) handleChat(c fiber.Ctx, dialect core.Dialect) error {
 	// redacted text, and before dispatch so every attempt sends the slim body.
 	s.applyTokenSaving(routeCtx, req)
 
-	attempts := s.plan(routeCtx, resolved.Targets)
+	attempts := s.plan(routeCtx, resolved.Targets, session)
 	routeCancel()
 	if len(attempts) == 0 {
 		release()

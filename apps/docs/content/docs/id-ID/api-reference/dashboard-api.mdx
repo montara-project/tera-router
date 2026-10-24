@@ -84,15 +84,16 @@ Pagination memakai query `offset` (0-based) dan `limit` (default 10, maks 100).
 
 ### Providers & accounts
 
-| Method               | Path                       | Keterangan                            |
-| -------------------- | -------------------------- | ------------------------------------- |
-| GET                  | `/v1/providers`            | Ringkasan provider terhubung/tersedia |
-| GET / POST           | `/v1/custom-providers`     | Custom provider                       |
-| PATCH / DELETE       | `/v1/custom-providers/:id` | Kelola custom provider                |
-| GET / POST           | `/v1/accounts`             | Daftar / tambah akun                  |
-| GET / PATCH / DELETE | `/v1/accounts/:id`         | Kelola akun                           |
-| POST                 | `/v1/accounts/:id/test`    | Uji koneksi akun                      |
-| GET                  | `/v1/accounts/:id/quota`   | Kuota akun                            |
+| Method               | Path                        | Keterangan                                 |
+| -------------------- | --------------------------- | ------------------------------------------ |
+| GET                  | `/v1/providers`             | Ringkasan provider terhubung/tersedia      |
+| GET / POST           | `/v1/custom-providers`      | Custom provider                            |
+| PATCH / DELETE       | `/v1/custom-providers/:id`  | Kelola custom provider                     |
+| GET / POST           | `/v1/accounts`              | Daftar / tambah akun                       |
+| GET / PATCH / DELETE | `/v1/accounts/:id`          | Kelola akun                                |
+| POST                 | `/v1/accounts/:id/test`     | Uji koneksi akun                           |
+| GET                  | `/v1/accounts/:id/quota`    | Kuota akun                                 |
+| GET / PUT            | `/v1/providers/:id/routing` | Strategi akun (`:id` adalah slug provider) |
 
 ### Budgets & usage
 

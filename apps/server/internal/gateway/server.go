@@ -93,6 +93,9 @@ type Server struct {
 	combo *autocombo.Engine
 	// cooldowns tracks accounts parked after a rate-limit/auth failure.
 	cooldowns cooldownTracker
+	// accountRotation orders each provider's accounts per its account
+	// strategy (round robin cursors, smart round robin session bindings).
+	accountRotation accountRotation
 	// auth caches verified inbound API keys so argon2 runs once per key per TTL.
 	auth authCache
 	// inflight bounds concurrent inference requests. A request holds its slot
@@ -110,15 +113,16 @@ type Server struct {
 func New(a *app.Application) *Server {
 	codecs := transform.DefaultRegistry()
 	return &Server{
-		app:       a,
-		log:       a.Logger,
-		codecs:    codecs,
-		conns:     connectors.New(codecs),
-		rotation:  newRotationState(),
-		combo:     autocombo.NewEngine(autocombo.RepoAccounts{R: a.Repos.Accounts}, autocombo.RepoStats{R: a.Repos.Usage}, autocombo.RepoCatalog{R: a.Repos.Settings}),
-		cooldowns: newCooldownTracker(),
-		auth:      newAuthCache(),
-		inflight:  make(chan struct{}, defaultMaxConcurrent),
+		app:             a,
+		log:             a.Logger,
+		codecs:          codecs,
+		conns:           connectors.New(codecs),
+		rotation:        newRotationState(),
+		combo:           autocombo.NewEngine(autocombo.RepoAccounts{R: a.Repos.Accounts}, autocombo.RepoStats{R: a.Repos.Usage}, autocombo.RepoCatalog{R: a.Repos.Settings}),
+		cooldowns:       newCooldownTracker(),
+		accountRotation: newAccountRotation(),
+		auth:            newAuthCache(),
+		inflight:        make(chan struct{}, defaultMaxConcurrent),
 	}
 }
 

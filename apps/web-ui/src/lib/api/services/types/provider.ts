@@ -1,6 +1,6 @@
 import type { AxiosDeleteResponse, AxiosItemResponse, AxiosListResponse } from '@/types/api'
 
-import type { CustomProviderDto } from '../../dtos/provider/schema'
+import type { CustomProviderDto, ProviderRoutingDto } from '../../dtos/provider/schema'
 import type { Models } from '../../models'
 
 export type ProviderResources = {
@@ -38,6 +38,12 @@ export type ProviderResources = {
     slug: string,
     payload: { models: { id: string; state: Models.ProviderModelState }[] }
   ) => Promise<AxiosItemResponse<Models.UpstreamModels>>
+  /** account strategy of any provider (catalog or custom slug) */
+  routing: (slug: string) => Promise<AxiosItemResponse<Models.ProviderRouting>>
+  updateRouting: (
+    slug: string,
+    payload: ProviderRoutingDto
+  ) => Promise<AxiosItemResponse<Models.ProviderRouting>>
   /** catalog-provider one-shot model test (chat completion with the stored credential) */
   modelsTest: (
     slug: string,
