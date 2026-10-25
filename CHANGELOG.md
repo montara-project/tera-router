@@ -3,6 +3,31 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [1.12.0](https://github.com/montara-project/tera-router/compare/v1.11.0...v1.12.0) (2026-10-25)
+
+### ⚠ BREAKING CHANGES
+
+* the database download is now POST
+  /v1/backup/database/download with a {password, otp} body (was GET), and
+  POST /v1/backup/config/export requires password.
+
+### Features
+
+* require password and TOTP for backup download and config export ([42422c1](https://github.com/montara-project/tera-router/commit/42422c170d085eb768266e70f170f33fb02f788a))
+* **server:** add branding logo/favicon and public branding endpoint ([b9e2baf](https://github.com/montara-project/tera-router/commit/b9e2baf7216fbb495c6104b8441c14e0b8c8e3cf))
+* **server:** add proxy pool edit, batch import, bulk delete and relay mode ([46f0542](https://github.com/montara-project/tera-router/commit/46f0542335b59609cd954489f7c56e71a05f8b3c))
+* **web-ui:** wire plan create and update dialogs on /plans ([97a32ad](https://github.com/montara-project/tera-router/commit/97a32adf20c7527ec3aba3ffe563e25fbc6a337a))
+* **web-ui:** wire provider health drill-down and Manage Keys link ([1e127d6](https://github.com/montara-project/tera-router/commit/1e127d6b2a7eaa3680d41af2cb6920f2e909e272))
+* **web-ui:** wire remaining dashboard features to the server ([598e566](https://github.com/montara-project/tera-router/commit/598e566132e1e7d7bf1af78ec6928642dfb342a5))
+
+### Bug Fixes
+
+* **deps:** resolve pnpm audit vulnerabilities ([1832545](https://github.com/montara-project/tera-router/commit/1832545530bb1d4df654a52c527d0ab1dc25cd1c))
+* **server:** bump golang.org/x/net to v0.60.0 for HTTP/2 vulns ([3dce932](https://github.com/montara-project/tera-router/commit/3dce9324df96e4e36e07a8ef571044103a8065a9))
+* **server:** render cleared plan limits as unlimited ([e55b77a](https://github.com/montara-project/tera-router/commit/e55b77aabea8bd5c98f05b2c5d252ea6dd42c600))
+* update github workflows ([32d5cb0](https://github.com/montara-project/tera-router/commit/32d5cb0d84dad2ea4b5cb75438d7bf09600b2fec))
+* update license ([46211b5](https://github.com/montara-project/tera-router/commit/46211b52c9e66cccf80dd182e54e28da123a519d))
+
 ## [1.11.0](https://github.com/montara-project/tera-router/compare/v1.10.0...v1.11.0) (2026-10-24)
 
 ### Features
