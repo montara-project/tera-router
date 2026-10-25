@@ -44,6 +44,7 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	v1.Post("/auth/sign-in", h.Auth.SignIn)
 	v1.Post("/auth/refresh", h.Auth.Refresh)
 	v1.Get("/auth/google/redirect", h.Auth.GoogleRedirect)
+	v1.Get("/branding", h.Settings.Branding)
 
 	protected := v1.Group("/", middlewares.RequireAuth(app))
 
