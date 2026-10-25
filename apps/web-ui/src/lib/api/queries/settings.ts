@@ -21,6 +21,17 @@ const get = () =>
     },
   })
 
+/** Public branding; shares the settings key so saving settings refreshes it. */
+const branding = () =>
+  queryOptions({
+    queryKey: [SETTINGS_QUERY_KEY, 'branding'],
+    queryFn: async () => {
+      const res = await services.settings.branding()
+      return res.data.data
+    },
+    staleTime: 5 * 60_000,
+  })
+
 const update = () => {
   const qc = getQueryClient()
 
@@ -37,5 +48,6 @@ const update = () => {
 
 export const settingsQueries = {
   get,
+  branding,
   update,
 } as const

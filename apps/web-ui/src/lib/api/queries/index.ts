@@ -2,6 +2,7 @@ import { accountQueries } from './account'
 import { aliasQueries } from './alias'
 import { authQueries } from './auth'
 import { backupQueries } from './backup'
+import { budgetQueries } from './budget'
 import { chainQueries } from './chain'
 import { cliToolQueries } from './cli-tool'
 import { consoleQueries } from './console'
@@ -26,6 +27,7 @@ export const queries = {
   aliases: aliasQueries,
   auth: authQueries,
   backup: backupQueries,
+  budgets: budgetQueries,
   chains: chainQueries,
   cliTools: cliToolQueries,
   console: consoleQueries,

@@ -109,12 +109,17 @@ Pagination uses the `offset` (0-based) and `limit` (default 10, max 100) query p
 
 ### Proxy pools
 
-| Method     | Path                           | Notes               |
-| ---------- | ------------------------------ | ------------------- |
-| GET / POST | `/v1/proxy-pools`              | List / create pools |
-| POST       | `/v1/proxy-pools/health-check` | Check all pools     |
-| DELETE     | `/v1/proxy-pools/:id`          | Delete pool         |
-| POST       | `/v1/proxy-pools/:id/test`     | Test one pool       |
+| Method         | Path                           | Notes                                                           |
+| -------------- | ------------------------------ | --------------------------------------------------------------- |
+| GET / POST     | `/v1/proxy-pools`              | List / create pools                                             |
+| POST           | `/v1/proxy-pools/bulk`         | Batch import `{"pools": [...]}`, all or nothing (max 500)       |
+| POST           | `/v1/proxy-pools/bulk-delete`  | Delete `{"ids": [...]}`, skipping ones already gone             |
+| POST           | `/v1/proxy-pools/relay-script` | Generate a relay script (`{"kind": "cloudflare"}` or `"local"`) |
+| POST           | `/v1/proxy-pools/health-check` | Check all pools                                                 |
+| PATCH / DELETE | `/v1/proxy-pools/:id`          | Edit / delete pool                                              |
+| POST           | `/v1/proxy-pools/:id/test`     | Test one pool                                                   |
+
+A pool URL is normally an HTTP/HTTPS/SOCKS forward proxy. A URL of the form `relay+https://:<secret>@host` is a fetch relay instead: the gateway sends each upstream call to the relay with the real target in `X-Tera-Relay-Target` and the secret in `X-Tera-Relay-Secret`. The relay-script endpoint returns a ready-to-deploy Cloudflare Worker or Node script with a fresh secret, plus the pool URL to register (replace `RELAY_HOST`).
 
 ### Overrides
 
@@ -150,13 +155,18 @@ Enabling and disabling are audit-logged. See [Remote access](/docs/getting-start
 
 ### Misc
 
-| Method       | Path               | Notes                                            |
-| ------------ | ------------------ | ------------------------------------------------ |
-| GET / PATCH  | `/v1/settings`     | Router settings (timeout, round-robin, etc.)     |
-| GET / POST   | `/v1/skills`       | List / create skills                             |
-| PATCH        | `/v1/skills/:id`   | Switch gateway injection (`enabled`)             |
-| DELETE       | `/v1/skills/:id`   | Delete skill                                     |
-| GET / DELETE | `/v1/console`      | Ring buffer log (500 entries) / clear            |
-| GET          | `/v1/system/stats` | Host & process metrics                           |
-| GET          | `/v1/media`        | Catalog providers grouped by non-chat capability |
-| GET          | `/health`          | Server health (no auth)                          |
+| Method       | Path                           | Notes                                                  |
+| ------------ | ------------------------------ | ------------------------------------------------------ |
+| GET / PATCH  | `/v1/settings`                 | Router settings (timeout, round-robin, etc.)           |
+| GET          | `/v1/branding`                 | Public (no auth): display name, tagline, logo, favicon |
+| GET / POST   | `/v1/skills`                   | List / create skills                                   |
+| PATCH        | `/v1/skills/:id`               | Switch gateway injection (`enabled`)                   |
+| DELETE       | `/v1/skills/:id`               | Delete skill                                           |
+| GET / DELETE | `/v1/console`                  | Ring buffer log (500 entries) / clear                  |
+| GET          | `/v1/system/stats`             | Host & process metrics                                 |
+| GET          | `/v1/media`                    | Catalog providers grouped by non-chat capability       |
+| GET          | `/health`                      | Server health (no auth)                                |
+| POST         | `/v1/backup/database/download` | SQLite snapshot; needs password (+ TOTP)               |
+| POST         | `/v1/backup/config/export`     | JSON config backup; needs password (+ TOTP)            |
+
+The key reveal and both backup downloads re-authenticate: send `"password"`, and when two-factor auth is on the server answers `{ "totp_required": true }` until you resend with `"otp"`. Wrong passwords or codes return `422` and count toward the IP block, like failed sign-ins.

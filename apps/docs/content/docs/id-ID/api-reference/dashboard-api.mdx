@@ -150,13 +150,17 @@ Menyalakan dan mematikan tercatat di audit log. Lihat [Akses jarak jauh](/id-ID/
 
 ### Lainnya
 
-| Method       | Path               | Keterangan                                   |
-| ------------ | ------------------ | -------------------------------------------- |
-| GET / PATCH  | `/v1/settings`     | Settings router (timeout, round-robin, dst.) |
-| GET / POST   | `/v1/skills`       | Daftar / buat skill                          |
-| PATCH        | `/v1/skills/:id`   | Nyalakan/matikan injeksi gateway (`enabled`) |
-| DELETE       | `/v1/skills/:id`   | Hapus skill                                  |
-| GET / DELETE | `/v1/console`      | Log ring buffer (500 entri) / bersihkan      |
-| GET          | `/v1/system/stats` | Metrik host & proses                         |
-| GET          | `/v1/media`        | Provider katalog per kemampuan non-chat      |
-| GET          | `/health`          | Kesehatan server (tanpa auth)                |
+| Method       | Path                           | Keterangan                                       |
+| ------------ | ------------------------------ | ------------------------------------------------ |
+| GET / PATCH  | `/v1/settings`                 | Settings router (timeout, round-robin, dst.)     |
+| GET / POST   | `/v1/skills`                   | Daftar / buat skill                              |
+| PATCH        | `/v1/skills/:id`               | Nyalakan/matikan injeksi gateway (`enabled`)     |
+| DELETE       | `/v1/skills/:id`               | Hapus skill                                      |
+| GET / DELETE | `/v1/console`                  | Log ring buffer (500 entri) / bersihkan          |
+| GET          | `/v1/system/stats`             | Metrik host & proses                             |
+| GET          | `/v1/media`                    | Provider katalog per kemampuan non-chat          |
+| GET          | `/health`                      | Kesehatan server (tanpa auth)                    |
+| POST         | `/v1/backup/database/download` | Snapshot SQLite; perlu password (+ TOTP)         |
+| POST         | `/v1/backup/config/export`     | Backup konfigurasi JSON; perlu password (+ TOTP) |
+
+Reveal key dan kedua download backup meminta autentikasi ulang: kirim `"password"`, dan saat autentikasi dua faktor aktif server menjawab `{ "totp_required": true }` sampai kamu mengirim ulang dengan `"otp"`. Password atau kode yang salah dijawab `422` dan dihitung ke blokir IP, sama seperti login gagal.

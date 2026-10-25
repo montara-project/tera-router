@@ -17,6 +17,7 @@ import {
   SidebarRail,
 } from '@/components/ui/sidebar'
 import { getSidebarMenu } from '@/data/sidebar-menu'
+import { useBranding } from '@/hooks/use-branding'
 
 import NavMain from './nav-main'
 import NavUser from './nav-user'
@@ -31,6 +32,7 @@ type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
 }
 
 export default function AppSidebar({ user, userError, onRetryUser, ...props }: AppSidebarProps) {
+  const branding = useBranding()
   const menu = getSidebarMenu()
 
   const userInfo: UserInfo | undefined = user
@@ -50,15 +52,15 @@ export default function AppSidebar({ user, userError, onRetryUser, ...props }: A
               <Link to="/">
                 <div className="text-sidebar-primary-foreground bg-neutral-100 p-1 flex aspect-square size-8 items-center justify-center rounded-lg">
                   <img
-                    src="/static/images/tera.png"
-                    alt="Tera Router"
+                    src={branding.logo}
+                    alt={branding.name}
                     width={32}
                     height={32}
                     className="rounded-md"
                   />
                 </div>
                 <div className="flex flex-col gap-1 leading-none">
-                  <span className="font-medium">Tera Router</span>
+                  <span className="font-medium">{branding.name}</span>
                   <span className="">AI Router</span>
                 </div>
               </Link>

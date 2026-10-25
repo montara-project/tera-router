@@ -2,7 +2,8 @@ import { mutationOptions, queryOptions } from '@tanstack/react-query'
 
 import { getQueryClient } from '@/lib/providers/react-query'
 
-import type { CreateKeyDto, RevealKeyDto, UpdateKeyDto } from '../dtos/key/schema'
+import type { ReauthDto } from '../dtos/auth/schema'
+import type { CreateKeyDto, UpdateKeyDto } from '../dtos/key/schema'
 import type { PaginateDto } from '../dtos/paginate'
 
 import { services } from '../services'
@@ -93,7 +94,7 @@ const toggleStatus = () => {
 
 const reveal = () =>
   mutationOptions({
-    mutationFn: async ({ id, ...payload }: { id: string } & RevealKeyDto) => {
+    mutationFn: async ({ id, ...payload }: { id: string } & ReauthDto) => {
       const res = await services.keys.reveal(id, payload)
       return res.data
     },

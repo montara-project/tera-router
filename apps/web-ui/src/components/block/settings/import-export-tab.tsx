@@ -27,6 +27,7 @@ import {
   CardHeading,
   CardTitle,
 } from '@/components/ui/card'
+import { useReauthDialog } from '@/hooks/use-reauth-dialog'
 import { toastAxiosError } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
 import { readJsonObject, saveFile } from '@/lib/file'
@@ -44,6 +45,7 @@ export default function ImportExportTab() {
   const importLegacy = useMutation(queries.backup.importLegacy())
   const downloadDatabase = useMutation(queries.backup.downloadDatabase())
   const restoreDatabase = useMutation(queries.backup.restoreDatabase())
+  const { confirm, dialog } = useReauthDialog()
 
   const legacyInput = useRef<HTMLInputElement>(null)
   const legacySource = useRef<LegacyImportSource>('9router')
@@ -92,14 +94,14 @@ export default function ImportExportTab() {
     if (file) setPendingDb(file)
   }
 
-  const handleDownloadDatabase = () => {
-    downloadDatabase.mutate(undefined, {
-      onSuccess: (file) => {
-        saveFile(file.blob, file.filename)
-        toast.success('Database snapshot downloaded')
-      },
-      onError: toastAxiosError,
-    })
+  // The snapshot carries every sealed credential, so it re-authenticates.
+  const handleDownloadDatabase = async () => {
+    const file = await confirm('download the database snapshot', (creds) =>
+      downloadDatabase.mutateAsync(creds)
+    )
+    if (!file) return
+    saveFile(file.blob, file.filename)
+    toast.success('Database snapshot downloaded')
   }
 
   const handleRestoreDatabase = () => {
@@ -313,7 +315,7 @@ export default function ImportExportTab() {
                 type="button"
                 variant="outline"
                 disabled={!sqliteActive || downloadDatabase.isPending}
-                onClick={handleDownloadDatabase}
+                onClick={() => void handleDownloadDatabase()}
               >
                 {downloadDatabase.isPending ? (
                   <IconLoader2 className="h-4 w-4 animate-spin" />
@@ -355,6 +357,7 @@ export default function ImportExportTab() {
         confirmText="Restore"
         onConfirm={handleRestoreDatabase}
       />
+      {dialog}
     </div>
   )
 }

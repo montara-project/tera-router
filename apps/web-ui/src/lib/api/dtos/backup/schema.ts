@@ -2,8 +2,10 @@ import { z } from 'zod'
 
 import { optionalString } from '@/lib/validation'
 
+import { ReauthSchema } from '../auth/schema'
+
 /** Configuration export body (POST /v1/backup/config/export). */
-export const ConfigExportSchema = z.object({
+export const ConfigExportSchema = ReauthSchema.extend({
   passphrase: optionalString('passphrase'),
 })
 

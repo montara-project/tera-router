@@ -21,4 +21,17 @@ export type AppSettings = {
   branding_display_name: string
   branding_tagline: string
   branding_theme: string
+  /** Image data URL; '' means the default logo. */
+  branding_logo: string
+  /** Image data URL; '' means the default favicon. */
+  branding_favicon: string
+}
+
+/** GET /v1/branding: the public branding subset, readable before sign-in. */
+export type Branding = {
+  display_name: string
+  tagline: string
+  theme: string
+  logo: string
+  favicon: string
 }

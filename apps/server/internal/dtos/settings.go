@@ -1,8 +1,11 @@
 package dtos
 
 import (
+	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"os"
+	"strings"
 
 	"tera-router/server/internal/lib/validator"
 )
@@ -35,11 +38,49 @@ type AppSettings struct {
 	BrandingDisplayName    *string `json:"branding_display_name"`
 	BrandingTagline        *string `json:"branding_tagline"`
 	BrandingTheme          *string `json:"branding_theme"`
+	// BrandingLogo and BrandingFavicon are image data URLs; "" means default.
+	BrandingLogo    *string `json:"branding_logo"`
+	BrandingFavicon *string `json:"branding_favicon"`
 }
 
 // Validate accepts any JSON object as a settings patch; field-level rules
 // are enforced by the merge logic in the handler instead.
 func (s *AppSettings) Validate(v *validator.MapValidator) {}
+
+// MaxBrandingImageBytes caps a logo or favicon data URL. The settings row is
+// read on every dashboard load, so images stay small.
+const MaxBrandingImageBytes = 256 << 10
+
+// brandingImagePrefixes are the data URL types accepted for branding images.
+// SVG is safe here because the dashboard only renders it through <img>.
+var brandingImagePrefixes = []string{
+	"data:image/png;base64,",
+	"data:image/jpeg;base64,",
+	"data:image/webp;base64,",
+	"data:image/svg+xml;base64,",
+	"data:image/x-icon;base64,",
+	"data:image/vnd.microsoft.icon;base64,",
+}
+
+// ValidateBrandingImage checks an optional branding image patch: "" clears
+// it, anything else must be a small base64 image data URL.
+func ValidateBrandingImage(field string, value *string) error {
+	if value == nil || *value == "" {
+		return nil
+	}
+	if len(*value) > MaxBrandingImageBytes {
+		return fmt.Errorf("%s must be at most %d KB", field, MaxBrandingImageBytes>>10)
+	}
+	for _, prefix := range brandingImagePrefixes {
+		if strings.HasPrefix(*value, prefix) {
+			if _, err := base64.StdEncoding.DecodeString((*value)[len(prefix):]); err != nil {
+				return fmt.Errorf("%s is not valid base64", field)
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("%s must be a PNG, JPEG, WebP, SVG or ICO data URL", field)
+}
 
 // DefaultSettings returns the settings document used when nothing is stored.
 // The values match the document the handler previously constructed inline, so
@@ -66,6 +107,8 @@ func DefaultSettings() AppSettings {
 		BrandingDisplayName:    new("Tera Router"),
 		BrandingTagline:        new(""),
 		BrandingTheme:          new("forest-amber"),
+		BrandingLogo:           new(""),
+		BrandingFavicon:        new(""),
 	}
 }
 
@@ -101,6 +144,8 @@ func MergeSettings(current, patch AppSettings) AppSettings {
 	mergeString(&out.BrandingDisplayName, patch.BrandingDisplayName)
 	mergeString(&out.BrandingTagline, patch.BrandingTagline)
 	mergeString(&out.BrandingTheme, patch.BrandingTheme)
+	mergeString(&out.BrandingLogo, patch.BrandingLogo)
+	mergeString(&out.BrandingFavicon, patch.BrandingFavicon)
 
 	mergeInt(&out.ProviderStickyLimit, patch.ProviderStickyLimit)
 	mergeInt(&out.HeadroomTimeout, patch.HeadroomTimeout)

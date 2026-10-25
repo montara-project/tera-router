@@ -44,6 +44,7 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	v1.Post("/auth/sign-in", h.Auth.SignIn)
 	v1.Post("/auth/refresh", h.Auth.Refresh)
 	v1.Get("/auth/google/redirect", h.Auth.GoogleRedirect)
+	v1.Get("/branding", h.Settings.Branding)
 
 	protected := v1.Group("/", middlewares.RequireAuth(app))
 
@@ -148,6 +149,10 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	protected.Get("/proxy-pools", h.ProxyPools.Index)
 	protected.Post("/proxy-pools", h.ProxyPools.Store)
 	protected.Post("/proxy-pools/health-check", h.ProxyPools.HealthCheck)
+	protected.Post("/proxy-pools/bulk", h.ProxyPools.BulkStore)
+	protected.Post("/proxy-pools/bulk-delete", h.ProxyPools.BulkDelete)
+	protected.Post("/proxy-pools/relay-script", h.ProxyPools.RelayScript)
+	protected.Patch("/proxy-pools/:id", h.ProxyPools.Update)
 	protected.Delete("/proxy-pools/:id", h.ProxyPools.Delete)
 	protected.Post("/proxy-pools/:id/test", h.ProxyPools.Test)
 
@@ -179,7 +184,7 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	protected.Post("/backup/config/export", h.Backup.ConfigExport)
 	protected.Post("/backup/config/import", h.Backup.ConfigImport)
 	protected.Get("/backup/database", h.Backup.DatabaseInfo)
-	protected.Get("/backup/database/download", h.Backup.DatabaseDownload)
+	protected.Post("/backup/database/download", h.Backup.DatabaseDownload)
 	protected.Post("/backup/database/restore", h.Backup.DatabaseRestore)
 	protected.Post("/import/:source", h.LegacyImport.Import)
 

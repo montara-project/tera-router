@@ -2,6 +2,7 @@ import type { AxiosResponse } from 'axios'
 
 import type { AxiosItemResponse } from '@/types/api'
 
+import type { ReauthDto } from '../../dtos/auth/schema'
 import type { ConfigExportDto, ConfigImportDto, LegacyBackupDto } from '../../dtos/backup/schema'
 import type {
   ConfigImportResult,
@@ -13,7 +14,7 @@ import type {
 
 export type BackupResources = {
   databaseInfo: () => Promise<AxiosItemResponse<DatabaseInfo>>
-  downloadDatabase: () => Promise<AxiosResponse<Blob>>
+  downloadDatabase: (reqBody: ReauthDto) => Promise<AxiosResponse<Blob>>
   restoreDatabase: (file: File) => Promise<AxiosItemResponse<DatabaseRestoreResult>>
   exportConfig: (reqBody: ConfigExportDto) => Promise<AxiosResponse<Blob>>
   importConfig: (reqBody: ConfigImportDto) => Promise<AxiosItemResponse<ConfigImportResult>>

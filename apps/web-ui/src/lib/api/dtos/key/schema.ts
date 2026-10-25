@@ -32,15 +32,5 @@ export const UpdateKeySchema = z.object({
   skill_ids: optionalStringArray('skills'),
 })
 
-/**
- * Key reveal body (POST /v1/keys/:id/reveal): the signed-in user's password,
- * plus the authenticator code once the server answers totp_required.
- */
-export const RevealKeySchema = z.object({
-  password: requiredString('password'),
-  otp: optionalString('authentication code'),
-})
-
 export type CreateKeyDto = z.infer<typeof CreateKeySchema>
 export type UpdateKeyDto = z.infer<typeof UpdateKeySchema>
-export type RevealKeyDto = z.infer<typeof RevealKeySchema>

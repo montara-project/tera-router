@@ -38,6 +38,13 @@ func (h *settingsHandler) Update(c fiber.Ctx) error {
 		return err
 	}
 
+	if err := dtos.ValidateBrandingImage("branding_logo", req.BrandingLogo); err != nil {
+		return apperr.New(apperr.KindUnprocessable, "%s", err.Error())
+	}
+	if err := dtos.ValidateBrandingImage("branding_favicon", req.BrandingFavicon); err != nil {
+		return apperr.New(apperr.KindUnprocessable, "%s", err.Error())
+	}
+
 	current, err := loadSettings(c.Context(), h.app.Repos.Settings)
 	if err != nil {
 		return err
@@ -51,8 +58,32 @@ func (h *settingsHandler) Update(c fiber.Ctx) error {
 	if err := h.app.Repos.Settings.Upsert(c.Context(), settingsKey, string(raw)); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "settings.update", settingsKey, req)
+	// Image data URLs would bloat the audit trail; record that they changed.
+	audit := req
+	if audit.BrandingLogo != nil {
+		audit.BrandingLogo = new("(image updated)")
+	}
+	if audit.BrandingFavicon != nil {
+		audit.BrandingFavicon = new("(image updated)")
+	}
+	auditRecord(c.Context(), h.app, actorFrom(c), "settings.update", settingsKey, audit)
 	return dtos.Item(c, fiber.StatusOK, merged, "Settings updated")
+}
+
+// Branding is the public subset of settings the login screen needs before
+// anyone is signed in: names and images only, never configuration.
+func (h *settingsHandler) Branding(c fiber.Ctx) error {
+	settings, err := loadSettings(c.Context(), h.app.Repos.Settings)
+	if err != nil {
+		return err
+	}
+	return dtos.OK(c, fiber.Map{
+		"display_name": settings.BrandingDisplayName,
+		"tagline":      settings.BrandingTagline,
+		"theme":        settings.BrandingTheme,
+		"logo":         settings.BrandingLogo,
+		"favicon":      settings.BrandingFavicon,
+	})
 }
 
 func loadSettings(ctx context.Context, settings *repositories.SettingRepository) (dtos.AppSettings, error) {

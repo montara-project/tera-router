@@ -20,6 +20,9 @@ const resources = (): SettingsResources => {
       const url = path
       return api.get(url)
     },
+    branding: () => {
+      return api.get('/v1/branding')
+    },
     update: (patch) => {
       const url = path
       return api.patch(url, parseDto(SettingsSchema, patch))

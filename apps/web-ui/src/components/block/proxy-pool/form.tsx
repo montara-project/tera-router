@@ -117,3 +117,34 @@ export function AddProxyPoolForm({ open, onOpenChange }: AddProxyPoolFormProps) 
     />
   )
 }
+
+type EditProxyPoolFormProps = {
+  pool: Models.ProxyPool
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}
+
+export function EditProxyPoolForm({ pool, open, onOpenChange }: EditProxyPoolFormProps) {
+  const update = useMutation(queries.proxyPools.update())
+  const mutation = {
+    mutateAsync: (reqBody: ProxyPoolDto) => update.mutateAsync({ id: pool.id, reqBody }),
+    isPending: update.isPending,
+  }
+
+  return (
+    <AbstractForm
+      // Remount per pool so the form starts from the pool being edited.
+      key={pool.id}
+      open={open}
+      onOpenChange={onOpenChange}
+      defaultValues={{
+        name: pool.name,
+        url: pool.url,
+        label: pool.label ?? '',
+      }}
+      schema={ProxyPoolSchema}
+      mutation={mutation}
+      isEdit
+    />
+  )
+}

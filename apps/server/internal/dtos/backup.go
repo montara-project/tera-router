@@ -7,8 +7,12 @@ import "tera-router/server/internal/lib/validator"
 // local APP_SECRET to the passphrase so another install can import them.
 type ConfigExport struct {
 	Passphrase string `json:"passphrase"`
+	// Password and OTP re-authenticate the export (see Reauth).
+	Password string `json:"password"`
+	OTP      string `json:"otp"`
 }
 
 func (d *ConfigExport) Validate(v *validator.MapValidator) {
 	v.Field("passphrase").String()
+	v.Field("password").Required().String()
 }

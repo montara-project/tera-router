@@ -45,3 +45,8 @@ minimumReleaseAgeExclude:
   - '@oxlint/binding-win32-x64-msvc@1.82.0'
   - oxfmt@0.67.0
   - oxlint@1.82.0
+overrides:
+  fast-uri@<3.1.9: ^3.1.9
+  fflate@<0.7.5: ^0.7.5
+  seroval@<1.6.3: ^1.6.4
+  seroval-plugins@<1.6.3: ^1.6.4

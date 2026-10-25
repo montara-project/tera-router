@@ -9,6 +9,7 @@ import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import EmptyState from '@/components/block/common/empty-state'
 import { Button } from '@/components/ui/button'
 import { Toaster } from '@/components/ui/sonner'
+import { useBrandingFavicon } from '@/hooks/use-branding'
 import DecorationProvider from '@/lib/providers/decoration'
 
 /**
@@ -21,8 +22,14 @@ import DecorationProvider from '@/lib/providers/decoration'
  *
  * @see https://tanstack.com/router/latest/docs/framework/react/routing/routing-concepts
  */
+function BrandingFavicon() {
+  useBrandingFavicon()
+  return null
+}
+
 const RootLayout = () => (
   <DecorationProvider>
+    <BrandingFavicon />
     {/* outlet = react children */}
     <Outlet />
     <Toaster position="bottom-right" richColors closeButton />

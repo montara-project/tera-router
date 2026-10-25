@@ -4,6 +4,7 @@ import { AUTH_STORAGE_KEYS } from '@/lib/constants/auth'
 import type { BackupResources } from './types/backup'
 
 import { ClientFetchApi } from '../client-fetch'
+import { ReauthSchema } from '../dtos/auth/schema'
 import { ConfigExportSchema, ConfigImportSchema, LegacyBackupSchema } from '../dtos/backup/schema'
 import { parseDto } from '../dtos/parse'
 
@@ -20,9 +21,9 @@ const resources = (): BackupResources => {
       const url = `${path}/database`
       return api.get(url)
     },
-    downloadDatabase: () => {
+    downloadDatabase: (reqBody) => {
       const url = `${path}/database/download`
-      return api.get(url, { responseType: 'blob' })
+      return api.post(url, parseDto(ReauthSchema, reqBody), { responseType: 'blob' })
     },
     restoreDatabase: (file) => {
       const url = `${path}/database/restore`

@@ -42,6 +42,18 @@ func (d *TOTPDisable) Validate(v *validator.MapValidator) {
 	v.Field("code").Required().String()
 }
 
+// Reauth re-authenticates an action that exposes secrets (key reveal, backup
+// download and export): the signed-in user's password, plus the
+// authenticator code once the server answers totp_required.
+type Reauth struct {
+	Password string `json:"password"`
+	OTP      string `json:"otp"`
+}
+
+func (d *Reauth) Validate(v *validator.MapValidator) {
+	v.Field("password").Required().String()
+}
+
 // Refresh is the token rotation request body (POST /v1/auth/refresh).
 type Refresh struct {
 	RefreshToken string `json:"refresh_token"`

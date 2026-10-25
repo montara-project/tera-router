@@ -2,11 +2,14 @@ import { IconAlertTriangle, IconChevronDown, IconDownload, IconScissors } from '
 import { useState } from 'react'
 import { toast } from 'sonner'
 
-import type { UsageTelemetryOverview } from '@/lib/api/models/usage'
+import type { UsageRange, UsageTelemetryOverview } from '@/lib/api/models/usage'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { env } from '@/config/env'
+import { saveFile } from '@/lib/file'
 import { formatCompact, formatKb } from '@/lib/format'
+import { renderSavingsCard } from '@/lib/savings-card'
 
 export function QualityBar({ quality }: { quality: UsageTelemetryOverview['quality'] }) {
   const [expanded, setExpanded] = useState(false)
@@ -61,13 +64,24 @@ export function QualityBar({ quality }: { quality: UsageTelemetryOverview['quali
   )
 }
 
+const RANGE_LABELS: Record<UsageRange, string> = {
+  today: 'Today',
+  '24h': 'Last 24 hours',
+  '7d': 'Last 7 days',
+  '30d': 'Last 30 days',
+}
+
 export function OptimizationBar({
   optimization,
+  range,
 }: {
   optimization: UsageTelemetryOverview['optimization']
+  range: UsageRange
 }) {
   const handleSavingsCard = () => {
-    toast.info('Savings card export is not wired to the backend yet')
+    renderSavingsCard(env.VITE_APP_NAME, RANGE_LABELS[range], stats)
+      .then((blob) => saveFile(blob, `savings-card-${range}.png`))
+      .catch((error: Error) => toast.error(error.message))
   }
 
   const stats = [

@@ -5,6 +5,7 @@ import { AxiosError } from 'axios'
 
 import { getQueryClient } from '@/lib/providers/react-query'
 
+import type { ReauthDto, ReauthResult } from '../dtos/auth/schema'
 import type { ConfigExportDto, ConfigImportDto, LegacyBackupDto } from '../dtos/backup/schema'
 import type { LegacyImportSource } from '../models/backup'
 
@@ -54,11 +55,32 @@ const databaseInfo = () =>
     },
   })
 
+/**
+ * Backups re-authenticate: until the authenticator code is sent the server
+ * answers with a JSON totp_required envelope instead of the file. The config
+ * export is itself JSON, so only a body carrying that flag counts.
+ */
+async function fileOrTotp(
+  res: AxiosResponse<Blob>,
+  prefix: string,
+  ext: string
+): Promise<ReauthResult<DownloadedFile>> {
+  if (String(res.headers['content-type'] ?? '').includes('application/json')) {
+    try {
+      const body = JSON.parse(await res.data.text())
+      if (body?.data?.totp_required === true) return { totpRequired: true }
+    } catch {
+      // not an envelope: the file itself
+    }
+  }
+  return { value: downloaded(res, prefix, ext) }
+}
+
 const downloadDatabase = () =>
   mutationOptions({
-    mutationFn: async () => {
-      const res = await services.backup.downloadDatabase().catch(decodeBlobError)
-      return downloaded(res, 'terarouter', 'db')
+    mutationFn: async (reqBody: ReauthDto) => {
+      const res = await services.backup.downloadDatabase(reqBody).catch(decodeBlobError)
+      return fileOrTotp(res, 'terarouter', 'db')
     },
   })
 
@@ -66,7 +88,7 @@ const exportConfig = () =>
   mutationOptions({
     mutationFn: async (reqBody: ConfigExportDto) => {
       const res = await services.backup.exportConfig(reqBody).catch(decodeBlobError)
-      return downloaded(res, 'tera-router-config', 'json')
+      return fileOrTotp(res, 'tera-router-config', 'json')
     },
   })
 
