@@ -38,15 +38,25 @@ func planView(p models.Plan, keysAssigned int) fiber.Map {
 		"hard_cutoff":      p.HardCutoff,
 		"budget_spend":     budgetSpend,
 		"budget_tokens":    budgetTokens,
-		"rpm":              p.RPM,
-		"tpm":              p.TPM,
-		"concurrent":       p.Concurrent,
+		"rpm":              limitView(p.RPM),
+		"tpm":              limitView(p.TPM),
+		"concurrent":       limitView(p.Concurrent),
 		"allowed_models":   allowedModels,
 		"keys_assigned":    keysAssigned,
 		"alert_at_percent": p.AlertPct,
 		"period":           p.Period,
 		"created_at":       p.CreatedAt,
 	}
+}
+
+// limitView hides zero limits: the PATCH body expresses "clear this limit" as
+// 0 (a JSON null pointer means "keep the stored value"), so the view renders 0
+// the same as NULL — the dashboard's "Unlimited".
+func limitView(v *int) any {
+	if v == nil || *v == 0 {
+		return nil
+	}
+	return *v
 }
 
 func (h *plansHandler) Index(c fiber.Ctx) error {
