@@ -53,6 +53,9 @@ export function renderSavingsCard(
   })
 
   return new Promise((resolve, reject) => {
-    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('Could not render the card'))), 'image/png')
+    canvas.toBlob(
+      (blob) => (blob ? resolve(blob) : reject(new Error('Could not render the card'))),
+      'image/png'
+    )
   })
 }

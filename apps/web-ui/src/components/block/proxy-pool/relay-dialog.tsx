@@ -53,7 +53,11 @@ export default function RelayDialog({ kind, relay, onClose }: RelayDialogProps) 
 
   const handleRegister = () => {
     createMutation.mutate(
-      { name: `${kind}-relay`, url: poolUrl, label: kind === 'cloudflare' ? 'cloudflare relay' : 'local relay' },
+      {
+        name: `${kind}-relay`,
+        url: poolUrl,
+        label: kind === 'cloudflare' ? 'cloudflare relay' : 'local relay',
+      },
       {
         onSuccess: () => {
           toast.success('Relay registered — run a health check once it is deployed')
@@ -99,7 +103,8 @@ export default function RelayDialog({ kind, relay, onClose }: RelayDialogProps) 
                 variant="outline"
                 disabled={!relay}
                 onClick={() =>
-                  relay && saveFile(new Blob([relay.script], { type: 'text/javascript' }), relay.filename)
+                  relay &&
+                  saveFile(new Blob([relay.script], { type: 'text/javascript' }), relay.filename)
                 }
               >
                 <IconDownload />
@@ -122,14 +127,22 @@ export default function RelayDialog({ kind, relay, onClose }: RelayDialogProps) 
             value={host}
             onChange={(e) => setHost(e.target.value)}
           />
-          {poolUrl && <code className="text-muted-foreground block truncate font-mono text-xs">{poolUrl}</code>}
+          {poolUrl && (
+            <code className="text-muted-foreground block truncate font-mono text-xs">
+              {poolUrl}
+            </code>
+          )}
         </div>
 
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="button" disabled={!poolUrl || createMutation.isPending} onClick={handleRegister}>
+          <Button
+            type="button"
+            disabled={!poolUrl || createMutation.isPending}
+            onClick={handleRegister}
+          >
             Register pool
           </Button>
         </div>

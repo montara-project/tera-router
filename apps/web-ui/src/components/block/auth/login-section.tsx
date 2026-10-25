@@ -77,18 +77,10 @@ export default function LoginSection({ className, ...props }: React.ComponentPro
       <FieldGroup>
         <div className="flex flex-col items-center gap-3 text-center">
           <div className="flex size-10 items-center justify-center rounded-lg bg-neutral-100 p-1">
-            <img
-              src={branding.logo}
-              alt=""
-              width={32}
-              height={32}
-              className="rounded-md"
-            />
+            <img src={branding.logo} alt="" width={32} height={32} className="rounded-md" />
           </div>
           <h1 className="text-xl font-bold">Welcome to {branding.name}.</h1>
-          {branding.tagline && (
-            <p className="text-muted-foreground text-sm">{branding.tagline}</p>
-          )}
+          {branding.tagline && <p className="text-muted-foreground text-sm">{branding.tagline}</p>}
         </div>
 
         <form

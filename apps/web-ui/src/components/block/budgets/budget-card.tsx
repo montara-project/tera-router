@@ -9,7 +9,14 @@ import type { Option } from '@/types/select'
 import BudgetFormDialog, { SCOPE_LABELS } from '@/components/block/budgets/form'
 import SimpleAlertDialog from '@/components/block/common/simple-alert-dialog'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardHeading, CardTitle, CardToolbar } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardHeading,
+  CardTitle,
+  CardToolbar,
+} from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { toastAxiosError } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'

@@ -102,7 +102,9 @@ function RouteComponent() {
               <DropdownMenuItem onClick={() => handleDeploy('cloudflare')}>
                 Cloudflare Worker
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleDeploy('local')}>Local process</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleDeploy('local')}>
+                Local process
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
