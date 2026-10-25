@@ -24,6 +24,22 @@ const resources = (): ProxyPoolResources => {
       const url = path
       return api.post(url, parseDto(ProxyPoolSchema, payload))
     },
+    update: (id, payload) => {
+      const url = `${path}/${id}`
+      return api.patch(url, parseDto(ProxyPoolSchema, payload))
+    },
+    bulkStore: (pools) => {
+      const url = `${path}/bulk`
+      return api.post(url, { pools: pools.map((pool) => parseDto(ProxyPoolSchema, pool)) })
+    },
+    bulkDelete: (ids) => {
+      const url = `${path}/bulk-delete`
+      return api.post(url, { ids })
+    },
+    relayScript: (kind) => {
+      const url = `${path}/relay-script`
+      return api.post(url, { kind })
+    },
     test: (id) => {
       const url = `${path}/${id}/test`
       return api.post(url)

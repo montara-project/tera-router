@@ -11,8 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as protectedRouteRouteImport } from './routes/(protected)/route'
 import { Route as authloginIndexRouteImport } from './routes/(auth)/(login)/index'
-import { Route as authRegisterIndexRouteImport } from './routes/(auth)/register/index'
 import { Route as protectedDashboardIndexRouteImport } from './routes/(protected)/dashboard/index'
+import { Route as protectedanalyticsBudgetsIndexRouteImport } from './routes/(protected)/(analytics)/budgets/index'
 import { Route as protectedanalyticsPlansIndexRouteImport } from './routes/(protected)/(analytics)/plans/index'
 import { Route as protectedanalyticsQuotaIndexRouteImport } from './routes/(protected)/(analytics)/quota/index'
 import { Route as protectedanalyticsSettingsIndexRouteImport } from './routes/(protected)/(analytics)/settings/index'
@@ -25,6 +25,7 @@ import { Route as protectedconnectionProvidersIndexRouteImport } from './routes/
 import { Route as protectedconnectionProvidersProviderIdRouteImport } from './routes/(protected)/(connection)/providers/$providerId'
 import { Route as protectedconnectionProxyPoolsIndexRouteImport } from './routes/(protected)/(connection)/proxy-pools/index'
 import { Route as protecteddeveloperCliToolsIndexRouteImport } from './routes/(protected)/(developer)/cli-tools/index'
+import { Route as protecteddeveloperCliToolsToolIdRouteImport } from './routes/(protected)/(developer)/cli-tools/$toolId'
 import { Route as protecteddeveloperCliToolsClaudeCodeRouteImport } from './routes/(protected)/(developer)/cli-tools/claude-code'
 import { Route as protecteddeveloperConsoleIndexRouteImport } from './routes/(protected)/(developer)/console/index'
 import { Route as protectedsafetyGuardrailsIndexRouteImport } from './routes/(protected)/(safety)/guardrails/index'
@@ -44,16 +45,17 @@ const authloginIndexRoute = authloginIndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const authRegisterIndexRoute = authRegisterIndexRouteImport.update({
-  id: '/(auth)/register/',
-  path: '/register/',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const protectedDashboardIndexRoute = protectedDashboardIndexRouteImport.update({
   id: '/dashboard/',
   path: '/dashboard/',
   getParentRoute: () => protectedRouteRoute,
 } as any)
+const protectedanalyticsBudgetsIndexRoute =
+  protectedanalyticsBudgetsIndexRouteImport.update({
+    id: '/(analytics)/budgets/',
+    path: '/budgets/',
+    getParentRoute: () => protectedRouteRoute,
+  } as any)
 const protectedanalyticsPlansIndexRoute =
   protectedanalyticsPlansIndexRouteImport.update({
     id: '/(analytics)/plans/',
@@ -126,6 +128,12 @@ const protecteddeveloperCliToolsIndexRoute =
     path: '/cli-tools/',
     getParentRoute: () => protectedRouteRoute,
   } as any)
+const protecteddeveloperCliToolsToolIdRoute =
+  protecteddeveloperCliToolsToolIdRouteImport.update({
+    id: '/(developer)/cli-tools/$toolId',
+    path: '/cli-tools/$toolId',
+    getParentRoute: () => protectedRouteRoute,
+  } as any)
 const protecteddeveloperCliToolsClaudeCodeRoute =
   protecteddeveloperCliToolsClaudeCodeRouteImport.update({
     id: '/(developer)/cli-tools/claude-code',
@@ -183,11 +191,12 @@ const protectedtrafficSkillsIndexRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof authloginIndexRoute
-  '/register/': typeof authRegisterIndexRoute
   '/dashboard/': typeof protectedDashboardIndexRoute
   '/keys/$keyId': typeof protectedconnectionKeysKeyIdRoute
   '/providers/$providerId': typeof protectedconnectionProvidersProviderIdRoute
+  '/cli-tools/$toolId': typeof protecteddeveloperCliToolsToolIdRoute
   '/cli-tools/claude-code': typeof protecteddeveloperCliToolsClaudeCodeRoute
+  '/budgets/': typeof protectedanalyticsBudgetsIndexRoute
   '/plans/': typeof protectedanalyticsPlansIndexRoute
   '/quota/': typeof protectedanalyticsQuotaIndexRoute
   '/settings/': typeof protectedanalyticsSettingsIndexRoute
@@ -209,11 +218,12 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof authloginIndexRoute
-  '/register': typeof authRegisterIndexRoute
   '/dashboard': typeof protectedDashboardIndexRoute
   '/keys/$keyId': typeof protectedconnectionKeysKeyIdRoute
   '/providers/$providerId': typeof protectedconnectionProvidersProviderIdRoute
+  '/cli-tools/$toolId': typeof protecteddeveloperCliToolsToolIdRoute
   '/cli-tools/claude-code': typeof protecteddeveloperCliToolsClaudeCodeRoute
+  '/budgets': typeof protectedanalyticsBudgetsIndexRoute
   '/plans': typeof protectedanalyticsPlansIndexRoute
   '/quota': typeof protectedanalyticsQuotaIndexRoute
   '/settings': typeof protectedanalyticsSettingsIndexRoute
@@ -237,11 +247,12 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/(protected)': typeof protectedRouteRouteWithChildren
   '/(auth)/(login)/': typeof authloginIndexRoute
-  '/(auth)/register/': typeof authRegisterIndexRoute
   '/(protected)/dashboard/': typeof protectedDashboardIndexRoute
   '/(protected)/(connection)/keys/$keyId': typeof protectedconnectionKeysKeyIdRoute
   '/(protected)/(connection)/providers/$providerId': typeof protectedconnectionProvidersProviderIdRoute
+  '/(protected)/(developer)/cli-tools/$toolId': typeof protecteddeveloperCliToolsToolIdRoute
   '/(protected)/(developer)/cli-tools/claude-code': typeof protecteddeveloperCliToolsClaudeCodeRoute
+  '/(protected)/(analytics)/budgets/': typeof protectedanalyticsBudgetsIndexRoute
   '/(protected)/(analytics)/plans/': typeof protectedanalyticsPlansIndexRoute
   '/(protected)/(analytics)/quota/': typeof protectedanalyticsQuotaIndexRoute
   '/(protected)/(analytics)/settings/': typeof protectedanalyticsSettingsIndexRoute
@@ -265,11 +276,12 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/register/'
     | '/dashboard/'
     | '/keys/$keyId'
     | '/providers/$providerId'
+    | '/cli-tools/$toolId'
     | '/cli-tools/claude-code'
+    | '/budgets/'
     | '/plans/'
     | '/quota/'
     | '/settings/'
@@ -291,11 +303,12 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/register'
     | '/dashboard'
     | '/keys/$keyId'
     | '/providers/$providerId'
+    | '/cli-tools/$toolId'
     | '/cli-tools/claude-code'
+    | '/budgets'
     | '/plans'
     | '/quota'
     | '/settings'
@@ -318,11 +331,12 @@ export interface FileRouteTypes {
     | '__root__'
     | '/(protected)'
     | '/(auth)/(login)/'
-    | '/(auth)/register/'
     | '/(protected)/dashboard/'
     | '/(protected)/(connection)/keys/$keyId'
     | '/(protected)/(connection)/providers/$providerId'
+    | '/(protected)/(developer)/cli-tools/$toolId'
     | '/(protected)/(developer)/cli-tools/claude-code'
+    | '/(protected)/(analytics)/budgets/'
     | '/(protected)/(analytics)/plans/'
     | '/(protected)/(analytics)/quota/'
     | '/(protected)/(analytics)/settings/'
@@ -346,7 +360,6 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   protectedRouteRoute: typeof protectedRouteRouteWithChildren
   authloginIndexRoute: typeof authloginIndexRoute
-  authRegisterIndexRoute: typeof authRegisterIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -365,18 +378,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof authloginIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/(auth)/register/': {
-      id: '/(auth)/register/'
-      path: '/register'
-      fullPath: '/register/'
-      preLoaderRoute: typeof authRegisterIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/(protected)/dashboard/': {
       id: '/(protected)/dashboard/'
       path: '/dashboard'
       fullPath: '/dashboard/'
       preLoaderRoute: typeof protectedDashboardIndexRouteImport
+      parentRoute: typeof protectedRouteRoute
+    }
+    '/(protected)/(analytics)/budgets/': {
+      id: '/(protected)/(analytics)/budgets/'
+      path: '/budgets'
+      fullPath: '/budgets/'
+      preLoaderRoute: typeof protectedanalyticsBudgetsIndexRouteImport
       parentRoute: typeof protectedRouteRoute
     }
     '/(protected)/(analytics)/plans/': {
@@ -463,6 +476,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof protecteddeveloperCliToolsIndexRouteImport
       parentRoute: typeof protectedRouteRoute
     }
+    '/(protected)/(developer)/cli-tools/$toolId': {
+      id: '/(protected)/(developer)/cli-tools/$toolId'
+      path: '/cli-tools/$toolId'
+      fullPath: '/cli-tools/$toolId'
+      preLoaderRoute: typeof protecteddeveloperCliToolsToolIdRouteImport
+      parentRoute: typeof protectedRouteRoute
+    }
     '/(protected)/(developer)/cli-tools/claude-code': {
       id: '/(protected)/(developer)/cli-tools/claude-code'
       path: '/cli-tools/claude-code'
@@ -533,7 +553,9 @@ interface protectedRouteRouteChildren {
   protectedDashboardIndexRoute: typeof protectedDashboardIndexRoute
   protectedconnectionKeysKeyIdRoute: typeof protectedconnectionKeysKeyIdRoute
   protectedconnectionProvidersProviderIdRoute: typeof protectedconnectionProvidersProviderIdRoute
+  protecteddeveloperCliToolsToolIdRoute: typeof protecteddeveloperCliToolsToolIdRoute
   protecteddeveloperCliToolsClaudeCodeRoute: typeof protecteddeveloperCliToolsClaudeCodeRoute
+  protectedanalyticsBudgetsIndexRoute: typeof protectedanalyticsBudgetsIndexRoute
   protectedanalyticsPlansIndexRoute: typeof protectedanalyticsPlansIndexRoute
   protectedanalyticsQuotaIndexRoute: typeof protectedanalyticsQuotaIndexRoute
   protectedanalyticsSettingsIndexRoute: typeof protectedanalyticsSettingsIndexRoute
@@ -559,8 +581,10 @@ const protectedRouteRouteChildren: protectedRouteRouteChildren = {
   protectedconnectionKeysKeyIdRoute: protectedconnectionKeysKeyIdRoute,
   protectedconnectionProvidersProviderIdRoute:
     protectedconnectionProvidersProviderIdRoute,
+  protecteddeveloperCliToolsToolIdRoute: protecteddeveloperCliToolsToolIdRoute,
   protecteddeveloperCliToolsClaudeCodeRoute:
     protecteddeveloperCliToolsClaudeCodeRoute,
+  protectedanalyticsBudgetsIndexRoute: protectedanalyticsBudgetsIndexRoute,
   protectedanalyticsPlansIndexRoute: protectedanalyticsPlansIndexRoute,
   protectedanalyticsQuotaIndexRoute: protectedanalyticsQuotaIndexRoute,
   protectedanalyticsSettingsIndexRoute: protectedanalyticsSettingsIndexRoute,
@@ -591,7 +615,6 @@ const protectedRouteRouteWithChildren = protectedRouteRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   protectedRouteRoute: protectedRouteRouteWithChildren,
   authloginIndexRoute: authloginIndexRoute,
-  authRegisterIndexRoute: authRegisterIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

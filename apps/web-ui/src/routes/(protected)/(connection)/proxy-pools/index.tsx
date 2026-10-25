@@ -5,9 +5,14 @@ import { ChevronDown } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
+import type { RelayKind } from '@/lib/api/models/proxy-pool'
+
 import SectionCard from '@/components/block/common/section-card'
+import SimpleAlertDialog from '@/components/block/common/simple-alert-dialog'
+import BatchImportDialog from '@/components/block/proxy-pool/batch-import-dialog'
 import { AddProxyPoolForm } from '@/components/block/proxy-pool/form'
 import PoolsCard from '@/components/block/proxy-pool/pools-card'
+import RelayDialog from '@/components/block/proxy-pool/relay-dialog'
 import RouteSkeleton from '@/components/block/proxy-pool/route-skeleton'
 import { Button } from '@/components/ui/button'
 import {
@@ -27,11 +32,17 @@ export const Route = createFileRoute('/(protected)/(connection)/proxy-pools/')({
 function RouteComponent() {
   const [selected, setSelected] = useState<Record<string, boolean>>({})
   const [addOpen, setAddOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [relayKind, setRelayKind] = useState<RelayKind | null>(null)
 
   const { data } = useQuery(queries.proxyPools.list())
   const pools = data?.data ?? []
 
   const healthCheckMutation = useMutation(queries.proxyPools.healthCheck())
+  const bulkDeleteMutation = useMutation(queries.proxyPools.bulkDelete())
+  const relayMutation = useMutation(queries.proxyPools.relayScript())
+  const selectedIds = pools.filter((pool) => selected[pool.id]).map((pool) => pool.id)
 
   const toggleAll = (checked: boolean) => {
     const next: Record<string, boolean> = {}
@@ -47,12 +58,21 @@ function RouteComponent() {
     setSelected((previous) => ({ ...previous, [id]: !previous[id] }))
   }
 
-  const handleDeploy = () => {
-    toast.info('Relay deployment is not wired to the backend yet')
+  // Every deploy generates a fresh relay secret.
+  const handleDeploy = (kind: RelayKind) => {
+    setRelayKind(kind)
+    relayMutation.mutate(kind, { onError: toastAxiosError })
   }
 
-  const handleBatchImport = () => {
-    toast.info('Batch import is not wired to the backend yet')
+  const handleBulkDelete = () => {
+    bulkDeleteMutation.mutate(selectedIds, {
+      onSuccess: (res) => {
+        toast.success(res.message ?? 'Proxy pools deleted')
+        setSelected({})
+        setDeleteOpen(false)
+      },
+      onError: toastAxiosError,
+    })
   }
 
   const handleHealthCheck = async () => {
@@ -79,12 +99,14 @@ function RouteComponent() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handleDeploy}>Cloudflare Worker</DropdownMenuItem>
-              <DropdownMenuItem onClick={handleDeploy}>Local process</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleDeploy('cloudflare')}>
+                Cloudflare Worker
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleDeploy('local')}>Local process</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Button variant="secondary" onClick={handleBatchImport}>
+          <Button variant="secondary" onClick={() => setImportOpen(true)}>
             <IconUpload />
             <span>Batch Import</span>
           </Button>
@@ -106,9 +128,27 @@ function RouteComponent() {
         onToggleOne={toggleOne}
         healthCheckPending={healthCheckMutation.isPending}
         onHealthCheck={() => handleHealthCheck().catch(toastAxiosError)}
+        onDeleteSelected={() => setDeleteOpen(true)}
       />
 
       <AddProxyPoolForm open={addOpen} onOpenChange={setAddOpen} />
+      <BatchImportDialog open={importOpen} onOpenChange={setImportOpen} />
+      <RelayDialog
+        // Remount per deploy so the host input starts empty.
+        key={relayKind ?? 'closed'}
+        kind={relayKind}
+        relay={relayMutation.isPending ? undefined : relayMutation.data?.data}
+        onClose={() => setRelayKind(null)}
+      />
+      <SimpleAlertDialog
+        confirmText="Delete"
+        description={`${selectedIds.length} selected proxy ${selectedIds.length === 1 ? 'pool' : 'pools'} will be permanently deleted. Accounts routed through them fall back to a direct connection.`}
+        onConfirm={handleBulkDelete}
+        onOpenChange={setDeleteOpen}
+        open={deleteOpen}
+        title="Delete the selected proxy pools?"
+        variant="destructive"
+      />
     </SectionCard>
   )
 }

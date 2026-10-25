@@ -1,4 +1,4 @@
-import { IconChevronRight, IconCircleCheck, IconInfoCircle } from '@tabler/icons-react'
+import { IconChevronRight, IconCircleCheck, IconCopy, IconInfoCircle } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 
@@ -15,7 +15,7 @@ type CliTool = {
   glyph: React.ReactNode
 }
 
-const TOOLS: CliTool[] = [
+export const TOOLS: CliTool[] = [
   {
     id: 'claude-code',
     name: 'Claude Code',
@@ -118,7 +118,13 @@ export default function CliToolsGrid() {
                   >
                     {tool.name}
                   </span>
-                  {installed ? (
+                  {tool.id !== 'claude-code' ? (
+                    // Only Claude Code is detected on the host; the rest are set up by hand.
+                    <span className="text-muted-foreground flex shrink-0 items-center gap-1 rounded-full bg-muted/60 px-1.5 py-0.5 text-[10px]">
+                      <IconCopy className="h-3 w-3" />
+                      Copy config
+                    </span>
+                  ) : installed ? (
                     <span className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[10px] text-emerald-600 dark:text-emerald-400">
                       <IconCircleCheck className="h-3 w-3" />
                       Installed
@@ -137,24 +143,17 @@ export default function CliToolsGrid() {
           </Card>
         )
 
-        return tool.id === 'claude-code' ? (
+        return (
           <Link
             key={tool.id}
-            to="/cli-tools/claude-code"
+            // Claude Code has its own apply flow; the rest get copy-paste setup.
+            to={tool.id === 'claude-code' ? '/cli-tools/claude-code' : '/cli-tools/$toolId'}
+            params={{ toolId: tool.id }}
             aria-label={tool.name}
             className="group rounded-xl text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           >
             {card}
           </Link>
-        ) : (
-          <button
-            key={tool.id}
-            type="button"
-            aria-label={tool.name}
-            className="group cursor-pointer text-left"
-          >
-            {card}
-          </button>
         )
       })}
     </div>

@@ -8,6 +8,7 @@ import { Field, FieldError, FieldGroup } from '@/components/ui/field'
 import { InputOTP, REGEXP_ONLY_DIGITS } from '@/components/ui/input-otp'
 import { Label } from '@/components/ui/label'
 import { useAppForm } from '@/hooks/form'
+import { useBranding } from '@/hooks/use-branding'
 import { SignInSchema } from '@/lib/api/dtos/auth/schema'
 import { signInWithEmail } from '@/lib/auth/email-auth'
 import { cn } from '@/lib/utils'
@@ -19,6 +20,7 @@ const SUBMIT_LABELS = {
 
 export default function LoginSection({ className, ...props }: React.ComponentProps<'div'>) {
   const { navigate } = useRouter()
+  const branding = useBranding()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // Set once the password checked out on an account with two-factor auth on.
@@ -76,14 +78,17 @@ export default function LoginSection({ className, ...props }: React.ComponentPro
         <div className="flex flex-col items-center gap-3 text-center">
           <div className="flex size-10 items-center justify-center rounded-lg bg-neutral-100 p-1">
             <img
-              src="/static/images/tera.png"
+              src={branding.logo}
               alt=""
               width={32}
               height={32}
               className="rounded-md"
             />
           </div>
-          <h1 className="text-xl font-bold">Welcome to Tera Router.</h1>
+          <h1 className="text-xl font-bold">Welcome to {branding.name}.</h1>
+          {branding.tagline && (
+            <p className="text-muted-foreground text-sm">{branding.tagline}</p>
+          )}
         </div>
 
         <form

@@ -3,6 +3,7 @@ import { mutationOptions, queryOptions } from '@tanstack/react-query'
 import { getQueryClient } from '@/lib/providers/react-query'
 
 import type { ProxyPoolDto } from '../dtos/proxy-pool/schema'
+import type { RelayKind } from '../models/proxy-pool'
 
 import { services } from '../services'
 
@@ -34,6 +35,56 @@ const create = () => {
     },
   })
 }
+
+const update = () => {
+  const qc = getQueryClient()
+
+  return mutationOptions({
+    mutationFn: async ({ id, reqBody }: { id: string; reqBody: ProxyPoolDto }) => {
+      const res = await services.proxyPools.update(id, reqBody)
+      return res.data
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [PROXY_POOL_QUERY_KEY] })
+    },
+  })
+}
+
+const bulkCreate = () => {
+  const qc = getQueryClient()
+
+  return mutationOptions({
+    mutationFn: async (pools: ProxyPoolDto[]) => {
+      const res = await services.proxyPools.bulkStore(pools)
+      return res.data
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [PROXY_POOL_QUERY_KEY] })
+    },
+  })
+}
+
+const bulkDelete = () => {
+  const qc = getQueryClient()
+
+  return mutationOptions({
+    mutationFn: async (ids: string[]) => {
+      const res = await services.proxyPools.bulkDelete(ids)
+      return res.data
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [PROXY_POOL_QUERY_KEY] })
+    },
+  })
+}
+
+const relayScript = () =>
+  mutationOptions({
+    mutationFn: async (kind: RelayKind) => {
+      const res = await services.proxyPools.relayScript(kind)
+      return res.data
+    },
+  })
 
 const test = () => {
   const qc = getQueryClient()
@@ -80,6 +131,10 @@ const del = () => {
 export const proxyPoolQueries = {
   list,
   create,
+  update,
+  bulkCreate,
+  bulkDelete,
+  relayScript,
   test,
   healthCheck,
   delete: del,

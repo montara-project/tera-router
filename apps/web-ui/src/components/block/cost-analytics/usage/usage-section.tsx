@@ -54,7 +54,7 @@ export default function UsageSection({ range }: { range: UsageRange }) {
         </div>
       </div>
 
-      <OptimizationBar optimization={data.optimization} />
+      <OptimizationBar optimization={data.optimization} range={range} />
 
       <UsageHealthStrip range={range} />
 

@@ -6,6 +6,8 @@ import { toast } from 'sonner'
 import type { Models } from '@/lib/api/models'
 
 import SimpleAlertDialog from '@/components/block/common/simple-alert-dialog'
+import { EditProxyPoolForm } from '@/components/block/proxy-pool/form'
+import PoolDetailDialog from '@/components/block/proxy-pool/pool-detail-dialog'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { toastAxiosError } from '@/lib/api/axios-error'
@@ -21,6 +23,8 @@ interface ProxyPoolRowProps {
 
 export default function ProxyPoolRow({ pool, selected, onToggle }: ProxyPoolRowProps) {
   const [openDelete, setOpenDelete] = useState(false)
+  const [openView, setOpenView] = useState(false)
+  const [openEdit, setOpenEdit] = useState(false)
 
   const testMutation = useMutation(queries.proxyPools.test())
   const deleteMutation = useMutation(queries.proxyPools.delete())
@@ -87,7 +91,7 @@ export default function ProxyPoolRow({ pool, selected, onToggle }: ProxyPoolRowP
           aria-label={`View ${pool.name}`}
           className="text-muted-foreground hover:text-foreground"
           mode="icon"
-          onClick={() => console.log('view', pool.id)}
+          onClick={() => setOpenView(true)}
           size="icon"
           variant="outline"
         >
@@ -108,7 +112,7 @@ export default function ProxyPoolRow({ pool, selected, onToggle }: ProxyPoolRowP
           aria-label={`Edit ${pool.name}`}
           className="text-muted-foreground hover:text-foreground"
           mode="icon"
-          onClick={() => console.log('edit', pool.id)}
+          onClick={() => setOpenEdit(true)}
           size="icon"
           variant="outline"
         >
@@ -125,6 +129,9 @@ export default function ProxyPoolRow({ pool, selected, onToggle }: ProxyPoolRowP
           <IconTrash />
         </Button>
       </div>
+
+      <PoolDetailDialog pool={pool} open={openView} onOpenChange={setOpenView} />
+      <EditProxyPoolForm pool={pool} open={openEdit} onOpenChange={setOpenEdit} />
 
       <SimpleAlertDialog
         confirmText="Delete"

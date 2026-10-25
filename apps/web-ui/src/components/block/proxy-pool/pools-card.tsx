@@ -1,4 +1,4 @@
-import { IconRefresh, IconRocket } from '@tabler/icons-react'
+import { IconRefresh, IconRocket, IconTrash } from '@tabler/icons-react'
 
 import type { Models } from '@/lib/api/models'
 
@@ -12,8 +12,8 @@ import { selectAllState } from '@/lib/utils'
 /**
  * The registered-pool list card: select-all header, active-count pill, health
  * check toolbar action, and one `ProxyPoolRow` per pool. Selection state lives
- * in the route so a future bulk action can consume it; health-check wiring is
- * passed in so the route owns the mutation + toast.
+ * in the route, which owns the bulk delete; health-check wiring is passed in
+ * so the route owns the mutation + toast.
  */
 export default function PoolsCard({
   pools,
@@ -22,6 +22,7 @@ export default function PoolsCard({
   onToggleOne,
   healthCheckPending,
   onHealthCheck,
+  onDeleteSelected,
 }: {
   pools: Models.ProxyPool[]
   selected: Record<string, boolean>
@@ -29,6 +30,7 @@ export default function PoolsCard({
   onToggleOne: (id: string) => void
   healthCheckPending: boolean
   onHealthCheck: () => void
+  onDeleteSelected: () => void
 }) {
   const allSelected = pools.length > 0 && pools.every((pool) => selected[pool.id])
   const someSelected = pools.some((pool) => selected[pool.id])
@@ -52,6 +54,12 @@ export default function PoolsCard({
           </span>
         </div>
         <CardToolbar>
+          {someSelected && (
+            <Button onClick={onDeleteSelected} size="sm" variant="destructive">
+              <IconTrash />
+              <span>Delete selected</span>
+            </Button>
+          )}
           <Button
             disabled={pools.length === 0 || healthCheckPending}
             onClick={onHealthCheck}

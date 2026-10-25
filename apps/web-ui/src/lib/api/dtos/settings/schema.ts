@@ -40,6 +40,8 @@ export const SettingsSchema = z.object({
   branding_display_name: optionalString('branding display name'),
   branding_tagline: optionalString('branding tagline'),
   branding_theme: optionalString('branding theme'),
+  branding_logo: optionalString('branding logo'),
+  branding_favicon: optionalString('branding favicon'),
 }) satisfies z.ZodType<Partial<AppSettings>>
 
 export type SettingsDto = z.infer<typeof SettingsSchema>
