@@ -20,17 +20,9 @@ import {
   IconWallet,
 } from '@tabler/icons-react'
 
-import type { NavMainItem, SidebarMenuData, TeamItem } from '@/types/menu'
+import type { NavMainItem, SidebarMenuData } from '@/types/menu'
 
 // ── Share sidebar menus ───────────────────────────────────────────
-
-const TEAMS: TeamItem[] = [
-  {
-    name: 'House of Wizard',
-    logo: IconStack2,
-    plan: 'Web3 Data Analyst',
-  },
-]
 
 const NAV_DASHBOARD: NavMainItem = {
   title: 'Dashboard',
@@ -203,7 +195,6 @@ const SIDEBAR_MENU_ADMIN: SidebarMenuData = {
     email: 'admin@example.com',
     avatar: '/avatars/admin.jpg',
   },
-  teams: TEAMS,
   navMenu: {
     overview: [NAV_DASHBOARD],
     traffic: NAV_TRAFFIC_LOGIC,

@@ -22,12 +22,6 @@ export type ProjectItem = {
   icon: typeof IconCheck
 }
 
-export type TeamItem = {
-  name: string
-  logo: typeof IconCheck
-  plan: string
-}
-
 export type UserInfo = {
   name: string
   email: string
@@ -36,7 +30,6 @@ export type UserInfo = {
 
 export type SidebarMenuData = {
   user: UserInfo
-  teams: TeamItem[]
   navMenu: {
     overview: NavMainItem[]
     traffic: NavMainItem[]
