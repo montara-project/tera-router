@@ -74,6 +74,15 @@ func clientFor(creds core.Credentials) *http.Client {
 		return v.(*http.Client)
 	}
 	t := defaultTransportConfig()
+	if IsRelayURL(creds.ProxyURL) {
+		if rt, err := NewRelayTransport(creds.ProxyURL, t); err == nil {
+			actual, _ := proxyClientCache.LoadOrStore(creds.ProxyURL, &http.Client{Transport: rt})
+			return actual.(*http.Client)
+		}
+		// A malformed relay URL falls back to a direct connection, matching a
+		// missing pool in the gateway.
+		return sharedClient
+	}
 	if u, err := url.Parse(creds.ProxyURL); err == nil {
 		t.Proxy = http.ProxyURL(u)
 		// Many HTTP proxies cannot speak HTTP/2 to the origin; skip the

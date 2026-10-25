@@ -99,3 +99,34 @@ func (r *ProxyPoolRepository) deleteExec(ctx context.Context, id string) error {
 	}
 	return requireAffected(res, "proxy pool")
 }
+
+// InsertMany persists several pools atomically: a batch import lands whole or
+// not at all.
+func (r *ProxyPoolRepository) InsertMany(ctx context.Context, pools []models.ProxyPool) error {
+	return r.withTx(ctx, func(tx Executor) error {
+		for _, p := range pools {
+			if _, err := r.execContext(ctx, tx, `
+				INSERT INTO proxy_pools (id, name, url, mode, label, status, last_tested_at)
+				VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+				p.ID, p.Name, p.URL, p.Mode, p.Label, p.Status, p.LastTestedAt,
+			); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+// Update rewrites a pool's editable fields.
+func (r *ProxyPoolRepository) Update(ctx context.Context, p models.ProxyPool) error {
+	res, err := r.execContext(ctx, r.DB, `
+		UPDATE proxy_pools SET name = $2, url = $3, mode = $4, label = $5,
+			updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now')
+		WHERE id = $1`,
+		p.ID, p.Name, p.URL, p.Mode, p.Label,
+	)
+	if err != nil {
+		return err
+	}
+	return requireAffected(res, "proxy pool")
+}

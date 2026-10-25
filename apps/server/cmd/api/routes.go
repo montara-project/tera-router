@@ -148,6 +148,10 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	protected.Get("/proxy-pools", h.ProxyPools.Index)
 	protected.Post("/proxy-pools", h.ProxyPools.Store)
 	protected.Post("/proxy-pools/health-check", h.ProxyPools.HealthCheck)
+	protected.Post("/proxy-pools/bulk", h.ProxyPools.BulkStore)
+	protected.Post("/proxy-pools/bulk-delete", h.ProxyPools.BulkDelete)
+	protected.Post("/proxy-pools/relay-script", h.ProxyPools.RelayScript)
+	protected.Patch("/proxy-pools/:id", h.ProxyPools.Update)
 	protected.Delete("/proxy-pools/:id", h.ProxyPools.Delete)
 	protected.Post("/proxy-pools/:id/test", h.ProxyPools.Test)
 

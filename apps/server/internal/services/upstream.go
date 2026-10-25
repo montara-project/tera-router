@@ -113,21 +113,34 @@ func probeClient() *http.Client {
 // TestProxy dials a public URL through the given proxy and reports whether
 // the proxy answered.
 func (s *UpstreamService) TestProxy(ctx context.Context, proxyURL string) (bool, error) {
-	parsed, err := url.Parse(proxyURL)
-	if err != nil {
-		return false, fmt.Errorf("invalid proxy url: %w", err)
+	var transport http.RoundTripper
+	relay := connectors.IsRelayURL(proxyURL)
+	if relay {
+		rt, err := connectors.NewRelayTransport(proxyURL, http.DefaultTransport)
+		if err != nil {
+			return false, fmt.Errorf("invalid relay url: %w", err)
+		}
+		transport = rt
+	} else {
+		parsed, err := url.Parse(proxyURL)
+		if err != nil {
+			return false, fmt.Errorf("invalid proxy url: %w", err)
+		}
+		transport = &http.Transport{Proxy: http.ProxyURL(parsed)}
 	}
 
-	client := &http.Client{
-		Timeout:   10 * time.Second,
-		Transport: &http.Transport{Proxy: http.ProxyURL(parsed)},
-	}
+	client := &http.Client{Timeout: 10 * time.Second, Transport: transport}
 	resp, err := client.Get("https://www.google.com/generate_204")
 	if err != nil {
 		return false, nil
 	}
 	defer resp.Body.Close()
 	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 512))
+	if relay {
+		// A relay answers a wrong secret or bad target itself with a 4xx, so
+		// only a clean pass-through of the 204 probe counts as healthy.
+		return resp.StatusCode < 400, nil
+	}
 	return resp.StatusCode < 500, nil
 }
 

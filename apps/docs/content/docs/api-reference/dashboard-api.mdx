@@ -109,12 +109,17 @@ Pagination uses the `offset` (0-based) and `limit` (default 10, max 100) query p
 
 ### Proxy pools
 
-| Method     | Path                           | Notes               |
-| ---------- | ------------------------------ | ------------------- |
-| GET / POST | `/v1/proxy-pools`              | List / create pools |
-| POST       | `/v1/proxy-pools/health-check` | Check all pools     |
-| DELETE     | `/v1/proxy-pools/:id`          | Delete pool         |
-| POST       | `/v1/proxy-pools/:id/test`     | Test one pool       |
+| Method         | Path                           | Notes                                                           |
+| -------------- | ------------------------------ | --------------------------------------------------------------- |
+| GET / POST     | `/v1/proxy-pools`              | List / create pools                                             |
+| POST           | `/v1/proxy-pools/bulk`         | Batch import `{"pools": [...]}`, all or nothing (max 500)       |
+| POST           | `/v1/proxy-pools/bulk-delete`  | Delete `{"ids": [...]}`, skipping ones already gone             |
+| POST           | `/v1/proxy-pools/relay-script` | Generate a relay script (`{"kind": "cloudflare"}` or `"local"`) |
+| POST           | `/v1/proxy-pools/health-check` | Check all pools                                                 |
+| PATCH / DELETE | `/v1/proxy-pools/:id`          | Edit / delete pool                                              |
+| POST           | `/v1/proxy-pools/:id/test`     | Test one pool                                                   |
+
+A pool URL is normally an HTTP/HTTPS/SOCKS forward proxy. A URL of the form `relay+https://:<secret>@host` is a fetch relay instead: the gateway sends each upstream call to the relay with the real target in `X-Tera-Relay-Target` and the secret in `X-Tera-Relay-Secret`. The relay-script endpoint returns a ready-to-deploy Cloudflare Worker or Node script with a fresh secret, plus the pool URL to register (replace `RELAY_HOST`).
 
 ### Overrides
 
