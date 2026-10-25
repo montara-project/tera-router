@@ -16,6 +16,7 @@ import ProviderHealthTabs, {
 } from '@/components/block/provider-health/provider-health-tabs'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useOpenProvider } from '@/hooks/use-open-provider'
 import { PROVIDER_HEALTH_QUERY_KEY, providerHealthQueries } from '@/lib/api/queries/provider-health'
 import { cn } from '@/lib/utils'
 
@@ -64,6 +65,7 @@ function ProviderHealthContent() {
   const [tab, setTab] = useState<HealthTab>('providers')
 
   const { data, isFetching } = useQuery(providerHealthQueries.overview(range))
+  const openProvider = useOpenProvider()
 
   if (!data) {
     return <RouteSkeleton />
@@ -72,10 +74,6 @@ function ProviderHealthContent() {
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: [PROVIDER_HEALTH_QUERY_KEY] })
     toast.success('Health data refreshed')
-  }
-
-  const handleView = (name: string) => {
-    toast.info(`Drill-down for ${name} is not wired to the backend yet`)
   }
 
   return (
@@ -116,7 +114,8 @@ function ProviderHealthContent() {
             pageSize={PAGE_SIZE}
             entityLabel={ENTITY_LABELS[tab]}
             entries={data[tab]}
-            onView={handleView}
+            // Only provider rows have a detail page to drill into.
+            onView={tab === 'providers' ? openProvider : undefined}
           />
         )}
       </div>

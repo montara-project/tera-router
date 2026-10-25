@@ -7,6 +7,7 @@ import type { UsageRange } from '@/lib/api/models/usage'
 
 import HealthTable from '@/components/block/provider-health/health-table'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useOpenProvider } from '@/hooks/use-open-provider'
 import { providerHealthQueries } from '@/lib/api/queries/provider-health'
 
 // Provider health supports 5m–7d windows; the usage page's wider periods
@@ -24,6 +25,7 @@ export default function UsageHealthStrip({ range }: { range: UsageRange }) {
   const window = HEALTH_WINDOW_BY_RANGE[range]
 
   const { data, isPending } = useQuery(providerHealthQueries.overview(window))
+  const openProvider = useOpenProvider()
 
   return (
     <section className="space-y-2.5">
@@ -52,10 +54,7 @@ export default function UsageHealthStrip({ range }: { range: UsageRange }) {
           entityLabel="Provider"
           entries={data?.providers ?? []}
           pageSize={10}
-          onView={(name) => {
-            // TODO: Navigate to provider detail page
-            console.log('View provider:', name)
-          }}
+          onView={openProvider}
         />
       )}
     </section>

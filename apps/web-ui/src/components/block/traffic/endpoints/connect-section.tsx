@@ -1,4 +1,5 @@
 import { IconArrowUpRight, IconServer } from '@tabler/icons-react'
+import { Link } from '@tanstack/react-router'
 import { CheckIcon, CopyIcon } from 'lucide-react'
 import { useRef } from 'react'
 
@@ -100,9 +101,11 @@ export default function ConnectSection() {
             description="Create or copy a key to authenticate your application."
             tone="accent"
           />
-          <Button>
-            <span>Manage Keys</span>
-            <IconArrowUpRight className="size-4" />
+          <Button asChild>
+            <Link to="/keys">
+              <span>Manage Keys</span>
+              <IconArrowUpRight className="size-4" />
+            </Link>
           </Button>
         </div>
       </CardFooter>
