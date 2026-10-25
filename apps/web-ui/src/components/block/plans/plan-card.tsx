@@ -15,6 +15,7 @@ import { toast } from 'sonner'
 import type { Models } from '@/lib/api/models'
 
 import SimpleAlertDialog from '@/components/block/common/simple-alert-dialog'
+import PlanFormDialog from '@/components/block/plans/form'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -41,6 +42,7 @@ interface PlanCardProps {
 
 export default function PlanCard({ plan }: PlanCardProps) {
   const [openDelete, setOpenDelete] = useState(false)
+  const [openEdit, setOpenEdit] = useState(false)
 
   const deleteMutation = useMutation(queries.plans.delete())
 
@@ -84,7 +86,7 @@ export default function PlanCard({ plan }: PlanCardProps) {
               aria-label={`Edit ${plan.name}`}
               className="text-muted-foreground hover:text-foreground"
               mode="icon"
-              onClick={() => console.log('edit', plan.id)}
+              onClick={() => setOpenEdit(true)}
               size="icon"
               variant="outline"
             >
@@ -187,6 +189,8 @@ export default function PlanCard({ plan }: PlanCardProps) {
         title="Do you want to delete this plan?"
         variant="destructive"
       />
+
+      <PlanFormDialog open={openEdit} onOpenChange={setOpenEdit} plan={plan} />
     </React.Fragment>
   )
 }

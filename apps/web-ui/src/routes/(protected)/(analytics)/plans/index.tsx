@@ -1,15 +1,15 @@
 import { IconPlus, IconShieldCheck } from '@tabler/icons-react'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
-import { toast } from 'sonner'
+import { useState } from 'react'
 
 import EmptyState from '@/components/block/common/empty-state'
 import SectionCard from '@/components/block/common/section-card'
+import PlanFormDialog from '@/components/block/plans/form'
 import PlanCard from '@/components/block/plans/plan-card'
 import PlansStats from '@/components/block/plans/plans-stats'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { toastAxiosError } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
 
 export const Route = createFileRoute('/(protected)/(analytics)/plans/')({
@@ -34,22 +34,13 @@ function RouteSkeleton() {
 }
 
 function RouteComponent() {
+  const [openForm, setOpenForm] = useState(false)
+
   const { data } = useQuery(queries.plans.list())
   const plans = data?.data ?? []
 
-  const createMutation = useMutation(queries.plans.create())
-
   if (!data) {
     return <RouteSkeleton />
-  }
-
-  const handleNewPlan = async () => {
-    try {
-      await createMutation.mutateAsync()
-      toast.success('Plan created')
-    } catch (error) {
-      toastAxiosError(error as Error)
-    }
   }
 
   return (
@@ -59,7 +50,7 @@ function RouteComponent() {
       toolbar={
         <Button
           className="bg-amber-600 text-white hover:bg-amber-500 dark:bg-amber-800 dark:text-amber-200 dark:hover:bg-amber-700"
-          onClick={() => handleNewPlan()}
+          onClick={() => setOpenForm(true)}
         >
           <IconPlus />
           <span>New plan</span>
@@ -94,6 +85,8 @@ function RouteComponent() {
           </div>
         )}
       </div>
+
+      <PlanFormDialog open={openForm} onOpenChange={setOpenForm} />
     </SectionCard>
   )
 }

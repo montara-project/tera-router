@@ -35,6 +35,20 @@ const create = () => {
   })
 }
 
+const update = (id: string) => {
+  const qc = getQueryClient()
+
+  return mutationOptions({
+    mutationFn: async (reqBody: PlanDto) => {
+      const res = await services.plans.update(id, reqBody)
+      return res.data
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [PLAN_QUERY_KEY] })
+    },
+  })
+}
+
 const del = () => {
   const qc = getQueryClient()
 
@@ -52,5 +66,6 @@ const del = () => {
 export const planQueries = {
   list,
   create,
+  update,
   delete: del,
 } as const
