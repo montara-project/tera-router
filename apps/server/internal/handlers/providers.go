@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bufio"
 	"cmp"
 	"context"
 	"encoding/json"
@@ -8,6 +9,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"tera-router/server/internal/app"
 	"tera-router/server/internal/catalog"
@@ -880,11 +882,49 @@ func (h *providersHandler) runModelTest(c fiber.Ctx, baseURL string, anthropic b
 		return apperr.New(apperr.KindUnprocessable, "no base_url configured for this provider; add an account with a base URL first")
 	}
 
+	if req.Stream {
+		return h.streamModelTest(c, req, baseURL, anthropic, apiKey, oauth, headers)
+	}
+
 	result, err := h.app.Services.Upstream.ChatCompletion(c.Context(), baseURL, anthropic, oauth, apiKey, req.Model, req.Messages, headers)
 	if err != nil {
 		return err
 	}
 	return dtos.OK(c, result)
+}
+
+// modelTestStreamDeadline bounds a streamed model test end to end.
+const modelTestStreamDeadline = 2 * time.Minute
+
+// streamModelTest answers a model test as server-sent events: one "delta"
+// event per upstream text fragment, then a "done" event with the result.
+// The writer runs after the handler returns, so it gets its own context
+// (canceled when the client goes away) and never touches the Fiber ctx.
+func (h *providersHandler) streamModelTest(c fiber.Ctx, req dtos.ModelTestRequest, baseURL string, anthropic bool, apiKey string, oauth bool, headers map[string]string) error {
+	upstream := h.app.Services.Upstream
+	c.Set("Content-Type", "text/event-stream")
+	c.Set("Cache-Control", "no-cache")
+	c.Set("X-Accel-Buffering", "no")
+
+	return c.SendStreamWriter(func(w *bufio.Writer) {
+		ctx, cancel := context.WithTimeout(context.Background(), modelTestStreamDeadline)
+		defer cancel()
+		send := func(ev dtos.ModelTestStreamEvent) {
+			b, _ := json.Marshal(ev)
+			_, _ = fmt.Fprintf(w, "data: %s\n\n", b)
+			if err := w.Flush(); err != nil {
+				cancel()
+			}
+		}
+
+		result, err := upstream.ChatCompletionStream(ctx, baseURL, anthropic, oauth, apiKey, req.Model, req.Messages, headers, func(text string) {
+			send(dtos.ModelTestStreamEvent{Type: "delta", Text: text})
+		})
+		if err != nil {
+			result = dtos.ModelTestResult{Model: req.Model, Detail: err.Error()}
+		}
+		send(dtos.ModelTestStreamEvent{Type: "done", Result: &result})
+	})
 }
 
 // CatalogModelTest issues one test chat completion for a catalog provider

@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -38,10 +39,20 @@ func (s *Server) handleListModels(c fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(c.Context(), routingDeadline)
 	defer cancel()
 
+	data, err := s.routeModelEntries(ctx)
+	if err != nil {
+		s.log.Error("gateway list models failed", "error", err)
+		return s.fail(c, core.DialectOpenAI, http.StatusInternalServerError, "failed to list models")
+	}
+	return c.Status(http.StatusOK).JSON(fiber.Map{"object": "list", "data": data})
+}
+
+// routeModelEntries lists the aliases and chains a client may name as a
+// model, in resolution precedence, each bare name once.
+func (s *Server) routeModelEntries(ctx context.Context) ([]modelEntry, error) {
 	aliases, err := s.app.Repos.Aliases.List(ctx)
 	if err != nil {
-		s.log.Error("gateway list models: aliases query failed", "error", err)
-		return s.fail(c, core.DialectOpenAI, http.StatusInternalServerError, "failed to list models")
+		return nil, fmt.Errorf("aliases query: %w", err)
 	}
 
 	// seen holds the advertised bare names. resolveTargets picks the first
@@ -68,8 +79,7 @@ func (s *Server) handleListModels(c fiber.Ctx) error {
 
 	chains, err := s.app.Repos.Chains.List(ctx)
 	if err != nil {
-		s.log.Error("gateway list models: chains query failed", "error", err)
-		return s.fail(c, core.DialectOpenAI, http.StatusInternalServerError, "failed to list models")
+		return nil, fmt.Errorf("chains query: %w", err)
 	}
 	for _, chain := range chains {
 		// A disabled or targetless chain is a bad model in chainResult, and a
@@ -89,7 +99,7 @@ func (s *Server) handleListModels(c fiber.Ctx) error {
 		})
 	}
 
-	return c.Status(http.StatusOK).JSON(fiber.Map{"object": "list", "data": data})
+	return data, nil
 }
 
 // claimName reserves name in seen, reporting false when a higher-precedence

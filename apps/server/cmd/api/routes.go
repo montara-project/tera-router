@@ -73,6 +73,11 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	protected.Patch("/plans/:id", h.Plans.Update)
 	protected.Delete("/plans/:id", h.Plans.Delete)
 
+	// Playground: dashboard chat routed through the gateway, so provider
+	// models, aliases, and chains all resolve as they do for clients.
+	protected.Get("/playground/models", gw.PlaygroundModels)
+	protected.Post("/playground/chat", gw.PlaygroundChat)
+
 	// Routing
 	protected.Get("/chains", h.Chains.Index)
 	protected.Post("/chains", h.Chains.Store)

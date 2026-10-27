@@ -55,10 +55,12 @@ type ModelTestMessage struct {
 
 // ModelTestRequest is the body of the model test endpoints
 // (POST /v1/providers/:id/models/test and its custom-provider counterpart):
-// one small conversation addressed to a single model.
+// one small conversation addressed to a single model. Stream switches the
+// response to server-sent ModelTestStreamEvents.
 type ModelTestRequest struct {
 	Model    string             `json:"model"`
 	Messages []ModelTestMessage `json:"messages"`
+	Stream   bool               `json:"stream"`
 }
 
 func (d *ModelTestRequest) Validate(v *validator.MapValidator) {
@@ -79,6 +81,15 @@ type ModelTestResult struct {
 	Detail       string `json:"detail"`
 	InputTokens  int64  `json:"input_tokens"`
 	OutputTokens int64  `json:"output_tokens"`
+}
+
+// ModelTestStreamEvent is one SSE event of a streamed model test: "delta"
+// events carry a text fragment, and the closing "done" event carries the
+// same result the unary endpoint returns.
+type ModelTestStreamEvent struct {
+	Type   string           `json:"type"`
+	Text   string           `json:"text,omitempty"`
+	Result *ModelTestResult `json:"result,omitempty"`
 }
 
 // CatalogProvider is a built-in provider spec, ported (condensed) from
