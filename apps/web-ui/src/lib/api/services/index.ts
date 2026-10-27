@@ -13,6 +13,7 @@ import { mediaServices } from './media'
 import { oauthServices } from './oauth'
 import { overrideServices } from './override'
 import { planServices } from './plan'
+import { playgroundServices } from './playground'
 import { providerServices } from './provider'
 import { providerHealthServices } from './provider-health'
 import { proxyPoolServices } from './proxy-pool'
@@ -39,6 +40,7 @@ export const services = {
   oauth: oauthServices,
   overrides: overrideServices,
   plans: planServices,
+  playground: playgroundServices,
   providerHealth: providerHealthServices,
   providers: providerServices,
   proxyPools: proxyPoolServices,

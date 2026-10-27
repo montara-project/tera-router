@@ -28,6 +28,7 @@ import { Route as protecteddeveloperCliToolsIndexRouteImport } from './routes/(p
 import { Route as protecteddeveloperCliToolsToolIdRouteImport } from './routes/(protected)/(developer)/cli-tools/$toolId'
 import { Route as protecteddeveloperCliToolsClaudeCodeRouteImport } from './routes/(protected)/(developer)/cli-tools/claude-code'
 import { Route as protecteddeveloperConsoleIndexRouteImport } from './routes/(protected)/(developer)/console/index'
+import { Route as protecteddeveloperPlaygroundIndexRouteImport } from './routes/(protected)/(developer)/playground/index'
 import { Route as protectedsafetyGuardrailsIndexRouteImport } from './routes/(protected)/(safety)/guardrails/index'
 import { Route as protectedsafetyProviderHealthIndexRouteImport } from './routes/(protected)/(safety)/provider-health/index'
 import { Route as protectedtrafficChainsIndexRouteImport } from './routes/(protected)/(traffic)/chains/index'
@@ -146,6 +147,12 @@ const protecteddeveloperConsoleIndexRoute =
     path: '/console/',
     getParentRoute: () => protectedRouteRoute,
   } as any)
+const protecteddeveloperPlaygroundIndexRoute =
+  protecteddeveloperPlaygroundIndexRouteImport.update({
+    id: '/(developer)/playground/',
+    path: '/playground/',
+    getParentRoute: () => protectedRouteRoute,
+  } as any)
 const protectedsafetyGuardrailsIndexRoute =
   protectedsafetyGuardrailsIndexRouteImport.update({
     id: '/(safety)/guardrails/',
@@ -208,6 +215,7 @@ export interface FileRoutesByFullPath {
   '/proxy-pools/': typeof protectedconnectionProxyPoolsIndexRoute
   '/cli-tools/': typeof protecteddeveloperCliToolsIndexRoute
   '/console/': typeof protecteddeveloperConsoleIndexRoute
+  '/playground/': typeof protecteddeveloperPlaygroundIndexRoute
   '/guardrails/': typeof protectedsafetyGuardrailsIndexRoute
   '/provider-health/': typeof protectedsafetyProviderHealthIndexRoute
   '/chains/': typeof protectedtrafficChainsIndexRoute
@@ -235,6 +243,7 @@ export interface FileRoutesByTo {
   '/proxy-pools': typeof protectedconnectionProxyPoolsIndexRoute
   '/cli-tools': typeof protecteddeveloperCliToolsIndexRoute
   '/console': typeof protecteddeveloperConsoleIndexRoute
+  '/playground': typeof protecteddeveloperPlaygroundIndexRoute
   '/guardrails': typeof protectedsafetyGuardrailsIndexRoute
   '/provider-health': typeof protectedsafetyProviderHealthIndexRoute
   '/chains': typeof protectedtrafficChainsIndexRoute
@@ -264,6 +273,7 @@ export interface FileRoutesById {
   '/(protected)/(connection)/proxy-pools/': typeof protectedconnectionProxyPoolsIndexRoute
   '/(protected)/(developer)/cli-tools/': typeof protecteddeveloperCliToolsIndexRoute
   '/(protected)/(developer)/console/': typeof protecteddeveloperConsoleIndexRoute
+  '/(protected)/(developer)/playground/': typeof protecteddeveloperPlaygroundIndexRoute
   '/(protected)/(safety)/guardrails/': typeof protectedsafetyGuardrailsIndexRoute
   '/(protected)/(safety)/provider-health/': typeof protectedsafetyProviderHealthIndexRoute
   '/(protected)/(traffic)/chains/': typeof protectedtrafficChainsIndexRoute
@@ -293,6 +303,7 @@ export interface FileRouteTypes {
     | '/proxy-pools/'
     | '/cli-tools/'
     | '/console/'
+    | '/playground/'
     | '/guardrails/'
     | '/provider-health/'
     | '/chains/'
@@ -320,6 +331,7 @@ export interface FileRouteTypes {
     | '/proxy-pools'
     | '/cli-tools'
     | '/console'
+    | '/playground'
     | '/guardrails'
     | '/provider-health'
     | '/chains'
@@ -348,6 +360,7 @@ export interface FileRouteTypes {
     | '/(protected)/(connection)/proxy-pools/'
     | '/(protected)/(developer)/cli-tools/'
     | '/(protected)/(developer)/console/'
+    | '/(protected)/(developer)/playground/'
     | '/(protected)/(safety)/guardrails/'
     | '/(protected)/(safety)/provider-health/'
     | '/(protected)/(traffic)/chains/'
@@ -497,6 +510,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof protecteddeveloperConsoleIndexRouteImport
       parentRoute: typeof protectedRouteRoute
     }
+    '/(protected)/(developer)/playground/': {
+      id: '/(protected)/(developer)/playground/'
+      path: '/playground'
+      fullPath: '/playground/'
+      preLoaderRoute: typeof protecteddeveloperPlaygroundIndexRouteImport
+      parentRoute: typeof protectedRouteRoute
+    }
     '/(protected)/(safety)/guardrails/': {
       id: '/(protected)/(safety)/guardrails/'
       path: '/guardrails'
@@ -567,6 +587,7 @@ interface protectedRouteRouteChildren {
   protectedconnectionProxyPoolsIndexRoute: typeof protectedconnectionProxyPoolsIndexRoute
   protecteddeveloperCliToolsIndexRoute: typeof protecteddeveloperCliToolsIndexRoute
   protecteddeveloperConsoleIndexRoute: typeof protecteddeveloperConsoleIndexRoute
+  protecteddeveloperPlaygroundIndexRoute: typeof protecteddeveloperPlaygroundIndexRoute
   protectedsafetyGuardrailsIndexRoute: typeof protectedsafetyGuardrailsIndexRoute
   protectedsafetyProviderHealthIndexRoute: typeof protectedsafetyProviderHealthIndexRoute
   protectedtrafficChainsIndexRoute: typeof protectedtrafficChainsIndexRoute
@@ -598,6 +619,8 @@ const protectedRouteRouteChildren: protectedRouteRouteChildren = {
     protectedconnectionProxyPoolsIndexRoute,
   protecteddeveloperCliToolsIndexRoute: protecteddeveloperCliToolsIndexRoute,
   protecteddeveloperConsoleIndexRoute: protecteddeveloperConsoleIndexRoute,
+  protecteddeveloperPlaygroundIndexRoute:
+    protecteddeveloperPlaygroundIndexRoute,
   protectedsafetyGuardrailsIndexRoute: protectedsafetyGuardrailsIndexRoute,
   protectedsafetyProviderHealthIndexRoute:
     protectedsafetyProviderHealthIndexRoute,

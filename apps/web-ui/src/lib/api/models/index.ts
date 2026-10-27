@@ -31,8 +31,10 @@ export namespace Models {
   export type ModelAlias = import('./provider-catalog').ModelAlias
   export type ModelTestMessage = import('./provider-catalog').ModelTestMessage
   export type ModelTestResult = import('./provider-catalog').ModelTestResult
+  export type ModelTestStreamEvent = import('./provider-catalog').ModelTestStreamEvent
   export type PricingOverride = import('./override').PricingOverride
   export type Plan = import('./plan').Plan
+  export type PlaygroundModel = import('./playground').PlaygroundModel
   export type Provider = import('./provider').Provider
   export type ProviderCapability = import('./provider').ProviderCapability
   export type ProviderRouting = import('./provider').ProviderRouting

@@ -299,20 +299,24 @@ const catalogModelsUpdate = (slug: string) => {
 // One-shot model test for catalog and custom providers. A test changes no
 // server state, so there is nothing to invalidate — the playground renders
 // the result (or the upstream error) inline.
+type ModelTestStreamVars = {
+  model: string
+  messages: Models.ModelTestMessage[]
+  onDelta: (text: string) => void
+}
+
+/** Streamed model test for a catalog provider; resolves with the final result. */
 const catalogModelTest = (slug: string) =>
   mutationOptions({
-    mutationFn: async (reqBody: { model: string; messages: Models.ModelTestMessage[] }) => {
-      const res = await services.providers.modelsTest(slug, reqBody)
-      return res.data
-    },
+    mutationFn: ({ onDelta, ...reqBody }: ModelTestStreamVars) =>
+      services.providers.modelsTestStream(slug, reqBody, onDelta),
   })
 
+/** Streamed model test for a custom provider; resolves with the final result. */
 const customModelTest = (id: string) =>
   mutationOptions({
-    mutationFn: async (reqBody: { model: string; messages: Models.ModelTestMessage[] }) => {
-      const res = await services.providers.customModelsTest(id, reqBody)
-      return res.data
-    },
+    mutationFn: ({ onDelta, ...reqBody }: ModelTestStreamVars) =>
+      services.providers.customModelsTestStream(id, reqBody, onDelta),
   })
 
 export const providerQueries = {

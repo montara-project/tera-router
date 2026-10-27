@@ -1,10 +1,9 @@
-import { IconArrowUp, IconEraser, IconMessageChatbot, IconX } from '@tabler/icons-react'
+import { IconEraser, IconMessageChatbot, IconX } from '@tabler/icons-react'
 import { useMutation } from '@tanstack/react-query'
 import { AnimatePresence, MotionConfig, motion, type Transition, type Variants } from 'motion/react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 
-import type { Models } from '@/lib/api/models'
-
+import { ChatComposer, ChatMessageList, useChat } from '@/components/block/playground/chat'
 import { Button } from '@/components/ui/button'
 import {
   Sheet,
@@ -15,18 +14,7 @@ import {
   SheetPortal,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { Textarea } from '@/components/ui/textarea'
-import { axiosErrorMessage } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
-
-type TestMessage = {
-  role: 'user' | 'assistant'
-  content: string
-  /** error replies carry the failure reason in place of the model output */
-  state?: 'pending' | 'error'
-  error?: string
-  meta?: { status: number; latencyMs: number; inputTokens: number; outputTokens: number }
-}
 
 const SUGGESTIONS = ['Say hello in one short sentence.', 'Reply with exactly: OK']
 
@@ -68,8 +56,6 @@ export default function ModelTestSheet({
   modelId: string
   size?: 'sm' | 'md' | 'lg' | 'xl'
 }) {
-  const [messages, setMessages] = useState<TestMessage[]>([])
-  const [input, setInput] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
 
   // Catalog tests are keyed by slug (POST /v1/providers/:slug/models/test);
@@ -80,7 +66,13 @@ export default function ModelTestSheet({
       ? queries.providers.catalogModelTest(providerSlug)
       : queries.providers.customModelTest(providerId)
   )
-  const sending = test.isPending
+  const {
+    messages,
+    sending,
+    send: sendTo,
+    clear,
+  } = useChat((model, history, onDelta) => test.mutateAsync({ model, messages: history, onDelta }))
+  const send = (text: string) => sendTo(modelId, text)
 
   // Keep the newest turn in view as the conversation grows.
   useEffect(() => {
@@ -88,66 +80,6 @@ export default function ModelTestSheet({
   }, [messages])
 
   const composite = providerSlug ? `${providerSlug}/${modelId}` : modelId
-
-  const send = async (raw: string) => {
-    const content = raw.trim()
-    if (!content || sending) return
-
-    // Errors are excluded from the forwarded history so one failed turn does
-    // not poison the rest of the conversation.
-    const history: Models.ModelTestMessage[] = messages
-      .filter((m) => m.state !== 'error')
-      .map((m) => ({ role: m.role, content: m.content }))
-    history.push({ role: 'user', content })
-
-    setInput('')
-    setMessages((prev) => [
-      ...prev,
-      { role: 'user', content },
-      { role: 'assistant', content: '', state: 'pending' },
-    ])
-
-    try {
-      const res = await test.mutateAsync({ model: modelId, messages: history })
-      const result = res.data
-      setMessages((prev) => [
-        ...prev.slice(0, -1),
-        result.ok
-          ? {
-              role: 'assistant' as const,
-              content: result.content,
-              meta: {
-                status: result.status,
-                latencyMs: result.latency_ms,
-                inputTokens: result.input_tokens,
-                outputTokens: result.output_tokens,
-              },
-            }
-          : {
-              role: 'assistant' as const,
-              content: '',
-              state: 'error' as const,
-              error: result.detail || 'The model returned an error',
-              meta: {
-                status: result.status,
-                latencyMs: result.latency_ms,
-                inputTokens: result.input_tokens,
-                outputTokens: result.output_tokens,
-              },
-            },
-      ])
-    } catch (error) {
-      setMessages((prev) => [
-        ...prev.slice(0, -1),
-        {
-          role: 'assistant',
-          content: '',
-          state: 'error',
-          error: axiosErrorMessage(error as Error),
-        },
-      ])
-    }
-  }
 
   return (
     <MotionConfig reducedMotion="user">
@@ -199,7 +131,7 @@ export default function ModelTestSheet({
                         className="size-8"
                         aria-label="Clear conversation"
                         disabled={messages.length === 0 || sending}
-                        onClick={() => setMessages([])}
+                        onClick={clear}
                       >
                         <IconEraser />
                       </Button>
@@ -245,15 +177,7 @@ export default function ModelTestSheet({
                         </div>
                       </div>
                     ) : (
-                      <div
-                        className="mx-auto w-full max-w-2xl space-y-5 px-4 py-6"
-                        role="log"
-                        aria-live="polite"
-                      >
-                        {messages.map((message, index) => (
-                          <TestMessageBubble key={index} message={message} />
-                        ))}
-                      </div>
+                      <ChatMessageList messages={messages} />
                     )}
                   </motion.div>
 
@@ -264,44 +188,11 @@ export default function ModelTestSheet({
                     animate="shown"
                     className="border-t p-3"
                   >
-                    <form
-                      className="flex items-end gap-2 rounded-2xl border bg-background px-3 py-2 shadow-xs focus-within:border-ring/60"
-                      onSubmit={(event) => {
-                        event.preventDefault()
-                        send(input)
-                      }}
-                    >
-                      <Textarea
-                        value={input}
-                        onChange={(event) => setInput(event.target.value)}
-                        onKeyDown={(event) => {
-                          if (
-                            event.key === 'Enter' &&
-                            !event.shiftKey &&
-                            !event.nativeEvent.isComposing
-                          ) {
-                            event.preventDefault()
-                            send(input)
-                          }
-                        }}
-                        placeholder={`Message ${modelId}…`}
-                        rows={1}
-                        aria-label="Test message"
-                        className="max-h-40 min-h-8 resize-none border-0 bg-transparent px-0 py-1 shadow-none focus-visible:border-0 focus-visible:ring-0"
-                      />
-                      <Button
-                        type="submit"
-                        size="icon"
-                        className="size-8 shrink-0 rounded-full"
-                        disabled={!input.trim() || sending}
-                        aria-label="Send message"
-                      >
-                        <IconArrowUp />
-                      </Button>
-                    </form>
-                    <p className="mt-1.5 text-center text-[11px] text-muted-foreground/70">
-                      Enter to send · Shift+Enter for a new line
-                    </p>
+                    <ChatComposer
+                      placeholder={`Message ${modelId}…`}
+                      sending={sending}
+                      onSend={send}
+                    />
                   </motion.div>
                 </motion.div>
               </SheetContent>
@@ -311,51 +202,4 @@ export default function ModelTestSheet({
       </Sheet>
     </MotionConfig>
   )
-}
-
-function TestMessageBubble({ message }: { message: TestMessage }) {
-  if (message.role === 'user') {
-    return (
-      <div className="flex justify-end">
-        <div className="max-w-[85%] rounded-2xl bg-muted px-3.5 py-2.5 text-sm whitespace-pre-wrap">
-          {message.content}
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-1.5">
-      <AssistantMessageBody message={message} />
-      {message.meta ? (
-        <p className="text-xs tabular-nums text-muted-foreground/80">
-          {message.meta.latencyMs} ms · {message.meta.inputTokens} in · {message.meta.outputTokens}{' '}
-          out
-          {message.state === 'error' ? ` · HTTP ${message.meta.status}` : ''}
-        </p>
-      ) : null}
-    </div>
-  )
-}
-
-function AssistantMessageBody({ message }: { message: TestMessage }) {
-  if (message.state === 'pending') {
-    return (
-      <div className="flex items-center gap-1 py-2" role="status" aria-label="Waiting for response">
-        <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground/60" />
-        <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:150ms]" />
-        <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:300ms]" />
-      </div>
-    )
-  }
-
-  if (message.state === 'error') {
-    return (
-      <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-3.5 py-2.5 text-sm text-destructive">
-        {message.error}
-      </div>
-    )
-  }
-
-  return <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
 }
