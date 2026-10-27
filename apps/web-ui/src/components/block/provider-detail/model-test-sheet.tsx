@@ -1,9 +1,13 @@
 import { IconEraser, IconMessageChatbot, IconX } from '@tabler/icons-react'
 import { useMutation } from '@tanstack/react-query'
 import { AnimatePresence, MotionConfig, motion, type Transition, type Variants } from 'motion/react'
-import { useEffect, useRef } from 'react'
 
-import { ChatComposer, ChatMessageList, useChat } from '@/components/block/playground/chat'
+import {
+  ChatComposer,
+  ChatMessageList,
+  useChat,
+  useStickToBottom,
+} from '@/components/block/playground/chat'
 import { Button } from '@/components/ui/button'
 import {
   Sheet,
@@ -56,8 +60,6 @@ export default function ModelTestSheet({
   modelId: string
   size?: 'sm' | 'md' | 'lg' | 'xl'
 }) {
-  const scrollRef = useRef<HTMLDivElement>(null)
-
   // Catalog tests are keyed by slug (POST /v1/providers/:slug/models/test);
   // the route id may still carry the "prov-" display prefix, so never send it
   // there. Custom providers are keyed by their uuid row.
@@ -74,10 +76,7 @@ export default function ModelTestSheet({
   } = useChat((model, history, onDelta) => test.mutateAsync({ model, messages: history, onDelta }))
   const send = (text: string) => sendTo(modelId, text)
 
-  // Keep the newest turn in view as the conversation grows.
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight })
-  }, [messages])
+  const scrollRef = useStickToBottom(messages.length)
 
   const composite = providerSlug ? `${providerSlug}/${modelId}` : modelId
 
@@ -149,36 +148,38 @@ export default function ModelTestSheet({
                     custom={1}
                     initial="hidden"
                     animate="shown"
-                    className="flex-1 overflow-y-auto"
+                    className="scrollbar-seamless flex-1 overflow-y-auto"
                   >
-                    {messages.length === 0 ? (
-                      <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
-                        <div className="flex size-12 items-center justify-center rounded-full bg-muted">
-                          <IconMessageChatbot className="size-6 text-muted-foreground" />
+                    <div className="flex min-h-full flex-col">
+                      {messages.length === 0 ? (
+                        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
+                          <div className="flex size-12 items-center justify-center rounded-full bg-muted">
+                            <IconMessageChatbot className="size-6 text-muted-foreground" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium">Test this model</p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Send a message to check that {modelId} responds through its provider.
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap justify-center gap-2">
+                            {SUGGESTIONS.map((suggestion) => (
+                              <Button
+                                key={suggestion}
+                                variant="outline"
+                                size="sm"
+                                className="rounded-full"
+                                onClick={() => send(suggestion)}
+                              >
+                                {suggestion}
+                              </Button>
+                            ))}
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-sm font-medium">Test this model</p>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            Send a message to check that {modelId} responds through its provider.
-                          </p>
-                        </div>
-                        <div className="flex flex-wrap justify-center gap-2">
-                          {SUGGESTIONS.map((suggestion) => (
-                            <Button
-                              key={suggestion}
-                              variant="outline"
-                              size="sm"
-                              className="rounded-full"
-                              onClick={() => send(suggestion)}
-                            >
-                              {suggestion}
-                            </Button>
-                          ))}
-                        </div>
-                      </div>
-                    ) : (
-                      <ChatMessageList messages={messages} />
-                    )}
+                      ) : (
+                        <ChatMessageList messages={messages} />
+                      )}
+                    </div>
                   </motion.div>
 
                   <motion.div

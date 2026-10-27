@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 
 import type { Models } from '@/lib/api/models'
@@ -97,6 +97,44 @@ export function useChat(run: ChatRun) {
   return { messages, sending, send, clear: () => setMessages([]) }
 }
 
+/**
+ * Keeps a scroll container pinned to its newest content while the reader is
+ * at (or near) the bottom, and lets go as soon as they scroll up to read. A
+ * new turn re-pins it. Watching the content's size rather than the messages
+ * also follows the word-by-word reveal and the trace expanding.
+ *
+ * The scroller's first child must be a stable wrapper around the content.
+ */
+export function useStickToBottom(turns: number) {
+  const pinned = useRef(true)
+  const [scroller, setScroller] = useState<HTMLElement | null>(null)
+
+  useEffect(() => {
+    const content = scroller?.firstElementChild
+    if (!scroller || !content) return
+    const stick = () => {
+      if (pinned.current) scroller.scrollTo({ top: scroller.scrollHeight })
+    }
+    const onScroll = () => {
+      pinned.current = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 80
+    }
+    const observer = new ResizeObserver(stick)
+    observer.observe(content)
+    scroller.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      observer.disconnect()
+      scroller.removeEventListener('scroll', onScroll)
+    }
+  }, [scroller])
+
+  useEffect(() => {
+    pinned.current = true
+    if (scroller) scroller.scrollTo({ top: scroller.scrollHeight })
+  }, [turns, scroller])
+
+  return setScroller
+}
+
 export function ChatMessageList({ messages }: { messages: ChatMessage[] }) {
   return (
     <div className="mx-auto w-full max-w-2xl space-y-5 px-4 py-6" role="log" aria-live="polite">
@@ -111,13 +149,17 @@ export function ChatComposer({
   placeholder,
   sending,
   onSend,
+  toolbar,
 }: {
   placeholder: string
   sending: boolean
   onSend: (text: string) => void
+  /** controls on a row above the composer (e.g. the model picker) */
+  toolbar?: ReactNode
 }) {
   return (
     <>
+      {toolbar && <div className="mb-1.5 flex min-w-0 items-center gap-2">{toolbar}</div>}
       <PromptBar
         demo={false}
         tools={false}
