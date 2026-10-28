@@ -12,6 +12,7 @@ import { keyQueries } from './key'
 import { mediaQueries } from './media'
 import { overrideQueries } from './override'
 import { planQueries } from './plan'
+import { playgroundQueries } from './playground'
 import { providerQueries } from './provider'
 import { providerHealthQueries } from './provider-health'
 import { proxyPoolQueries } from './proxy-pool'
@@ -37,6 +38,7 @@ export const queries = {
   media: mediaQueries,
   overrides: overrideQueries,
   plans: planQueries,
+  playground: playgroundQueries,
   providerHealth: providerHealthQueries,
   providers: providerQueries,
   proxyPools: proxyPoolQueries,

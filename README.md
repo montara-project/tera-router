@@ -4,7 +4,7 @@
   <a href="https://github.com/montara-project/tera-router/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/montara-project/tera-router?display_name=tag&sort=semver"></a>
   <a href="https://github.com/montara-project/tera-router/actions/workflows/release.yml"><img alt="Build" src="https://img.shields.io/github/actions/workflow/status/montara-project/tera-router/release.yml?label=release"></a>
   <a href="https://github.com/montara-project/tera-router/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/montara-project/tera-router/total"></a>
-  <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-green.svg"></a>
+  <a href="LICENSE.md"><img alt="GPL-3.0 License" src="https://img.shields.io/badge/license-GPL--3.0-blue.svg"></a>
 </p>
 
 Self-hosted AI router: one OpenAI/Anthropic-compatible gateway in front of all your providers, with
@@ -86,6 +86,6 @@ Tera Router exists thanks to everyone who has contributed.
 
 ## License
 
-[MIT](LICENSE.md) © Montara Projects
+[GPL-3.0](LICENSE.md) © Montara Projects
 
 [docs.terarouter.xyz]: https://docs.terarouter.xyz

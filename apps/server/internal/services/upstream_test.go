@@ -513,3 +513,76 @@ func TestListModelsBareArrayAndGeminiPrefix(t *testing.T) {
 		t.Errorf("gemini = %+v, err %v", gemini, err)
 	}
 }
+
+// The streamed model test forwards each text delta as it arrives and folds
+// the content and usage of both wire dialects into the final result.
+func TestChatCompletionStream(t *testing.T) {
+	cases := []struct {
+		name      string
+		anthropic bool
+		body      string
+	}{
+		{"openai", false, "data: {\"choices\":[{\"delta\":{\"content\":\"Hel\"}}]}\n\n" +
+			"data: {\"choices\":[{\"delta\":{\"content\":\"lo\"}}]}\n\n" +
+			"data: {\"choices\":[],\"usage\":{\"prompt_tokens\":4,\"completion_tokens\":2}}\n\n" +
+			"data: [DONE]\n\n"},
+		{"anthropic", true, "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"usage\":{\"input_tokens\":4}}}\n\n" +
+			"event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"delta\":{\"type\":\"text_delta\",\"text\":\"Hel\"}}\n\n" +
+			"event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"delta\":{\"type\":\"text_delta\",\"text\":\"lo\"}}\n\n" +
+			"event: message_delta\ndata: {\"type\":\"message_delta\",\"usage\":{\"output_tokens\":2}}\n\n"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotBody map[string]any
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				_ = json.NewDecoder(r.Body).Decode(&gotBody)
+				w.Header().Set("Content-Type", "text/event-stream")
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			defer srv.Close()
+
+			var deltas []string
+			svc := &UpstreamService{}
+			msgs := []dtos.ModelTestMessage{{Role: "user", Content: "hi"}}
+			res, err := svc.ChatCompletionStream(context.Background(), srv.URL+"/v1", tc.anthropic, false, "k", "m", msgs, nil,
+				func(text string) { deltas = append(deltas, text) })
+			if err != nil || !res.OK || res.Content != "Hello" || res.InputTokens != 4 || res.OutputTokens != 2 {
+				t.Fatalf("result = %+v, %v", res, err)
+			}
+			if strings.Join(deltas, "|") != "Hel|lo" {
+				t.Errorf("deltas = %q, want [Hel lo]", deltas)
+			}
+			if gotBody["stream"] != true {
+				t.Errorf("request stream = %v, want true", gotBody["stream"])
+			}
+		})
+	}
+}
+
+// An upstream that ignores the stream flag still answers: its JSON reply
+// arrives as one delta, and an in-stream error event fails the test.
+func TestChatCompletionStreamFallbacks(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "messages") {
+			w.Header().Set("Content-Type", "text/event-stream")
+			_, _ = w.Write([]byte("data: {\"type\":\"error\",\"error\":{\"message\":\"overloaded\"}}\n\n"))
+			return
+		}
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"OK"}}],"usage":{"prompt_tokens":1,"completion_tokens":1}}`))
+	}))
+	defer srv.Close()
+
+	svc := &UpstreamService{}
+	msgs := []dtos.ModelTestMessage{{Role: "user", Content: "hi"}}
+	var deltas []string
+	res, err := svc.ChatCompletionStream(context.Background(), srv.URL+"/v1", false, false, "k", "m", msgs, nil,
+		func(text string) { deltas = append(deltas, text) })
+	if err != nil || !res.OK || len(deltas) != 1 || deltas[0] != "OK" {
+		t.Fatalf("json fallback = %+v, %v, deltas %q", res, err, deltas)
+	}
+
+	res, err = svc.ChatCompletionStream(context.Background(), srv.URL+"/v1", true, false, "k", "m", msgs, nil, func(string) {})
+	if err != nil || res.OK || res.Detail != "overloaded" {
+		t.Fatalf("error event = %+v, %v", res, err)
+	}
+}

@@ -14,6 +14,8 @@ The dashboard (`apps/web-ui`) is the only place you need for day-to-day router m
 - **Endpoints** — how to connect your apps: base URL + API key, plus one-click tunnels for access from other machines: a public Cloudflare quick tunnel or a private Tailscale address (see [Remote access](/docs/getting-started/remote-access)).
 - **Chains** — build model chains: sequential steps that can each be switched on or off, strategies (`priority`, `round-robin`, `load-balanced`), and fallbacks.
 - **Skills** — reusable prompt snippets, plus _reference skills_ you can copy to a coding agent so it knows how to use the router. Any skill opens in a rendered preview.
+- **Model Alias** — one alias name mapped to an ordered pool of `provider/model` targets. Keys and plans reference the alias, so swapping providers never needs re-assignment.
+- **Pricing** — per-model token rates the gateway charges with. Overrides beat the built-in catalog; a provider-wide override prices every model without its own row.
 
 ## Connections
 
@@ -31,12 +33,14 @@ The dashboard (`apps/web-ui`) is the only place you need for day-to-day router m
 
 - **Usage** — requests, tokens, cost, and latency per time range (today, 24 hours, 7 days, 30 days), broken down by model and client (Claude Code, Cursor, Codex, etc).
 - **Plans** — limit templates: spend, tokens, period, alerts, hard cutoff, and model allowlists.
+- **Budgets** — spend and token caps per period for the whole instance, one API key, or one provider account; alert on or block traffic once a cap is hit.
 - **Quota Tracker** — usage against active budgets, pausable per item.
 - **System** — host and server process metrics.
-- **Settings** — router behavior: timeouts, round-robin provider/chain, outbound proxy, request detail recording, down to display branding.
+- **Settings** — router behavior: timeouts, round-robin provider/chain, outbound proxy, request detail recording, token saving (tool-output compression, an optional Headroom proxy, and terse-output directives), down to display branding.
 
 ## Developer
 
+- **Playground** — chat with any provider model, model alias, or chain through the gateway, with streaming. Each reply shows which provider and model actually answered.
 - **Console Log** — a live stream of recent server logs (500-entry ring buffer).
 - **CLI Tools** — one-click configuration for coding tools (Claude Code, Cursor, and others) pointing straight at your Tera Router instance. The **Claude Code** page detects the `claude` CLI on the server host, lets you pick an endpoint, API key, and optional default model (`provider/model-id` or `chain:<name>`), and either writes them into `~/.claude/settings.json` on that host (**Apply**, merging with existing settings; honors `CLAUDE_CONFIG_DIR`) or copies a ready-to-paste snippet for another machine.
 

@@ -1,11 +1,13 @@
 import { env } from '@/config/env'
 import { AUTH_STORAGE_KEYS } from '@/lib/constants/auth'
 
+import type { Models } from '../models'
 import type { ProviderResources } from './types/provider'
 
 import { ClientFetchApi } from '../client-fetch'
 import { parseDto } from '../dtos/parse'
 import { CustomProviderSchema, ProviderRoutingSchema } from '../dtos/provider/schema'
+import { postEventStream } from '../sse'
 
 const path = '/v1/providers'
 
@@ -99,7 +101,30 @@ const resources = (): ProviderResources => {
       const url = `${customPath}/${id}/models/test`
       return api.post(url, payload)
     },
+    modelsTestStream: (slug, payload, onDelta) =>
+      postModelTestStream(`${path}/${slug}/models/test`, payload, onDelta),
+    customModelsTestStream: (id, payload, onDelta) =>
+      postModelTestStream(`${customPath}/${id}/models/test`, payload, onDelta),
   }
+}
+
+/**
+ * POST a model test with `stream: true`: each "delta" event goes to onDelta,
+ * and the closing "done" event's result is returned.
+ */
+async function postModelTestStream(
+  url: string,
+  payload: { model: string; messages: Models.ModelTestMessage[] },
+  onDelta: (text: string) => void
+): Promise<Models.ModelTestResult> {
+  let result: Models.ModelTestResult | undefined
+  await postEventStream(api, url, { ...payload, stream: true }, (data) => {
+    const event = JSON.parse(data) as Models.ModelTestStreamEvent
+    if (event.type === 'delta') onDelta(event.text)
+    else result = event.result
+  })
+  if (!result) throw new Error('The test stream ended before the model finished')
+  return result
 }
 
 export const providerServices = resources()

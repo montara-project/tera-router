@@ -23,7 +23,7 @@ const columns = [
       { href: GITHUB_URL, label: 'GitHub' },
       { href: DOCS_URL, label: 'Documentation' },
       { href: `${GITHUB_URL}/releases`, label: 'Releases' },
-      { href: `${GITHUB_URL}/blob/main/LICENSE.md`, label: 'MIT license' },
+      { href: `${GITHUB_URL}/blob/main/LICENSE.md`, label: 'GPL-3.0 license' },
     ],
   },
 ]
@@ -76,7 +76,7 @@ export function SiteFooter() {
 
         <div className="mt-16 flex flex-col justify-between gap-2 border-t border-divide pt-6 text-xs text-faint sm:flex-row">
           <p>
-            © 2026 Montara Projects · MIT license ·{' '}
+            © 2026 Montara Projects · GPL-3.0 license ·{' '}
             <a
               className="font-mono transition-colors hover:text-ink"
               href={RELEASE_URL}

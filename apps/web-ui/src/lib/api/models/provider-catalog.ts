@@ -64,6 +64,11 @@ export type ModelTestResult = {
   output_tokens: number
 }
 
+/** One SSE event of a streamed model test (dtos.ModelTestStreamEvent). */
+export type ModelTestStreamEvent =
+  | { type: 'delta'; text: string }
+  | { type: 'done'; result: ModelTestResult }
+
 /** Matches the models.ModelAlias json shape. */
 export type ModelAlias = {
   id: string

@@ -1,7 +1,9 @@
 package services
 
 import (
+	"bufio"
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -575,6 +577,20 @@ func chatCompletionClient() *http.Client {
 // the result rather than as a Go error, so the dashboard can render the
 // reason inline; only context/transport setup problems return an error.
 func (s *UpstreamService) ChatCompletion(ctx context.Context, baseURL string, anthropicDialect, oauth bool, apiKey, model string, messages []dtos.ModelTestMessage, headers map[string]string) (dtos.ModelTestResult, error) {
+	return s.chatCompletion(ctx, baseURL, anthropicDialect, oauth, apiKey, model, messages, headers, nil)
+}
+
+// ChatCompletionStream is ChatCompletion with the upstream asked to stream:
+// onDelta receives each text fragment as it arrives, and the returned result
+// carries the full content, usage, and total latency. An upstream that
+// ignores the stream flag and answers with plain JSON still works; its whole
+// answer is delivered as a single delta.
+func (s *UpstreamService) ChatCompletionStream(ctx context.Context, baseURL string, anthropicDialect, oauth bool, apiKey, model string, messages []dtos.ModelTestMessage, headers map[string]string, onDelta func(string)) (dtos.ModelTestResult, error) {
+	return s.chatCompletion(ctx, baseURL, anthropicDialect, oauth, apiKey, model, messages, headers, onDelta)
+}
+
+func (s *UpstreamService) chatCompletion(ctx context.Context, baseURL string, anthropicDialect, oauth bool, apiKey, model string, messages []dtos.ModelTestMessage, headers map[string]string, onDelta func(string)) (dtos.ModelTestResult, error) {
+	stream := onDelta != nil
 	endpoint := strings.TrimSuffix(baseURL, "/") + "/chat/completions"
 	if anthropicDialect {
 		endpoint = V1Join(baseURL, "messages")
@@ -588,10 +604,11 @@ func (s *UpstreamService) ChatCompletion(ctx context.Context, baseURL string, an
 		msgs = append(msgs, map[string]string{"role": m.Role, "content": m.Content})
 	}
 	payload := map[string]any{"model": model, "max_tokens": modelTestMaxTokens, "messages": msgs}
-	switch {
-	case !anthropicDialect:
-		payload["stream"] = false
-	case oauth:
+	payload["stream"] = stream
+	if stream && !anthropicDialect {
+		payload["stream_options"] = map[string]any{"include_usage": true}
+	}
+	if anthropicDialect && oauth {
 		payload["system"] = connectors.ClaudeCodeSystemPrompt
 	}
 	body, err := json.Marshal(payload)
@@ -616,12 +633,23 @@ func (s *UpstreamService) ChatCompletion(ctx context.Context, baseURL string, an
 		return dtos.ModelTestResult{OK: false, LatencyMS: latency, Model: model, Detail: err.Error()}, nil
 	}
 	defer resp.Body.Close()
+
+	result := dtos.ModelTestResult{Status: resp.StatusCode, LatencyMS: latency, Model: model}
+	if stream && resp.StatusCode >= 200 && resp.StatusCode < 300 &&
+		strings.Contains(strings.ToLower(resp.Header.Get("Content-Type")), "text/event-stream") {
+		readChatStream(resp.Body, anthropicDialect, &result, onDelta)
+		result.LatencyMS = time.Since(start).Milliseconds()
+		if result.Detail == "" && result.Content == "" {
+			result.Detail = "upstream returned an empty completion"
+		}
+		result.OK = result.Detail == ""
+		return result, nil
+	}
+
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if err != nil {
 		return dtos.ModelTestResult{OK: false, LatencyMS: latency, Model: model, Detail: "read upstream response: " + err.Error()}, nil
 	}
-
-	result := dtos.ModelTestResult{Status: resp.StatusCode, LatencyMS: latency, Model: model}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		result.Detail = upstreamErrorMessage(raw, resp.StatusCode)
 		return result, nil
@@ -688,8 +716,113 @@ func (s *UpstreamService) ChatCompletion(ctx context.Context, baseURL string, an
 		result.Detail = "upstream returned an empty completion"
 		return result, nil
 	}
+	if stream {
+		onDelta(result.Content)
+	}
 	result.OK = true
 	return result, nil
+}
+
+// readChatStream consumes an upstream SSE body in either wire dialect,
+// forwarding text deltas to onDelta and accumulating the content and usage
+// into result. An error event or a broken stream lands in result.Detail.
+func readChatStream(body io.Reader, anthropicDialect bool, result *dtos.ModelTestResult, onDelta func(string)) {
+	var content strings.Builder
+	emit := func(text string) {
+		if text != "" {
+			content.WriteString(text)
+			onDelta(text)
+		}
+	}
+
+	scanner := bufio.NewScanner(body)
+	scanner.Buffer(make([]byte, 64<<10), 1<<20)
+	for scanner.Scan() {
+		data, ok := strings.CutPrefix(scanner.Text(), "data:")
+		data = strings.TrimSpace(data)
+		if !ok || data == "" {
+			continue
+		}
+		if data == "[DONE]" {
+			break
+		}
+		raw := []byte(data)
+
+		if anthropicDialect {
+			var ev struct {
+				Type  string `json:"type"`
+				Delta struct {
+					Type string `json:"type"`
+					Text string `json:"text"`
+				} `json:"delta"`
+				Message struct {
+					Usage struct {
+						InputTokens int64 `json:"input_tokens"`
+					} `json:"usage"`
+				} `json:"message"`
+				Usage struct {
+					OutputTokens int64 `json:"output_tokens"`
+				} `json:"usage"`
+				Error struct {
+					Message string `json:"message"`
+				} `json:"error"`
+			}
+			if json.Unmarshal(raw, &ev) != nil {
+				continue
+			}
+			switch ev.Type {
+			case "message_start":
+				result.InputTokens = ev.Message.Usage.InputTokens
+			case "content_block_delta":
+				if ev.Delta.Type == "text_delta" {
+					emit(ev.Delta.Text)
+				}
+			case "message_delta":
+				result.OutputTokens = ev.Usage.OutputTokens
+			case "error":
+				result.Detail = cmp.Or(ev.Error.Message, "upstream stream error")
+			}
+			continue
+		}
+
+		// Cline wraps each chunk in a {"data": {…}} envelope.
+		var envelope struct {
+			Data json.RawMessage `json:"data"`
+		}
+		if json.Unmarshal(raw, &envelope) == nil && len(envelope.Data) > 0 && envelope.Data[0] == '{' {
+			raw = envelope.Data
+		}
+		var chunk struct {
+			Choices []struct {
+				Delta struct {
+					Content string `json:"content"`
+				} `json:"delta"`
+			} `json:"choices"`
+			Usage *struct {
+				PromptTokens     int64 `json:"prompt_tokens"`
+				CompletionTokens int64 `json:"completion_tokens"`
+			} `json:"usage"`
+			Error json.RawMessage `json:"error"`
+		}
+		if json.Unmarshal(raw, &chunk) != nil {
+			continue
+		}
+		if len(chunk.Error) > 0 && string(chunk.Error) != "null" {
+			result.Detail = upstreamErrorMessage(raw, result.Status)
+			continue
+		}
+		for _, choice := range chunk.Choices {
+			emit(choice.Delta.Content)
+		}
+		if chunk.Usage != nil {
+			result.InputTokens = chunk.Usage.PromptTokens
+			result.OutputTokens = chunk.Usage.CompletionTokens
+		}
+	}
+	if err := scanner.Err(); err != nil && result.Detail == "" {
+		result.Detail = "read upstream stream: " + err.Error()
+	}
+	result.Content = content.String()
 }
 
 // upstreamErrorMessage extracts a human-readable reason from an upstream

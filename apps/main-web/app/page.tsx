@@ -105,7 +105,7 @@ function Hero() {
             >
               {VERSION}
             </a>{' '}
-            · MIT licensed · self-hosted · no per-token markup.
+            · GPL-3.0 licensed · self-hosted · no per-token markup.
           </p>
         </div>
 
@@ -258,8 +258,8 @@ const notes = [
     body: 'deploy/docker-compose.yaml runs the gateway and dashboard as one image on port 8080.',
   },
   {
-    title: 'MIT licensed',
-    body: 'The whole monorepo is MIT — read it, change it, run it in production.',
+    title: 'GPL-3.0 licensed',
+    body: 'The whole monorepo is GPL-3.0 — read it, change it, run it in production.',
   },
   {
     title: 'Bring your own stack',
@@ -346,7 +346,7 @@ function CallToAction() {
           </div>
           <ul className="mt-8 grid gap-2 text-sm text-dim">
             {[
-              'MIT licensed, free to self-host',
+              'GPL-3.0 licensed, free to self-host',
               'Keys never leave your box',
               'One Go binary, one container',
             ].map((item) => (

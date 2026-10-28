@@ -8,6 +8,7 @@ import {
   IconHeartbeat,
   IconKey,
   IconLayoutDashboard,
+  IconMessageChatbot,
   IconPackages,
   IconPhoto,
   IconPigMoney,
@@ -165,6 +166,13 @@ const NAV_COST_ANALYTICS: NavMainItem[] = [
 ]
 
 const NAV_DEVELOPER: NavMainItem[] = [
+  {
+    title: 'Playground',
+    url: '/playground',
+    icon: IconMessageChatbot,
+    isActive: false,
+    items: [],
+  },
   {
     title: 'Console Log',
     url: '/console',

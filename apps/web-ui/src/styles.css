@@ -68,6 +68,21 @@
   --sidebar-ring: 217.2 91.2% 59.8%;
 }
 
+/* Tokens for the kit components (prompt-bar, streaming-text, thinking-state),
+   derived from the palette above so they follow dark mode and [data-theme]. */
+:root {
+  --ink: var(--foreground);
+  --ink-2: color-mix(in oklch, var(--foreground) 75%, transparent);
+  --ink-3: var(--muted-foreground);
+  --canvas: var(--background);
+  --surface: var(--card);
+  --inset: var(--muted);
+  --line: var(--border);
+  --line-strong: color-mix(in oklch, var(--foreground) 18%, transparent);
+  --hover: color-mix(in oklch, var(--foreground) 7%, transparent);
+  --hover-2: color-mix(in oklch, var(--foreground) 4%, transparent);
+}
+
 @theme inline {
   --font-sans: 'Nunito Sans', sans-serif;
 
@@ -104,6 +119,27 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-surface: var(--surface);
+  --color-inset: var(--inset);
+  --color-field: var(--inset);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-hover: var(--hover);
+  --color-hover-2: var(--hover-2);
+  --color-accent-ink: var(--primary);
+  --color-accent-tint: color-mix(in oklch, var(--primary) 12%, transparent);
+  --color-green: oklch(0.63 0.15 150);
+  --color-orange: oklch(0.7 0.16 55);
+  --color-red: var(--destructive);
+  --radius-control: 8px;
+  --radius-chip: 6px;
+  --shadow-hairline: 0 0 0 1px var(--line);
+  --shadow-card: 0 1px 2px oklch(0 0 0 / 6%);
+  --shadow-raised: 0 0 0 1px var(--line), 0 8px 24px oklch(0 0 0 / 14%);
+
   --animate-caret-blink: caret-blink 1.25s ease-out infinite;
   @keyframes caret-blink {
     0%,
@@ -126,6 +162,47 @@
     @apply bg-background text-foreground;
     margin: 0;
     min-height: 100vh;
+  }
+}
+
+/* Keyframes the kit components reference from inline `animation` styles. */
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+@keyframes shimmer-text {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes eq-bounce {
+  0%,
+  100% {
+    transform: scaleY(0.4);
+  }
+  50% {
+    transform: scaleY(1);
   }
 }
 

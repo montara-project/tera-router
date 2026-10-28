@@ -77,9 +77,12 @@ func serve(app *app.Application) error {
 	server.Use(helmet.New(helmet.Config{HSTSMaxAge: 180 * 24 * 60 * 60, HSTSExcludeSubdomains: true}))
 	server.Use(requestid.New())
 	// Compress must never touch inference traffic: buffering an SSE body
-	// defeats streaming, and the encoder would delay every chunk.
+	// defeats streaming, and the encoder would delay every chunk. Dashboard
+	// streams (model test, playground) opt out by asking for an event stream.
 	server.Use(compress.New(compress.Config{
-		Next: func(c fiber.Ctx) bool { return gateway.IsGatewayPath(c.Path()) },
+		Next: func(c fiber.Ctx) bool {
+			return gateway.IsGatewayPath(c.Path()) || strings.Contains(c.Get("Accept"), "text/event-stream")
+		},
 	}))
 	server.Use(sentryHandler)
 
@@ -88,7 +91,9 @@ func serve(app *app.Application) error {
 		AllowOrigins: strings.Split(app.Config.App.CORSAllowedOrigins, ","),
 		AllowMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders: []string{"Origin", "Content-Type", "Accept", "Authorization", "x-api-key", "anthropic-version"},
-		MaxAge:       3600,
+		// The playground reads which target a routed request landed on.
+		ExposeHeaders: []string{"X-TeraRouter-Provider", "X-TeraRouter-Model"},
+		MaxAge:        3600,
 	}))
 
 	// Rate Limit: the dashboard is throttled per client IP. Inference traffic

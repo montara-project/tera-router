@@ -54,4 +54,15 @@ export type ProviderResources = {
     id: string,
     payload: { model: string; messages: Models.ModelTestMessage[] }
   ) => Promise<AxiosItemResponse<Models.ModelTestResult>>
+  /** streamed model test: onDelta gets each text fragment, resolves with the final result */
+  modelsTestStream: (
+    slug: string,
+    payload: { model: string; messages: Models.ModelTestMessage[] },
+    onDelta: (text: string) => void
+  ) => Promise<Models.ModelTestResult>
+  customModelsTestStream: (
+    id: string,
+    payload: { model: string; messages: Models.ModelTestMessage[] },
+    onDelta: (text: string) => void
+  ) => Promise<Models.ModelTestResult>
 }

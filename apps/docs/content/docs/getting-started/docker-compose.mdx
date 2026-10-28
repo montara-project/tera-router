@@ -143,6 +143,10 @@ account.
   one attacker's failed sign-ins block everyone.
 - **Rate-limit exemptions** — `RATE_LIMIT_EXEMPT_IPS` takes a comma-separated list of IPs that
   bypass the dashboard rate limit (e.g. an internal monitoring host).
+- **Token saving (optional)** — the repo's `deploy/docker-compose.yaml` ships a Headroom sidecar
+  behind the `headroom` profile: `docker compose --profile headroom up -d` with a shared
+  `HEADROOM_PROXY_TOKEN` (`openssl rand -hex 32`). The server reaches it at `HEADROOM_URL`
+  (`http://headroom:8787`); switch it on in **Settings → Token Saving**.
 - **Persistence** — everything stateful is the SQLite file at `/app/data/terarouter.db` on the
   `tera-data` volume. Include it in your backup routine.
 - **Upgrades** — bump the image tag, then `docker compose up -d`. Pending migrations apply on boot
