@@ -23,7 +23,7 @@ export function SiteHeader() {
         <span className="mr-2 rounded bg-white/10 px-1.5 py-0.5 font-mono text-[11px] text-white">
           {VERSION}
         </span>
-        Tera Router {VERSION} is out: open source, MIT licensed, self-hosted.{' '}
+        Tera Router {VERSION} is out: open source, GPL-3.0 licensed, self-hosted.{' '}
         <a
           className="text-white underline decoration-neutral-500 underline-offset-4 transition-colors hover:decoration-white"
           href={RELEASE_URL}
