@@ -3,6 +3,17 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [1.13.0](https://github.com/montara-project/tera-router/compare/v1.12.0...v1.13.0) (2026-10-28)
+
+### Features
+
+* **server:** stream model tests and add playground endpoints ([51cec37](https://github.com/montara-project/tera-router/commit/51cec375c96d3292df6992def3371a3df1ddbc3a))
+* **web-ui:** add Playground page and stream the model test panel ([4c864bc](https://github.com/montara-project/tera-router/commit/4c864bc9f413fa3cd33eee5fec677b19d84e2e2a))
+
+### Bug Fixes
+
+* **deps:** bump better-auth to 1.7.14 for auth advisories ([4fc3723](https://github.com/montara-project/tera-router/commit/4fc3723522953fc778392ce969d068c7fc72a5c1))
+
 ## [1.12.0](https://github.com/montara-project/tera-router/compare/v1.11.0...v1.12.0) (2026-10-25)
 
 ### ⚠ BREAKING CHANGES
