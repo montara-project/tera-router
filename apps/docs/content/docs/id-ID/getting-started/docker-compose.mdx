@@ -142,6 +142,10 @@ Compose melaporkan `healthy` setelah healthcheck bawaan lulus
   dan login gagal dari satu penyerang akan memblokir semua orang.
 - **Pengecualian rate limit** — `RATE_LIMIT_EXEMPT_IPS` menerima daftar IP terpisah koma yang
   melewati rate limit dashboard (mis. host monitoring internal).
+- **Token saving (opsional)** — `deploy/docker-compose.yaml` di repo menyertakan sidecar Headroom
+  di balik profile `headroom`: `docker compose --profile headroom up -d` dengan
+  `HEADROOM_PROXY_TOKEN` yang sama di kedua service (`openssl rand -hex 32`). Server menjangkaunya
+  lewat `HEADROOM_URL` (`http://headroom:8787`); nyalakan di **Settings → Token Saving**.
 - **Persistensi** — semua yang stateful adalah file SQLite di `/app/data/terarouter.db` pada volume
   `tera-data`. Masukkan ke rutinitas backup kamu.
 - **Upgrade** — naikkan tag image, lalu `docker compose up -d`. Migrasi yang belum diterapkan

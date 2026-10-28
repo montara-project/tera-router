@@ -48,12 +48,15 @@ Pagination uses the `offset` (0-based) and `limit` (default 10, max 100) query p
 
 ### Auth
 
-| Method | Path                | Notes                     |
-| ------ | ------------------- | ------------------------- |
-| POST   | `/v1/auth/sign-in`  | Sign in, receive tokens   |
-| POST   | `/v1/auth/refresh`  | Rotate refresh token      |
-| GET    | `/v1/auth/me`       | Current user profile      |
-| POST   | `/v1/auth/sign-out` | Revoke all session tokens |
+| Method | Path                    | Notes                                                    |
+| ------ | ----------------------- | -------------------------------------------------------- |
+| POST   | `/v1/auth/sign-in`      | Sign in, receive tokens                                  |
+| POST   | `/v1/auth/refresh`      | Rotate refresh token                                     |
+| GET    | `/v1/auth/me`           | Current user profile                                     |
+| POST   | `/v1/auth/sign-out`     | Revoke all session tokens                                |
+| POST   | `/v1/auth/totp/setup`   | Issue a fresh TOTP secret to enroll (nothing stored yet) |
+| POST   | `/v1/auth/totp/enable`  | Turn on two-factor auth with a code from that secret     |
+| POST   | `/v1/auth/totp/disable` | Turn it off with a current code                          |
 
 ### Keys
 
@@ -72,6 +75,15 @@ Pagination uses the `offset` (0-based) and `limit` (default 10, max 100) query p
 | PATCH      | `/v1/plans/:id` | Update        |
 | DELETE     | `/v1/plans/:id` | Delete        |
 
+### Playground
+
+| Method | Path                    | Notes                                                                                                                                        |
+| ------ | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/v1/playground/models` | Every model the playground can address: active catalog models of providers with a usable account (`provider/model`), then aliases and chains |
+| POST   | `/v1/playground/chat`   | OpenAI chat completion routed exactly like gateway traffic (aliases, chains, fallback, `stream`)                                             |
+
+The playground authenticates with the dashboard JWT, not an API key. Its usage is metered and budgeted like any other traffic but attributed to no key. Responses carry `X-TeraRouter-Provider` and `X-TeraRouter-Model`, naming the target the request landed on.
+
 ### Routing
 
 | Method             | Path               | Notes                |
@@ -84,28 +96,42 @@ Pagination uses the `offset` (0-based) and `limit` (default 10, max 100) query p
 
 ### Providers & accounts
 
-| Method               | Path                        | Notes                                         |
-| -------------------- | --------------------------- | --------------------------------------------- |
-| GET                  | `/v1/providers`             | Connected/available provider summary          |
-| GET / POST           | `/v1/custom-providers`      | Custom providers                              |
-| PATCH / DELETE       | `/v1/custom-providers/:id`  | Manage custom provider                        |
-| GET / POST           | `/v1/accounts`              | List / add accounts                           |
-| GET / PATCH / DELETE | `/v1/accounts/:id`          | Manage account                                |
-| POST                 | `/v1/accounts/:id/test`     | Test account connection                       |
-| GET                  | `/v1/accounts/:id/quota`    | Account quota                                 |
-| GET / PUT            | `/v1/providers/:id/routing` | Account strategy (`:id` is the provider slug) |
+| Method               | Path                                   | Notes                                                                                          |
+| -------------------- | -------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| GET                  | `/v1/providers`                        | Connected/available provider summary                                                           |
+| GET / POST           | `/v1/custom-providers`                 | Custom providers                                                                               |
+| GET / PATCH / DELETE | `/v1/custom-providers/:id`             | Manage custom provider                                                                         |
+| GET                  | `/v1/custom-providers/by-slug/:slug`   | Resolve a custom provider by slug                                                              |
+| POST                 | `/v1/custom-providers/bulk-delete`     | Delete `{"ids": [...]}`; providers that still have an account are skipped                      |
+| GET / PATCH          | `/v1/custom-providers/:id/models`      | Stored model catalog (`search`, `state`, `offset`, `limit`) / toggle models active or disabled |
+| POST                 | `/v1/custom-providers/:id/models/sync` | Fetch the catalog from the provider's upstream model list                                      |
+| POST                 | `/v1/custom-providers/:id/models/test` | Send one test chat to a model                                                                  |
+| GET / PATCH          | `/v1/providers/:id/models`             | Same catalog view for catalog providers (`:id` is the slug)                                    |
+| POST                 | `/v1/providers/:id/models/sync`        | Refresh a catalog provider's models                                                            |
+| POST                 | `/v1/providers/:id/models/test`        | Send one test chat to a model                                                                  |
+| GET / POST           | `/v1/accounts`                         | List / add accounts                                                                            |
+| GET / PATCH / DELETE | `/v1/accounts/:id`                     | Manage account                                                                                 |
+| POST                 | `/v1/accounts/:id/test`                | Test account connection                                                                        |
+| GET                  | `/v1/accounts/:id/quota`               | Account quota                                                                                  |
+| GET / PUT            | `/v1/providers/:id/routing`            | Account strategy (`:id` is the provider slug)                                                  |
+| POST                 | `/v1/oauth/:provider/authorize`        | Start a PKCE sign-in (`anthropic`, `codex`); returns the URL to open                           |
+| POST                 | `/v1/oauth/:provider/exchange`         | Exchange the returned code and save it as an OAuth account                                     |
+
+The model test endpoints take `{"model", "messages", "stream"}`. With `"stream": true` the answer is server-sent events: `{"type": "delta", "text": …}` per text fragment, then one `{"type": "done", "result": …}` carrying the same result the non-streaming call returns. A streamed test is capped at 2 minutes.
 
 ### Budgets & usage
 
-| Method               | Path                  | Notes                    |
-| -------------------- | --------------------- | ------------------------ |
-| GET / POST           | `/v1/budgets`         | List / create budgets    |
-| GET                  | `/v1/budgets/status`  | Running usage per budget |
-| PUT / PATCH / DELETE | `/v1/budgets/:id`     | Manage budget            |
-| GET                  | `/v1/usage/telemetry` | Full Usage page payload  |
-| GET                  | `/v1/quota`           | Active quotas            |
-| GET                  | `/v1/quota/overview`  | Quota summary            |
-| PATCH / DELETE       | `/v1/quota/:id`       | Pause / delete quota     |
+| Method               | Path                  | Notes                                                                                             |
+| -------------------- | --------------------- | ------------------------------------------------------------------------------------------------- |
+| GET / POST           | `/v1/budgets`         | List / create budgets                                                                             |
+| GET                  | `/v1/budgets/status`  | Running usage per budget                                                                          |
+| PUT / PATCH / DELETE | `/v1/budgets/:id`     | Manage budget                                                                                     |
+| GET                  | `/v1/usage/telemetry` | Full Usage page payload                                                                           |
+| GET                  | `/v1/usage/activity`  | Requests per UTC day for the last 53 weeks, with per-model counts                                 |
+| GET                  | `/v1/provider-health` | Per-provider, per-model, and per-chain health (`?window=5m\|15m\|1h\|6h\|24h\|7d`, default `15m`) |
+| GET                  | `/v1/quota`           | Active quotas                                                                                     |
+| GET                  | `/v1/quota/overview`  | Quota summary                                                                                     |
+| PATCH / DELETE       | `/v1/quota/:id`       | Pause / delete quota                                                                              |
 
 ### Proxy pools
 
@@ -140,6 +166,28 @@ A pool URL is normally an HTTP/HTTPS/SOCKS forward proxy. A URL of the form `rel
 | POST           | `/v1/guardrails/evaluate` | Test policies (dry run)   |
 | PATCH / DELETE | `/v1/guardrails/:id`      | Manage policies           |
 
+### IP blocks
+
+| Method     | Path                | Notes                                                       |
+| ---------- | ------------------- | ----------------------------------------------------------- |
+| GET / POST | `/v1/ip-blocks`     | Active blocks, manual and automatic / add a permanent block |
+| DELETE     | `/v1/ip-blocks/:id` | Lift a block                                                |
+
+A block whose range covers your own address is refused, so you cannot lock yourself out.
+
+### Backup & import
+
+| Method | Path                           | Notes                                                                      |
+| ------ | ------------------------------ | -------------------------------------------------------------------------- |
+| POST   | `/v1/backup/config/export`     | JSON config backup; needs password (+ TOTP)                                |
+| POST   | `/v1/backup/config/import`     | Restore a config backup; each table in it replaces the live one            |
+| GET    | `/v1/backup/database`          | Live database file info                                                    |
+| POST   | `/v1/backup/database/download` | SQLite snapshot; needs password (+ TOTP)                                   |
+| POST   | `/v1/backup/database/restore`  | Replace the database with an uploaded SQLite file (multipart field `file`) |
+| POST   | `/v1/import/:source`           | Import a `9router` or `omniroute` JSON backup                              |
+
+Both restores write a safety copy of the current database first. A restored database must pass an integrity check and carry a schema no newer than the server's; an older schema is migrated up. Imports are additive: rows that already exist are kept and the backup's copy is skipped, so re-running an import is safe.
+
 ### Tunnels
 
 | Method | Path                             | Notes                                                      |
@@ -155,18 +203,19 @@ Enabling and disabling are audit-logged. See [Remote access](/docs/getting-start
 
 ### Misc
 
-| Method       | Path                           | Notes                                                  |
-| ------------ | ------------------------------ | ------------------------------------------------------ |
-| GET / PATCH  | `/v1/settings`                 | Router settings (timeout, round-robin, etc.)           |
-| GET          | `/v1/branding`                 | Public (no auth): display name, tagline, logo, favicon |
-| GET / POST   | `/v1/skills`                   | List / create skills                                   |
-| PATCH        | `/v1/skills/:id`               | Switch gateway injection (`enabled`)                   |
-| DELETE       | `/v1/skills/:id`               | Delete skill                                           |
-| GET / DELETE | `/v1/console`                  | Ring buffer log (500 entries) / clear                  |
-| GET          | `/v1/system/stats`             | Host & process metrics                                 |
-| GET          | `/v1/media`                    | Catalog providers grouped by non-chat capability       |
-| GET          | `/health`                      | Server health (no auth)                                |
-| POST         | `/v1/backup/database/download` | SQLite snapshot; needs password (+ TOTP)               |
-| POST         | `/v1/backup/config/export`     | JSON config backup; needs password (+ TOTP)            |
+| Method       | Path                              | Notes                                                                                                 |
+| ------------ | --------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| GET / PATCH  | `/v1/settings`                    | Router settings (timeout, round-robin, etc.)                                                          |
+| GET          | `/v1/branding`                    | Public (no auth): display name, tagline, logo, favicon                                                |
+| GET / POST   | `/v1/skills`                      | List / create skills                                                                                  |
+| PATCH        | `/v1/skills/:id`                  | Switch gateway injection (`enabled`)                                                                  |
+| DELETE       | `/v1/skills/:id`                  | Delete skill                                                                                          |
+| GET / DELETE | `/v1/console`                     | Ring buffer log (500 entries) / clear                                                                 |
+| GET          | `/v1/system/stats`                | Host & process metrics                                                                                |
+| GET          | `/v1/media`                       | Catalog providers grouped by non-chat capability                                                      |
+| GET          | `/v1/cli-tools/claude-code`       | Whether the `claude` CLI is installed on the host and what its settings point at                      |
+| POST         | `/v1/cli-tools/claude-code/apply` | Write the gateway URL, an API key, and an optional default model into the host's Claude Code settings |
+| GET          | `/health`                         | Server health (no auth)                                                                               |
+| GET          | `/skills/:slug/SKILL.md`          | Public skill document an agent fetches by URL (no auth)                                               |
 
 The key reveal and both backup downloads re-authenticate: send `"password"`, and when two-factor auth is on the server answers `{ "totp_required": true }` until you resend with `"otp"`. Wrong passwords or codes return `422` and count toward the IP block, like failed sign-ins.
