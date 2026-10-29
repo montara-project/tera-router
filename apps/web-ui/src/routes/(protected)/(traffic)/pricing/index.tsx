@@ -1,4 +1,4 @@
-import { IconPlus } from '@tabler/icons-react'
+import { IconCurrencyDollar, IconPlus } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useQueryState } from 'nuqs'
@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 
 import type { Models } from '@/lib/api/models'
 
+import EmptyState from '@/components/block/common/empty-state'
 import ReactTable from '@/components/block/common/react-table'
 import SectionCard from '@/components/block/common/section-card'
 import { PricingColumn } from '@/components/block/traffic/pricing/column'
@@ -109,6 +110,18 @@ function PricingRoute() {
           pageIndex={pageIndex}
           pageSize={limit}
           columns={columns}
+          emptyMessage={
+            <EmptyState
+              icon={IconCurrencyDollar}
+              title={search.trim() ? 'No overrides match' : 'No pricing overrides'}
+              description={
+                search.trim()
+                  ? 'Try a different search or scope.'
+                  : 'Models use the built-in catalog price until you add an override.'
+              }
+              className="py-8"
+            />
+          }
         />
 
         <div className="rounded-xl border border-border bg-background p-4 text-xs text-muted-foreground">

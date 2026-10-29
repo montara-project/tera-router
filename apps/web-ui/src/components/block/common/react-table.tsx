@@ -140,12 +140,18 @@ export default function ReactTable<T extends RowData>({
       }}
     >
       <div className="w-full space-y-2.5">
-        <DataGridContainer>
-          <ScrollArea>
-            <DataGridTable />
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
-        </DataGridContainer>
+        {/* A custom empty message renders outside the scrolling table so it
+            stays centred on phones instead of on the table's min-width. */}
+        {emptyMessage && data.length === 0 ? (
+          <div className="rounded-lg border border-border">{emptyMessage}</div>
+        ) : (
+          <DataGridContainer>
+            <ScrollArea>
+              <DataGridTable />
+              <ScrollBar orientation="horizontal" />
+            </ScrollArea>
+          </DataGridContainer>
+        )}
         <DataGridPagination
           total={total}
           pageSize={pagination.pageSize}

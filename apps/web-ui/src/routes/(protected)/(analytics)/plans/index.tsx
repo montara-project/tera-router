@@ -62,11 +62,11 @@ function RouteComponent() {
 
         <div className="flex items-center gap-3">
           <IconShieldCheck className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <span className="text-foreground text-xs font-semibold tracking-[0.14em] uppercase">
+          <span className="text-foreground text-xs font-semibold tracking-[0.14em] whitespace-nowrap uppercase">
             All plans
           </span>
           <div className="h-px flex-1 bg-border" />
-          <span className="text-muted-foreground text-xs whitespace-nowrap">
+          <span className="text-muted-foreground hidden text-xs whitespace-nowrap sm:inline">
             API keys inherit rules from their assigned plan
           </span>
         </div>

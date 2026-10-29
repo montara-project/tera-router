@@ -1,3 +1,4 @@
+import { IconGauge } from '@tabler/icons-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { RefreshCw } from 'lucide-react'
@@ -6,6 +7,7 @@ import { useEffect, useMemo, useState } from 'react'
 
 import type { Models } from '@/lib/api/models'
 
+import EmptyState from '@/components/block/common/empty-state'
 import ReactTable from '@/components/block/common/react-table'
 import SectionCard from '@/components/block/common/section-card'
 import SimpleButtonGroup, {
@@ -136,8 +138,8 @@ function RouteComponent() {
       title="Quota Tracker"
       description="Monitor account capacity, reported upstream limits, and period usage."
       toolbar={
-        <div className="flex items-center gap-2.5">
-          <span className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-emerald-600 tabular-nums dark:text-emerald-400">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-border px-3 py-1.5 text-xs font-medium text-emerald-600 tabular-nums dark:text-emerald-400">
             <span className="size-1.5 rounded-full bg-emerald-500" />
             Auto refresh · {secondsLeft}s
           </span>
@@ -175,6 +177,20 @@ function RouteComponent() {
           pageIndex={pageIndex}
           pageSize={limit}
           columns={columns}
+          emptyMessage={
+            <EmptyState
+              icon={IconGauge}
+              title={
+                (accountsData?.data ?? []).length === 0 ? 'No accounts yet' : 'No accounts match'
+              }
+              description={
+                (accountsData?.data ?? []).length === 0
+                  ? 'Connect a provider account to track its quota here.'
+                  : 'Try a different search or filter.'
+              }
+              className="py-8"
+            />
+          }
         />
       </div>
     </SectionCard>

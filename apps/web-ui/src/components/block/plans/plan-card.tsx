@@ -59,7 +59,7 @@ export default function PlanCard({ plan }: PlanCardProps) {
   const sectionLabel =
     'flex items-center gap-2 text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase'
   const limitLabel = 'text-muted-foreground text-[11px] font-medium tracking-wider uppercase'
-  const limitValue = 'mt-1 truncate font-mono text-lg text-foreground'
+  const limitValue = 'mt-1 truncate font-mono text-sm text-foreground sm:text-lg'
 
   return (
     <React.Fragment>
@@ -70,7 +70,7 @@ export default function PlanCard({ plan }: PlanCardProps) {
               <IconWallet className="h-5 w-5" />
             </span>
             <CardHeading className="min-w-0">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <CardTitle>{plan.name}</CardTitle>
                 {plan.hard_cutoff && (
                   <span className="inline-flex items-center whitespace-nowrap rounded-md bg-red-950/40 px-2 py-0.5 text-xs font-medium text-red-400 ring-1 ring-red-900/60 ring-inset">

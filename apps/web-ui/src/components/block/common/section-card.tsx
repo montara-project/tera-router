@@ -32,7 +32,7 @@ export default function SectionCard({ title, description, toolbar, children }: S
             </CardDescription>
           </CardHeading>
 
-          {toolbar && <CardToolbar className="shrink-0">{toolbar}</CardToolbar>}
+          {toolbar && <CardToolbar className="flex-wrap">{toolbar}</CardToolbar>}
         </CardHeader>
         <CardContent className="p-4">{children}</CardContent>
       </Card>

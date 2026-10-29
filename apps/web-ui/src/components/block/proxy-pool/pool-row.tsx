@@ -49,7 +49,7 @@ export default function ProxyPoolRow({ pool, selected, onToggle }: ProxyPoolRowP
   }
 
   return (
-    <div className="flex items-center gap-4 px-5 py-4">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-3 px-5 py-4">
       <Checkbox
         aria-label={`Select ${pool.name}`}
         checked={selected}
@@ -57,10 +57,17 @@ export default function ProxyPoolRow({ pool, selected, onToggle }: ProxyPoolRowP
         size="sm"
       />
 
-      <div className="min-w-0 flex-1 space-y-1">
+      <div className="min-w-0 flex-1 basis-56 space-y-1">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm font-semibold text-foreground">{pool.name}</span>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-950/40 px-2 py-0.5 text-xs font-medium text-emerald-400 ring-1 ring-emerald-900/60 ring-inset">
+          <span
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset',
+              pool.status === 'active'
+                ? 'bg-emerald-950/40 text-emerald-400 ring-emerald-900/60'
+                : 'bg-muted text-muted-foreground ring-border'
+            )}
+          >
             <span
               className={cn(
                 'size-1.5 rounded-full',
@@ -76,9 +83,11 @@ export default function ProxyPoolRow({ pool, selected, onToggle }: ProxyPoolRowP
           )}
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <code className="truncate font-mono text-xs text-muted-foreground">{pool.url}</code>
+          <code className="min-w-0 truncate font-mono text-xs text-muted-foreground">
+            {maskProxyPassword(pool.url)}
+          </code>
           <span className="text-muted-foreground whitespace-nowrap text-xs">
-            tested {formatTimeAgo(pool.tested_at)}
+            {pool.tested_at ? `tested ${formatTimeAgo(pool.tested_at)}` : 'never tested'}
           </span>
           {pool.mode && (
             <span className="text-muted-foreground whitespace-nowrap text-xs">{pool.mode}</span>
@@ -86,7 +95,7 @@ export default function ProxyPoolRow({ pool, selected, onToggle }: ProxyPoolRowP
         </div>
       </div>
 
-      <div className="flex shrink-0 items-center gap-1.5">
+      <div className="ml-auto flex shrink-0 items-center gap-1.5">
         <Button
           aria-label={`View ${pool.name}`}
           className="text-muted-foreground hover:text-foreground"
@@ -144,4 +153,9 @@ export default function ProxyPoolRow({ pool, selected, onToggle }: ProxyPoolRowP
       />
     </div>
   )
+}
+
+/** Hides the password in `scheme://user:pass@host` so the list never shows it. */
+function maskProxyPassword(url: string) {
+  return url.replace(/^([a-z0-9+.-]+:\/\/[^:@/]+):[^@/]+@/i, '$1:•••@')
 }

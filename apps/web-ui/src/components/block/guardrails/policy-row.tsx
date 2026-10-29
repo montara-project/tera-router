@@ -27,10 +27,10 @@ export default function PolicyRow({ policy, onToggle, onEdit, onDelete }: Policy
 
   return (
     <Card className="bg-background">
-      <CardContent className="flex items-center gap-4 p-4 sm:p-5">
+      <CardContent className="flex flex-wrap items-center gap-x-4 gap-y-3 p-4 sm:p-5">
         <IconShieldCheck className="h-5 w-5 shrink-0 text-muted-foreground" />
 
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 basis-48">
           <div className="flex items-center gap-2">
             <p className="truncate text-sm font-semibold text-foreground">{policy.name}</p>
             {policy.enabled ? (
@@ -42,22 +42,24 @@ export default function PolicyRow({ policy, onToggle, onEdit, onDelete }: Policy
           <p className="text-muted-foreground mt-1 truncate text-xs">{scopeLine}</p>
         </div>
 
-        <Switch
-          checked={policy.enabled}
-          onCheckedChange={onToggle}
-          aria-label={`Toggle ${policy.name}`}
-        />
-        <Button size="sm" className={EDIT_BUTTON_CLASS} onClick={onEdit}>
-          Edit
-        </Button>
-        <Button
-          variant="secondary"
-          size="icon"
-          aria-label={`Delete ${policy.name}`}
-          onClick={onDelete}
-        >
-          <IconTrash className="h-4 w-4" />
-        </Button>
+        <div className="ml-auto flex shrink-0 items-center gap-4">
+          <Switch
+            checked={policy.enabled}
+            onCheckedChange={onToggle}
+            aria-label={`Toggle ${policy.name}`}
+          />
+          <Button size="sm" className={EDIT_BUTTON_CLASS} onClick={onEdit}>
+            Edit
+          </Button>
+          <Button
+            variant="secondary"
+            size="icon"
+            aria-label={`Delete ${policy.name}`}
+            onClick={onDelete}
+          >
+            <IconTrash className="h-4 w-4" />
+          </Button>
+        </div>
       </CardContent>
     </Card>
   )
