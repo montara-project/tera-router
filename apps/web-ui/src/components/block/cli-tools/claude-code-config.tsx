@@ -108,9 +108,9 @@ export default function ClaudeCodeConfig({ status, apiKeys }: ClaudeCodeConfigPr
   return (
     <>
       <Card className="bg-background">
-        <CardHeader className="h-20 border-b-0">
+        <CardHeader className="py-4 border-b-0">
           <div className="flex items-center gap-3.5">
-            <IconBadge icon={IconSettings} className="h-10 w-10" iconClassName="h-5 w-5" />
+            <IconBadge icon={IconSettings} className="h-10 w-10 shrink-0" iconClassName="h-5 w-5" />
             <CardHeading>
               <CardTitle>Configuration</CardTitle>
               <CardDescription>Set the endpoint, API key, and model for this tool.</CardDescription>
@@ -229,7 +229,7 @@ export default function ClaudeCodeConfig({ status, apiKeys }: ClaudeCodeConfigPr
           id="claude-config-snippet"
           className="bg-background animate-in fade-in-0 duration-200"
         >
-          <CardHeader className="h-20 border-b-0">
+          <CardHeader className="py-4 border-b-0">
             <div className="flex items-center gap-3.5">
               <span className="bg-muted text-foreground ring-border flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ring-1">
                 <IconTerminal2 className="h-5 w-5" />

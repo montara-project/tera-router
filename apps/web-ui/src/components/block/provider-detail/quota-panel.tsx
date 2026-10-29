@@ -94,7 +94,7 @@ function AccountQuotaCard({ account }: { account: Models.Account }) {
 
   return (
     <Card className="bg-background">
-      <CardHeader className="h-20">
+      <CardHeader className="py-4">
         <CardHeading>
           <CardTitle className="flex items-center gap-2">
             {account.label}

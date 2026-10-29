@@ -38,7 +38,7 @@ export default function PoolsCard({
 
   return (
     <Card className="bg-background">
-      <CardHeader className="h-20">
+      <CardHeader className="py-4">
         <div className="flex items-center gap-3">
           <Checkbox
             aria-label="Select all pools"
