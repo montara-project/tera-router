@@ -5,15 +5,15 @@ description: Template batas per key, budget dengan hard cutoff, dan harga model.
 
 ## Plans — template batas
 
-Plan adalah kumpulan batas yang bisa diikat ke banyak key sekaligus:
+Plan adalah kumpulan batas yang bisa diikat ke banyak key sekaligus. Setiap batas berlaku untuk tiap key sendiri-sendiri: dua key di plan $50 masing-masing bisa memakai $50.
 
 - `budget_spend` — batas biaya (USD) per periode.
 - `budget_tokens` — batas token per periode.
 - `period` — `daily`, `weekly`, atau `monthly`.
-- `alert_at_percent` — persen pemakaian untuk alert.
+- `alert_at_percent` — persen pemakaian saat halaman Plans menandai key dengan kuning (merah begitu batas habis).
 - `hard_cutoff` — apakah batas benar-benar memblokir atau hanya mengingatkan.
 - `allowed_models` — allowlist model untuk semua key di plan ini.
-- `rpm`, `tpm`, `concurrent` — tersimpan di skema; belum ditegakkan gateway saat ini.
+- `rpm`, `tpm`, `concurrent` — request per menit, token per menit, dan request yang sedang berjalan per key. Ditegakkan selama **Enforce API key rate limits** (Settings → Network) menyala; request yang melewati batas mendapat `429` dengan `Retry-After`. TPM menghitung token dari request key itu yang sudah selesai dalam satu menit terakhir. Penghitungnya ada di proses server, jadi tiap instance menegakkan sendiri.
 
 Plan _Default_ dibuat otomatis saat seeding. Kelola dari halaman **Plans**.
 

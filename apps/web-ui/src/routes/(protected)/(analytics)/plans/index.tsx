@@ -38,6 +38,9 @@ function RouteComponent() {
 
   const { data } = useQuery(queries.plans.list())
   const plans = data?.data ?? []
+  const settingsQuery = useQuery(queries.settings.get())
+  // Defaults to on, matching the server, until settings load.
+  const rateLimitsEnforced = settingsQuery.data?.data?.enforce_rate_limits ?? true
 
   if (!data) {
     return <RouteSkeleton />
@@ -80,7 +83,7 @@ function RouteComponent() {
         ) : (
           <div className="grid gap-4 lg:grid-cols-2">
             {plans.map((plan) => (
-              <PlanCard key={plan.id} plan={plan} />
+              <PlanCard key={plan.id} plan={plan} rateLimitsEnforced={rateLimitsEnforced} />
             ))}
           </div>
         )}

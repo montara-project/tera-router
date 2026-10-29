@@ -2,11 +2,15 @@ package handlers
 
 import (
 	"cmp"
+	"time"
+
 	"tera-router/server/internal/app"
 	"tera-router/server/internal/dtos"
 	"tera-router/server/internal/lib"
 	"tera-router/server/internal/lib/apperr"
+	"tera-router/server/internal/lib/period"
 	"tera-router/server/internal/models"
+	"tera-router/server/internal/repositories"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -16,8 +20,19 @@ type plansHandler struct {
 	app *app.Application
 }
 
+// planKeyUsage is one assigned key's spend against its plan's per-key caps
+// over the plan's current period.
+type planKeyUsage struct {
+	ID          string  `json:"id"`
+	Name        string  `json:"name"`
+	SpentMicros int64   `json:"spent_micros"`
+	SpentTokens int64   `json:"spent_tokens"`
+	SpendPct    float64 `json:"spend_pct"`
+	TokenPct    float64 `json:"token_pct"`
+}
+
 // planView renders the web UI Plan model.
-func planView(p models.Plan, keysAssigned int) fiber.Map {
+func planView(p models.Plan, keysAssigned int, keyUsage []planKeyUsage) fiber.Map {
 	var budgetSpend, budgetTokens any
 	if p.LimitMicros > 0 {
 		budgetSpend = float64(p.LimitMicros) / 1_000_000
@@ -43,6 +58,7 @@ func planView(p models.Plan, keysAssigned int) fiber.Map {
 		"concurrent":       limitView(p.Concurrent),
 		"allowed_models":   allowedModels,
 		"keys_assigned":    keysAssigned,
+		"key_usage":        keyUsage,
 		"alert_at_percent": p.AlertPct,
 		"period":           p.Period,
 		"created_at":       p.CreatedAt,
@@ -69,9 +85,42 @@ func (h *plansHandler) Index(c fiber.Ctx) error {
 		return err
 	}
 
+	// Plan caps apply to each key on its own, so usage is reported per key.
+	keys, _, err := h.app.Repos.APIKeys.List(c.Context(), 0, -1)
+	if err != nil {
+		return err
+	}
+	byPlan := map[string][]repositories.APIKeyWithPlan{}
+	for _, k := range keys {
+		if k.PlanID != nil {
+			byPlan[*k.PlanID] = append(byPlan[*k.PlanID], k)
+		}
+	}
+
+	now := time.Now()
 	out := make([]fiber.Map, 0, len(plans))
 	for _, p := range plans {
-		out = append(out, planView(p, counts[p.ID]))
+		usage := []planKeyUsage{}
+		if p.LimitMicros > 0 || p.LimitTokens > 0 {
+			_, from := period.Window(p.Period, now)
+			// ponytail: one sum per assigned key; fine for dozens of keys,
+			// group the query by api_key_id if plans hold hundreds.
+			for _, k := range byPlan[p.ID] {
+				spent, err := h.app.Repos.Usage.SumSince(c.Context(), models.ScopeAPIKey, k.ID, from)
+				if err != nil {
+					return err
+				}
+				usage = append(usage, planKeyUsage{
+					ID:          k.ID,
+					Name:        k.Name,
+					SpentMicros: spent.CostMicros,
+					SpentTokens: spent.BudgetTokens,
+					SpendPct:    percentOf(spent.CostMicros, p.LimitMicros),
+					TokenPct:    percentOf(spent.BudgetTokens, p.LimitTokens),
+				})
+			}
+		}
+		out = append(out, planView(p, counts[p.ID], usage))
 	}
 	return dtos.List(c, out, dtos.TotalMeta(len(plans)))
 }
@@ -157,7 +206,7 @@ func (h *plansHandler) Store(c fiber.Ctx) error {
 		return err
 	}
 	auditRecord(c.Context(), h.app, actorFrom(c), "plan.create", plan.ID, map[string]string{"name": plan.Name})
-	return dtos.Created(c, planView(plan, 0), "Plan created")
+	return dtos.Created(c, planView(plan, 0, []planKeyUsage{}), "Plan created")
 }
 
 func (h *plansHandler) Update(c fiber.Ctx) error {
@@ -185,7 +234,7 @@ func (h *plansHandler) Update(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	return dtos.OK(c, planView(updated, 0))
+	return dtos.OK(c, planView(updated, 0, []planKeyUsage{}))
 }
 
 func (h *plansHandler) Delete(c fiber.Ctx) error {

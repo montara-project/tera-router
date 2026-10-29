@@ -102,6 +102,8 @@ type Server struct {
 	// for its whole life, including the stream writer phase that runs after the
 	// handler returns.
 	inflight chan struct{}
+	// keyLimits enforces plan RPM and concurrency per API key.
+	keyLimits *keyLimiter
 	// metering counts the asynchronous usage writes that have not reached the
 	// database yet, so a shutdown (or a test teardown) can wait for the
 	// accounting of already-served requests instead of racing it.
@@ -123,6 +125,7 @@ func New(a *app.Application) *Server {
 		accountRotation: newAccountRotation(),
 		auth:            newAuthCache(),
 		inflight:        make(chan struct{}, defaultMaxConcurrent),
+		keyLimits:       newKeyLimiter(),
 	}
 }
 

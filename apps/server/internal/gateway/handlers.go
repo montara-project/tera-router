@@ -203,6 +203,27 @@ func (s *Server) handleChat(c fiber.Ctx, dialect core.Dialect) error {
 		return s.fail(c, dialect, http.StatusInternalServerError, "budget check failed")
 	}
 
+	// Plan rate limits: the key's slot is released together with the
+	// gateway's in-flight slot when the request (or its stream) ends.
+	releaseKey, err := s.checkRateLimits(routeCtx, key, plan)
+	if err != nil {
+		routeCancel()
+		release()
+		pe := core.AsProviderError(err)
+		if pe.Kind == core.ErrRateLimit {
+			s.log.Warn("gateway rate limited", "key", meta.KeyName, "model", req.Model, "reason", pe.Message)
+			setRetryAfter(c, pe.RetryAfter)
+			return s.fail(c, dialect, statusForError(pe), pe.Message)
+		}
+		s.log.Error("gateway rate limit check failed", "key", meta.KeyName, "error", err)
+		return s.fail(c, dialect, http.StatusInternalServerError, "rate limit check failed")
+	}
+	releaseGateway := release
+	release = func() {
+		releaseKey()
+		releaseGateway()
+	}
+
 	// Enabled skills extend the system prompt. A failed lookup fails the
 	// request: serving it without instructions the operator switched on would
 	// silently change the model's behavior.

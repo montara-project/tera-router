@@ -152,6 +152,17 @@ func (s *Server) serveDirect(c fiber.Ctx, what string, resolve func(context.Cont
 		s.log.Error("gateway budget check failed", "key", meta.KeyName, "error", err)
 		return writeError(c, http.StatusInternalServerError, "budget check failed")
 	}
+	releaseKey, err := s.checkRateLimits(routeCtx, key, plan)
+	if err != nil {
+		pe := core.AsProviderError(err)
+		if pe.Kind == core.ErrRateLimit {
+			setRetryAfter(c, pe.RetryAfter)
+			return writeError(c, statusForError(pe), pe.Message)
+		}
+		s.log.Error("gateway rate limit check failed", "key", meta.KeyName, "error", err)
+		return writeError(c, http.StatusInternalServerError, "rate limit check failed")
+	}
+	defer releaseKey()
 
 	attempts := s.planDirect(routeCtx, targets)
 	if len(attempts) == 0 {

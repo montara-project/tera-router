@@ -25,7 +25,7 @@ func keyView(k repositories.APIKeyWithPlan) fiber.Map {
 	if k.Disabled {
 		status = "disabled"
 	}
-	planLabel, planNote := "No plan", "Custom limits"
+	planLabel, planNote := "No plan", "No plan limits"
 	if k.PlanName != nil {
 		planLabel = *k.PlanName
 		planNote = "Plan defaults"
@@ -127,7 +127,7 @@ func (h *keysHandler) Store(c fiber.Ctx) error {
 		"key_preview": gen.Display,
 		"full_key":    gen.Plaintext,
 		"plan_label":  "No plan",
-		"plan_note":   "Custom limits",
+		"plan_note":   "No plan limits",
 		"created_at":  key.CreatedAt,
 	}, "Key created")
 }
