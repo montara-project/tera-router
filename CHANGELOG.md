@@ -3,6 +3,21 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [1.14.0](https://github.com/montara-project/tera-router/compare/v1.13.0...v1.14.0) (2026-10-29)
+
+### Features
+
+* **plans:** enforce plan rate limits and show per-key plan usage ([d58aa6c](https://github.com/montara-project/tera-router/commit/d58aa6c8f9c5aa7b09416ba8738aad76ae664ee2))
+* **security:** add restricted access allowlist period ([b56a051](https://github.com/montara-project/tera-router/commit/b56a051fcfa4f1b59f5459ca55095445e21cd585))
+* **web-ui:** polish dashboard overview and click-only activity details ([a305d22](https://github.com/montara-project/tera-router/commit/a305d22a130aa9921dda06a1b6742adcdac2afa6))
+* **web-ui:** polish restricted access form in settings security tab ([705f09f](https://github.com/montara-project/tera-router/commit/705f09f954c72ada7ad4620e620d53f6d2558830))
+
+### Bug Fixes
+
+* **budgets:** count each budget's own scope and enforce account budgets ([b4a3b7f](https://github.com/montara-project/tera-router/commit/b4a3b7fc53f7e6fbb92619382d6e4fe91e4b74ce))
+* **deps:** bump seroval override to 1.6.12 for audit advisories ([7da71ae](https://github.com/montara-project/tera-router/commit/7da71ae8bdcb4f8f7d550749d506f9554f71219c))
+* **web-ui:** polish remaining dashboard pages on mobile ([b20151e](https://github.com/montara-project/tera-router/commit/b20151e279e0652464c91888f135da272a4ece79))
+
 ## [1.13.0](https://github.com/montara-project/tera-router/compare/v1.12.0...v1.13.0) (2026-10-28)
 
 ### Features
