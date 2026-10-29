@@ -19,7 +19,7 @@ The _Default_ plan is created automatically during seeding. Manage plans from th
 
 ## Budgets — per-scope monitoring
 
-Budgets operate at three scopes: `tenant` (global), `api_key`, and `account`. The gateway enforces the tenant and api_key scopes; a budget with `hard_cutoff` that is exceeded answers `402` — the rest only alert.
+Budgets operate at three scopes, and each counts only its own traffic: `tenant` (every request), `api_key` (requests made with that key), and `account` (requests served by that provider account). An exceeded `tenant` or `api_key` budget with `hard_cutoff` answers `402`. An exceeded `account` budget with `hard_cutoff` takes that account out of routing until the period resets, so the request falls back to the provider's other accounts or the next target. Budgets without `hard_cutoff` only alert. Token caps count tokens scaled by the model's token consumption rate.
 
 ```bash
 curl -X POST http://localhost:8080/v1/budgets \

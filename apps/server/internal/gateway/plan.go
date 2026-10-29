@@ -38,6 +38,7 @@ type attempt struct {
 // trigger.
 func (s *Server) plan(ctx context.Context, targets []target, session string) []attempt {
 	out := make([]attempt, 0, len(targets))
+	spent := s.exhaustedAccounts(ctx)
 
 	for _, t := range targets {
 		if len(out) >= maxAttempts {
@@ -77,14 +78,14 @@ func (s *Server) plan(ctx context.Context, targets []target, session string) []a
 			continue
 		}
 
-		usable := func(id string) bool { return !s.cooldowns.active(id) }
+		usable := func(id string) bool { return !s.cooldowns.active(id) && !spent[id] }
 		accounts = s.accountRotation.order(t.Provider, accounts, s.accountStrategy(ctx, t.Provider), session, usable, time.Now())
 
 		for _, acc := range accounts {
 			if len(out) >= maxAttempts {
 				break
 			}
-			if s.cooldowns.active(acc.ID) {
+			if s.cooldowns.active(acc.ID) || spent[acc.ID] {
 				continue
 			}
 			creds, cerr := s.credentials(ctx, acc)

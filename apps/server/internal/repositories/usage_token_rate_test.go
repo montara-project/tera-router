@@ -31,7 +31,7 @@ func TestSumSinceScalesTokensByConsumptionRate(t *testing.T) {
 		TokenConsumptionRate: &free,
 	})
 
-	spend, err := repo.SumSince(ctx, nil, from)
+	spend, err := repo.SumSince(ctx, models.ScopeTenant, "", from)
 	if err != nil {
 		t.Fatalf("sum since: %v", err)
 	}

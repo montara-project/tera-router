@@ -37,8 +37,8 @@ func (r *UsageRepository) insertExec(ctx context.Context, u models.UsageRecord) 
 	return err
 }
 
-// UsageSpend totals spend and tokens over a window, optionally narrowed to a
-// single API key. It is the gateway's budget-guard read.
+// UsageSpend totals spend and tokens over a window, narrowed to one budget
+// scope. It is the budget read for the gateway guard and the dashboard.
 type UsageSpend struct {
 	CostMicros       int64 `json:"cost_micros"`
 	PromptTokens     int64 `json:"prompt_tokens"`
@@ -49,23 +49,27 @@ type UsageSpend struct {
 	BudgetTokens int64 `json:"budget_tokens"`
 }
 
-// SumSince totals spend and tokens for usage created at or after from. When
-// apiKeyID is non-nil the sum is restricted to that key (the api_key budget
-// scope); nil means every key (the tenant scope).
-func (r *UsageRepository) SumSince(ctx context.Context, apiKeyID *string, from time.Time) (UsageSpend, error) {
-	return r.sumSinceExec(ctx, apiKeyID, from)
+// SumSince totals spend and tokens for usage created at or after from, for
+// one budget scope: tenant counts every request, api_key only that key's
+// requests, account only requests served by that provider account.
+func (r *UsageRepository) SumSince(ctx context.Context, scope models.BudgetScope, scopeID string, from time.Time) (UsageSpend, error) {
+	return r.sumSinceExec(ctx, scope, scopeID, from)
 }
 
-func (r *UsageRepository) sumSinceExec(ctx context.Context, apiKeyID *string, from time.Time) (UsageSpend, error) {
+func (r *UsageRepository) sumSinceExec(ctx context.Context, scope models.BudgetScope, scopeID string, from time.Time) (UsageSpend, error) {
 	query := `
 		SELECT COALESCE(SUM(cost_micros), 0),
 		       COALESCE(SUM(prompt_tokens), 0), COALESCE(SUM(completion_tokens), 0),
 		       COALESCE(SUM((prompt_tokens + completion_tokens) * COALESCE(token_consumption_rate, 1)), 0)
 		FROM usage_records WHERE created_at >= $1`
 	args := []any{from}
-	if apiKeyID != nil {
+	switch scope {
+	case models.ScopeAPIKey:
 		query += ` AND api_key_id = $2`
-		args = append(args, *apiKeyID)
+		args = append(args, scopeID)
+	case models.ScopeAccount:
+		query += ` AND account_id = $2`
+		args = append(args, scopeID)
 	}
 
 	var s UsageSpend

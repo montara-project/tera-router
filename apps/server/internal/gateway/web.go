@@ -198,6 +198,7 @@ func (s *Server) serveDirect(c fiber.Ctx, what string, resolve func(context.Cont
 // at maxAttempts.
 func (s *Server) planDirect(ctx context.Context, targets []target) []webAttempt {
 	var out []webAttempt
+	spent := s.exhaustedAccounts(ctx)
 	for _, t := range targets {
 		spec, ok := s.providerSpec(ctx, t.Provider)
 		if !ok {
@@ -212,7 +213,7 @@ func (s *Server) planDirect(ctx context.Context, targets []target) []webAttempt 
 			if len(out) >= maxAttempts {
 				return out
 			}
-			if s.cooldowns.active(acc.ID) {
+			if s.cooldowns.active(acc.ID) || spent[acc.ID] {
 				continue
 			}
 			creds, err := s.credentials(ctx, acc)
