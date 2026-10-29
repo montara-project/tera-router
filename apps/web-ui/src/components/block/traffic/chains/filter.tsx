@@ -24,8 +24,8 @@ export default function FilterChain({
   onStatusChange,
 }: FilterChainProps) {
   return (
-    <div className="flex items-center gap-2">
-      <InputWrapper variant="lg" className="rounded-lg">
+    <div className="flex flex-wrap items-center gap-2">
+      <InputWrapper variant="lg" className="min-w-0 flex-1 basis-full rounded-lg sm:basis-64">
         <IconSearch />
         <Input
           value={search}
@@ -35,7 +35,7 @@ export default function FilterChain({
       </InputWrapper>
 
       <SelectInput
-        className="w-50 h-10"
+        className="h-10 min-w-0 flex-1 sm:w-50 sm:flex-none"
         placeholder="Select strategy"
         options={[{ value: 'all', label: 'All strategy' }, ...CHAIN_STRATEGY_OPTIONS]}
         defaultValue="all"
@@ -43,7 +43,7 @@ export default function FilterChain({
       />
 
       <SelectInput
-        className="w-50 h-10"
+        className="h-10 min-w-0 flex-1 sm:w-50 sm:flex-none"
         placeholder="Select status"
         options={[{ value: 'all', label: 'All status' }, ...CHAIN_STATUS_OPTIONS]}
         defaultValue="all"

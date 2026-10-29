@@ -61,7 +61,7 @@ export function ChainColumn({ loading, onEdit }: ChainColumnProps) {
                   size: 'sm',
                   className: cn(
                     'bg-blue-50 ring-blue-200/70 dark:bg-blue-950/30 dark:ring-blue-900/60',
-                    'text-neutral-100'
+                    'text-foreground'
                   ),
                   onClick: row.getToggleExpandedHandler(),
                 }}
@@ -108,7 +108,8 @@ export function ChainColumn({ loading, onEdit }: ChainColumnProps) {
             <ActionCell record={row.original} onEdit={onEdit} />
           )
         },
-        size: 50,
+        // Edit + More side by side; narrower wraps them onto two lines.
+        size: 170,
       },
     ]
   }, [loading, onEdit])

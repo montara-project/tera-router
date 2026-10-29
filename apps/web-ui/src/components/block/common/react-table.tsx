@@ -65,6 +65,7 @@ interface ReactTableProps<T extends RowData> {
   onPageSizeChange?: (pageSize: number) => void
   globalFilterFn?: FilterFnOption<typeof features, T>
   getRowId?: (row: T) => string
+  emptyMessage?: React.ReactNode
 }
 
 export default function ReactTable<T extends RowData>({
@@ -76,6 +77,7 @@ export default function ReactTable<T extends RowData>({
   columnSort = [],
   globalFilterFn,
   getRowId,
+  emptyMessage,
   onPageChange,
   onPageSizeChange,
 }: ReactTableProps<T>) {
@@ -126,6 +128,7 @@ export default function ReactTable<T extends RowData>({
     <DataGrid
       table={table as unknown as ReactTable<any, any>}
       recordCount={total}
+      emptyMessage={emptyMessage}
       tableLayout={{
         columnsVisibility: true,
         columnsResizable: true,
