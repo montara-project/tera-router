@@ -9,8 +9,10 @@ interface SettingRowProps {
 
 export default function SettingRow({ title, description, badge, children }: SettingRowProps) {
   return (
-    <div className="flex items-center justify-between gap-4 px-5 py-4">
-      <div className="min-w-0">
+    // Wide controls (segmented, URL inputs) drop below the text on narrow cards
+    // instead of squeezing the title to one word per line.
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 px-5 py-4">
+      <div className="min-w-0 flex-1 basis-40">
         <p className="flex items-center gap-2 text-sm font-medium text-foreground">
           {title}
           {badge}
