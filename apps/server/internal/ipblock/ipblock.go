@@ -32,25 +32,36 @@ type failures struct {
 }
 
 // Guard answers "is this address blocked" from memory and mirrors the
-// ip_blocks table, which stays the source of truth across restarts.
+// ip_blocks table and the restricted access setting, which stay the source of
+// truth across restarts.
 type Guard struct {
-	repo *repositories.IPBlockRepository
+	repo     *repositories.IPBlockRepository
+	settings *repositories.SettingRepository
 
-	mu     sync.RWMutex
-	blocks []block
-	fails  map[netip.Addr]failures
+	mu       sync.RWMutex
+	blocks   []block
+	restrict Restriction
+	fails    map[netip.Addr]failures
 }
 
-func New(repo *repositories.IPBlockRepository) *Guard {
-	return &Guard{repo: repo, fails: map[netip.Addr]failures{}}
+func New(repo *repositories.IPBlockRepository, settings *repositories.SettingRepository) *Guard {
+	return &Guard{repo: repo, settings: settings, fails: map[netip.Addr]failures{}}
 }
 
-// Reload replaces the in-memory list with the stored one. Call it at boot and
-// after every change to the table.
+// Reload replaces the in-memory list and restriction with the stored ones.
+// Call it at boot and after every change to the table or the setting.
 func (g *Guard) Reload(ctx context.Context) error {
 	rows, err := g.repo.ListActive(ctx)
 	if err != nil {
 		return err
+	}
+	stored, err := g.settings.RestrictedAccess(ctx)
+	if err != nil {
+		return err
+	}
+	restrict, _, err := CompileRestriction(stored)
+	if err != nil {
+		return fmt.Errorf("restricted access setting: %w", err)
 	}
 	blocks := make([]block, 0, len(rows))
 	for _, r := range rows {
@@ -67,8 +78,22 @@ func (g *Guard) Reload(ctx context.Context) error {
 
 	g.mu.Lock()
 	g.blocks = blocks
+	g.restrict = restrict
 	g.mu.Unlock()
 	return nil
+}
+
+// Restricted reports whether ip is refused by an active restricted access
+// period: the period is running and ip is not on its allowlist. Loopback is
+// never restricted, as in Blocked.
+func (g *Guard) Restricted(ip netip.Addr, now time.Time) bool {
+	if ip.Unmap().IsLoopback() {
+		return false
+	}
+	g.mu.RLock()
+	r := g.restrict
+	g.mu.RUnlock()
+	return r.Active(now) && !r.Allows(ip)
 }
 
 // Blocked reports whether ip falls in an unexpired block. Loopback is never

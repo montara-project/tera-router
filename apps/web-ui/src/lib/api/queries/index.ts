@@ -17,6 +17,7 @@ import { providerQueries } from './provider'
 import { providerHealthQueries } from './provider-health'
 import { proxyPoolQueries } from './proxy-pool'
 import { quotaQueries } from './quota'
+import { restrictedAccessQueries } from './restricted-access'
 import { settingsQueries } from './settings'
 import { skillQueries } from './skill'
 import { systemQueries } from './system'
@@ -34,6 +35,7 @@ export const queries = {
   console: consoleQueries,
   guardrails: guardrailsQueries,
   ipBlocks: ipBlockQueries,
+  restrictedAccess: restrictedAccessQueries,
   keys: keyQueries,
   media: mediaQueries,
   overrides: overrideQueries,

@@ -175,6 +175,14 @@ A pool URL is normally an HTTP/HTTPS/SOCKS forward proxy. A URL of the form `rel
 
 A block whose range covers your own address is refused, so you cannot lock yourself out.
 
+### Restricted access
+
+| Method    | Path                    | Notes                                         |
+| --------- | ----------------------- | --------------------------------------------- |
+| GET / PUT | `/v1/restricted-access` | Current allowlist period / replace it (whole) |
+
+Body: `enabled`, `start_date` / `end_date` (`YYYY-MM-DD`, inclusive), `start_time` / `end_time` (`HH:MM`, repeats daily, may wrap past midnight), `timezone` (IANA, empty means UTC) and `allowed_ips` (addresses or CIDR ranges). Empty dates or times leave that side open. While the period is running, every path except `/health` answers `403 forbidden` to addresses off the list; loopback always passes. Enabling it without your own address on the list is refused.
+
 ### Backup & import
 
 | Method | Path                           | Notes                                                                      |

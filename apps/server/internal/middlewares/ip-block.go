@@ -14,8 +14,12 @@ import (
 // signInPath is where failed attempts count toward an automatic block.
 const signInPath = "/v1/auth/sign-in"
 
-// IPBlock refuses requests from blocked addresses with 403 before any other
-// work, and feeds failed sign-ins to the guard so brute-force sources get a
+// healthPath stays reachable from any address during a restricted period.
+const healthPath = "/health"
+
+// IPBlock refuses requests from blocked addresses, and from addresses off the
+// allowlist during a restricted access period, with 403 before any other
+// work. It also feeds failed sign-ins to the guard so brute-force sources get a
 // temporary block. The client address is resolved like the rate limiter does
 // (Cf-Connecting-IP only through a running tunnel) and stored for handlers.
 func IPBlock(guard *ipblock.Guard, tunnelActive func() bool) fiber.Handler {
@@ -25,7 +29,8 @@ func IPBlock(guard *ipblock.Guard, tunnelActive func() bool) fiber.Handler {
 			return c.Next()
 		}
 		lib.ContextSetClientIP(c, ip)
-		if guard.Blocked(ip, time.Now()) {
+		now := time.Now()
+		if guard.Blocked(ip, now) || (c.Path() != healthPath && guard.Restricted(ip, now)) {
 			return apperr.ErrForbidden
 		}
 

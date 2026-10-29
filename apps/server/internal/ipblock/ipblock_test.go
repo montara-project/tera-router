@@ -23,8 +23,8 @@ func newGuard(t *testing.T) (*Guard, *repositories.IPBlockRepository) {
 	if err := migrator.Up(db, "../../migrations"); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
-	repo := repositories.New(db, &config.ConfigApp{}).IPBlocks
-	return New(repo), repo
+	repos := repositories.New(db, &config.ConfigApp{})
+	return New(repos.IPBlocks, repos.Settings), repos.IPBlocks
 }
 
 func TestManualBlockMatchesRange(t *testing.T) {

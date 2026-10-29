@@ -21,6 +21,7 @@ type Handlers struct {
 	ProxyPools     *proxyPoolsHandler
 	Settings       *settingsHandler
 	IPBlocks       *ipBlocksHandler
+	Restricted     *restrictedAccessHandler
 	Skills         *skillsHandler
 	Priming        *pricingHandler
 	Guardrails     *guardrailsHandler
@@ -51,6 +52,7 @@ func New(app *app.Application) *Handlers {
 		ProxyPools:     &proxyPoolsHandler{app: app},
 		Settings:       &settingsHandler{app: app},
 		IPBlocks:       &ipBlocksHandler{app: app},
+		Restricted:     &restrictedAccessHandler{app: app},
 		Skills:         &skillsHandler{app: app},
 		Priming:        &pricingHandler{app: app},
 		Guardrails:     &guardrailsHandler{app: app},

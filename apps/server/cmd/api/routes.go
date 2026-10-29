@@ -60,6 +60,10 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	protected.Post("/ip-blocks", h.IPBlocks.Store)
 	protected.Delete("/ip-blocks/:id", h.IPBlocks.Delete)
 
+	// Restricted access: allowlist-only period (everything but /health)
+	protected.Get("/restricted-access", h.Restricted.Get)
+	protected.Put("/restricted-access", h.Restricted.Update)
+
 	// Keys & plans
 	protected.Get("/keys", h.Keys.Index)
 	protected.Post("/keys", h.Keys.Store)
