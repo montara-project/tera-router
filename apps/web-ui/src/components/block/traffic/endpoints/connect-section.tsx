@@ -34,12 +34,12 @@ export default function ConnectSection() {
 
   return (
     <Card className="bg-background">
-      <CardHeader className="h-20">
+      <CardHeader className="py-4">
         <div className="flex items-center gap-3.5">
           <IconBadge
             icon={IconServer}
             variant="soft"
-            className="h-10 w-10"
+            className="h-10 w-10 shrink-0"
             iconClassName="h-5 w-5"
           />
           <CardHeading>
@@ -62,7 +62,7 @@ export default function ConnectSection() {
             readOnly
             placeholder="Copy to clipboard"
             defaultValue={env.VITE_API_URL}
-            className="font-mono text-sm"
+            className="font-mono text-sm [&[readonly]]:cursor-text [&[readonly]]:bg-transparent"
             ref={inputRef}
           />
           <TooltipProvider delayDuration={0}>
@@ -94,7 +94,7 @@ export default function ConnectSection() {
         </p>
       </CardContent>
       <CardFooter className="bg-muted/50 py-5 rounded-b-xl">
-        <div className="flex w-full items-center justify-between gap-4">
+        <div className="flex w-full flex-wrap items-center justify-between gap-4">
           <ConnectApp
             icon={Icons.keys}
             title="Add an API key"

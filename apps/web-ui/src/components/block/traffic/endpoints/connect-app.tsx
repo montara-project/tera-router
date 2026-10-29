@@ -1,13 +1,11 @@
 import type { IconKey } from '@tabler/icons-react'
 
-import { Button } from '@/components/ui/button'
-
 export type ConnectToneVariant = 'accent' | 'success' | 'info' | 'warning'
 
 interface ConnectAppProps {
   icon: typeof IconKey | React.ComponentType<React.SVGProps<SVGSVGElement>>
   title: string
-  description: string
+  description: React.ReactNode
   tone: ConnectToneVariant
 }
 
@@ -35,14 +33,15 @@ export default function ConnectApp({ icon: Icon, title, description, tone }: Con
   const colors = tones[tone]
 
   return (
-    <div className="flex items-center gap-4">
-      <Button
+    <div className="flex min-w-0 flex-1 basis-52 items-center gap-4">
+      <span
+        aria-hidden
         className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ring-1 ${colors.background}`}
       >
         <Icon className={`size-6 ${colors.icon}`} />
-      </Button>
-      <div className="flex flex-col gap-1 justify-center">
-        <span className="text-sm text-neutral-100">{title}</span>
+      </span>
+      <div className="flex min-w-0 flex-col justify-center gap-1">
+        <span className="text-sm text-foreground">{title}</span>
         <span className="text-xs text-muted-foreground">{description}</span>
       </div>
     </div>
