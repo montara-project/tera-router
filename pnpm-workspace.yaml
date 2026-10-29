@@ -48,5 +48,5 @@ minimumReleaseAgeExclude:
 overrides:
   fast-uri@<3.1.9: ^3.1.9
   fflate@<0.7.5: ^0.7.5
-  seroval@<1.6.3: ^1.6.4
-  seroval-plugins@<1.6.3: ^1.6.4
+  seroval@<1.6.11: ~1.6.12
+  seroval-plugins@<1.6.11: ~1.6.12
