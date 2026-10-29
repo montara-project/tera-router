@@ -56,6 +56,35 @@ func (r *SettingRepository) SetProviderRouting(ctx context.Context, providerSlug
 	return r.upsertExec(ctx, ProviderRoutingSettingsKey(providerSlug), string(raw))
 }
 
+// RestrictedAccessSettingsKey holds the allowlist period
+// (models.RestrictedAccess).
+const RestrictedAccessSettingsKey = "restricted_access"
+
+// RestrictedAccess returns the allowlist period, disabled when never set.
+func (r *SettingRepository) RestrictedAccess(ctx context.Context) (models.RestrictedAccess, error) {
+	raw, err := r.getExec(ctx, RestrictedAccessSettingsKey)
+	if errors.Is(err, apperr.ErrNotFound) {
+		return models.RestrictedAccess{AllowedIPs: []string{}}, nil
+	}
+	if err != nil {
+		return models.RestrictedAccess{}, err
+	}
+	out := models.RestrictedAccess{AllowedIPs: []string{}}
+	if err := json.Unmarshal([]byte(raw), &out); err != nil {
+		return models.RestrictedAccess{}, err
+	}
+	return out, nil
+}
+
+// SetRestrictedAccess stores the allowlist period.
+func (r *SettingRepository) SetRestrictedAccess(ctx context.Context, v models.RestrictedAccess) error {
+	raw, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	return r.upsertExec(ctx, RestrictedAccessSettingsKey, string(raw))
+}
+
 // CloudflareTunnelSettingsKey holds a JSON boolean: whether the Cloudflare
 // tunnel was left enabled, so the server brings it back on the next boot.
 const CloudflareTunnelSettingsKey = "tunnel_cloudflare_enabled"

@@ -83,13 +83,13 @@ export default function SystemTab({ version }: SystemTabProps) {
 
   return (
     <Card className="bg-background">
-      <CardHeader className="h-20">
-        <div className="flex items-center justify-between gap-4">
+      <CardHeader className="py-4">
+        <div className="flex w-full flex-wrap items-center justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3.5">
             <IconBadge
               icon={IconArrowUpCircle}
               variant="soft"
-              className="h-10 w-10"
+              className="h-10 w-10 shrink-0"
               iconClassName="h-5 w-5"
             />
             <CardHeading>

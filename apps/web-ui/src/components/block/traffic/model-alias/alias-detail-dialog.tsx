@@ -29,7 +29,7 @@ export default function AliasDetailDialog({ alias, onOpenChange, onEdit }: Alias
     <Dialog open={Boolean(alias)} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl p-0">
         <div className="border-border border-b px-6 pt-5 pb-4">
-          <div className="flex items-start gap-3">
+          <div className="flex items-start gap-3 pe-8">
             <IconBadge icon={IconReplace} iconClassName="size-5" />
             <div className="min-w-0 flex-1">
               <DialogTitle className="truncate text-base">{alias?.name}</DialogTitle>

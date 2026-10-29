@@ -27,8 +27,8 @@ func TestKeyViewDefaultsWithoutPlan(t *testing.T) {
 	if view["plan_label"] != "No plan" {
 		t.Errorf("plan_label = %v, want No plan", view["plan_label"])
 	}
-	if view["plan_note"] != "Custom limits" {
-		t.Errorf("plan_note = %v, want Custom limits", view["plan_note"])
+	if view["plan_note"] != "No plan limits" {
+		t.Errorf("plan_note = %v, want No plan limits", view["plan_note"])
 	}
 	if view["status"] != "active" {
 		t.Errorf("status = %v, want active", view["status"])

@@ -13,7 +13,19 @@ export type Plan = {
   /** null renders "All models allowed" */
   allowed_models: string[] | null
   keys_assigned: number
+  /** each assigned key's spend this period; empty when the plan has no caps */
+  key_usage: PlanKeyUsage[]
   alert_at_percent: number
   period: string
   created_at?: string
+}
+
+/** One key's spend against its plan's per-key caps over the current period. */
+export type PlanKeyUsage = {
+  id: string
+  name: string
+  spent_micros: number
+  spent_tokens: number
+  spend_pct: number
+  token_pct: number
 }

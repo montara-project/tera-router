@@ -5,21 +5,21 @@ description: Template batas per key, budget dengan hard cutoff, dan harga model.
 
 ## Plans — template batas
 
-Plan adalah kumpulan batas yang bisa diikat ke banyak key sekaligus:
+Plan adalah kumpulan batas yang bisa diikat ke banyak key sekaligus. Setiap batas berlaku untuk tiap key sendiri-sendiri: dua key di plan $50 masing-masing bisa memakai $50.
 
 - `budget_spend` — batas biaya (USD) per periode.
 - `budget_tokens` — batas token per periode.
 - `period` — `daily`, `weekly`, atau `monthly`.
-- `alert_at_percent` — persen pemakaian untuk alert.
+- `alert_at_percent` — persen pemakaian saat halaman Plans menandai key dengan kuning (merah begitu batas habis).
 - `hard_cutoff` — apakah batas benar-benar memblokir atau hanya mengingatkan.
 - `allowed_models` — allowlist model untuk semua key di plan ini.
-- `rpm`, `tpm`, `concurrent` — tersimpan di skema; belum ditegakkan gateway saat ini.
+- `rpm`, `tpm`, `concurrent` — request per menit, token per menit, dan request yang sedang berjalan per key. Ditegakkan selama **Enforce API key rate limits** (Settings → Network) menyala; request yang melewati batas mendapat `429` dengan `Retry-After`. TPM menghitung token dari request key itu yang sudah selesai dalam satu menit terakhir. Penghitungnya ada di proses server, jadi tiap instance menegakkan sendiri.
 
 Plan _Default_ dibuat otomatis saat seeding. Kelola dari halaman **Plans**.
 
 ## Budgets — pemantauan per scope
 
-Budget bekerja di tiga scope: `tenant` (global), `api_key`, dan `account`. Gateway menegakkan scope tenant dan api_key; budget dengan `hard_cutoff` yang terlampaui menjawab `402` — sisanya hanya alert.
+Budget bekerja di tiga scope, dan masing-masing hanya menghitung trafiknya sendiri: `tenant` (semua request), `api_key` (request yang memakai key itu), dan `account` (request yang dilayani provider account itu). Budget `tenant` atau `api_key` dengan `hard_cutoff` yang terlampaui menjawab `402`. Budget `account` dengan `hard_cutoff` yang terlampaui mengeluarkan account itu dari routing sampai periode reset, sehingga request fallback ke account lain dari provider itu atau ke target berikutnya. Budget tanpa `hard_cutoff` hanya memberi alert. Batas token dihitung dari token yang sudah diskala dengan token consumption rate model.
 
 ```bash
 curl -X POST http://localhost:8080/v1/budgets \

@@ -63,12 +63,12 @@ export default function TokenSavingTab({ settings, onUpdate }: TokenSavingTabPro
   return (
     <div className="space-y-4">
       <Card className="bg-background">
-        <CardHeader className="h-20">
+        <CardHeader className="py-4">
           <div className="flex items-center gap-3.5">
             <IconBadge
               icon={IconBolt}
               variant="soft"
-              className="h-10 w-10"
+              className="h-10 w-10 shrink-0"
               iconClassName="h-5 w-5"
             />
             <CardHeading>
@@ -107,12 +107,12 @@ export default function TokenSavingTab({ settings, onUpdate }: TokenSavingTabPro
       </Card>
 
       <Card className="bg-background">
-        <CardHeader className="h-20">
+        <CardHeader className="py-4">
           <div className="flex items-center gap-3.5">
             <IconBadge
               icon={IconMessage}
               variant="soft"
-              className="h-10 w-10"
+              className="h-10 w-10 shrink-0"
               iconClassName="h-5 w-5"
             />
             <CardHeading>
@@ -139,12 +139,12 @@ export default function TokenSavingTab({ settings, onUpdate }: TokenSavingTabPro
       </Card>
 
       <Card className="bg-background">
-        <CardHeader className="h-20">
+        <CardHeader className="py-4">
           <div className="flex items-center gap-3.5">
             <IconBadge
               icon={IconStack2}
               variant="soft"
-              className="h-10 w-10"
+              className="h-10 w-10 shrink-0"
               iconClassName="h-5 w-5"
             />
             <CardHeading>
@@ -171,12 +171,12 @@ export default function TokenSavingTab({ settings, onUpdate }: TokenSavingTabPro
       </Card>
 
       <Card className="bg-background">
-        <CardHeader className="h-20">
+        <CardHeader className="py-4">
           <div className="flex items-center gap-3.5">
             <IconBadge
               icon={IconBolt}
               variant="soft"
-              className="h-10 w-10"
+              className="h-10 w-10 shrink-0"
               iconClassName="h-5 w-5"
             />
             <CardHeading>
@@ -292,12 +292,12 @@ export default function TokenSavingTab({ settings, onUpdate }: TokenSavingTabPro
       </Card>
 
       <Card className="bg-background">
-        <CardHeader className="h-20">
+        <CardHeader className="py-4">
           <div className="flex items-center gap-3.5">
             <IconBadge
               icon={IconMessage}
               variant="soft"
-              className="h-10 w-10"
+              className="h-10 w-10 shrink-0"
               iconClassName="h-5 w-5"
             />
             <CardHeading>

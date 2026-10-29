@@ -377,3 +377,22 @@ func qualified(targets []target) []string {
 	}
 	return out
 }
+
+// An exhausted hard-cutoff account budget drops only that account from
+// planning; advisory account budgets and other accounts are untouched.
+func TestExhaustedAccounts(t *testing.T) {
+	s, a := newTestServer(t)
+	exec(t, a, `INSERT INTO budgets (id, scope_kind, scope_id, limit_micros, period, hard_cutoff) VALUES
+		('b1', 'account', 'acc-1', 1000000, 'monthly', true),
+		('b2', 'account', 'acc-2', 1000000, 'monthly', false),
+		('b3', 'account', 'acc-3', 1000000, 'monthly', true)`)
+	exec(t, a, `INSERT INTO usage_records (account_id, provider, model, cost_micros, created_at) VALUES
+		('acc-1', 'openai', 'gpt-4o', 1000000, ?),
+		('acc-2', 'openai', 'gpt-4o', 5000000, ?),
+		('acc-3', 'openai', 'gpt-4o', 999999, ?)`, time.Now().UTC(), time.Now().UTC(), time.Now().UTC())
+
+	got := s.exhaustedAccounts(context.Background())
+	if !got["acc-1"] || got["acc-2"] || got["acc-3"] || len(got) != 1 {
+		t.Fatalf("exhausted = %v, want only acc-1", got)
+	}
+}

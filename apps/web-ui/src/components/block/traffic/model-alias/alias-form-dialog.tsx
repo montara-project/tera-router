@@ -285,16 +285,18 @@ function AliasForm({ open, alias, onOpenChange }: AliasFormProps) {
                   >
                     {(active) => (
                       <div
-                        className={`group flex items-center gap-2 rounded-lg border px-3 py-2 transition-colors hover:bg-muted/30 ${
+                        className={`group flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 transition-colors hover:bg-muted/30 ${
                           active ? 'border-border' : 'border-dashed border-border/60 opacity-70'
                         }`}
                       >
                         <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-emerald-50 text-xs font-semibold tabular-nums text-emerald-600 ring-1 ring-emerald-200/60 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-900/50">
                           {i + 1}
                         </span>
+                        {/* Provider and model share a row on wide dialogs and
+                            stack on phones; the controls wrap after them. */}
                         <form.AppField name={`targets[${i}].provider`}>
                           {(subField) => (
-                            <div className="min-w-0 flex-1">
+                            <div className="min-w-0 flex-1 basis-40">
                               <subField.ComboboxField
                                 label="Provider"
                                 hideLabel
@@ -309,7 +311,7 @@ function AliasForm({ open, alias, onOpenChange }: AliasFormProps) {
                             </div>
                           )}
                         </form.AppField>
-                        <span className="text-muted-foreground/60">/</span>
+                        <span className="text-muted-foreground/60 hidden sm:inline">/</span>
                         {/* `row` goes stale between add/remove; subscribe to the provider. */}
                         <form.Subscribe
                           selector={(s) => s.values.targets[i]?.provider.trim() ?? ''}
@@ -317,7 +319,7 @@ function AliasForm({ open, alias, onOpenChange }: AliasFormProps) {
                           {(provider) => (
                             <form.AppField name={`targets[${i}].model`}>
                               {(subField) => (
-                                <div className="min-w-0 flex-[1.4]">
+                                <div className="min-w-0 flex-[1.4] basis-48">
                                   <subField.ComboboxField
                                     label="Model"
                                     hideLabel

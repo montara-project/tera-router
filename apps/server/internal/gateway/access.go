@@ -174,9 +174,10 @@ func (s *Server) checkBudgets(ctx context.Context, key models.APIKey, plan *mode
 	return nil
 }
 
-// budgetAppliesTo reports whether a budget governs this request. Only the
-// api_key scope (matching this key) and the tenant scope (global) are enforced
-// at the gateway; account-scoped budgets are upstream-quota bookkeeping.
+// budgetAppliesTo reports whether a budget blocks this request outright: the
+// api_key scope (matching this key) and the tenant scope (global). Account
+// budgets do not block the request; exhaustedAccounts drops the spent account
+// from planning instead, so other accounts still serve it.
 func budgetAppliesTo(b models.Budget, keyID string) bool {
 	switch b.ScopeKind {
 	case models.ScopeAPIKey:
@@ -188,22 +189,46 @@ func budgetAppliesTo(b models.Budget, keyID string) bool {
 	}
 }
 
-// usageSince reads current-period spend and tokens for a budget scope. The
-// api_key scope is narrowed to the key; the tenant scope counts every key.
+// usageSince reads current-period spend and tokens for a budget scope. Tokens
+// are the rate-scaled drain (token_consumption_rate), as token limits expect.
 func (s *Server) usageSince(ctx context.Context, kind models.BudgetScope, scopeID string, from time.Time) (usageTotals, error) {
-	var keyFilter *string
-	if kind == models.ScopeAPIKey {
-		id := scopeID
-		keyFilter = &id
-	}
-	spend, err := s.app.Repos.Usage.SumSince(ctx, keyFilter, from)
+	spend, err := s.app.Repos.Usage.SumSince(ctx, kind, scopeID, from)
 	if err != nil {
 		return usageTotals{}, err
 	}
-	return usageTotals{
-		Micros: spend.CostMicros,
-		Tokens: spend.PromptTokens + spend.CompletionTokens,
-	}, nil
+	return usageTotals{Micros: spend.CostMicros, Tokens: spend.BudgetTokens}, nil
+}
+
+// exhaustedAccounts returns the provider accounts whose hard-cutoff account
+// budget is spent for the current period. The planner skips them, so a
+// request falls back to the provider's other accounts or the next target.
+// ponytail: one budget list plus one sum per account budget per request; cache
+// per period bucket if account budgets ever number in the hundreds.
+func (s *Server) exhaustedAccounts(ctx context.Context) map[string]bool {
+	budgets, err := s.app.Repos.Budgets.List(ctx)
+	if err != nil {
+		s.log.Error("gateway list budgets failed", "error", err)
+		return nil
+	}
+	now := time.Now()
+	var out map[string]bool
+	for _, b := range budgets {
+		if b.ScopeKind != models.ScopeAccount || !b.HardCutoff || b.ScopeID == "" {
+			continue
+		}
+		spend, err := s.usageSince(ctx, b.ScopeKind, b.ScopeID, periodStart(b.Period, now))
+		if err != nil {
+			s.log.Error("gateway account budget usage failed", "account", b.ScopeID, "error", err)
+			continue
+		}
+		if blocked, _ := budgetExceeded(b, spend); blocked {
+			if out == nil {
+				out = map[string]bool{}
+			}
+			out[b.ScopeID] = true
+		}
+	}
+	return out
 }
 
 // usageTotals is the spend/token pair a limit is compared against.

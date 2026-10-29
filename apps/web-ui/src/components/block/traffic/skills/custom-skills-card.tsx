@@ -58,8 +58,9 @@ function CustomSkillRow({
   onView: (skill: Models.Skill) => void
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 px-5 py-4">
-      <div className="space-y-1">
+    // Controls drop under the text on narrow cards instead of squeezing it.
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-5 py-4">
+      <div className="min-w-0 flex-1 basis-64 space-y-1">
         <p className="text-sm font-medium text-foreground">{skill.name}</p>
         {skill.description && <p className="text-sm text-muted-foreground">{skill.description}</p>}
       </div>
@@ -148,12 +149,12 @@ export default function CustomSkillsCard({
 
   return (
     <Card className="bg-background">
-      <CardHeader className="h-20">
+      <CardHeader className="py-4">
         <div className="flex items-center gap-3.5">
           <IconBadge
             icon={IconPuzzle}
             variant="soft"
-            className="h-10 w-10"
+            className="h-10 w-10 shrink-0"
             iconClassName="h-5 w-5"
           />
           <CardHeading>

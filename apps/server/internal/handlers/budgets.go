@@ -107,8 +107,10 @@ func (h *budgetsHandler) Status(c fiber.Ctx) error {
 			}
 		}
 
+		// Spend is narrowed to the budget's own scope (whole instance, one API
+		// key, or one provider account), matching what the gateway enforces.
 		_, from := period.Window(b.Period, time.Now())
-		spent, err := h.app.Repos.Usage.Summary(c.Context(), from)
+		spent, err := h.app.Repos.Usage.SumSince(c.Context(), b.ScopeKind, b.ScopeID, from)
 		if err != nil {
 			return err
 		}
@@ -116,9 +118,9 @@ func (h *budgetsHandler) Status(c fiber.Ctx) error {
 		out = append(out, dtos.BudgetStatus{
 			Budget:      b,
 			SpentMicros: spent.CostMicros,
-			SpentTokens: spent.PromptTokens + spent.CompletionTokens,
+			SpentTokens: spent.BudgetTokens,
 			SpendPct:    percentOf(spent.CostMicros, b.LimitMicros),
-			TokenPct:    percentOf(spent.PromptTokens+spent.CompletionTokens, b.LimitTokens),
+			TokenPct:    percentOf(spent.BudgetTokens, b.LimitTokens),
 		})
 	}
 	return dtos.List(c, out, dtos.TotalMeta(len(out)))

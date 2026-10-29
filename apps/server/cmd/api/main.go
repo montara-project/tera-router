@@ -106,6 +106,6 @@ func assemble(cfg config.Config, logger *slog.Logger) *app.Application {
 		Secrets:  secrets,
 		Services: services.New(),
 		OAuth:    oauth.NewManager(repos, secrets, logger),
-		IPBlocks: ipblock.New(repos.IPBlocks),
+		IPBlocks: ipblock.New(repos.IPBlocks, repos.Settings),
 	}
 }

@@ -33,21 +33,27 @@ export default function TunnelSection() {
   const cloudflarePending = enableCloudflare.isPending || disableCloudflare.isPending
   const tailscalePending = enableTailscale.isPending || disableTailscale.isPending
 
-  let tailscaleDescription = 'Private HTTPS on your tailnet via tailscale serve'
+  let tailscaleDescription: React.ReactNode = 'Private HTTPS on your tailnet via tailscale serve'
   if (tailscale?.installed === false) {
     tailscaleDescription = 'tailscale is not installed on the server host'
   } else if (tailscale && !tailscale.logged_in) {
-    tailscaleDescription = 'Not on a tailnet: run `tailscale up` on the server host'
+    tailscaleDescription = (
+      <>
+        Not on a tailnet: run{' '}
+        <code className="font-mono text-[11px] text-foreground">tailscale up</code> on the server
+        host
+      </>
+    )
   }
 
   return (
     <Card className="bg-background">
-      <CardHeader className="h-20">
+      <CardHeader className="py-4">
         <div className="flex items-center gap-3.5">
           <IconBadge
             icon={IconCloud}
             variant="soft"
-            className="h-10 w-10"
+            className="h-10 w-10 shrink-0"
             iconClassName="h-5 w-5"
           />
           <CardHeading>
@@ -138,7 +144,13 @@ function TunnelUrl({ label, url }: { label: string; url: string }) {
 
   return (
     <InputWrapper variant="xl">
-      <Input type="text" readOnly aria-label={label} value={url} className="font-mono text-sm" />
+      <Input
+        type="text"
+        readOnly
+        aria-label={label}
+        value={url}
+        className="font-mono text-sm [&[readonly]]:cursor-text [&[readonly]]:bg-transparent"
+      />
       <Button onClick={() => copy(url)} variant="secondary" disabled={copied} className="-me-3.5">
         {copied ? (
           <CheckIcon className="size-4 text-green-600" />
@@ -155,7 +167,7 @@ function TunnelUrl({ label, url }: { label: string; url: string }) {
 
 interface TunnelAppItemProps {
   title: string
-  description: string
+  description: React.ReactNode
   buttonText: string
   tone: ConnectToneVariant
   icon: typeof IconKey | React.ComponentType<React.SVGProps<SVGSVGElement>>
@@ -176,7 +188,7 @@ function TunnelAppItem({
 }: TunnelAppItemProps) {
   return (
     <div className="space-y-3 px-5 py-4">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <ConnectApp icon={Icon} title={title} description={description} tone={tone} />
         <Button disabled={disabled} onClick={onClick}>
           <span>{buttonText}</span>

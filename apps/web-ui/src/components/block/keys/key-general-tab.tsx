@@ -32,7 +32,7 @@ export default function KeyGeneralTab({ apiKey }: { apiKey: ApiKeyDetail }) {
 
   return (
     <Card className="bg-background">
-      <CardHeader className="h-20">
+      <CardHeader className="py-4">
         <CardHeading>
           <CardTitle>Key overview</CardTitle>
           <CardDescription>

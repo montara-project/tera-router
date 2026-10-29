@@ -230,7 +230,7 @@ export default function AccountsPanel({
   return (
     <>
       <Card className="bg-background">
-        <CardHeader className="h-20">
+        <CardHeader className="py-4">
           <CardHeading>
             <CardTitle>Account routing</CardTitle>
             <CardDescription>

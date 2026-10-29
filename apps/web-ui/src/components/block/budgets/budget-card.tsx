@@ -64,7 +64,7 @@ export default function BudgetCard({ budget, scopeName, scopeOptions }: BudgetCa
   return (
     <>
       <Card className="bg-background">
-        <CardHeader className="h-20">
+        <CardHeader className="py-4">
           <CardHeading className="min-w-0">
             <div className="flex items-center gap-2">
               <CardTitle className="truncate">{title}</CardTitle>

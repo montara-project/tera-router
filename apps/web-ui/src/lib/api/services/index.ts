@@ -18,6 +18,7 @@ import { providerServices } from './provider'
 import { providerHealthServices } from './provider-health'
 import { proxyPoolServices } from './proxy-pool'
 import { quotaServices } from './quota'
+import { restrictedAccessServices } from './restricted-access'
 import { settingsServices } from './settings'
 import { skillServices } from './skill'
 import { systemServices } from './system'
@@ -35,6 +36,7 @@ export const services = {
   console: consoleServices,
   guardrails: guardrailsServices,
   ipBlocks: ipBlockServices,
+  restrictedAccess: restrictedAccessServices,
   keys: keyServices,
   media: mediaServices,
   oauth: oauthServices,

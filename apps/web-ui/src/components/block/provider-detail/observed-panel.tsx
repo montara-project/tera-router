@@ -40,7 +40,7 @@ export default function ObservedPanel({
   }
   return (
     <Card className="bg-background">
-      <CardHeader className="h-20">
+      <CardHeader className="py-4">
         <CardHeading>
           <CardTitle>Observed models ({models.length})</CardTitle>
           <CardDescription>Models seen in terminal usage for this provider.</CardDescription>

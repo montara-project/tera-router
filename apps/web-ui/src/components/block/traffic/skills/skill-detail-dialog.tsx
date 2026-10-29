@@ -93,7 +93,7 @@ export default function SkillDetailDialog({ skill, onClose }: SkillDetailDialogP
             <IconBadge
               icon={IconBook2}
               variant="soft"
-              className="h-10 w-10"
+              className="h-10 w-10 shrink-0"
               iconClassName="h-5 w-5"
             />
             <div className="min-w-0 flex-1">

@@ -22,6 +22,7 @@ export namespace Models {
   export type GuardrailsScope = import('./guardrails').GuardrailsScope
   export type HealthEntry = import('./provider-health').HealthEntry
   export type IPBlock = import('./ip-block').IPBlock
+  export type RestrictedAccess = import('./restricted-access').RestrictedAccess
   export type HealthStatus = import('./provider-health').HealthStatus
   export type HealthWindow = import('./provider-health').HealthWindow
   export type LogLevel = import('./console').LogLevel

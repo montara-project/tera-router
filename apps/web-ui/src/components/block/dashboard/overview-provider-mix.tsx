@@ -3,6 +3,7 @@ import { useState } from 'react'
 
 import type { UsageProviderAccountingRow } from '@/lib/api/models/usage'
 
+import EmptyState from '@/components/block/common/empty-state'
 import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -35,68 +36,79 @@ export default function OverviewProviderMix({ rows }: OverviewProviderMixProps) 
         </div>
         <p className="text-muted-foreground mt-0.5 text-xs">Traffic share and delivery quality.</p>
 
-        <div className="mt-5 grow space-y-5">
-          {visible.map((row) => {
-            const share = totalRequests > 0 ? (row.requests / totalRequests) * 100 : 0
+        {rows.length === 0 ? (
+          <EmptyState
+            icon={IconServer2}
+            title="No provider traffic"
+            description="Providers appear here once requests route through them."
+            className="grow py-10"
+          />
+        ) : (
+          <div className="mt-5 grow space-y-5">
+            {visible.map((row) => {
+              const share = totalRequests > 0 ? (row.requests / totalRequests) * 100 : 0
 
-            return (
-              <div key={row.id}>
-                <div className="flex items-center gap-3">
-                  <ProviderAvatar slug={row.slug} apiKind={row.api_kind} size="sm" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-foreground">{row.provider}</p>
-                    <p className="text-muted-foreground truncate text-xs">
-                      {row.successPct}% success · {formatLatency(row.latencyMs)} avg
-                    </p>
+              return (
+                <div key={row.id}>
+                  <div className="flex items-center gap-3">
+                    <ProviderAvatar slug={row.slug} apiKind={row.api_kind} size="sm" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-foreground">{row.provider}</p>
+                      <p className="text-muted-foreground truncate text-xs">
+                        {row.successPct}% success · {formatLatency(row.latencyMs)} avg
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="text-sm font-semibold text-foreground">{row.requests} req</p>
+                      <p className="text-muted-foreground text-xs">
+                        {formatMicrosUsd(row.costMicros)}
+                      </p>
+                    </div>
                   </div>
-                  <div className="shrink-0 text-right">
-                    <p className="text-sm font-semibold text-foreground">{row.requests} req</p>
-                    <p className="text-muted-foreground text-xs">
-                      {formatMicrosUsd(row.costMicros)}
-                    </p>
+
+                  <div className="mt-2 flex items-center gap-3">
+                    <div
+                      className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-muted"
+                      role="img"
+                      aria-label={`${row.provider}: ${share.toFixed(1)}% of traffic`}
+                    >
+                      <div className="h-full bg-amber-500" style={{ width: `${share}%` }} />
+                    </div>
+                    <span className="shrink-0 text-xs font-medium tabular-nums text-foreground">
+                      {share.toFixed(1)}%
+                    </span>
                   </div>
                 </div>
-
-                <div className="mt-2 flex items-center gap-3">
-                  <div
-                    className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-muted"
-                    role="img"
-                    aria-label={`${row.provider}: ${share.toFixed(1)}% of traffic`}
-                  >
-                    <div className="h-full bg-amber-500" style={{ width: `${share}%` }} />
-                  </div>
-                  <span className="shrink-0 text-xs font-medium tabular-nums text-foreground">
-                    {share.toFixed(1)}%
-                  </span>
-                </div>
-              </div>
-            )
-          })}
-        </div>
+              )
+            })}
+          </div>
+        )}
 
         <div className="mt-6 flex items-center justify-between border-t border-border pt-4">
           <p className="text-muted-foreground text-xs">{rows.length} total</p>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={safePage <= 1}
-              onClick={() => setPage((current) => Math.max(current - 1, 1))}
-            >
-              Previous
-            </Button>
-            <span className="text-muted-foreground text-xs tabular-nums">
-              {safePage} / {pageCount}
-            </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={safePage >= pageCount}
-              onClick={() => setPage((current) => Math.min(current + 1, pageCount))}
-            >
-              Next
-            </Button>
-          </div>
+          {pageCount > 1 && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={safePage <= 1}
+                onClick={() => setPage((current) => Math.max(current - 1, 1))}
+              >
+                Previous
+              </Button>
+              <span className="text-muted-foreground text-xs tabular-nums">
+                {safePage} / {pageCount}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={safePage >= pageCount}
+                onClick={() => setPage((current) => Math.min(current + 1, pageCount))}
+              >
+                Next
+              </Button>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

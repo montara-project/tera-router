@@ -5,21 +5,21 @@ description: Per-key limit templates, budgets with hard cutoffs, and model prici
 
 ## Plans — limit templates
 
-A plan is a bundle of limits that can be bound to many keys at once:
+A plan is a bundle of limits that can be bound to many keys at once. Every limit applies to each key on its own: two keys on a $50 plan can each spend $50.
 
 - `budget_spend` — cost limit (USD) per period.
 - `budget_tokens` — token limit per period.
 - `period` — `daily`, `weekly`, or `monthly`.
-- `alert_at_percent` — usage percentage that triggers an alert.
+- `alert_at_percent` — usage percentage at which the Plans page marks a key amber (red once the cap is spent).
 - `hard_cutoff` — whether the limit actually blocks or only warns.
 - `allowed_models` — model allowlist for every key on this plan.
-- `rpm`, `tpm`, `concurrent` — stored in the schema; not yet enforced by the gateway.
+- `rpm`, `tpm`, `concurrent` — requests per minute, tokens per minute, and requests in flight per key. Enforced while **Enforce API key rate limits** (Settings → Network) is on; a request over a limit gets `429` with `Retry-After`. TPM counts the tokens of the key's finished requests in the last minute. Counters live in the server process, so each instance enforces its own.
 
 The _Default_ plan is created automatically during seeding. Manage plans from the **Plans** page.
 
 ## Budgets — per-scope monitoring
 
-Budgets operate at three scopes: `tenant` (global), `api_key`, and `account`. The gateway enforces the tenant and api_key scopes; a budget with `hard_cutoff` that is exceeded answers `402` — the rest only alert.
+Budgets operate at three scopes, and each counts only its own traffic: `tenant` (every request), `api_key` (requests made with that key), and `account` (requests served by that provider account). An exceeded `tenant` or `api_key` budget with `hard_cutoff` answers `402`. An exceeded `account` budget with `hard_cutoff` takes that account out of routing until the period resets, so the request falls back to the provider's other accounts or the next target. Budgets without `hard_cutoff` only alert. Token caps count tokens scaled by the model's token consumption rate.
 
 ```bash
 curl -X POST http://localhost:8080/v1/budgets \

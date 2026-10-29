@@ -170,6 +170,14 @@ Endpoint uji model menerima `{"model", "messages", "stream"}`. Dengan `"stream":
 
 Blokir yang rentangnya mencakup alamatmu sendiri ditolak, jadi kamu tidak bisa mengunci diri sendiri.
 
+### Restricted access
+
+| Method    | Path                    | Keterangan                                      |
+| --------- | ----------------------- | ----------------------------------------------- |
+| GET / PUT | `/v1/restricted-access` | Periode allowlist saat ini / ganti (seluruhnya) |
+
+Body: `enabled`, `start_date` / `end_date` (`YYYY-MM-DD`, inklusif), `start_time` / `end_time` (`HH:MM`, berulang tiap hari, boleh melewati tengah malam), `timezone` (IANA, kosong berarti UTC) dan `allowed_ips` (alamat atau rentang CIDR). Tanggal atau jam yang kosong berarti sisi itu tidak dibatasi. Selama periode berjalan, semua path kecuali `/health` menjawab `403 forbidden` untuk alamat di luar daftar; loopback selalu lolos. Mengaktifkannya tanpa alamatmu sendiri di daftar akan ditolak.
+
 ### Backup & impor
 
 | Method | Path                           | Keterangan                                                                        |

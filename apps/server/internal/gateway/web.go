@@ -152,6 +152,17 @@ func (s *Server) serveDirect(c fiber.Ctx, what string, resolve func(context.Cont
 		s.log.Error("gateway budget check failed", "key", meta.KeyName, "error", err)
 		return writeError(c, http.StatusInternalServerError, "budget check failed")
 	}
+	releaseKey, err := s.checkRateLimits(routeCtx, key, plan)
+	if err != nil {
+		pe := core.AsProviderError(err)
+		if pe.Kind == core.ErrRateLimit {
+			setRetryAfter(c, pe.RetryAfter)
+			return writeError(c, statusForError(pe), pe.Message)
+		}
+		s.log.Error("gateway rate limit check failed", "key", meta.KeyName, "error", err)
+		return writeError(c, http.StatusInternalServerError, "rate limit check failed")
+	}
+	defer releaseKey()
 
 	attempts := s.planDirect(routeCtx, targets)
 	if len(attempts) == 0 {
@@ -198,6 +209,7 @@ func (s *Server) serveDirect(c fiber.Ctx, what string, resolve func(context.Cont
 // at maxAttempts.
 func (s *Server) planDirect(ctx context.Context, targets []target) []webAttempt {
 	var out []webAttempt
+	spent := s.exhaustedAccounts(ctx)
 	for _, t := range targets {
 		spec, ok := s.providerSpec(ctx, t.Provider)
 		if !ok {
@@ -212,7 +224,7 @@ func (s *Server) planDirect(ctx context.Context, targets []target) []webAttempt 
 			if len(out) >= maxAttempts {
 				return out
 			}
-			if s.cooldowns.active(acc.ID) {
+			if s.cooldowns.active(acc.ID) || spent[acc.ID] {
 				continue
 			}
 			creds, err := s.credentials(ctx, acc)

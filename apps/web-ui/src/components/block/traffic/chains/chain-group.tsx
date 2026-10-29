@@ -40,23 +40,26 @@ export default function ChainGroup({ icon: Icon, title, description, tone }: Cha
   const colors = tones[tone]
 
   return (
-    <div className="flex items-center gap-4">
-      <Button
+    <div className="flex min-w-0 items-center gap-4">
+      <span
+        aria-hidden
         className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ring-1 ${colors.background}`}
       >
         <Icon className={`size-5.5 ${colors.icon}`} />
-      </Button>
-      <div className="flex flex-col justify-center">
-        <span className="text-sm text-neutral-100">{title}</span>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">{description}</span>
+      </span>
+      <div className="flex min-w-0 flex-col justify-center">
+        <span className="truncate text-sm text-foreground" title={title}>
+          {title}
+        </span>
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="truncate text-xs text-muted-foreground">{description}</span>
           <Button
             type="button"
             variant="ghost"
             mode="icon"
             size="sm"
-            className="size-5.5"
-            aria-label="Copy to clipboard"
+            className="size-5.5 shrink-0"
+            aria-label={`Copy ${description}`}
             onClick={() => copy(description)}
           >
             {copied ? (

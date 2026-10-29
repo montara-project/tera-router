@@ -35,12 +35,12 @@ export default function RoutingTab({ settings, onUpdate }: RoutingTabProps) {
 
   return (
     <Card className="bg-background">
-      <CardHeader className="h-20">
+      <CardHeader className="py-4">
         <div className="flex items-center gap-3.5">
           <IconBadge
             icon={IconRoute}
             variant="soft"
-            className="h-10 w-10"
+            className="h-10 w-10 shrink-0"
             iconClassName="h-5 w-5"
           />
           <CardHeading>
@@ -65,26 +65,23 @@ export default function RoutingTab({ settings, onUpdate }: RoutingTabProps) {
             />
           </SettingRow>
 
-          <div className="flex items-center gap-4 px-5 py-4">
-            <div className="w-52 shrink-0">
-              <p className="text-sm font-medium text-foreground">Provider sticky limit</p>
-              <p className="text-muted-foreground mt-0.5 text-xs">
-                Calls per account before switching
-              </p>
-            </div>
+          <SettingRow
+            title="Provider sticky limit"
+            description="Calls per account before switching"
+          >
             <Input
               aria-label="Provider sticky limit"
               type="number"
               min={1}
               step={1}
               value={settings.provider_sticky_limit}
-              className="flex-1 text-center font-mono"
+              className="w-24 text-center font-mono"
               onChange={(e) => {
                 const value = e.target.valueAsNumber
                 if (!Number.isNaN(value) && value >= 1) onUpdate({ provider_sticky_limit: value })
               }}
             />
-          </div>
+          </SettingRow>
 
           <SettingRow
             title="Chain round robin"

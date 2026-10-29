@@ -49,7 +49,7 @@ func TestRevealRequiresReauth(t *testing.T) {
 		t.Fatal(err)
 	}
 	repos := repositories.New(db, &cfg.App)
-	a := &app.Application{Config: cfg, DB: db, Repos: repos, Secrets: secrets, IPBlocks: ipblock.New(repos.IPBlocks)}
+	a := &app.Application{Config: cfg, DB: db, Repos: repos, Secrets: secrets, IPBlocks: ipblock.New(repos.IPBlocks, repos.Settings)}
 
 	gen, err := apikey.Generate()
 	if err != nil {

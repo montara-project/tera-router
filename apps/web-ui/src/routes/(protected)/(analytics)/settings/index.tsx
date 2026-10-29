@@ -18,6 +18,7 @@ import BrandingTab from '@/components/block/settings/branding-tab'
 import ImportExportTab from '@/components/block/settings/import-export-tab'
 import IPBlockCard from '@/components/block/settings/ip-block-card'
 import NetworkTab from '@/components/block/settings/network-tab'
+import RestrictedAccessCard from '@/components/block/settings/restricted-access-card'
 import RoutingTab from '@/components/block/settings/routing-tab'
 import SecurityTab from '@/components/block/settings/security-tab'
 import SystemTab from '@/components/block/settings/system-tab'
@@ -102,6 +103,7 @@ function RouteComponent() {
         <TabsContent value="security">
           <div className="flex flex-col gap-4">
             <SecurityTab />
+            <RestrictedAccessCard />
             <IPBlockCard />
           </div>
         </TabsContent>

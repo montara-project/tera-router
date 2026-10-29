@@ -1,4 +1,4 @@
-import { IconPlus } from '@tabler/icons-react'
+import { IconPlus, IconStack2 } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useQueryState } from 'nuqs'
@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 
 import type { Models } from '@/lib/api/models'
 
+import EmptyState from '@/components/block/common/empty-state'
 import ReactTable from '@/components/block/common/react-table'
 import SectionCard from '@/components/block/common/section-card'
 import ChainFormDialog from '@/components/block/traffic/chains/chain-form-dialog'
@@ -118,6 +119,23 @@ function RouteComponent() {
           pageIndex={pageIndex}
           pageSize={limit}
           columns={columns}
+          emptyMessage={
+            allChains.length === 0 ? (
+              <EmptyState
+                icon={IconStack2}
+                title="No chains yet"
+                description="Create a chain to route a model name through fallback providers."
+                className="py-8"
+              />
+            ) : (
+              <EmptyState
+                icon={IconStack2}
+                title="No chains match"
+                description="Try a different search, strategy, or status."
+                className="py-8"
+              />
+            )
+          }
         />
       </div>
 

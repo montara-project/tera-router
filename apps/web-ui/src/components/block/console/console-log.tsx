@@ -89,7 +89,7 @@ export default function ConsoleLog({ entries }: ConsoleLogProps) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-0 flex-1 sm:max-w-xs">
+        <div className="relative min-w-0 flex-1 basis-full sm:max-w-xs sm:basis-auto">
           <IconSearch className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
           <Input
             aria-label="Search logs"
@@ -137,11 +137,13 @@ export default function ConsoleLog({ entries }: ConsoleLogProps) {
               <div key={entry.id}>
                 <div
                   className={cn(
-                    'group flex items-center gap-3 px-4 py-1.5 font-mono text-xs transition-colors hover:bg-muted/40',
+                    'group flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-1.5 font-mono text-xs transition-colors hover:bg-muted/40 sm:flex-nowrap',
                     entry.level === 'error' && 'bg-red-50/60 dark:bg-red-950/20'
                   )}
                 >
-                  <span className="text-muted-foreground w-8 shrink-0 text-right">{entry.id}</span>
+                  <span className="text-muted-foreground hidden w-8 shrink-0 text-right sm:inline">
+                    {entry.id}
+                  </span>
                   <span className="text-muted-foreground w-24 shrink-0">{entry.time}</span>
                   <span
                     className={cn(
@@ -151,7 +153,10 @@ export default function ConsoleLog({ entries }: ConsoleLogProps) {
                   >
                     {meta.label}
                   </span>
-                  <span className="text-foreground min-w-0 flex-1 truncate">{entry.message}</span>
+                  {/* Phones give the message its own line under time and level. */}
+                  <span className="text-foreground order-last min-w-0 basis-full truncate sm:order-none sm:flex-1 sm:basis-auto">
+                    {entry.message}
+                  </span>
                   {entry.detail ? (
                     <button
                       type="button"
@@ -167,7 +172,7 @@ export default function ConsoleLog({ entries }: ConsoleLogProps) {
                   ) : null}
                 </div>
                 {detailOpen && entry.detail ? (
-                  <div className="bg-muted/30 border-t border-border/60 px-4 py-2 pl-31 font-mono text-xs whitespace-pre-wrap text-muted-foreground">
+                  <div className="bg-muted/30 border-t border-border/60 px-4 py-2 font-mono sm:pl-31 text-xs whitespace-pre-wrap text-muted-foreground">
                     {entry.detail}
                   </div>
                 ) : null}
