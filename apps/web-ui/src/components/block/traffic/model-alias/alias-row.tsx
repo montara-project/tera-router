@@ -41,7 +41,9 @@ export default function AliasRow({ alias, onShow, onEdit }: AliasRowProps) {
   return (
     <React.Fragment>
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3">
-        <div className="min-w-0 flex-1">
+        {/* basis keeps the name readable: on narrow rows the meta and
+            actions wrap below it instead of squeezing it to nothing. */}
+        <div className="min-w-0 flex-1 basis-60">
           {/* Clients send the bare alias name as the model. */}
           <ChainGroup
             title={alias.name}
