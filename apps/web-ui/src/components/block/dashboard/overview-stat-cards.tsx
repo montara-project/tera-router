@@ -101,10 +101,14 @@ export default function OverviewStatCards({ telemetry }: OverviewStatCardsProps)
         icon={ShieldCheck}
         label="Reliability"
         tileClass="bg-emerald-950 text-emerald-400"
-        big={`${performance.successRate}%`}
+        big={traffic.requests > 0 ? `${performance.successRate}%` : '—'}
         bigLabel="successful"
         subs={[
-          { value: `${traffic.failed}`, label: 'Failed', valueClass: 'text-red-500' },
+          {
+            value: `${traffic.failed}`,
+            label: 'Failed',
+            valueClass: traffic.failed > 0 ? 'text-red-500' : undefined,
+          },
           { value: formatLatency(performance.avgLatencyMs), label: 'Avg latency' },
           { value: formatLatency(performance.ttftMs), label: 'TTFT' },
         ]}

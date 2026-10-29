@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 
 import type { UsageTelemetryOverview } from '@/lib/api/models/usage'
 
+import EmptyState from '@/components/block/common/empty-state'
 import SegmentedControl from '@/components/block/common/segmented-control'
 import { Card, CardContent } from '@/components/ui/card'
 import { formatMicrosUsd } from '@/lib/currency'
@@ -81,7 +82,8 @@ export default function UsageTrendCard({ telemetry }: { telemetry: UsageTelemetr
   const formatY = (value: number) =>
     metric === 'cost' ? formatMicrosUsd(value) : formatCompact(value)
   const gridValues = [0, step, step * 2, step * 3, top]
-  const labelEvery = Math.ceil(trend.length / 10)
+  // ~56px per date label keeps them apart on narrow cards
+  const labelEvery = Math.ceil(trend.length / Math.max(2, Math.floor(plotWidth / 56)))
 
   return (
     <Card className="h-full bg-background">
@@ -92,7 +94,9 @@ export default function UsageTrendCard({ telemetry }: { telemetry: UsageTelemetr
               <IconChartLine className="h-4 w-4 text-muted-foreground" />
               Usage trend
             </p>
-            <p className="text-muted-foreground mt-0.5 text-xs">Busiest request bucket {busiest}</p>
+            <p className="text-muted-foreground mt-0.5 text-xs">
+              {busiest ? `Busiest request bucket ${busiest}` : 'Requests per bucket'}
+            </p>
           </div>
 
           <SegmentedControl
@@ -104,73 +108,82 @@ export default function UsageTrendCard({ telemetry }: { telemetry: UsageTelemetr
         </div>
 
         <div ref={chartRef} className="mt-4 min-h-40 flex-1">
-          <svg
-            viewBox={`0 0 ${width} ${height}`}
-            className="block h-full w-full"
-            role="img"
-            aria-label={`Usage trend by ${metric}`}
-          >
-            <defs>
-              <linearGradient id="usage-trend-fill" x1="0" y1="0" x2="0" y2="1">
-                <stop
-                  offset="0%"
-                  stopColor="currentColor"
-                  className="text-emerald-500"
-                  stopOpacity="0.18"
-                />
-                <stop
-                  offset="100%"
-                  stopColor="currentColor"
-                  className="text-emerald-500"
-                  stopOpacity="0"
-                />
-              </linearGradient>
-            </defs>
-
-            {gridValues.map((value) => (
-              <g key={value}>
-                <line
-                  x1={padLeft}
-                  x2={width - 12}
-                  y1={y(value)}
-                  y2={y(value)}
-                  className="stroke-border/60"
-                  strokeWidth="1"
-                />
-                <text
-                  x={padLeft - 8}
-                  y={y(value) + 3}
-                  textAnchor="end"
-                  className="fill-muted-foreground text-[10px]"
-                >
-                  {formatY(value)}
-                </text>
-              </g>
-            ))}
-
-            <path d={areaPath} fill="url(#usage-trend-fill)" />
-            <path
-              d={linePath}
-              fill="none"
-              className="stroke-emerald-500"
-              strokeWidth="1.5"
-              vectorEffect="non-scaling-stroke"
+          {trend.length === 0 ? (
+            <EmptyState
+              icon={IconChartLine}
+              title="No usage yet"
+              description="Requests in the selected period will chart here."
+              className="h-full py-10"
             />
+          ) : (
+            <svg
+              viewBox={`0 0 ${width} ${height}`}
+              className="block h-full w-full"
+              role="img"
+              aria-label={`Usage trend by ${metric}`}
+            >
+              <defs>
+                <linearGradient id="usage-trend-fill" x1="0" y1="0" x2="0" y2="1">
+                  <stop
+                    offset="0%"
+                    stopColor="currentColor"
+                    className="text-emerald-500"
+                    stopOpacity="0.18"
+                  />
+                  <stop
+                    offset="100%"
+                    stopColor="currentColor"
+                    className="text-emerald-500"
+                    stopOpacity="0"
+                  />
+                </linearGradient>
+              </defs>
 
-            {trend.map((point, index) =>
-              index % labelEvery === 0 ? (
-                <text
-                  key={point.day}
-                  x={index === trend.length - 1 ? width : x(index)}
-                  y={height - 6}
-                  textAnchor={index === trend.length - 1 ? 'end' : 'middle'}
-                  className="fill-muted-foreground text-[10px]"
-                >
-                  {point.day}
-                </text>
-              ) : null
-            )}
-          </svg>
+              {gridValues.map((value) => (
+                <g key={value}>
+                  <line
+                    x1={padLeft}
+                    x2={width - 12}
+                    y1={y(value)}
+                    y2={y(value)}
+                    className="stroke-border/60"
+                    strokeWidth="1"
+                  />
+                  <text
+                    x={padLeft - 8}
+                    y={y(value) + 3}
+                    textAnchor="end"
+                    className="fill-muted-foreground text-[10px]"
+                  >
+                    {formatY(value)}
+                  </text>
+                </g>
+              ))}
+
+              <path d={areaPath} fill="url(#usage-trend-fill)" />
+              <path
+                d={linePath}
+                fill="none"
+                className="stroke-emerald-500"
+                strokeWidth="1.5"
+                vectorEffect="non-scaling-stroke"
+              />
+
+              {trend.map((point, index) =>
+                index % labelEvery === 0 ? (
+                  <text
+                    key={point.day}
+                    x={index === trend.length - 1 ? width : x(index)}
+                    y={height - 6}
+                    textAnchor={index === trend.length - 1 ? 'end' : 'middle'}
+                    className="fill-muted-foreground text-[10px]"
+                  >
+                    {point.day}
+                  </text>
+                ) : null
+              )}
+            </svg>
+          )}
         </div>
       </CardContent>
     </Card>

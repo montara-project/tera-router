@@ -79,7 +79,12 @@ function ActivityCalendar({ activity }: { activity: UsageActivity }) {
     if (el) el.scrollLeft = el.scrollWidth
   }, [])
 
-  const show = (cell: ActivityCell, el: HTMLElement) => {
+  // Details open on click only; clicking the open day again closes them.
+  const toggle = (cell: ActivityCell, el: HTMLElement) => {
+    if (active?.key === cell.key) {
+      setActive(null)
+      return
+    }
     anchorRef.current = el
     setActive(cell)
   }
@@ -136,10 +141,9 @@ function ActivityCalendar({ activity }: { activity: UsageActivity }) {
         <div
           ref={gridRef}
           role="group"
-          aria-label="Requests per day over the last 53 weeks. Use arrow keys to move between days."
+          aria-label="Requests per day over the last 53 weeks. Use arrow keys to move between days and Enter to show a day's details."
           className="grid min-w-160 gap-0.75"
           style={{ gridTemplateColumns: `1.75rem repeat(${weeks.length}, minmax(0, 1fr))` }}
-          onPointerLeave={() => setActive(null)}
         >
           {months.map((m) => (
             <span
@@ -172,6 +176,7 @@ function ActivityCalendar({ activity }: { activity: UsageActivity }) {
                   data-day={cell.key}
                   tabIndex={cell.key === focusKey ? 0 : -1}
                   aria-label={activityCellLabel(cell)}
+                  aria-expanded={active?.key === cell.key}
                   style={{ gridRow: d + 2, gridColumn: w + 2 }}
                   className={cn(
                     'aspect-square w-full cursor-pointer rounded-[3px] outline-offset-1 transition-shadow hover:ring-1 hover:ring-foreground/40 focus-visible:outline-2 focus-visible:outline-emerald-400 motion-reduce:transition-none',
@@ -179,12 +184,8 @@ function ActivityCalendar({ activity }: { activity: UsageActivity }) {
                     active?.key === cell.key && 'ring-1 ring-foreground/60'
                   )}
                   onKeyDown={handleKeyDown}
-                  onPointerEnter={(e) => show(cell, e.currentTarget)}
-                  onFocus={(e) => {
-                    setFocusKey(cell.key)
-                    show(cell, e.currentTarget)
-                  }}
-                  onClick={(e) => show(cell, e.currentTarget)}
+                  onFocus={() => setFocusKey(cell.key)}
+                  onClick={(e) => toggle(cell, e.currentTarget)}
                 />
               ) : null
             )
@@ -214,9 +215,14 @@ function ActivityCalendar({ activity }: { activity: UsageActivity }) {
         <PopoverContent
           side="top"
           sideOffset={6}
-          className="pointer-events-none w-64 p-3 motion-reduce:animate-none"
+          className="w-64 p-3 motion-reduce:animate-none"
           onOpenAutoFocus={(e) => e.preventDefault()}
           onCloseAutoFocus={(e) => e.preventDefault()}
+          // The day buttons handle their own clicks (toggle or switch day);
+          // closing on their pointerdown would reopen the same day at once.
+          onPointerDownOutside={(e) => {
+            if ((e.target as HTMLElement).closest?.('[data-day]')) e.preventDefault()
+          }}
         >
           {active && <DayDetails cell={active} />}
         </PopoverContent>
