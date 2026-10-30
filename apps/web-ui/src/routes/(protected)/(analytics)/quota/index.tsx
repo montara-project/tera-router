@@ -1,7 +1,6 @@
-import { IconGauge } from '@tabler/icons-react'
+import { IconGauge, IconRefresh } from '@tabler/icons-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
-import { RefreshCw } from 'lucide-react'
 import { useQueryState } from 'nuqs'
 import { useEffect, useMemo, useState } from 'react'
 
@@ -156,7 +155,7 @@ function RouteComponent() {
             size="icon"
             variant="outline"
           >
-            <RefreshCw className={refreshing ? 'animate-spin' : undefined} />
+            <IconRefresh className={refreshing ? 'animate-spin' : undefined} />
           </Button>
         </div>
       }

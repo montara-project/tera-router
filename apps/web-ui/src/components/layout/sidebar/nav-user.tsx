@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronsUpDown, LogOut, RotateCcw } from 'lucide-react'
+import { IconLogout, IconRotate, IconSelector } from '@tabler/icons-react'
 import { useState } from 'react'
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -67,7 +67,7 @@ export default function NavUser({ user, userError, onRetryUser }: NavUserProps) 
         <SidebarMenuItem>
           <div className="px-2 py-1.5 text-xs text-destructive">Couldn't load your profile.</div>
           <SidebarMenuButton size="lg" onClick={onRetryUser}>
-            <RotateCcw />
+            <IconRotate />
             <span>Try again</span>
           </SidebarMenuButton>
         </SidebarMenuItem>
@@ -108,7 +108,7 @@ export default function NavUser({ user, userError, onRetryUser }: NavUserProps) 
                 <span className="truncate font-medium">{name}</span>
                 <span className="truncate text-xs">{email}</span>
               </div>
-              <ChevronsUpDown className="ml-auto size-4" />
+              <IconSelector className="ml-auto size-4" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -131,7 +131,7 @@ export default function NavUser({ user, userError, onRetryUser }: NavUserProps) 
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem variant="destructive" disabled={signingOut} onClick={handleSignOut}>
-              <LogOut />
+              <IconLogout />
               {signingOut ? 'Logging out…' : 'Log out'}
             </DropdownMenuItem>
           </DropdownMenuContent>

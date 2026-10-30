@@ -947,7 +947,7 @@ func TestRenderStreamDoneAfterFinishEmitsOnlyDone(t *testing.T) {
 func TestRenderStreamChunkError(t *testing.T) {
 	evs, err := OpenAICodec{}.RenderStreamChunk(core.StreamChunk{
 		Type: core.ChunkError,
-		Err:  core.NewProviderError(core.ErrRateLimit, "slow down"),
+		Err:  &core.ProviderError{Kind: core.ErrRateLimit, Message: "slow down"},
 	}, &StreamState{Model: "m"})
 	if err != nil {
 		t.Fatal(err)

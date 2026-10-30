@@ -70,10 +70,6 @@ func (r *AccountRepository) BulkInsert(ctx context.Context, accounts []models.Ac
 
 // List returns a page of accounts newest-first plus the unpaged total.
 func (r *AccountRepository) List(ctx context.Context, offset, limit int) ([]models.Account, int, error) {
-	return r.listExec(ctx, offset, limit)
-}
-
-func (r *AccountRepository) listExec(ctx context.Context, offset, limit int) ([]models.Account, int, error) {
 	rows, err := r.queryContext(ctx, r.DB, `
 		SELECT`+accountColumns+`, count(*) OVER () AS total
 		FROM accounts
@@ -108,10 +104,6 @@ func (r *AccountRepository) listExec(ctx context.Context, offset, limit int) ([]
 // enabled (not disabled) and not awaiting re-authentication, ordered by
 // priority then creation time. The gateway uses it to plan routing attempts.
 func (r *AccountRepository) ListUsable(ctx context.Context, provider string) ([]models.Account, error) {
-	return r.listUsableExec(ctx, provider)
-}
-
-func (r *AccountRepository) listUsableExec(ctx context.Context, provider string) ([]models.Account, error) {
 	rows, err := r.queryContext(ctx, r.DB, `
 		SELECT`+accountColumns+`
 		FROM accounts
@@ -135,30 +127,18 @@ func (r *AccountRepository) listUsableExec(ctx context.Context, provider string)
 
 // Get returns one account by id.
 func (r *AccountRepository) Get(ctx context.Context, id string) (models.Account, error) {
-	return r.getExec(ctx, id)
-}
-
-func (r *AccountRepository) getExec(ctx context.Context, id string) (models.Account, error) {
 	row := r.queryRowContext(ctx, r.DB, `SELECT`+accountColumns+` FROM accounts WHERE id = $1`, id)
 	return scanAccount(row)
 }
 
 // GetByKeyHash locates a duplicate credential by its sha-256 key hash.
 func (r *AccountRepository) GetByKeyHash(ctx context.Context, keyHash string) (models.Account, error) {
-	return r.getByKeyHashExec(ctx, keyHash)
-}
-
-func (r *AccountRepository) getByKeyHashExec(ctx context.Context, keyHash string) (models.Account, error) {
 	row := r.queryRowContext(ctx, r.DB, `SELECT`+accountColumns+` FROM accounts WHERE key_hash = $1`, keyHash)
 	return scanAccount(row)
 }
 
 // Update rewrites an account row.
 func (r *AccountRepository) Update(ctx context.Context, a models.Account) error {
-	return r.updateExec(ctx, a)
-}
-
-func (r *AccountRepository) updateExec(ctx context.Context, a models.Account) error {
 	res, err := r.execContext(ctx, r.DB, `
 		UPDATE accounts
 		SET label = $2, auth_kind = $3,
@@ -182,10 +162,6 @@ func (r *AccountRepository) updateExec(ctx context.Context, a models.Account) er
 
 // SetDisabled flips the disabled flag of one account.
 func (r *AccountRepository) SetDisabled(ctx context.Context, id string, disabled bool) error {
-	return r.setDisabledExec(ctx, id, disabled)
-}
-
-func (r *AccountRepository) setDisabledExec(ctx context.Context, id string, disabled bool) error {
 	res, err := r.execContext(ctx, r.DB,
 		`UPDATE accounts SET disabled = $2, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now') WHERE id = $1`, id, disabled)
 	if err != nil {
@@ -228,10 +204,6 @@ func (r *AccountRepository) ListByProvider(ctx context.Context, provider string)
 
 // Delete removes one account.
 func (r *AccountRepository) Delete(ctx context.Context, id string) error {
-	return r.deleteExec(ctx, id)
-}
-
-func (r *AccountRepository) deleteExec(ctx context.Context, id string) error {
 	res, err := r.execContext(ctx, r.DB, `DELETE FROM accounts WHERE id = $1`, id)
 	if err != nil {
 		return err
@@ -242,10 +214,6 @@ func (r *AccountRepository) deleteExec(ctx context.Context, id string) error {
 // DeleteDisabled removes every disabled account for a provider (or all
 // providers when providerSlug is empty), returning the number removed.
 func (r *AccountRepository) DeleteDisabled(ctx context.Context, providerSlug string) (int64, error) {
-	return r.deleteDisabledExec(ctx, providerSlug)
-}
-
-func (r *AccountRepository) deleteDisabledExec(ctx context.Context, providerSlug string) (int64, error) {
 	query := `DELETE FROM accounts WHERE disabled = true`
 	args := []any{}
 	if providerSlug != "" {
@@ -262,10 +230,6 @@ func (r *AccountRepository) deleteDisabledExec(ctx context.Context, providerSlug
 // DeleteAll removes every account for a provider (or all providers when the
 // slug is empty), returning the number removed.
 func (r *AccountRepository) DeleteAll(ctx context.Context, providerSlug string) (int64, error) {
-	return r.deleteAllExec(ctx, providerSlug)
-}
-
-func (r *AccountRepository) deleteAllExec(ctx context.Context, providerSlug string) (int64, error) {
 	query := `DELETE FROM accounts`
 	args := []any{}
 	if providerSlug != "" {
@@ -281,10 +245,6 @@ func (r *AccountRepository) deleteAllExec(ctx context.Context, providerSlug stri
 
 // SetDisabledByProvider flips every account of a provider.
 func (r *AccountRepository) SetDisabledByProvider(ctx context.Context, providerSlug string, disabled bool) (int64, error) {
-	return r.setDisabledByProviderExec(ctx, providerSlug, disabled)
-}
-
-func (r *AccountRepository) setDisabledByProviderExec(ctx context.Context, providerSlug string, disabled bool) (int64, error) {
 	res, err := r.execContext(ctx, r.DB,
 		`UPDATE accounts SET disabled = $2, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now') WHERE provider = $1`, providerSlug, disabled)
 	if err != nil {
@@ -296,10 +256,6 @@ func (r *AccountRepository) setDisabledByProviderExec(ctx context.Context, provi
 // CountByProvider returns how many enabled+disabled accounts each provider
 // has, for the providers overview.
 func (r *AccountRepository) CountByProvider(ctx context.Context) (map[string]int, error) {
-	return r.countByProviderExec(ctx)
-}
-
-func (r *AccountRepository) countByProviderExec(ctx context.Context) (map[string]int, error) {
 	rows, err := r.queryContext(ctx, r.DB, `SELECT provider, count(*) FROM accounts GROUP BY provider`)
 	if err != nil {
 		return nil, err
@@ -321,10 +277,6 @@ func (r *AccountRepository) countByProviderExec(ctx context.Context) (map[string
 // CountUsableByProvider returns how many accounts each provider has that can
 // serve traffic — the same filter as ListUsable.
 func (r *AccountRepository) CountUsableByProvider(ctx context.Context) (map[string]int, error) {
-	return r.countUsableByProviderExec(ctx)
-}
-
-func (r *AccountRepository) countUsableByProviderExec(ctx context.Context) (map[string]int, error) {
 	rows, err := r.queryContext(ctx, r.DB, `
 		SELECT provider, count(*) FROM accounts
 		WHERE disabled = false AND needs_reconnect = false

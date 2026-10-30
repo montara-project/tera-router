@@ -54,6 +54,7 @@ Kalau key diikat ke plan, model yang diizinkan adalah **irisan** allowlist key d
 
 - **Disable** — key dinonaktifkan langsung menolak request dengan `401`; cache verifikasi (5 menit) tidak berlaku untuk key yang dimatikan.
 - **Reveal** — `POST /v1/keys/:id/reveal` mengembalikan plaintext setelah kamu memasukkan ulang password: kirim `{ "password": "..." }`, dan saat autentikasi dua faktor aktif server menjawab `{ "totp_required": true }` sampai kamu mengirim ulang dengan `"otp"`. Password atau kode yang salah dihitung ke blokir IP, sama seperti login gagal. Tiap reveal tercatat di audit log.
+- **Rotate** — `POST /v1/keys/:id/rotate` (ikon refresh di daftar key) mengganti secret dengan yang baru dibuat, dengan autentikasi ulang yang sama seperti reveal. Plaintext lama langsung berhenti berlaku; id, plan, scope, dan limit tetap. Respons berisi `full_key` baru, yang tetap bisa diambil lewat reveal. Tercatat di audit log sebagai `key.rotate`.
 - **last used** — pemakaian pertama tiap key dicatat `last_used_at`, terlihat di daftar key.
 
 <Callout type="info" title="Satu key per perangkat">

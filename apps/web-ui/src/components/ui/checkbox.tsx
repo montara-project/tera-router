@@ -1,7 +1,7 @@
 'use client'
 
+import { IconCheck, IconMinus } from '@tabler/icons-react'
 import { cva, type VariantProps } from 'class-variance-authority'
-import { Check, Minus } from 'lucide-react'
 import { Checkbox as CheckboxPrimitive } from 'radix-ui'
 import * as React from 'react'
 
@@ -42,8 +42,8 @@ function Checkbox({
       {...props}
     >
       <CheckboxPrimitive.Indicator className={cn('flex items-center justify-center text-current')}>
-        <Check className="group-data-[state=indeterminate]:hidden" />
-        <Minus className="hidden group-data-[state=indeterminate]:block" />
+        <IconCheck className="group-data-[state=indeterminate]:hidden" />
+        <IconMinus className="hidden group-data-[state=indeterminate]:block" />
       </CheckboxPrimitive.Indicator>
     </CheckboxPrimitive.Root>
   )

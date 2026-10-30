@@ -1,4 +1,4 @@
-import { Activity, DollarSign, ShieldCheck } from 'lucide-react'
+import { IconActivity, IconCurrencyDollar, IconShieldCheck } from '@tabler/icons-react'
 
 import type { UsageTelemetryOverview } from '@/lib/api/models/usage'
 
@@ -65,7 +65,7 @@ export default function UsageOverviewCards({ telemetry }: OverviewCardsProps) {
   return (
     <div className="grid gap-4 lg:grid-cols-3">
       <StatCard
-        icon={Activity}
+        icon={IconActivity}
         label="Traffic"
         tileClass="bg-emerald-950 text-emerald-400"
         big={formatCompact(traffic.requests)}
@@ -80,7 +80,7 @@ export default function UsageOverviewCards({ telemetry }: OverviewCardsProps) {
         ]}
       />
       <StatCard
-        icon={DollarSign}
+        icon={IconCurrencyDollar}
         label="Spend & Savings"
         tileClass="bg-amber-950 text-amber-400"
         big={formatMicrosUsd(spend.costMicros)}
@@ -99,7 +99,7 @@ export default function UsageOverviewCards({ telemetry }: OverviewCardsProps) {
         ]}
       />
       <StatCard
-        icon={ShieldCheck}
+        icon={IconShieldCheck}
         label="Performance"
         tileClass="bg-emerald-950 text-emerald-400"
         big={`${performance.successRate}%`}

@@ -1,4 +1,4 @@
-import type { LucideIcon } from 'lucide-react'
+import { type TablerIcon } from '@tabler/icons-react'
 
 import { cn } from '@/lib/utils'
 
@@ -23,7 +23,7 @@ const toneClasses: Record<QuotaBadgeTone, { outline: string; soft: string }> = {
 }
 
 interface QuotaIconBadgeProps {
-  icon: LucideIcon
+  icon: TablerIcon
   tone: QuotaBadgeTone
   variant?: QuotaBadgeVariant
   shape?: QuotaBadgeShape

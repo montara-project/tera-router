@@ -1,5 +1,5 @@
+import { IconArrowUpRight, IconClock } from '@tabler/icons-react'
 import { Link } from '@tanstack/react-router'
-import { ArrowUpRight, Clock } from 'lucide-react'
 import { useState } from 'react'
 
 import type { UsageTerminalRequestRow } from '@/lib/api/models/usage'
@@ -38,7 +38,7 @@ export default function OverviewRecentRequests({ rows }: OverviewRecentRequestsP
       <CardContent className="p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex items-start gap-2.5">
-            <Clock className="mt-0.5 h-4 w-4 text-muted-foreground" />
+            <IconClock className="mt-0.5 h-4 w-4 text-muted-foreground" />
             <div>
               <p className="text-sm font-semibold text-foreground">Recent requests</p>
               <p className="text-muted-foreground text-xs">
@@ -52,13 +52,13 @@ export default function OverviewRecentRequests({ rows }: OverviewRecentRequestsP
             className="inline-flex items-center gap-1 text-xs font-medium text-emerald-500 transition-colors hover:text-emerald-400"
           >
             Full accounting
-            <ArrowUpRight className="h-3.5 w-3.5" />
+            <IconArrowUpRight className="h-3.5 w-3.5" />
           </Link>
         </div>
 
         {rows.length === 0 ? (
           <EmptyState
-            icon={Clock}
+            icon={IconClock}
             title="No requests in this period"
             description="Gateway requests show up here as they finish."
             className="py-10"

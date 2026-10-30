@@ -1,6 +1,5 @@
-import { IconArrowUpRight, IconServer } from '@tabler/icons-react'
+import { IconArrowUpRight, IconCheck, IconCopy, IconServer } from '@tabler/icons-react'
 import { Link } from '@tanstack/react-router'
-import { CheckIcon, CopyIcon } from 'lucide-react'
 import { useRef } from 'react'
 
 import IconBadge from '@/components/block/common/icon-badge'
@@ -75,10 +74,10 @@ export default function ConnectSection() {
                   className="-me-3.5"
                 >
                   {copied ? (
-                    <CheckIcon className="size-4 text-green-600" />
+                    <IconCheck className="size-4 text-green-600" />
                   ) : (
                     <>
-                      <CopyIcon strokeWidth={1.5} className="size-4 text-white" />
+                      <IconCopy strokeWidth={1.5} className="size-4 text-white" />
                       Copy
                     </>
                   )}

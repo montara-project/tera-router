@@ -1,6 +1,5 @@
-import { IconCloud, IconKey } from '@tabler/icons-react'
+import { IconCheck, IconCloud, IconCopy, IconKey } from '@tabler/icons-react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { CheckIcon, CopyIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import IconBadge from '@/components/block/common/icon-badge'
@@ -153,10 +152,10 @@ function TunnelUrl({ label, url }: { label: string; url: string }) {
       />
       <Button onClick={() => copy(url)} variant="secondary" disabled={copied} className="-me-3.5">
         {copied ? (
-          <CheckIcon className="size-4 text-green-600" />
+          <IconCheck className="size-4 text-green-600" />
         ) : (
           <>
-            <CopyIcon strokeWidth={1.5} className="size-4 text-white" />
+            <IconCopy strokeWidth={1.5} className="size-4 text-white" />
             Copy
           </>
         )}

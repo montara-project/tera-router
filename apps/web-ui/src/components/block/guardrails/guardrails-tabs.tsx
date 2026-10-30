@@ -31,7 +31,7 @@ interface GuardrailsTabsProps {
 
 export default function GuardrailsTabs({ value, onChange }: GuardrailsTabsProps) {
   return (
-    <div className="flex items-center gap-1 overflow-x-auto border-b border-border">
+    <div className="flex items-center gap-1 no-scrollbar overflow-x-auto overflow-y-hidden border-b border-border">
       {GUARDRAILS_TABS.map((tab) => {
         const active = tab.value === value
 

@@ -1,7 +1,7 @@
 import type { KeyboardEvent, RefObject } from 'react'
 
+import { IconCalendar } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
-import { CalendarDays } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import type { UsageActivity } from '@/lib/api/models/usage'
@@ -114,7 +114,7 @@ function ActivityCalendar({ activity }: { activity: UsageActivity }) {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-start gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
-            <CalendarDays className="h-4 w-4 text-muted-foreground" aria-hidden />
+            <IconCalendar className="h-4 w-4 text-muted-foreground" aria-hidden />
           </span>
           <div className="min-w-0">
             <p className="text-sm font-semibold text-foreground">Usage activity</p>

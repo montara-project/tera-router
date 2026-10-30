@@ -1,7 +1,5 @@
 'use client'
 
-import { useDirection } from '@radix-ui/react-direction'
-
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,11 +34,9 @@ export default function SimpleAlertDialog({
   confirmText = 'Proceed',
   variant = 'destructive',
 }: SimpleAlertDialogProps) {
-  const direction = useDirection()
-
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent dir={direction}>
+      <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           {description && <AlertDialogDescription>{description}</AlertDialogDescription>}

@@ -54,6 +54,7 @@ If the key is bound to a plan, the allowed models are the **intersection** of th
 
 - **Disable** — a disabled key starts rejecting requests with `401` immediately; the verification cache (5 minutes) does not apply to disabled keys.
 - **Reveal** — `POST /v1/keys/:id/reveal` returns the plaintext after you re-enter your password: send `{ "password": "..." }`, and when two-factor auth is on the server answers `{ "totp_required": true }` until you resend with `"otp"`. Wrong passwords or codes count toward the IP block, like failed sign-ins. Every reveal is recorded in the audit log.
+- **Rotate** — `POST /v1/keys/:id/rotate` (the refresh icon in the key list) swaps in a freshly generated secret with the same re-authentication as reveal. The old plaintext stops authenticating at once; id, plan, scopes, and limits stay. The response carries the new `full_key`, which stays recoverable through reveal. Audit-logged as `key.rotate`.
 - **last used** — the first use of each key records `last_used_at`, visible in the key list.
 
 <Callout type="info" title="One key per device">

@@ -28,10 +28,6 @@ func scanProxyPool(row rowScanner) (models.ProxyPool, error) {
 
 // Insert persists a new proxy pool.
 func (r *ProxyPoolRepository) Insert(ctx context.Context, p models.ProxyPool) error {
-	return r.insertExec(ctx, p)
-}
-
-func (r *ProxyPoolRepository) insertExec(ctx context.Context, p models.ProxyPool) error {
 	_, err := r.execContext(ctx, r.DB, `
 		INSERT INTO proxy_pools (id, name, url, mode, label, status, last_tested_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -42,10 +38,6 @@ func (r *ProxyPoolRepository) insertExec(ctx context.Context, p models.ProxyPool
 
 // List returns every proxy pool, newest first.
 func (r *ProxyPoolRepository) List(ctx context.Context) ([]models.ProxyPool, error) {
-	return r.listExec(ctx)
-}
-
-func (r *ProxyPoolRepository) listExec(ctx context.Context) ([]models.ProxyPool, error) {
 	rows, err := r.queryContext(ctx, r.DB, `SELECT`+proxyPoolColumns+` FROM proxy_pools ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, err
@@ -65,20 +57,12 @@ func (r *ProxyPoolRepository) listExec(ctx context.Context) ([]models.ProxyPool,
 
 // Get returns one proxy pool by id.
 func (r *ProxyPoolRepository) Get(ctx context.Context, id string) (models.ProxyPool, error) {
-	return r.getExec(ctx, id)
-}
-
-func (r *ProxyPoolRepository) getExec(ctx context.Context, id string) (models.ProxyPool, error) {
 	row := r.queryRowContext(ctx, r.DB, `SELECT`+proxyPoolColumns+` FROM proxy_pools WHERE id = $1`, id)
 	return scanProxyPool(row)
 }
 
 // UpdateTestedAt records the outcome of a health probe.
 func (r *ProxyPoolRepository) UpdateTestedAt(ctx context.Context, id string, at time.Time, status string) error {
-	return r.updateTestedAtExec(ctx, id, at, status)
-}
-
-func (r *ProxyPoolRepository) updateTestedAtExec(ctx context.Context, id string, at time.Time, status string) error {
 	res, err := r.execContext(ctx, r.DB,
 		`UPDATE proxy_pools SET last_tested_at = $2, status = $3, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now') WHERE id = $1`, id, at, status)
 	if err != nil {
@@ -89,10 +73,6 @@ func (r *ProxyPoolRepository) updateTestedAtExec(ctx context.Context, id string,
 
 // Delete removes one proxy pool.
 func (r *ProxyPoolRepository) Delete(ctx context.Context, id string) error {
-	return r.deleteExec(ctx, id)
-}
-
-func (r *ProxyPoolRepository) deleteExec(ctx context.Context, id string) error {
 	res, err := r.execContext(ctx, r.DB, `DELETE FROM proxy_pools WHERE id = $1`, id)
 	if err != nil {
 		return err

@@ -1,4 +1,4 @@
-import { Globe } from 'lucide-react'
+import { IconWorld } from '@tabler/icons-react'
 
 import type { Models } from '@/lib/api/models'
 
@@ -37,7 +37,7 @@ export default function HostInfoCard({ host, process }: HostInfoCardProps) {
       <CardHeader className="py-4">
         <div className="flex items-center gap-3.5">
           <SystemIconBadge
-            icon={Globe}
+            icon={IconWorld}
             tone="amber"
             className="h-10 w-10 shrink-0"
             iconClassName="h-5 w-5"

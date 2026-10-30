@@ -1,5 +1,4 @@
-import { IconListDetails, IconStack2 } from '@tabler/icons-react'
-import { ArrowUpDown } from 'lucide-react'
+import { IconArrowsSort, IconListDetails, IconStack2 } from '@tabler/icons-react'
 import { useMemo, useState } from 'react'
 
 import type { UsageModelAccountingRow, UsageProviderAccountingRow } from '@/lib/api/models/usage'
@@ -221,7 +220,7 @@ export function ModelAccountingTable({ rows }: { rows: UsageModelAccountingRow[]
                     className="text-muted-foreground flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.12em]"
                   >
                     {label}
-                    <ArrowUpDown className="h-3 w-3 opacity-60" />
+                    <IconArrowsSort className="h-3 w-3 opacity-60" />
                   </p>
                 )
               )}

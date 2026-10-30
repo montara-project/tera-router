@@ -1,7 +1,6 @@
 'use client'
 
-import { IconEdit, IconEye, IconTrash } from '@tabler/icons-react'
-import { MoreHorizontal } from 'lucide-react'
+import { IconDots, IconEdit, IconEye, IconTrash } from '@tabler/icons-react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -42,7 +41,7 @@ export default function RowColumnAction({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button mode="link" underline="solid" className="dark:text-neutral-300">
-              <MoreHorizontal className="text-primary size-4 dark:text-neutral-300" />
+              <IconDots className="text-primary size-4 dark:text-neutral-300" />
               <span>More</span>
             </Button>
           </DropdownMenuTrigger>

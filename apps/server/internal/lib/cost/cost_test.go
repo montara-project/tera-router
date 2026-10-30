@@ -71,12 +71,3 @@ func TestMicrosZeroRatesCostNothing(t *testing.T) {
 		t.Fatalf("Micros() = %d, want 0", got)
 	}
 }
-
-func TestRatesZeroAccountsForReasoning(t *testing.T) {
-	if (cost.Rates{ReasoningMicros: 5}).Zero() {
-		t.Fatal("Rates{ReasoningMicros: 5}.Zero() = true, want false")
-	}
-	if !(cost.Rates{}.Zero()) {
-		t.Fatal("Rates{}.Zero() = false, want true")
-	}
-}

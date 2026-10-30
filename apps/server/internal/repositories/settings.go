@@ -33,7 +33,7 @@ func ProviderRoutingSettingsKey(providerSlug string) string {
 // ProviderRouting returns a provider's account strategy, or the default when
 // the operator never set one.
 func (r *SettingRepository) ProviderRouting(ctx context.Context, providerSlug string) (models.ProviderRouting, error) {
-	raw, err := r.getExec(ctx, ProviderRoutingSettingsKey(providerSlug))
+	raw, err := r.Get(ctx, ProviderRoutingSettingsKey(providerSlug))
 	if errors.Is(err, apperr.ErrNotFound) {
 		return models.DefaultProviderRouting(), nil
 	}
@@ -53,7 +53,7 @@ func (r *SettingRepository) SetProviderRouting(ctx context.Context, providerSlug
 	if err != nil {
 		return err
 	}
-	return r.upsertExec(ctx, ProviderRoutingSettingsKey(providerSlug), string(raw))
+	return r.Upsert(ctx, ProviderRoutingSettingsKey(providerSlug), string(raw))
 }
 
 // RestrictedAccessSettingsKey holds the allowlist period
@@ -62,7 +62,7 @@ const RestrictedAccessSettingsKey = "restricted_access"
 
 // RestrictedAccess returns the allowlist period, disabled when never set.
 func (r *SettingRepository) RestrictedAccess(ctx context.Context) (models.RestrictedAccess, error) {
-	raw, err := r.getExec(ctx, RestrictedAccessSettingsKey)
+	raw, err := r.Get(ctx, RestrictedAccessSettingsKey)
 	if errors.Is(err, apperr.ErrNotFound) {
 		return models.RestrictedAccess{AllowedIPs: []string{}}, nil
 	}
@@ -82,7 +82,7 @@ func (r *SettingRepository) SetRestrictedAccess(ctx context.Context, v models.Re
 	if err != nil {
 		return err
 	}
-	return r.upsertExec(ctx, RestrictedAccessSettingsKey, string(raw))
+	return r.Upsert(ctx, RestrictedAccessSettingsKey, string(raw))
 }
 
 // CloudflareTunnelSettingsKey holds a JSON boolean: whether the Cloudflare
@@ -91,10 +91,6 @@ const CloudflareTunnelSettingsKey = "tunnel_cloudflare_enabled"
 
 // Get returns the raw JSON value for a settings key.
 func (r *SettingRepository) Get(ctx context.Context, key string) (string, error) {
-	return r.getExec(ctx, key)
-}
-
-func (r *SettingRepository) getExec(ctx context.Context, key string) (string, error) {
 	row := r.queryRowContext(ctx, r.DB, `SELECT value FROM settings WHERE key = $1`, key)
 	var value string
 	err := row.Scan(&value)
@@ -103,10 +99,6 @@ func (r *SettingRepository) getExec(ctx context.Context, key string) (string, er
 
 // Upsert stores a settings key with its raw JSON value.
 func (r *SettingRepository) Upsert(ctx context.Context, key, value string) error {
-	return r.upsertExec(ctx, key, value)
-}
-
-func (r *SettingRepository) upsertExec(ctx context.Context, key, value string) error {
 	_, err := r.execContext(ctx, r.DB, `
 		INSERT INTO settings (key, value) VALUES ($1, $2)
 		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now')`,

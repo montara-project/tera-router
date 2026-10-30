@@ -29,10 +29,6 @@ func scanBudget(row rowScanner) (models.Budget, error) {
 
 // Insert persists a new budget.
 func (r *BudgetRepository) Insert(ctx context.Context, b models.Budget) error {
-	return r.insertExec(ctx, b)
-}
-
-func (r *BudgetRepository) insertExec(ctx context.Context, b models.Budget) error {
 	_, err := r.execContext(ctx, r.DB, `
 		INSERT INTO budgets (id, scope_kind, scope_id, limit_micros, limit_tokens, period, alert_pct, hard_cutoff, remaining_tokens, remaining_micros, period_bucket)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
@@ -44,10 +40,6 @@ func (r *BudgetRepository) insertExec(ctx context.Context, b models.Budget) erro
 
 // List returns every budget, newest first.
 func (r *BudgetRepository) List(ctx context.Context) ([]models.Budget, error) {
-	return r.listExec(ctx)
-}
-
-func (r *BudgetRepository) listExec(ctx context.Context) ([]models.Budget, error) {
 	rows, err := r.queryContext(ctx, r.DB, `SELECT`+budgetColumns+` FROM budgets ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, err
@@ -67,10 +59,6 @@ func (r *BudgetRepository) listExec(ctx context.Context) ([]models.Budget, error
 
 // Get returns one budget by id.
 func (r *BudgetRepository) Get(ctx context.Context, id string) (models.Budget, error) {
-	return r.getExec(ctx, id)
-}
-
-func (r *BudgetRepository) getExec(ctx context.Context, id string) (models.Budget, error) {
 	row := r.queryRowContext(ctx, r.DB, `SELECT`+budgetColumns+` FROM budgets WHERE id = $1`, id)
 	return scanBudget(row)
 }
@@ -78,10 +66,6 @@ func (r *BudgetRepository) getExec(ctx context.Context, id string) (models.Budge
 // Update rewrites a budget, including its remaining allowance and period
 // bucket (the quota reset path).
 func (r *BudgetRepository) Update(ctx context.Context, b models.Budget) error {
-	return r.updateExec(ctx, b)
-}
-
-func (r *BudgetRepository) updateExec(ctx context.Context, b models.Budget) error {
 	res, err := r.execContext(ctx, r.DB, `
 		UPDATE budgets
 		SET scope_kind = $2, scope_id = $3, limit_micros = $4, limit_tokens = $5, period = $6,
@@ -99,10 +83,6 @@ func (r *BudgetRepository) updateExec(ctx context.Context, b models.Budget) erro
 
 // Delete removes one budget.
 func (r *BudgetRepository) Delete(ctx context.Context, id string) error {
-	return r.deleteExec(ctx, id)
-}
-
-func (r *BudgetRepository) deleteExec(ctx context.Context, id string) error {
 	res, err := r.execContext(ctx, r.DB, `DELETE FROM budgets WHERE id = $1`, id)
 	if err != nil {
 		return err

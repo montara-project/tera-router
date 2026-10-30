@@ -1,4 +1,4 @@
-import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
+import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react'
 import { useQueryState } from 'nuqs'
 import { type ReactNode, useMemo } from 'react'
 
@@ -223,7 +223,7 @@ function DataGridPagination({
                   disabled={currentPage === 1}
                 >
                   <span className="sr-only">Go to previous page</span>
-                  <ChevronLeftIcon className="size-4" />
+                  <IconChevronLeft className="size-4" />
                 </Button>
 
                 {renderEllipsisPrevButton()}
@@ -245,7 +245,7 @@ function DataGridPagination({
                   disabled={currentPage >= pageCount}
                 >
                   <span className="sr-only">Go to next page</span>
-                  <ChevronRightIcon className="size-4" />
+                  <IconChevronRight className="size-4" />
                 </Button>
               </div>
             )}

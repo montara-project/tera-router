@@ -60,12 +60,13 @@ Pagination memakai query `offset` (0-based) dan `limit` (default 10, maks 100).
 
 ### Keys
 
-| Method      | Path                  | Keterangan                                   |
-| ----------- | --------------------- | -------------------------------------------- |
-| GET / POST  | `/v1/keys`            | Daftar / buat key                            |
-| GET / PATCH | `/v1/keys/:id`        | Detail / ubah key                            |
-| POST        | `/v1/keys/:id/reveal` | Plaintext; perlu password (+ TOTP), teraudit |
-| DELETE      | `/v1/keys/:id`        | Hapus key                                    |
+| Method      | Path                  | Keterangan                                                        |
+| ----------- | --------------------- | ----------------------------------------------------------------- |
+| GET / POST  | `/v1/keys`            | Daftar / buat key                                                 |
+| GET / PATCH | `/v1/keys/:id`        | Detail / ubah key                                                 |
+| POST        | `/v1/keys/:id/reveal` | Plaintext; perlu password (+ TOTP), teraudit                      |
+| POST        | `/v1/keys/:id/rotate` | Secret baru, yang lama dicabut; perlu password (+ TOTP), teraudit |
+| DELETE      | `/v1/keys/:id`        | Hapus key                                                         |
 
 ### Plans
 
@@ -220,4 +221,4 @@ Menyalakan dan mematikan tercatat di audit log. Lihat [Akses jarak jauh](/id-ID/
 | GET          | `/health`                         | Kesehatan server (tanpa auth)                                                            |
 | GET          | `/skills/:slug/SKILL.md`          | Dokumen skill publik yang diambil agent lewat URL (tanpa auth)                           |
 
-Reveal key, kedua download backup, dan `PATCH /v1/accounts/:id` yang mengubah `metadata.base_url` meminta autentikasi ulang: kirim `"password"`, dan saat autentikasi dua faktor aktif server menjawab `{ "totp_required": true }` sampai kamu mengirim ulang dengan `"otp"`. Password atau kode yang salah dijawab `422` dan dihitung ke blokir IP, sama seperti login gagal.
+Reveal dan rotate key, kedua download backup, dan `PATCH /v1/accounts/:id` yang mengubah `metadata.base_url` meminta autentikasi ulang: kirim `"password"`, dan saat autentikasi dua faktor aktif server menjawab `{ "totp_required": true }` sampai kamu mengirim ulang dengan `"otp"`. Password atau kode yang salah dijawab `422` dan dihitung ke blokir IP, sama seperti login gagal.

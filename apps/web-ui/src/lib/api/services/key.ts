@@ -49,6 +49,12 @@ const resources = (): KeyResources => {
       const url = `${path}/${id}/reveal`
       return api.post(url, parseDto(ReauthSchema, payload))
     },
+    /** replaces the key's credential with a new one (the old one stops working)
+     * after the same re-authentication as reveal. Audit-logged. */
+    rotate: (id, payload) => {
+      const url = `${path}/${id}/rotate`
+      return api.post(url, parseDto(ReauthSchema, payload))
+    },
   }
 }
 

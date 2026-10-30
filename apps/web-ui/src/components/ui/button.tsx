@@ -1,7 +1,7 @@
 'use client'
 
+import { IconChevronDown, type TablerIcon } from '@tabler/icons-react'
 import { cva, type VariantProps } from 'class-variance-authority'
-import { ChevronDown, type LucideIcon } from 'lucide-react'
 import { Slot as SlotPrimitive } from 'radix-ui'
 import * as React from 'react'
 
@@ -421,10 +421,10 @@ function Button({
 }
 
 interface ButtonArrowProps extends React.SVGProps<SVGSVGElement> {
-  icon?: LucideIcon // Allows passing any Lucide icon
+  icon?: TablerIcon // Allows passing any Lucide icon
 }
 
-function ButtonArrow({ icon: Icon = ChevronDown, className, ...props }: ButtonArrowProps) {
+function ButtonArrow({ icon: Icon = IconChevronDown, className, ...props }: ButtonArrowProps) {
   return <Icon data-slot="button-arrow" className={cn('ms-auto -me-1', className)} {...props} />
 }
 

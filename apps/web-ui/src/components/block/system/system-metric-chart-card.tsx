@@ -1,4 +1,4 @@
-import type { LucideIcon } from 'lucide-react'
+import { type TablerIcon } from '@tabler/icons-react'
 
 import type { SystemPoint } from '@/lib/api/models/system'
 
@@ -15,7 +15,7 @@ import SystemIconBadge, { type SystemTone } from './system-icon-badge'
 import SystemLineChart from './system-line-chart'
 
 interface SystemMetricChartCardProps {
-  icon: LucideIcon
+  icon: TablerIcon
   tone: SystemTone
   title: string
   description: string

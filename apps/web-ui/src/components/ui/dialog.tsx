@@ -1,7 +1,7 @@
 'use client'
 
+import { IconX } from '@tabler/icons-react'
 import { cva, type VariantProps } from 'class-variance-authority'
-import { X } from 'lucide-react'
 import { Dialog as DialogPrimitive } from 'radix-ui'
 import * as React from 'react'
 
@@ -77,7 +77,7 @@ function DialogContent({
         {children}
         {showCloseButton && (
           <DialogClose className="ring-offset-background data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute end-5 top-5 cursor-pointer rounded-sm opacity-60 outline-0 transition-opacity hover:opacity-100 focus:outline-hidden disabled:pointer-events-none">
-            <X className="size-4" />
+            <IconX className="size-4" />
             <span className="sr-only">Close</span>
           </DialogClose>
         )}

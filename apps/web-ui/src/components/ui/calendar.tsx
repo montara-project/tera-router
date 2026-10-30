@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react'
 import * as React from 'react'
 import { DayPicker } from 'react-day-picker'
 
@@ -49,9 +49,9 @@ function Calendar({
       components={{
         Chevron: (props) => {
           if (props.orientation === 'left') {
-            return <ChevronLeft className="h-4 w-4 rtl:rotate-180" />
+            return <IconChevronLeft className="h-4 w-4 rtl:rotate-180" />
           } else {
-            return <ChevronRight className="h-4 w-4 rtl:rotate-180" />
+            return <IconChevronRight className="h-4 w-4 rtl:rotate-180" />
           }
         },
       }}

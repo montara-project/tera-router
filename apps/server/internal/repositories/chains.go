@@ -59,10 +59,6 @@ func (r *ChainRepository) insertStepsExec(ctx context.Context, ex Executor, chai
 
 // List returns every chain with its steps attached, newest first.
 func (r *ChainRepository) List(ctx context.Context) ([]models.Chain, error) {
-	return r.listExec(ctx)
-}
-
-func (r *ChainRepository) listExec(ctx context.Context) ([]models.Chain, error) {
 	rows, err := r.queryContext(ctx, r.DB, `SELECT`+chainColumns+` FROM chains ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, err
@@ -116,10 +112,6 @@ func (r *ChainRepository) attachStepsExec(ctx context.Context, ex Executor, chai
 // GetByName resolves one chain by its unique name with its steps attached.
 // The gateway routes `chain:<name>` and bare chain-name requests through it.
 func (r *ChainRepository) GetByName(ctx context.Context, name string) (models.Chain, error) {
-	return r.getByNameExec(ctx, name)
-}
-
-func (r *ChainRepository) getByNameExec(ctx context.Context, name string) (models.Chain, error) {
 	row := r.queryRowContext(ctx, r.DB, `SELECT`+chainColumns+` FROM chains WHERE name = $1`, name)
 	c, err := scanChain(row)
 	if err != nil {
@@ -135,10 +127,6 @@ func (r *ChainRepository) getByNameExec(ctx context.Context, name string) (model
 
 // Get returns one chain by id with its steps attached.
 func (r *ChainRepository) Get(ctx context.Context, id string) (models.Chain, error) {
-	return r.getExec(ctx, id)
-}
-
-func (r *ChainRepository) getExec(ctx context.Context, id string) (models.Chain, error) {
 	row := r.queryRowContext(ctx, r.DB, `SELECT`+chainColumns+` FROM chains WHERE id = $1`, id)
 	c, err := scanChain(row)
 	if err != nil {
@@ -182,10 +170,6 @@ func (r *ChainRepository) updateExec(ctx context.Context, ex Executor, c models.
 
 // Delete removes one chain; its steps go with it via ON DELETE CASCADE.
 func (r *ChainRepository) Delete(ctx context.Context, id string) error {
-	return r.deleteExec(ctx, id)
-}
-
-func (r *ChainRepository) deleteExec(ctx context.Context, id string) error {
 	res, err := r.execContext(ctx, r.DB, `DELETE FROM chains WHERE id = $1`, id)
 	if err != nil {
 		return err

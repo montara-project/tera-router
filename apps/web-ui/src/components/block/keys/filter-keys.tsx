@@ -1,4 +1,4 @@
-import { Search } from 'lucide-react'
+import { IconSearch } from '@tabler/icons-react'
 
 import type { Models } from '@/lib/api/models'
 
@@ -42,7 +42,7 @@ export default function FilterKeys({ filters, onChange, count }: FilterKeysProps
   return (
     <div className="flex flex-wrap items-center gap-2">
       <InputWrapper variant="lg" className="w-full rounded-lg sm:w-72">
-        <Search />
+        <IconSearch />
         <Input
           aria-label="Search keys"
           onChange={(event) => onChange({ search: event.target.value })}

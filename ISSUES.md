@@ -45,7 +45,7 @@ Hasil audit kode yang bisa dipangkas di seluruh repo (`apps/server`, `apps/web-u
   - Lokasi: `apps/web-ui/src/components/block/editor/`
   - Dampak: ~−610 baris, −7 dependency (`lexical`, `@lexical/html`, `@lexical/list`, `@lexical/react`, `@lexical/rich-text`, `@lexical/utils`, `@lexkit/editor`)
 
-- [ ] **`delete` — Komponen data-grid drag-and-drop dan kolom tanpa importer**
+- [x] **`delete` — Komponen data-grid drag-and-drop dan kolom tanpa importer**
   - File: `data-grid-table-dnd`, `data-grid-table-dnd-rows`, `data-grid-column-header`, `data-grid-column-filter`, `data-grid-column-visibility`.
   - Yang dipakai hanya `DataGrid`, `DataGridContainer`, `DataGridTable`, dan `DataGridPagination`, lewat `block/common/react-table.tsx`.
   - Lokasi: `apps/web-ui/src/components/ui/data-grid-*`
@@ -92,18 +92,19 @@ Hasil audit kode yang bisa dipangkas di seluruh repo (`apps/server`, `apps/web-u
   - Lokasi: `apps/web-ui/src/components/block/common/icons.tsx`
   - Dampak: ~−300 baris
 
-- [ ] **`delete` — Primitive UI `accordion` dan `radio-group`**
+- [x] **`delete` — Primitive UI `accordion` dan `radio-group`**
   - Keduanya tanpa importer.
+  - Oct 30: `accordion` dihapus; `radio-group` kini dipakai `provider-detail/account-strategy-card.tsx`, jadi tetap.
   - Lokasi: `apps/web-ui/src/components/ui/{accordion,radio-group}.tsx`
   - Dampak: ~−270 baris
 
-- [ ] **`delete` — Factory REST generik `resource.ts`**
+- [x] **`delete` — Factory REST generik `resource.ts`**
   - Tidak ada importer; setiap service sudah menulis objek resource-nya sendiri.
   - Ikut terhapus dari `types/api.ts`: `HTTP_METHOD`, `API_METHOD_MAP`, `ResourceMethods`, `Resources`, `ResourceProps`.
   - Lokasi: `apps/web-ui/src/lib/api/resource.ts`, `apps/web-ui/src/types/api.ts`
   - Dampak: ~−170 baris
 
-- [ ] **`delete` — Lapisan auth lama**
+- [x] **`delete` — Lapisan auth lama**
   - `lib/auth/auth-server.ts`: config `betterAuth()` yang tidak pernah diimpor.
   - `lib/auth/handler.ts`: `requireSession`, `getSession`, dan `redirectIfAuthenticated`, semuanya tanpa pemanggil.
   - Ikut terhapus: `types/auth.ts` (`AuthSession`) dan env `BETTER_AUTH_*` di `config/env.ts`.
@@ -125,7 +126,7 @@ Hasil audit kode yang bisa dipangkas di seluruh repo (`apps/server`, `apps/web-u
   - Perbaikan: satu shell tabel berhalaman.
   - Dampak: ~−100 baris
 
-- [ ] **`delete` — Method repository tanpa pemanggil**
+- [x] **`delete` — Method repository tanpa pemanggil**
   - Method: `AuditRepository.List`, `UserRepository.Insert`, `UserRepository.UpdatePassword`, `UsageRepository.ByAPIKey`, `SkillRepository.Get`, `SkillRepository.Update`, `GuardrailRepository.Get`.
   - Lokasi: `apps/server/internal/repositories/{audit,users,usage,skills,guardrails}.go`
   - Dampak: ~−110 baris

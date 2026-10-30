@@ -63,22 +63,8 @@ func (r *GuardrailRepository) listExec(ctx context.Context, query string) ([]mod
 	return policies, errtrace.Wrap(rows.Err())
 }
 
-// Get returns one policy by id.
-func (r *GuardrailRepository) Get(ctx context.Context, id string) (models.GuardrailPolicy, error) {
-	return r.getExec(ctx, id)
-}
-
-func (r *GuardrailRepository) getExec(ctx context.Context, id string) (models.GuardrailPolicy, error) {
-	row := r.queryRowContext(ctx, r.DB, `SELECT `+guardrailColumns+` FROM guardrail_policies WHERE id = $1`, id)
-	return scanGuardrailPolicy(row)
-}
-
 // Insert persists a new policy.
 func (r *GuardrailRepository) Insert(ctx context.Context, p models.GuardrailPolicy) error {
-	return r.insertExec(ctx, p)
-}
-
-func (r *GuardrailRepository) insertExec(ctx context.Context, p models.GuardrailPolicy) error {
 	_, err := r.execContext(ctx, r.DB, `
 		INSERT INTO guardrail_policies (id, name, scope, target, protections, config, enabled)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -89,10 +75,6 @@ func (r *GuardrailRepository) insertExec(ctx context.Context, p models.Guardrail
 
 // Update rewrites a policy.
 func (r *GuardrailRepository) Update(ctx context.Context, p models.GuardrailPolicy) error {
-	return r.updateExec(ctx, p)
-}
-
-func (r *GuardrailRepository) updateExec(ctx context.Context, p models.GuardrailPolicy) error {
 	res, err := r.execContext(ctx, r.DB, `
 		UPDATE guardrail_policies
 		SET name = $2, scope = $3, target = $4, protections = $5, config = $6,
@@ -108,10 +90,6 @@ func (r *GuardrailRepository) updateExec(ctx context.Context, p models.Guardrail
 
 // Delete removes one policy.
 func (r *GuardrailRepository) Delete(ctx context.Context, id string) error {
-	return r.deleteExec(ctx, id)
-}
-
-func (r *GuardrailRepository) deleteExec(ctx context.Context, id string) error {
 	res, err := r.execContext(ctx, r.DB, `DELETE FROM guardrail_policies WHERE id = $1`, id)
 	if err != nil {
 		return err
@@ -121,10 +99,6 @@ func (r *GuardrailRepository) deleteExec(ctx context.Context, id string) error {
 
 // AuditEntries returns recent guardrail audit rows, newest first.
 func (r *GuardrailRepository) AuditEntries(ctx context.Context, limit int) ([]models.AuditEntry, error) {
-	return r.auditEntriesExec(ctx, limit)
-}
-
-func (r *GuardrailRepository) auditEntriesExec(ctx context.Context, limit int) ([]models.AuditEntry, error) {
 	rows, err := r.queryContext(ctx, r.DB, `
 		SELECT id, actor, action, target, detail, created_at
 		FROM audit_entries WHERE action LIKE 'guardrail.%'

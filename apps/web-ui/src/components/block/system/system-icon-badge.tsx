@@ -1,4 +1,4 @@
-import type { LucideIcon } from 'lucide-react'
+import { type TablerIcon } from '@tabler/icons-react'
 
 import { cn } from '@/lib/utils'
 
@@ -15,7 +15,7 @@ const toneClasses: Record<SystemTone, string> = {
 }
 
 interface SystemIconBadgeProps {
-  icon: LucideIcon
+  icon: TablerIcon
   tone: SystemTone
   className?: string
   iconClassName?: string

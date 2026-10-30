@@ -1,4 +1,4 @@
-import { Cpu } from 'lucide-react'
+import { IconCpu } from '@tabler/icons-react'
 
 import type { SystemCore } from '@/lib/api/models/system'
 
@@ -43,7 +43,7 @@ export default function CpuPerCoreCard({ cores }: CpuPerCoreCardProps) {
       <CardHeader className="py-4">
         <div className="flex items-center gap-3.5">
           <SystemIconBadge
-            icon={Cpu}
+            icon={IconCpu}
             tone="emerald"
             className="h-10 w-10 shrink-0"
             iconClassName="h-5 w-5"

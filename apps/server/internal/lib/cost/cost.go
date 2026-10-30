@@ -17,12 +17,6 @@ type Rates struct {
 	ReasoningMicros int64
 }
 
-// Zero reports whether every rate is unset, i.e. the model carries no pricing
-// override and its requests cost zero.
-func (r Rates) Zero() bool {
-	return r.InputMicros == 0 && r.OutputMicros == 0 && r.CacheReadMicros == 0 && r.CacheWriteMicros == 0 && r.ReasoningMicros == 0
-}
-
 // Micros returns the cost of one usage event in micros of USD.
 //
 // Each bucket is `tokens * microsPerMillion / 1_000_000`; the division happens

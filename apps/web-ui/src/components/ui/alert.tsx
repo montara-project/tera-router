@@ -1,7 +1,7 @@
 'use client'
 
+import { IconX } from '@tabler/icons-react'
 import { cva, type VariantProps } from 'class-variance-authority'
-import { X } from 'lucide-react'
 import * as React from 'react'
 
 import { cn } from '@/lib/utils'
@@ -231,7 +231,7 @@ function Alert({
           data-slot="alert-close"
           className={cn('group size-4 shrink-0 cursor-pointer')}
         >
-          <X className="size-4 opacity-60 group-hover:opacity-100" />
+          <IconX className="size-4 opacity-60 group-hover:opacity-100" />
         </button>
       )}
     </div>
