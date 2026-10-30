@@ -226,4 +226,4 @@ Enabling and disabling are audit-logged. See [Remote access](/docs/getting-start
 | GET          | `/health`                         | Server health (no auth)                                                                               |
 | GET          | `/skills/:slug/SKILL.md`          | Public skill document an agent fetches by URL (no auth)                                               |
 
-The key reveal and both backup downloads re-authenticate: send `"password"`, and when two-factor auth is on the server answers `{ "totp_required": true }` until you resend with `"otp"`. Wrong passwords or codes return `422` and count toward the IP block, like failed sign-ins.
+The key reveal, both backup downloads, and a `PATCH /v1/accounts/:id` that changes `metadata.base_url` re-authenticate: send `"password"`, and when two-factor auth is on the server answers `{ "totp_required": true }` until you resend with `"otp"`. Wrong passwords or codes return `422` and count toward the IP block, like failed sign-ins.

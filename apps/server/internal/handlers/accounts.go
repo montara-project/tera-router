@@ -71,6 +71,16 @@ func encodeMetadata(meta map[string]any) string {
 	return string(raw)
 }
 
+// metadataBaseURL reads the account-level endpoint override from raw
+// metadata JSON, "" when unset.
+func metadataBaseURL(raw string) string {
+	var meta struct {
+		BaseURL string `json:"base_url"`
+	}
+	_ = json.Unmarshal([]byte(raw), &meta)
+	return strings.TrimSpace(meta.BaseURL)
+}
+
 // seal seals one credential into the account's envelope blobs and derives
 // the dedup fingerprint/hash.
 func sealCredential(a *app.Application, account *models.Account, in accountInput) error {
@@ -240,6 +250,17 @@ func (h *accountsHandler) Update(c fiber.Ctx) error {
 	}
 
 	in := accountInputFrom(req)
+	// The next test or dispatch sends the stored credential to base_url, so
+	// pointing it somewhere new needs the same re-authentication as a reveal.
+	if u := metadataBaseURL(in.Metadata); u != "" && u != metadataBaseURL(account.Metadata) {
+		needsCode, err := reauthenticate(c, h.app, req.Password, req.OTP)
+		if err != nil {
+			return err
+		}
+		if needsCode {
+			return totpRequired(c)
+		}
+	}
 	if in.Label != "" {
 		account.Label = in.Label
 	}
