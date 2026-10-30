@@ -100,6 +100,20 @@ const reveal = () =>
     },
   })
 
+const rotate = () => {
+  const qc = getQueryClient()
+
+  return mutationOptions({
+    mutationFn: async ({ id, ...payload }: { id: string } & ReauthDto) => {
+      const res = await services.keys.rotate(id, payload)
+      return res.data
+    },
+    onSuccess: (res) => {
+      if (!('totp_required' in res.data)) qc.invalidateQueries({ queryKey: [KEY_QUERY_KEY] })
+    },
+  })
+}
+
 export const keyQueries = {
   list,
   get,
@@ -108,4 +122,5 @@ export const keyQueries = {
   delete: del,
   toggleStatus,
   reveal,
+  rotate,
 } as const

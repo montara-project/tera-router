@@ -60,12 +60,13 @@ Pagination uses the `offset` (0-based) and `limit` (default 10, max 100) query p
 
 ### Keys
 
-| Method      | Path                  | Notes                                       |
-| ----------- | --------------------- | ------------------------------------------- |
-| GET / POST  | `/v1/keys`            | List / create keys                          |
-| GET / PATCH | `/v1/keys/:id`        | Detail / update key                         |
-| POST        | `/v1/keys/:id/reveal` | Plaintext; needs password (+ TOTP), audited |
-| DELETE      | `/v1/keys/:id`        | Delete key                                  |
+| Method      | Path                  | Notes                                                         |
+| ----------- | --------------------- | ------------------------------------------------------------- |
+| GET / POST  | `/v1/keys`            | List / create keys                                            |
+| GET / PATCH | `/v1/keys/:id`        | Detail / update key                                           |
+| POST        | `/v1/keys/:id/reveal` | Plaintext; needs password (+ TOTP), audited                   |
+| POST        | `/v1/keys/:id/rotate` | New secret, old one revoked; needs password (+ TOTP), audited |
+| DELETE      | `/v1/keys/:id`        | Delete key                                                    |
 
 ### Plans
 
@@ -226,4 +227,4 @@ Enabling and disabling are audit-logged. See [Remote access](/docs/getting-start
 | GET          | `/health`                         | Server health (no auth)                                                                               |
 | GET          | `/skills/:slug/SKILL.md`          | Public skill document an agent fetches by URL (no auth)                                               |
 
-The key reveal, both backup downloads, and a `PATCH /v1/accounts/:id` that changes `metadata.base_url` re-authenticate: send `"password"`, and when two-factor auth is on the server answers `{ "totp_required": true }` until you resend with `"otp"`. Wrong passwords or codes return `422` and count toward the IP block, like failed sign-ins.
+The key reveal and rotate, both backup downloads, and a `PATCH /v1/accounts/:id` that changes `metadata.base_url` re-authenticate: send `"password"`, and when two-factor auth is on the server answers `{ "totp_required": true }` until you resend with `"otp"`. Wrong passwords or codes return `422` and count toward the IP block, like failed sign-ins.

@@ -76,6 +76,7 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	keys.Get("/:id", h.Keys.Get)
 	keys.Patch("/:id", h.Keys.Update)
 	keys.Post("/:id/reveal", h.Keys.Reveal)
+	keys.Post("/:id/rotate", h.Keys.Rotate)
 	keys.Delete("/:id", h.Keys.Delete)
 
 	plans := protected.Group("/plans")

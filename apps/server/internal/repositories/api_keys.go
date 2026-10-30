@@ -154,6 +154,26 @@ func (r *APIKeyRepository) updateExec(ctx context.Context, k models.APIKey) erro
 	return err
 }
 
+// Rotate swaps a key's credential in place: new hashes, display and sealed
+// secret, keeping id, plan binding, scopes and limits.
+func (r *APIKeyRepository) Rotate(ctx context.Context, k models.APIKey) error {
+	return r.rotateExec(ctx, k)
+}
+
+func (r *APIKeyRepository) rotateExec(ctx context.Context, k models.APIKey) error {
+	res, err := r.execContext(ctx, r.DB, `
+		UPDATE api_keys
+		SET key_hash = $2, lookup_hash = $3, display = $4, secret_wrapped_dek = $5, secret_ciphertext = $6,
+		    last_used_at = NULL, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now')
+		WHERE id = $1`,
+		k.ID, k.KeyHash, k.LookupHash, k.Display, k.Secret.WrappedDEK, k.Secret.Ciphertext,
+	)
+	if err != nil {
+		return err
+	}
+	return requireAffected(res, "api key")
+}
+
 // TouchLastUsed stamps the last-used timestamp of a key.
 func (r *APIKeyRepository) TouchLastUsed(ctx context.Context, id string, at time.Time) error {
 	return r.touchLastUsedExec(ctx, id, at)

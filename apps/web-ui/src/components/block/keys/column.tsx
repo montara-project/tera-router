@@ -7,6 +7,7 @@ import {
   IconEye,
   IconEyeOff,
   IconLink,
+  IconRefresh,
   IconTrash,
 } from '@tabler/icons-react'
 import { useMutation } from '@tanstack/react-query'
@@ -23,6 +24,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
+import { useReauthDialog } from '@/hooks/use-reauth-dialog'
 import { useRevealKey } from '@/hooks/use-reveal-key'
 import { toastAxiosError } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
@@ -204,9 +206,13 @@ interface ActionCellProps {
 
 function ActionCell({ record }: ActionCellProps) {
   const [openDelete, setOpenDelete] = useState(false)
+  const [openRotate, setOpenRotate] = useState(false)
 
   const toggleMutation = useMutation(queries.keys.toggleStatus())
   const deleteMutation = useMutation(queries.keys.delete())
+  const rotateMutation = useMutation(queries.keys.rotate())
+  const { confirm, dialog: reauthDialog } = useReauthDialog()
+  const { copy } = useCopyToClipboard()
 
   const handleToggle = async () => {
     const disabled = record.status === 'active'
@@ -228,6 +234,19 @@ function ActionCell({ record }: ActionCellProps) {
     }
   }
 
+  // Rotating mints a new secret, so it re-authenticates like a reveal. The new
+  // key is copied once; it stays recoverable later through reveal.
+  const handleRotate = async () => {
+    setOpenRotate(false)
+    const key = await confirm<string>('rotate this API key', async (creds) => {
+      const res = await rotateMutation.mutateAsync({ id: record.id, ...creds })
+      return 'totp_required' in res.data ? { totpRequired: true } : { value: res.data.full_key }
+    })
+    if (!key) return
+    copy(key)
+    toast.success('Key rotated', { description: 'The new key was copied to your clipboard.' })
+  }
+
   return (
     <React.Fragment>
       <div className="flex items-center gap-1">
@@ -241,6 +260,17 @@ function ActionCell({ record }: ActionCellProps) {
           variant="ghost"
         >
           {record.status === 'active' ? <IconEyeOff /> : <IconEye />}
+        </Button>
+        <Button
+          aria-label="Rotate key"
+          className="text-muted-foreground hover:text-foreground"
+          disabled={rotateMutation.isPending}
+          mode="icon"
+          onClick={() => setOpenRotate(true)}
+          size="icon"
+          variant="ghost"
+        >
+          <IconRefresh />
         </Button>
         <Button
           aria-label="Delete key"
@@ -263,6 +293,17 @@ function ActionCell({ record }: ActionCellProps) {
         title="Do you want to delete this key?"
         variant="destructive"
       />
+
+      <SimpleAlertDialog
+        confirmText="Rotate"
+        description={`Key "${record.name}" gets a new secret. The current one stops authenticating immediately; update every application that uses it.`}
+        onConfirm={() => void handleRotate()}
+        onOpenChange={setOpenRotate}
+        open={openRotate}
+        title="Do you want to rotate this key?"
+        variant="destructive"
+      />
+      {reauthDialog}
     </React.Fragment>
   )
 }

@@ -16,4 +16,12 @@ export type KeyResources = {
     id: string,
     payload: ReauthDto
   ) => Promise<AxiosItemResponse<{ id: string; full_key: string } | { totp_required: true }>>
+  rotate: (
+    id: string,
+    payload: ReauthDto
+  ) => Promise<
+    AxiosItemResponse<
+      { id: string; key_preview: string; full_key: string } | { totp_required: true }
+    >
+  >
 }

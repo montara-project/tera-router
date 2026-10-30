@@ -256,6 +256,54 @@ func (h *keysHandler) Reveal(c fiber.Ctx) error {
 	return dtos.OK(c, fiber.Map{"id": id.String(), "full_key": plaintext})
 }
 
+// Rotate replaces a key's credential with a freshly generated one; the old
+// plaintext stops authenticating at once. It mints a new secret, so it needs
+// the same re-authentication as Reveal. The new plaintext is returned once.
+func (h *keysHandler) Rotate(c fiber.Ctx) error {
+	id, err := lib.ContextParamUUID(c, "id")
+	if err != nil {
+		return apperr.ErrBadRequest
+	}
+
+	var req dtos.Reauth
+	if err := lib.ValidateRequestBody(c, &req); err != nil {
+		return err
+	}
+	needsCode, err := reauthenticate(c, h.app, req.Password, req.OTP)
+	if err != nil {
+		return err
+	}
+	if needsCode {
+		return totpRequired(c)
+	}
+
+	key, err := h.app.Repos.APIKeys.Get(c.Context(), id.String())
+	if err != nil {
+		return err
+	}
+
+	gen, err := apikey.Generate()
+	if err != nil {
+		return err
+	}
+	sealed, err := h.app.Secrets.SealString(gen.Plaintext)
+	if err != nil {
+		return err
+	}
+	key.KeyHash, key.LookupHash, key.Display, key.Secret = gen.Hash, gen.Lookup, gen.Display, sealed
+
+	if err := h.app.Repos.APIKeys.Rotate(c.Context(), key); err != nil {
+		return err
+	}
+	h.app.KeysChanged()
+	auditRecord(c.Context(), h.app, actorFrom(c), "key.rotate", key.ID, nil)
+	return dtos.OK(c, fiber.Map{
+		"id":          key.ID,
+		"key_preview": gen.Display,
+		"full_key":    gen.Plaintext,
+	})
+}
+
 func statusLabel(disabled bool) string {
 	if disabled {
 		return "disabled"
