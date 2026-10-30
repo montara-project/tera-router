@@ -3,6 +3,8 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [1.15.0](https://github.com/montara-project/tera-router/compare/v1.14.0...v1.15.0) (2026-10-30)
+
 ## [1.14.0](https://github.com/montara-project/tera-router/compare/v1.13.0...v1.14.0) (2026-10-29)
 
 ### Features
