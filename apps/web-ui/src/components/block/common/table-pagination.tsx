@@ -1,4 +1,4 @@
-import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
+import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react'
 import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -92,7 +92,7 @@ export default function TablePagination({
                 disabled={page <= 1}
                 onClick={() => onPageChange(page - 1)}
               >
-                <ChevronLeftIcon className="size-4" />
+                <IconChevronLeft className="size-4" />
               </Button>
             </PaginationItem>
 
@@ -127,7 +127,7 @@ export default function TablePagination({
                 disabled={page >= pageCount}
                 onClick={() => onPageChange(page + 1)}
               >
-                <ChevronRightIcon className="size-4" />
+                <IconChevronRight className="size-4" />
               </Button>
             </PaginationItem>
           </PaginationContent>

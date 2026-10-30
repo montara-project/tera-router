@@ -1,4 +1,4 @@
-import { Layers } from 'lucide-react'
+import { IconStack2 } from '@tabler/icons-react'
 
 import type { Models } from '@/lib/api/models'
 
@@ -45,7 +45,7 @@ export default function GoRuntimeCard({ runtime, process }: GoRuntimeCardProps) 
       <CardHeader className="py-4">
         <div className="flex items-center gap-3.5">
           <SystemIconBadge
-            icon={Layers}
+            icon={IconStack2}
             tone="emerald"
             className="h-10 w-10 shrink-0"
             iconClassName="h-5 w-5"

@@ -1,6 +1,5 @@
 'use client'
 
-import { useDirection } from '@radix-ui/react-direction'
 import React, { useMemo } from 'react'
 
 import DialogContent, {
@@ -29,8 +28,6 @@ export default function SimpleDialog({
   children,
   size = 'md',
 }: SimpleDialogProps) {
-  const direction = useDirection()
-
   const sizeClass = useMemo(() => {
     if (size === 'sm') {
       return 'max-w-md'
@@ -47,7 +44,7 @@ export default function SimpleDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={cn('p-0', sizeClass)} dir={direction}>
+      <DialogContent className={cn('p-0', sizeClass)}>
         <DialogHeader className="border-border m-0 border-b pt-5 pb-3">
           <DialogTitle className="px-6 text-base">{title}</DialogTitle>
           <DialogDescription className={cn('px-6', !description && 'sr-only')}>

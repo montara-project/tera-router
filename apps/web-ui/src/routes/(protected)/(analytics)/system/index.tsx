@@ -1,6 +1,6 @@
+import { IconCpu, IconDeviceSdCard, IconRefresh } from '@tabler/icons-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
-import { Cpu, MemoryStick, RefreshCw } from 'lucide-react'
 
 import SectionCard from '@/components/block/common/section-card'
 import CpuPerCoreCard from '@/components/block/system/cpu-per-core-card'
@@ -59,7 +59,7 @@ function RouteComponent() {
       description="Real-time resource usage and runtime health"
       toolbar={
         <Button disabled={isFetching} onClick={refresh} radius="full" variant="outline">
-          <RefreshCw className={isFetching ? 'animate-spin' : undefined} />
+          <IconRefresh className={isFetching ? 'animate-spin' : undefined} />
           Refresh
         </Button>
       }
@@ -71,7 +71,7 @@ function RouteComponent() {
           <SystemMetricChartCard
             color={CHART_COLORS.host_cpu}
             description="System-wide CPU percentage over time"
-            icon={Cpu}
+            icon={IconCpu}
             max={100}
             min={0}
             points={stats.history.host_cpu}
@@ -82,7 +82,7 @@ function RouteComponent() {
           <SystemMetricChartCard
             color={CHART_COLORS.host_memory}
             description="System-wide memory percentage over time"
-            icon={MemoryStick}
+            icon={IconDeviceSdCard}
             max={100}
             min={0}
             points={stats.history.host_memory}
@@ -93,7 +93,7 @@ function RouteComponent() {
           <SystemMetricChartCard
             color={CHART_COLORS.process_cpu}
             description="Tera Router's own CPU usage over time"
-            icon={Cpu}
+            icon={IconCpu}
             max={100}
             min={0}
             points={stats.history.process_cpu}
@@ -104,7 +104,7 @@ function RouteComponent() {
           <SystemMetricChartCard
             color={CHART_COLORS.process_rss}
             description="Tera Router's resident memory over time"
-            icon={MemoryStick}
+            icon={IconDeviceSdCard}
             points={stats.history.process_rss}
             title="Process RSS"
             tone="cyan"

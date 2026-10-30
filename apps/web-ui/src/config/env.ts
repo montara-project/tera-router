@@ -3,14 +3,6 @@ import { z } from 'zod'
 
 const parsed = createEnv({
   /*
-   * Serverside Environment variables, not available on the client.
-   * Will throw if you access these variables on the client.
-   */
-  server: {
-    BETTER_AUTH_URL: z.url(),
-    BETTER_AUTH_SECRET: z.string(),
-  },
-  /*
    * Environment variables available on the client (and server).
    *
    * 💡 You'll get type errors if these are not prefixed with VITE_.
@@ -31,9 +23,6 @@ const parsed = createEnv({
   runtimeEnv: {
     VITE_API_URL: import.meta.env.VITE_API_URL,
     VITE_APP_NAME: import.meta.env.VITE_APP_NAME,
-
-    BETTER_AUTH_URL: import.meta.env.BETTER_AUTH_URL,
-    BETTER_AUTH_SECRET: import.meta.env.BETTER_AUTH_SECRET,
   },
 })
 

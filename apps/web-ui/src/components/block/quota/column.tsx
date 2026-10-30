@@ -1,7 +1,7 @@
 import type { ColumnDef } from '@tanstack/react-table'
 
+import { IconEyeOff, IconPower, IconTrash } from '@tabler/icons-react'
 import { useMutation } from '@tanstack/react-query'
-import { EyeOff, Power, Trash2 } from 'lucide-react'
 import React, { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
@@ -208,7 +208,7 @@ function ActionCell({ record }: ActionCellProps) {
           size="icon"
           variant="ghost"
         >
-          {record.status === 'active' ? <EyeOff /> : <Power />}
+          {record.status === 'active' ? <IconEyeOff /> : <IconPower />}
         </Button>
         <Button
           aria-label="Delete account"
@@ -218,7 +218,7 @@ function ActionCell({ record }: ActionCellProps) {
           size="icon"
           variant="ghost"
         >
-          <Trash2 />
+          <IconTrash />
         </Button>
       </div>
 

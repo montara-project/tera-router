@@ -1,8 +1,7 @@
 'use client'
 
-import { type DialogProps } from '@radix-ui/react-dialog'
+import { IconCheck, IconSearch, type TablerIcon } from '@tabler/icons-react'
 import { Command as CommandPrimitive } from 'cmdk'
-import { Check, type LucideIcon, Search } from 'lucide-react'
 import React from 'react'
 
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
@@ -20,7 +19,7 @@ function Command({ className, ...props }: React.ComponentProps<typeof CommandPri
   )
 }
 
-type CommandDialogProps = DialogProps & { className?: string }
+type CommandDialogProps = React.ComponentProps<typeof Dialog> & { className?: string }
 
 const CommandDialog = ({ children, className, ...props }: CommandDialogProps) => {
   return (
@@ -45,7 +44,7 @@ function CommandInput({
       cmdk-input-wrapper=""
       data-slot="command-input"
     >
-      <Search className="me-2 h-4 w-4 shrink-0 opacity-50" />
+      <IconSearch className="me-2 h-4 w-4 shrink-0 opacity-50" />
       <CommandPrimitive.Input
         className={cn(
           'text-foreground placeholder:text-muted-foreground flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50',
@@ -131,10 +130,10 @@ const CommandShortcut = ({ className, ...props }: React.HTMLAttributes<HTMLSpanE
 }
 
 interface ButtonArrowProps extends React.SVGProps<SVGSVGElement> {
-  icon?: LucideIcon // Allows passing any Lucide icon
+  icon?: TablerIcon // Allows passing any Lucide icon
 }
 
-function CommandCheck({ icon: Icon = Check, className, ...props }: ButtonArrowProps) {
+function CommandCheck({ icon: Icon = IconCheck, className, ...props }: ButtonArrowProps) {
   return (
     <Icon
       data-slot="command-check"

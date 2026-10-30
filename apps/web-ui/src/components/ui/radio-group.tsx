@@ -1,7 +1,7 @@
 'use client'
 
+import { IconCircleFilled } from '@tabler/icons-react'
 import { cva, type VariantProps } from 'class-variance-authority'
-import { Circle } from 'lucide-react'
 import { RadioGroup as RadioGroupPrimitive } from 'radix-ui'
 import * as React from 'react'
 
@@ -95,7 +95,7 @@ function RadioGroupItem({
         data-slot="radio-group-indicator"
         className="flex items-center justify-center"
       >
-        <Circle className="fill-current text-current" />
+        <IconCircleFilled className="fill-current text-current" />
       </RadioGroupPrimitive.Indicator>
     </RadioGroupPrimitive.Item>
   )

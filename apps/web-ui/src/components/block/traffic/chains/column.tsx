@@ -1,8 +1,7 @@
 import type { ColumnDef } from '@tanstack/react-table'
 
-import { IconStack2 } from '@tabler/icons-react'
+import { IconChevronDown, IconChevronUp, IconStack2 } from '@tabler/icons-react'
 import { useMutation } from '@tanstack/react-query'
-import { ChevronDown, ChevronUp } from 'lucide-react'
 import pluralize from 'pluralize'
 import React, { useMemo, useState } from 'react'
 import { toast } from 'sonner'
@@ -67,7 +66,7 @@ export function ChainColumn({ loading, onEdit }: ChainColumnProps) {
                 }}
               >
                 {capitalizeFirstLetter(row.original.strategy)}
-                {row.getIsExpanded() ? <ChevronUp /> : <ChevronDown />}
+                {row.getIsExpanded() ? <IconChevronUp /> : <IconChevronDown />}
               </Button>
               <span className="text-muted-foreground text-xs">{total}</span>
             </div>

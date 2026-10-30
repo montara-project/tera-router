@@ -1,4 +1,4 @@
-import { Layers } from 'lucide-react'
+import { IconStack2 } from '@tabler/icons-react'
 
 import type { UsageTelemetryOverview } from '@/lib/api/models/usage'
 
@@ -53,7 +53,7 @@ export default function OverviewTokenComposition({ telemetry }: OverviewTokenCom
       <CardContent className="grid gap-6 p-5 lg:grid-cols-[220px_1fr] lg:items-center">
         <div className="flex items-start gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
-            <Layers className="h-4 w-4 text-muted-foreground" />
+            <IconStack2 className="h-4 w-4 text-muted-foreground" />
           </span>
           <div className="min-w-0">
             <p className="text-sm font-semibold text-foreground">Token composition</p>

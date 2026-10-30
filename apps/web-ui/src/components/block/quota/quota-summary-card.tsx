@@ -1,4 +1,4 @@
-import type { LucideIcon } from 'lucide-react'
+import { type TablerIcon } from '@tabler/icons-react'
 
 import { Card } from '@/components/ui/card'
 
@@ -10,7 +10,7 @@ interface QuotaSummaryStat {
 }
 
 interface QuotaSummaryCardProps {
-  icon: LucideIcon
+  icon: TablerIcon
   iconTone: QuotaBadgeTone
   iconShape?: QuotaBadgeShape
   label: string

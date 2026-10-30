@@ -1,4 +1,4 @@
-import { Activity, CircleDot, Server } from 'lucide-react'
+import { IconActivity, IconCircleDot, IconServer } from '@tabler/icons-react'
 
 import type { Models } from '@/lib/api/models'
 
@@ -15,7 +15,7 @@ export default function QuotaSummarySection({ summary }: QuotaSummarySectionProp
   return (
     <div className="grid gap-4 lg:grid-cols-3">
       <QuotaSummaryCard
-        icon={Server}
+        icon={IconServer}
         iconTone="emerald"
         label="Routing Accounts"
         stats={[
@@ -28,7 +28,7 @@ export default function QuotaSummarySection({ summary }: QuotaSummarySectionProp
       />
 
       <QuotaSummaryCard
-        icon={Activity}
+        icon={IconActivity}
         iconTone="amber"
         label="Period Usage"
         stats={[
@@ -41,7 +41,7 @@ export default function QuotaSummarySection({ summary }: QuotaSummarySectionProp
       />
 
       <QuotaSummaryCard
-        icon={CircleDot}
+        icon={IconCircleDot}
         iconShape="circle"
         iconTone="neutral"
         label="Quota Visibility"

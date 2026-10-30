@@ -1,7 +1,6 @@
-import { IconPlus, IconRocket, IconUpload } from '@tabler/icons-react'
+import { IconChevronDown, IconPlus, IconRocket, IconUpload } from '@tabler/icons-react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
-import { ChevronDown } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
@@ -95,7 +94,7 @@ function RouteComponent() {
               <Button className={EMERALD_BUTTON_CLASS}>
                 <IconRocket />
                 <span>Deploy Relay</span>
-                <ChevronDown className="opacity-70" />
+                <IconChevronDown className="opacity-70" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
