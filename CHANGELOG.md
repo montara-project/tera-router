@@ -3,6 +3,13 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [1.16.0](https://github.com/montara-project/tera-router/compare/v1.15.0...v1.16.0) (2026-10-30)
+
+### Bug Fixes
+
+* **server:** require reauth to change an account's base_url ([1a97dab](https://github.com/montara-project/tera-router/commit/1a97dab45ab291926f0f5d389c9967ebddc3f231))
+* update cloudflare config ([1fa7544](https://github.com/montara-project/tera-router/commit/1fa754405e1fb0107652ee15bbc339242d37b7fd))
+
 ## [1.15.0](https://github.com/montara-project/tera-router/compare/v1.14.0...v1.15.0) (2026-10-30)
 
 ## [1.14.0](https://github.com/montara-project/tera-router/compare/v1.13.0...v1.14.0) (2026-10-29)
