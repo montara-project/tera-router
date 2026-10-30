@@ -23,10 +23,6 @@ func scanSkill(row rowScanner) (models.Skill, error) {
 
 // Insert persists a new skill.
 func (r *SkillRepository) Insert(ctx context.Context, s models.Skill) error {
-	return r.insertExec(ctx, s)
-}
-
-func (r *SkillRepository) insertExec(ctx context.Context, s models.Skill) error {
 	_, err := r.execContext(ctx, r.DB, `
 		INSERT INTO skills (id, name, description, prompt) VALUES ($1, $2, $3, $4)`,
 		s.ID, s.Name, s.Description, s.Prompt,
@@ -74,36 +70,12 @@ func (r *SkillRepository) listExec(ctx context.Context, query string, args ...an
 
 // Get returns one skill by id.
 func (r *SkillRepository) Get(ctx context.Context, id string) (models.Skill, error) {
-	return r.getExec(ctx, id)
-}
-
-func (r *SkillRepository) getExec(ctx context.Context, id string) (models.Skill, error) {
 	row := r.queryRowContext(ctx, r.DB, `SELECT `+skillColumns+` FROM skills WHERE id = $1`, id)
 	return scanSkill(row)
 }
 
-// Update rewrites a skill.
-func (r *SkillRepository) Update(ctx context.Context, s models.Skill) error {
-	return r.updateExec(ctx, s)
-}
-
-func (r *SkillRepository) updateExec(ctx context.Context, s models.Skill) error {
-	res, err := r.execContext(ctx, r.DB, `
-		UPDATE skills SET name = $2, description = $3, prompt = $4, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now') WHERE id = $1`,
-		s.ID, s.Name, s.Description, s.Prompt,
-	)
-	if err != nil {
-		return err
-	}
-	return requireAffected(res, "skill")
-}
-
 // SetEnabled switches gateway injection for one skill on or off.
 func (r *SkillRepository) SetEnabled(ctx context.Context, id string, enabled bool) error {
-	return r.setEnabledExec(ctx, id, enabled)
-}
-
-func (r *SkillRepository) setEnabledExec(ctx context.Context, id string, enabled bool) error {
 	res, err := r.execContext(ctx, r.DB, `
 		UPDATE skills SET enabled = $2, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now') WHERE id = $1`,
 		id, enabled,

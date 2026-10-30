@@ -18,10 +18,6 @@ type UsageRepository struct {
 
 // Insert appends one usage record.
 func (r *UsageRepository) Insert(ctx context.Context, u models.UsageRecord) error {
-	return r.insertExec(ctx, u)
-}
-
-func (r *UsageRepository) insertExec(ctx context.Context, u models.UsageRecord) error {
 	_, err := r.execContext(ctx, r.DB, `
 		INSERT INTO usage_records (api_key_id, account_id, provider, model, client, client_ip,
 			request_id, chain,
@@ -53,10 +49,6 @@ type UsageSpend struct {
 // one budget scope: tenant counts every request, api_key only that key's
 // requests, account only requests served by that provider account.
 func (r *UsageRepository) SumSince(ctx context.Context, scope models.BudgetScope, scopeID string, from time.Time) (UsageSpend, error) {
-	return r.sumSinceExec(ctx, scope, scopeID, from)
-}
-
-func (r *UsageRepository) sumSinceExec(ctx context.Context, scope models.BudgetScope, scopeID string, from time.Time) (UsageSpend, error) {
 	query := `
 		SELECT COALESCE(SUM(cost_micros), 0),
 		       COALESCE(SUM(prompt_tokens), 0), COALESCE(SUM(completion_tokens), 0),
@@ -89,10 +81,6 @@ type UsageSummary struct {
 
 // Summary totals spend and tokens over a window.
 func (r *UsageRepository) Summary(ctx context.Context, from time.Time) (UsageSummary, error) {
-	return r.summaryExec(ctx, from)
-}
-
-func (r *UsageRepository) summaryExec(ctx context.Context, from time.Time) (UsageSummary, error) {
 	row := r.queryRowContext(ctx, r.DB, `
 		SELECT count(*),
 		       COALESCE(SUM(prompt_tokens), 0), COALESCE(SUM(completion_tokens), 0),
@@ -117,10 +105,6 @@ type UsageByModel struct {
 
 // ByModel aggregates tokens and spend per provider/model over a window.
 func (r *UsageRepository) ByModel(ctx context.Context, from time.Time) ([]UsageByModel, error) {
-	return r.byModelExec(ctx, from)
-}
-
-func (r *UsageRepository) byModelExec(ctx context.Context, from time.Time) ([]UsageByModel, error) {
 	rows, err := r.queryContext(ctx, r.DB, `
 		SELECT provider, model, count(*) AS requests,
 		       COALESCE(SUM(prompt_tokens), 0) AS prompt_tokens,
@@ -157,10 +141,6 @@ type UsageDaily struct {
 
 // Daily aggregates spend and tokens per day over a window.
 func (r *UsageRepository) Daily(ctx context.Context, from time.Time) ([]UsageDaily, error) {
-	return r.dailyExec(ctx, from)
-}
-
-func (r *UsageRepository) dailyExec(ctx context.Context, from time.Time) ([]UsageDaily, error) {
 	rows, err := r.queryContext(ctx, r.DB, `
 		SELECT strftime('%Y-%m-%d', created_at) AS day,
 		       count(*) AS requests,
@@ -197,10 +177,6 @@ type UsageByAccount struct {
 
 // ByAccount aggregates usage per account id over a window.
 func (r *UsageRepository) ByAccount(ctx context.Context, from time.Time) ([]UsageByAccount, error) {
-	return r.byAccountExec(ctx, from)
-}
-
-func (r *UsageRepository) byAccountExec(ctx context.Context, from time.Time) ([]UsageByAccount, error) {
 	rows, err := r.queryContext(ctx, r.DB, `
 		SELECT account_id, count(*) AS requests,
 		       COALESCE(SUM(prompt_tokens), 0), COALESCE(SUM(completion_tokens), 0),
@@ -226,10 +202,6 @@ func (r *UsageRepository) byAccountExec(ctx context.Context, from time.Time) ([]
 
 // ByAPIKey aggregates usage per key over a window.
 func (r *UsageRepository) ByAPIKey(ctx context.Context, from time.Time) ([]UsageByAccount, error) {
-	return r.byAPIKeyExec(ctx, from)
-}
-
-func (r *UsageRepository) byAPIKeyExec(ctx context.Context, from time.Time) ([]UsageByAccount, error) {
 	rows, err := r.queryContext(ctx, r.DB, `
 		SELECT api_key_id, count(*) AS requests,
 		       COALESCE(SUM(prompt_tokens), 0), COALESCE(SUM(completion_tokens), 0),
@@ -267,10 +239,6 @@ type UsageTraffic struct {
 
 // Traffic totals requests, failures and the token classes over a window.
 func (r *UsageRepository) Traffic(ctx context.Context, from time.Time) (UsageTraffic, error) {
-	return r.trafficExec(ctx, from)
-}
-
-func (r *UsageRepository) trafficExec(ctx context.Context, from time.Time) (UsageTraffic, error) {
 	row := r.queryRowContext(ctx, r.DB, `
 		SELECT count(*), COALESCE(SUM(failed), 0),
 		       COALESCE(SUM(prompt_tokens), 0), COALESCE(SUM(completion_tokens), 0),
@@ -295,10 +263,6 @@ type UsagePerformance struct {
 // Performance averages latency (and TTFT where recorded) over the window.
 // Failed attempts are excluded: they carry no meaningful completion latency.
 func (r *UsageRepository) Performance(ctx context.Context, from time.Time) (UsagePerformance, error) {
-	return r.performanceExec(ctx, from)
-}
-
-func (r *UsageRepository) performanceExec(ctx context.Context, from time.Time) (UsagePerformance, error) {
 	row := r.queryRowContext(ctx, r.DB, `
 		SELECT count(*),
 		       CAST(COALESCE(AVG(latency_ms), 0) AS INTEGER),
@@ -370,19 +334,6 @@ func (r *UsageRepository) groupExec(ctx context.Context, from time.Time, groupBy
 
 // DailyWithFailures aggregates per-day requests, tokens, spend and failures.
 func (r *UsageRepository) DailyWithFailures(ctx context.Context, from time.Time) ([]UsageDailyWithFailures, error) {
-	return r.dailyWithFailuresExec(ctx, from)
-}
-
-// UsageDailyWithFailures is one day of the trend series.
-type UsageDailyWithFailures struct {
-	Day        string `json:"day"`
-	Requests   int64  `json:"requests"`
-	CostMicros int64  `json:"cost_micros"`
-	Tokens     int64  `json:"tokens"`
-	Failed     int64  `json:"failed"`
-}
-
-func (r *UsageRepository) dailyWithFailuresExec(ctx context.Context, from time.Time) ([]UsageDailyWithFailures, error) {
 	rows, err := r.queryContext(ctx, r.DB, `
 		SELECT strftime('%Y-%m-%d', created_at) AS day,
 		       count(*),
@@ -407,6 +358,15 @@ func (r *UsageRepository) dailyWithFailuresExec(ctx context.Context, from time.T
 		out = append(out, d)
 	}
 	return out, errtrace.Wrap(rows.Err())
+}
+
+// UsageDailyWithFailures is one day of the trend series.
+type UsageDailyWithFailures struct {
+	Day        string `json:"day"`
+	Requests   int64  `json:"requests"`
+	CostMicros int64  `json:"cost_micros"`
+	Tokens     int64  `json:"tokens"`
+	Failed     int64  `json:"failed"`
 }
 
 // UsageActivityRow is one day × model cell of the activity calendar.
@@ -446,10 +406,6 @@ func (r *UsageRepository) Activity(ctx context.Context, from time.Time) ([]Usage
 
 // Recent returns the newest usage rows for the request log.
 func (r *UsageRepository) Recent(ctx context.Context, limit int) ([]models.UsageRecord, error) {
-	return r.recentExec(ctx, limit)
-}
-
-func (r *UsageRepository) recentExec(ctx context.Context, limit int) ([]models.UsageRecord, error) {
 	rows, err := r.queryContext(ctx, r.DB, `
 		SELECT id, api_key_id, account_id, provider, model, client, client_ip,
 		       prompt_tokens, completion_tokens, cached_tokens, cache_write_tokens, reasoning_tokens,

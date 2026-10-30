@@ -146,11 +146,6 @@ func AsProviderError(err error) *ProviderError {
 	return &ProviderError{Kind: ErrInternal, Message: err.Error(), Cause: err}
 }
 
-// NewProviderError constructs a ProviderError with the given kind and message.
-func NewProviderError(kind ErrorKind, msg string) *ProviderError {
-	return &ProviderError{Kind: kind, Message: msg}
-}
-
 // rateLimitNeedles match, case-insensitively, the rate-limit and
 // capacity/overload wording providers use both in HTTP error bodies and in
 // mid-stream error events. Quota exhaustion is deliberately absent: it is a

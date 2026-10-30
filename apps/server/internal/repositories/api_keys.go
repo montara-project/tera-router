@@ -38,10 +38,6 @@ func scanAPIKey(row rowScanner) (models.APIKey, error) {
 
 // Insert persists a new API key.
 func (r *APIKeyRepository) Insert(ctx context.Context, k models.APIKey) error {
-	return r.insertExec(ctx, k)
-}
-
-func (r *APIKeyRepository) insertExec(ctx context.Context, k models.APIKey) error {
 	_, err := r.execContext(ctx, r.DB, `
 		INSERT INTO api_keys (id, user_id, plan_id, name, key_hash, lookup_hash, display, scopes, disabled, allowed_models, skill_ids, secret_wrapped_dek, secret_ciphertext)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
@@ -54,10 +50,6 @@ func (r *APIKeyRepository) insertExec(ctx context.Context, k models.APIKey) erro
 // List returns a page of keys joined with their plan, newest-first, plus the
 // unpaged total.
 func (r *APIKeyRepository) List(ctx context.Context, offset, limit int) ([]APIKeyWithPlan, int, error) {
-	return r.listExec(ctx, offset, limit)
-}
-
-func (r *APIKeyRepository) listExec(ctx context.Context, offset, limit int) ([]APIKeyWithPlan, int, error) {
 	rows, err := r.queryContext(ctx, r.DB, `
 		SELECT k.id, k.user_id, k.plan_id, k.name, k.display, k.scopes, k.disabled, k.last_used_at,
 		       k.allowed_models, k.skill_ids, k.secret_wrapped_dek, k.secret_ciphertext, k.created_at, k.updated_at,
@@ -95,10 +87,6 @@ func (r *APIKeyRepository) listExec(ctx context.Context, offset, limit int) ([]A
 
 // Get returns one key by id.
 func (r *APIKeyRepository) Get(ctx context.Context, id string) (models.APIKey, error) {
-	return r.getExec(ctx, id)
-}
-
-func (r *APIKeyRepository) getExec(ctx context.Context, id string) (models.APIKey, error) {
 	row := r.queryRowContext(ctx, r.DB,
 		`SELECT`+apiKeyColumns+` FROM api_keys WHERE id = $1`, id)
 	return scanAPIKey(row)
@@ -107,10 +95,6 @@ func (r *APIKeyRepository) getExec(ctx context.Context, id string) (models.APIKe
 // GetWithPlan returns one key joined with its bound plan, the detail view's
 // shape. PlanName/PlanNote are nil when the key has no plan.
 func (r *APIKeyRepository) GetWithPlan(ctx context.Context, id string) (APIKeyWithPlan, error) {
-	return r.getWithPlanExec(ctx, id)
-}
-
-func (r *APIKeyRepository) getWithPlanExec(ctx context.Context, id string) (APIKeyWithPlan, error) {
 	var k APIKeyWithPlan
 	err := r.queryRowContext(ctx, r.DB, `
 		SELECT k.id, k.user_id, k.plan_id, k.name, k.display, k.scopes, k.disabled, k.last_used_at,
@@ -130,10 +114,6 @@ func (r *APIKeyRepository) getWithPlanExec(ctx context.Context, id string) (APIK
 // GetByLookup resolves a key by its fast sha-256 lookup index, ahead of the
 // expensive argon2 verification.
 func (r *APIKeyRepository) GetByLookup(ctx context.Context, lookup string) (models.APIKey, error) {
-	return r.getByLookupExec(ctx, lookup)
-}
-
-func (r *APIKeyRepository) getByLookupExec(ctx context.Context, lookup string) (models.APIKey, error) {
 	row := r.queryRowContext(ctx, r.DB,
 		`SELECT`+apiKeyColumns+` FROM api_keys WHERE lookup_hash = $1`, lookup)
 	return scanAPIKey(row)
@@ -141,10 +121,6 @@ func (r *APIKeyRepository) getByLookupExec(ctx context.Context, lookup string) (
 
 // Update rewrites a key's mutable fields.
 func (r *APIKeyRepository) Update(ctx context.Context, k models.APIKey) error {
-	return r.updateExec(ctx, k)
-}
-
-func (r *APIKeyRepository) updateExec(ctx context.Context, k models.APIKey) error {
 	_, err := r.execContext(ctx, r.DB, `
 		UPDATE api_keys
 		SET name = $2, plan_id = $3, scopes = $4, disabled = $5, allowed_models = $6, skill_ids = $7, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now')
@@ -157,10 +133,6 @@ func (r *APIKeyRepository) updateExec(ctx context.Context, k models.APIKey) erro
 // Rotate swaps a key's credential in place: new hashes, display and sealed
 // secret, keeping id, plan binding, scopes and limits.
 func (r *APIKeyRepository) Rotate(ctx context.Context, k models.APIKey) error {
-	return r.rotateExec(ctx, k)
-}
-
-func (r *APIKeyRepository) rotateExec(ctx context.Context, k models.APIKey) error {
 	res, err := r.execContext(ctx, r.DB, `
 		UPDATE api_keys
 		SET key_hash = $2, lookup_hash = $3, display = $4, secret_wrapped_dek = $5, secret_ciphertext = $6,
@@ -176,10 +148,6 @@ func (r *APIKeyRepository) rotateExec(ctx context.Context, k models.APIKey) erro
 
 // TouchLastUsed stamps the last-used timestamp of a key.
 func (r *APIKeyRepository) TouchLastUsed(ctx context.Context, id string, at time.Time) error {
-	return r.touchLastUsedExec(ctx, id, at)
-}
-
-func (r *APIKeyRepository) touchLastUsedExec(ctx context.Context, id string, at time.Time) error {
 	_, err := r.execContext(ctx, r.DB,
 		`UPDATE api_keys SET last_used_at = $2 WHERE id = $1`, id, at)
 	return err
@@ -187,10 +155,6 @@ func (r *APIKeyRepository) touchLastUsedExec(ctx context.Context, id string, at 
 
 // Delete removes one key.
 func (r *APIKeyRepository) Delete(ctx context.Context, id string) error {
-	return r.deleteExec(ctx, id)
-}
-
-func (r *APIKeyRepository) deleteExec(ctx context.Context, id string) error {
 	res, err := r.execContext(ctx, r.DB, `DELETE FROM api_keys WHERE id = $1`, id)
 	if err != nil {
 		return err
@@ -200,10 +164,6 @@ func (r *APIKeyRepository) deleteExec(ctx context.Context, id string) error {
 
 // CountByPlan returns how many keys are bound to each plan id.
 func (r *APIKeyRepository) CountByPlan(ctx context.Context) (map[string]int, error) {
-	return r.countByPlanExec(ctx)
-}
-
-func (r *APIKeyRepository) countByPlanExec(ctx context.Context) (map[string]int, error) {
 	rows, err := r.queryContext(ctx, r.DB,
 		`SELECT plan_id, count(*) FROM api_keys WHERE plan_id IS NOT NULL GROUP BY plan_id`)
 	if err != nil {

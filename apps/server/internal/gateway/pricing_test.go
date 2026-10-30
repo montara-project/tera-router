@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"tera-router/server/internal/lib/cost"
 	"tera-router/server/internal/models"
 )
 
@@ -55,7 +56,7 @@ func TestPricingForFallsBackToProviderLevelOverride(t *testing.T) {
 	}
 
 	rates, tokenRate := s.pricingFor(context.Background(), "selfhosted", "my-model")
-	if !rates.Zero() {
+	if rates != (cost.Rates{}) {
 		t.Fatalf("rates = %+v, want zero (provider row prices nothing)", rates)
 	}
 	if tokenRate == nil || *tokenRate != 0 {
