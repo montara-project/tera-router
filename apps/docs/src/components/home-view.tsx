@@ -1,14 +1,7 @@
 import type { ReactNode } from 'react'
 
-import Link from 'next/link'
-
+import { dictionaries } from '@/lib/dictionaries'
 import { i18n } from '@/lib/i18n'
-
-import { dictionaries } from './dictionaries'
-
-export function generateStaticParams() {
-  return i18n.languages.map((lang) => ({ lang }))
-}
 
 type IconProps = {
   children: ReactNode
@@ -99,8 +92,7 @@ const DOC_SECTIONS = [
   },
 ]
 
-export default async function HomePage({ params }: { params: Promise<{ lang: string }> }) {
-  const { lang } = await params
+export function HomeView({ lang }: { lang: string }) {
   const langs: string[] = i18n.languages
   const copy =
     dictionaries[(langs.includes(lang) ? lang : i18n.defaultLanguage) as keyof typeof dictionaries]
@@ -121,8 +113,7 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
 
       {/* header */}
       <header className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-5">
-        <Link className="flex items-center gap-2.5" href="/">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
+        <a className="flex items-center gap-2.5" href="/">
           <img
             alt=""
             className="rounded-lg bg-neutral-100 p-1 dark:bg-white/90"
@@ -134,7 +125,7 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
           <span className="text-fd-muted-foreground hidden rounded-md border border-fd-border px-1.5 py-0.5 text-xs sm:inline-block">
             Docs
           </span>
-        </Link>
+        </a>
         <nav className="flex items-center gap-3">
           <a
             className="text-fd-muted-foreground hover:text-fd-foreground inline-flex items-center gap-1.5 rounded-lg p-2 text-sm transition-colors"
@@ -148,12 +139,12 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
             </Icon>
             <span className="sr-only">GitHub</span>
           </a>
-          <Link
+          <a
             className="bg-fd-primary text-fd-primary-foreground rounded-lg px-4 py-2 text-sm font-medium whitespace-nowrap transition-opacity hover:opacity-90"
             href={docsBase}
           >
             {copy.navCta}
-          </Link>
+          </a>
         </nav>
       </header>
 
@@ -175,18 +166,18 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
             {copy.heroDescription}
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
-            <Link
+            <a
               className="bg-fd-primary text-fd-primary-foreground rounded-lg px-5 py-2.5 text-sm font-medium transition-opacity hover:opacity-90"
               href={docsBase}
             >
               {copy.primaryCta}
-            </Link>
-            <Link
+            </a>
+            <a
               className="hover:bg-fd-card rounded-lg border border-fd-border px-5 py-2.5 text-sm font-medium transition-colors"
               href={`${docsBase}/gateway`}
             >
               {copy.secondaryCta}
-            </Link>
+            </a>
           </div>
           <dl className="text-fd-muted-foreground mt-10 flex flex-wrap gap-8">
             {copy.stats.map((stat) => (
@@ -254,7 +245,7 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
         <p className="text-fd-muted-foreground mt-2">{copy.exploreSubtitle}</p>
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {DOC_SECTIONS.map((section, i) => (
-            <Link
+            <a
               className="group border-fd-border hover:border-fd-primary/60 bg-fd-card/50 rounded-xl border p-5 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-black/5 motion-reduce:transition-none"
               href={docsBase + section.slug}
               key={section.slug}
@@ -266,7 +257,7 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
               <p className="text-fd-muted-foreground mt-1 text-sm leading-relaxed">
                 {copy.cards[i]?.description}
               </p>
-            </Link>
+            </a>
           ))}
         </div>
       </section>
@@ -275,9 +266,9 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
       <footer className="border-fd-border text-fd-muted-foreground relative z-10 border-t">
         <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-8 text-sm">
           <p>{copy.footerText}</p>
-          <Link className="hover:text-fd-foreground transition-colors" href={docsBase}>
+          <a className="hover:text-fd-foreground transition-colors" href={docsBase}>
             {copy.footerCta}
-          </Link>
+          </a>
         </div>
       </footer>
     </main>

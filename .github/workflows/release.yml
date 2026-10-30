@@ -1,5 +1,5 @@
-# Publishes the Docker images to GitHub Container Registry and deploys the
-# main web to Cloudflare Workers.
+# Publishes the server Docker image to GitHub Container Registry and deploys
+# the main web and docs site to Cloudflare Workers.
 #
 # Triggers:
 #   - a semver tag (v1.2.3) publishes 1.2.3, 1.2 and latest
@@ -7,7 +7,6 @@
 #
 # Images:
 #   ghcr.io/<owner>/tera-router       the Go API + gateway serving the web UI (deploy/Dockerfile)
-#   ghcr.io/<owner>/tera-router/docs  apps/docs, the documentation site (deploy/docs.Dockerfile)
 
 name: Release
 
@@ -43,13 +42,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Both install from the workspace lockfile, so they build from the root.
           - name: server
             suffix: ''
             file: deploy/Dockerfile
-          - name: docs
-            suffix: /docs
-            file: deploy/docs.Dockerfile
 
     steps:
       - name: Checkout
@@ -125,6 +120,36 @@ jobs:
 
       - name: Build & Deploy
         run: pnpm deploy:main
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  # Deploys the docs site on every release run (tag push or manual dispatch);
+  # the workflow itself never triggers on branch pushes.
+  release-docs:
+    name: Deploy docs to Cloudflare Workers
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --filter @tera/docs...
+
+      - name: Build & Deploy
+        run: pnpm deploy:docs
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
