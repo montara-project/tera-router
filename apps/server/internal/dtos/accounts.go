@@ -15,6 +15,10 @@ type Account struct {
 	Priority    int            `json:"priority"`
 	ProxyPoolID string         `json:"proxy_pool_id"`
 	Disabled    *bool          `json:"disabled"`
+	// Password and OTP re-authenticate an update that points the stored
+	// credential at a new metadata.base_url; see Reauth.
+	Password string `json:"password"`
+	OTP      string `json:"otp"`
 }
 
 func (d *Account) Validate(v *validator.MapValidator) {

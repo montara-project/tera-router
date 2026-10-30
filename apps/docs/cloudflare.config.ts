@@ -14,6 +14,11 @@ export default defineConfig({
     observability: {
       enabled: true,
     },
+    cache: {
+      enabled: true,
+    },
+    workersDev: false,
+    previewUrls: false,
     domains: ['docs.terarouter.xyz'],
   }),
 })

@@ -220,4 +220,4 @@ Menyalakan dan mematikan tercatat di audit log. Lihat [Akses jarak jauh](/id-ID/
 | GET          | `/health`                         | Kesehatan server (tanpa auth)                                                            |
 | GET          | `/skills/:slug/SKILL.md`          | Dokumen skill publik yang diambil agent lewat URL (tanpa auth)                           |
 
-Reveal key dan kedua download backup meminta autentikasi ulang: kirim `"password"`, dan saat autentikasi dua faktor aktif server menjawab `{ "totp_required": true }` sampai kamu mengirim ulang dengan `"otp"`. Password atau kode yang salah dijawab `422` dan dihitung ke blokir IP, sama seperti login gagal.
+Reveal key, kedua download backup, dan `PATCH /v1/accounts/:id` yang mengubah `metadata.base_url` meminta autentikasi ulang: kirim `"password"`, dan saat autentikasi dua faktor aktif server menjawab `{ "totp_required": true }` sampai kamu mengirim ulang dengan `"otp"`. Password atau kode yang salah dijawab `422` dan dihitung ke blokir IP, sama seperti login gagal.
