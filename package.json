@@ -10,6 +10,7 @@
     "dev:docs": "pnpm --filter @tera/docs dev",
     "dev:main": "pnpm --filter @tera/main dev",
     "deploy:main": "pnpm --filter @tera/main run deploy",
+    "deploy:docs": "pnpm --filter @tera/docs run deploy",
     "prebuild": "npm-run-all format lint",
     "build": "pnpm -r build",
     "release": "release-it",

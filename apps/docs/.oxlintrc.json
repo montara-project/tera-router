@@ -1,9 +1,9 @@
 {
   "extends": ["../../.oxlintrc.json"],
-  "plugins": ["typescript", "unicorn", "oxc", "react", "jsx-a11y", "nextjs", "promise", "import"],
+  "plugins": ["typescript", "unicorn", "oxc", "react", "jsx-a11y", "promise", "import"],
   "env": {
     "builtin": true,
     "browser": true
   },
-  "ignorePatterns": [".next/", ".source/", "next-env.d.ts"]
+  "ignorePatterns": ["dist/", ".source/", "src/routeTree.gen.ts", ".cloudflare/"]
 }

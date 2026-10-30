@@ -34,7 +34,7 @@ a dashboard for accounts, routing, model catalogs, and cost analytics.
 | API + gateway      | `apps/server`   | Go 1.27, Fiber v3, SQLite                       |
 | Admin dashboard    | `apps/web-ui`   | React, Vite, TanStack Router/Query, Tailwind v4 |
 | Main web (landing) | `apps/main-web` | vinext on Cloudflare Workers                    |
-| Documentation site | `apps/docs`     | Next.js (Fumadocs) → [docs.terarouter.xyz]      |
+| Documentation site | `apps/docs`     | TanStack Start (Fumadocs) → [docs.terarouter.xyz] |
 
 Tooling: pnpm workspaces, oxlint + oxfmt, commitlint, husky pre-commit/pre-push gates,
 release-it. Container images live under `deploy/`.
@@ -70,11 +70,13 @@ Anthropic-speaking client at `http://localhost:8080/v1`.
 | `make test` (in `apps/server`) | Go test suite                         |
 | `make migrate/up`              | Apply pending migrations              |
 | `pnpm deploy:main`             | Deploy the main-web Cloudflare Worker |
+| `pnpm deploy:docs`             | Deploy the docs Cloudflare Worker     |
 
 ## Deployment
 
 `deploy/docker-compose.yaml` runs the API (container built from `deploy/Dockerfile`) with a
-mounted SQLite volume; `apps/main-web` deploys to Cloudflare Workers via `pnpm deploy:main`.
+mounted SQLite volume; `apps/main-web` and `apps/docs` deploy to Cloudflare Workers via
+`pnpm deploy:main` and `pnpm deploy:docs`.
 
 ## Contributors
 

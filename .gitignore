@@ -6,6 +6,8 @@ node_modules/
 dist/
 build/
 .next/
+apps/docs/src/routeTree.gen.ts
+apps/docs/.cloudflare/
 out/
 *.tsbuildinfo
 
