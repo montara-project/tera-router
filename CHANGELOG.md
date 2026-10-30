@@ -3,6 +3,17 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [1.17.0](https://github.com/montara-project/tera-router/compare/v1.16.0...v1.17.0) (2026-10-30)
+
+### Features
+
+* **keys:** rotate an API key behind password + TOTP ([25d16cd](https://github.com/montara-project/tera-router/commit/25d16cd7293f5229ff3e22e2d13dcbf9e704ac79))
+
+### Bug Fixes
+
+* update route group ([98e1f2d](https://github.com/montara-project/tera-router/commit/98e1f2dfa6e451a71b73c790350cac7ddfc54e27))
+* **web-ui:** hide guardrails tabs scrollbar ([03c63a3](https://github.com/montara-project/tera-router/commit/03c63a3fd5dbb7794c2ca032778f81910f8d0c01))
+
 ## [1.16.0](https://github.com/montara-project/tera-router/compare/v1.15.0...v1.16.0) (2026-10-30)
 
 ### Bug Fixes
