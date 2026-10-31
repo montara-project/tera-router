@@ -1,10 +1,9 @@
-import { IconChevronRight, IconCircleCheck, IconCopy, IconInfoCircle } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 
 import { Icons } from '@/components/block/cli-tools/icons'
-import { Card } from '@/components/ui/card'
 import { queries } from '@/lib/api/queries'
+import { cn } from '@/lib/utils'
 
 type CliTool = {
   id: string
@@ -95,53 +94,30 @@ export const TOOLS: CliTool[] = [
   },
 ]
 
+type ToolState = 'installed' | 'missing' | 'manual'
+
+const STATE_BADGES: Record<ToolState, { label: string; className: string }> = {
+  installed: {
+    label: 'Installed',
+    className: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+  },
+  missing: { label: 'Not installed', className: 'text-muted-foreground border-border bg-muted/40' },
+  manual: { label: 'Copy config', className: 'text-muted-foreground border-border bg-muted/40' },
+}
+
+/** Claude Code is detected on the host; every other tool is configured by hand. */
+function toolState(toolId: string, claudeCodeInstalled: boolean): ToolState {
+  if (toolId !== 'claude-code') return 'manual'
+  return claudeCodeInstalled ? 'installed' : 'missing'
+}
+
 export default function CliToolsGrid() {
   const claudeCode = useQuery(queries.cliTools.claudeCode())
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
       {TOOLS.map((tool) => {
-        const installed = tool.id === 'claude-code' && claudeCode.data?.installed === true
-        const card = (
-          <Card className="hover:border-muted-foreground/40 h-full transition-colors">
-            <div className="flex items-center gap-3.5 p-4">
-              <span
-                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-sm font-bold ${tool.tileClass}`}
-              >
-                {tool.glyph}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="flex items-center gap-2">
-                  <span
-                    className="truncate text-sm font-semibold text-foreground"
-                    title={tool.name}
-                  >
-                    {tool.name}
-                  </span>
-                  {tool.id !== 'claude-code' ? (
-                    // Only Claude Code is detected on the host; the rest are set up by hand.
-                    <span className="text-muted-foreground flex shrink-0 items-center gap-1 rounded-full bg-muted/60 px-1.5 py-0.5 text-[10px]">
-                      <IconCopy className="h-3 w-3" />
-                      Copy config
-                    </span>
-                  ) : installed ? (
-                    <span className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[10px] text-emerald-600 dark:text-emerald-400">
-                      <IconCircleCheck className="h-3 w-3" />
-                      Installed
-                    </span>
-                  ) : (
-                    <span className="text-muted-foreground flex shrink-0 items-center gap-1 rounded-full bg-muted/60 px-1.5 py-0.5 text-[10px]">
-                      <IconInfoCircle className="h-3 w-3" />
-                      Not Installed
-                    </span>
-                  )}
-                </p>
-                <p className="text-muted-foreground mt-0.5 truncate text-xs">{tool.description}</p>
-              </div>
-              <IconChevronRight className="text-muted-foreground h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
-            </div>
-          </Card>
-        )
+        const badge = STATE_BADGES[toolState(tool.id, claudeCode.data?.installed === true)]
 
         return (
           <Link
@@ -150,9 +126,27 @@ export default function CliToolsGrid() {
             to={tool.id === 'claude-code' ? '/cli-tools/claude-code' : '/cli-tools/$toolId'}
             params={{ toolId: tool.id }}
             aria-label={tool.name}
-            className="group rounded-xl text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            className="flex items-start gap-3 rounded-lg border border-border bg-card p-3 transition-colors hover:border-muted-foreground/40 hover:bg-muted/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           >
-            {card}
+            <span
+              className={`flex size-8 shrink-0 items-center justify-center rounded-md text-xs font-bold [&_svg]:size-5 ${tool.tileClass}`}
+            >
+              {tool.glyph}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-foreground" title={tool.name}>
+                {tool.name}
+              </p>
+              <p className="text-muted-foreground truncate text-xs">{tool.description}</p>
+            </div>
+            <span
+              className={cn(
+                'shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-medium',
+                badge.className
+              )}
+            >
+              {badge.label}
+            </span>
           </Link>
         )
       })}

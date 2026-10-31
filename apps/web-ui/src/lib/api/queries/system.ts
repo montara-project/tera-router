@@ -18,6 +18,20 @@ const stats = () =>
     refetchInterval: 5000,
   })
 
+export const STATUS_SYSTEM_QUERY_KEY = () => {
+  return [SYSTEM_QUERY_KEY, 'status']
+}
+
+const status = () =>
+  queryOptions({
+    queryKey: STATUS_SYSTEM_QUERY_KEY(),
+    queryFn: async () => {
+      const res = await services.system.status()
+      return res.data.data
+    },
+    refetchInterval: 60_000,
+  })
+
 export const HEALTH_SYSTEM_QUERY_KEY = () => {
   return [SYSTEM_QUERY_KEY, 'health']
 }
@@ -75,6 +89,7 @@ const checkLatestRelease = () => mutationOptions({ mutationFn: fetchLatestReleas
 
 export const systemQueries = {
   stats,
+  status,
   health,
   checkLatestRelease,
 } as const

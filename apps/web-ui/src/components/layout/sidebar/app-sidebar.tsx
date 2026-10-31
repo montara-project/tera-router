@@ -1,10 +1,8 @@
 'use client'
 
+import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import React from 'react'
-
-import type { Models } from '@/lib/api/models'
-import type { UserInfo } from '@/types/menu'
 
 import {
   Sidebar,
@@ -16,69 +14,54 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from '@/components/ui/sidebar'
-import { getSidebarMenu } from '@/data/sidebar-menu'
+import { getSidebarMenu, SIDEBAR_GROUPS } from '@/data/sidebar-menu'
 import { useBranding } from '@/hooks/use-branding'
+import { queries } from '@/lib/api/queries'
 
+import GatewayStatus from './gateway-status'
 import NavMain from './nav-main'
-import NavUser from './nav-user'
+import NavSecondary from './nav-secondary'
 
-type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
-  /** The signed-in user from GET /v1/auth/me; undefined while it loads. */
-  user?: Models.User | null
-  /** True when the profile request failed and no data is available. */
-  userError?: boolean
-  /** Refetches the profile request, wired to the error state's retry. */
-  onRetryUser?: () => void
+/** "0.2.6" and "v0.2.6" both render as "v0.2.6"; non-semver builds ("dev") as-is. */
+function displayVersion(version: string) {
+  return /^\d/.test(version) ? `v${version}` : version
 }
 
-export default function AppSidebar({ user, userError, onRetryUser, ...props }: AppSidebarProps) {
+export default function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const branding = useBranding()
   const menu = getSidebarMenu()
-
-  const userInfo: UserInfo | undefined = user
-    ? {
-        name: user.fullname,
-        email: user.email,
-        avatar: '',
-      }
-    : undefined
+  const { data: status } = useQuery(queries.system.status())
 
   return (
-    <Sidebar collapsible="icon" variant="floating" {...props}>
-      <SidebarHeader>
+    <Sidebar collapsible="icon" {...props}>
+      <SidebarHeader className="h-12 justify-center border-b border-sidebar-border">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild>
+            <SidebarMenuButton asChild>
               <Link to="/">
-                <div className="text-sidebar-primary-foreground bg-neutral-100 p-1 flex aspect-square size-8 items-center justify-center rounded-lg">
-                  <img
-                    src={branding.logo}
-                    alt={branding.name}
-                    width={32}
-                    height={32}
-                    className="rounded-md"
-                  />
-                </div>
-                <div className="flex flex-col gap-1 leading-none">
-                  <span className="font-medium">{branding.name}</span>
-                  <span className="">AI Router</span>
-                </div>
+                <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-neutral-100 p-0.5">
+                  <img src={branding.logo} alt="" width={20} height={20} className="rounded-sm" />
+                </span>
+                <span className="truncate text-sm font-semibold">{branding.name}</span>
+                {status?.version && (
+                  <span className="text-muted-foreground ml-auto font-mono text-[11px]">
+                    {displayVersion(status.version)}
+                  </span>
+                )}
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
-      <SidebarContent>
-        <NavMain title="Overview" items={menu.navMenu.overview} />
-        <NavMain title="Traffic" items={menu.navMenu.traffic} />
-        <NavMain title="Connections" items={menu.navMenu.connections} />
-        <NavMain title="Safety" items={menu.navMenu.safety} />
-        <NavMain title="Cost & Analytics" items={menu.navMenu.analytics} />
-        <NavMain title="Developer" items={menu.navMenu.developer} />
+      <SidebarContent className="gap-0 py-1">
+        {SIDEBAR_GROUPS.map(({ key, title }) => (
+          <NavMain key={key} title={title} items={menu.navMenu[key]} />
+        ))}
         {menu.navSetting.length > 0 && <NavMain title="Settings" items={menu.navSetting} />}
+        <NavSecondary items={menu.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={userInfo} userError={userError} onRetryUser={onRetryUser} />
+        <GatewayStatus />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

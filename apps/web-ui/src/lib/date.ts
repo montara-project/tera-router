@@ -168,6 +168,19 @@ export function formatDuration(seconds: number): string {
   return `${days}d ${hours}h ${minutes}m`
 }
 
+/**
+ * Compact uptime, e.g. "37m", "14h 37m", "3d 4h"
+ */
+export function formatUptime(seconds: number): string {
+  const days = Math.floor(seconds / 86_400)
+  const hours = Math.floor((seconds % 86_400) / 3_600)
+  const minutes = Math.floor((seconds % 3_600) / 60)
+
+  if (days > 0) return `${days}d ${hours}h`
+  if (hours > 0) return `${hours}h ${minutes}m`
+  return `${minutes}m`
+}
+
 export const DAY_MS = 86_400_000
 
 const dayFormat = new Intl.DateTimeFormat('en-US', {

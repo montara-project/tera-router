@@ -1,6 +1,8 @@
 import {
   IconActivityHeartbeat,
   IconBinaryTree2,
+  IconBook,
+  IconBrandGithub,
   IconChartHistogram,
   IconClockHour4,
   IconCoin,
@@ -9,6 +11,7 @@ import {
   IconKey,
   IconLayoutDashboard,
   IconMessageChatbot,
+  IconMessageReport,
   IconPackages,
   IconPhoto,
   IconPigMoney,
@@ -22,7 +25,7 @@ import {
   IconWallet,
 } from '@tabler/icons-react'
 
-import type { NavMainItem, SidebarMenuData } from '@/types/menu'
+import type { NavMainItem, NavSecondaryItem, SidebarMenuData } from '@/types/menu'
 
 // ── Share sidebar menus ───────────────────────────────────────────
 
@@ -205,6 +208,14 @@ const NAV_DEVELOPER: NavMainItem[] = [
 //   ],
 // }
 
+const REPO_URL = 'https://github.com/montara-project/tera-router'
+
+const NAV_SECONDARY: NavSecondaryItem[] = [
+  { title: 'Documentation', url: 'https://docs.terarouter.xyz/docs', icon: IconBook },
+  { title: 'GitHub', url: REPO_URL, icon: IconBrandGithub },
+  { title: 'Feedback', url: `${REPO_URL}/issues`, icon: IconMessageReport },
+]
+
 const SIDEBAR_MENU_ADMIN: SidebarMenuData = {
   user: {
     name: 'Admin',
@@ -220,7 +231,18 @@ const SIDEBAR_MENU_ADMIN: SidebarMenuData = {
     developer: NAV_DEVELOPER,
   },
   navSetting: [],
+  navSecondary: NAV_SECONDARY,
 }
+
+/** Sidebar group order and labels; also drives the ⌘K search sections. */
+export const SIDEBAR_GROUPS = [
+  { key: 'overview', title: 'Overview' },
+  { key: 'traffic', title: 'Traffic' },
+  { key: 'connections', title: 'Connections' },
+  { key: 'safety', title: 'Safety' },
+  { key: 'analytics', title: 'Cost & Analytics' },
+  { key: 'developer', title: 'Developer' },
+] as const satisfies readonly { key: keyof SidebarMenuData['navMenu']; title: string }[]
 
 // ── Lookup ─────────────────────────────────────────────────────────────
 

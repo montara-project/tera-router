@@ -221,6 +221,7 @@ Enabling and disabling are audit-logged. See [Remote access](/docs/getting-start
 | DELETE       | `/v1/skills/:id`                  | Delete skill                                                                                          |
 | GET / DELETE | `/v1/console`                     | Ring buffer log (500 entries) / clear                                                                 |
 | GET          | `/v1/system/stats`                | Host & process metrics                                                                                |
+| GET          | `/v1/system/status`               | Gateway status card: status, version, process uptime, listen address, database                        |
 | GET          | `/v1/media`                       | Catalog providers grouped by non-chat capability                                                      |
 | GET          | `/v1/cli-tools/claude-code`       | Whether the `claude` CLI is installed on the host and what its settings point at                      |
 | POST         | `/v1/cli-tools/claude-code/apply` | Write the gateway URL, an API key, and an optional default model into the host's Claude Code settings |

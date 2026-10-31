@@ -1,6 +1,9 @@
 package handlers
 
 import (
+	"fmt"
+	"time"
+
 	"tera-router/server/internal/app"
 	"tera-router/server/internal/catalog"
 	"tera-router/server/internal/dtos"
@@ -35,6 +38,27 @@ func (h *systemHandler) Stats(c fiber.Ctx) error {
 		return err
 	}
 	return dtos.OK(c, stats)
+}
+
+// processStartedAt approximates when the gateway started: package
+// initialisation runs once, at boot.
+var processStartedAt = time.Now()
+
+// Status reports the running gateway for the dashboard's status card.
+func (h *systemHandler) Status(c fiber.Ctx) error {
+	return dtos.OK(c, buildSystemStatus(h.app.Config.App.Port, processStartedAt, time.Now()))
+}
+
+// buildSystemStatus assembles the status card. The server binds every
+// interface (Listen(":port")), so the address is shown as 0.0.0.0:port.
+func buildSystemStatus(port int, startedAt, now time.Time) dtos.SystemStatus {
+	return dtos.SystemStatus{
+		Status:        "running",
+		Version:       app.Version,
+		UptimeSeconds: int64(now.Sub(startedAt).Seconds()),
+		ListenAddr:    fmt.Sprintf("0.0.0.0:%d", port),
+		Database:      "SQLite",
+	}
 }
 
 type mediaHandler struct {

@@ -53,6 +53,7 @@ export namespace Models {
   export type SourceCodeFilterMode = import('./settings').SourceCodeFilterMode
   export type SystemHealth = import('./system').SystemHealth
   export type SystemStats = import('./system').SystemStats
+  export type SystemStatus = import('./system').SystemStatus
   export type TailscaleStatus = import('./tunnel').TailscaleStatus
   export type TunnelStatus = import('./tunnel').TunnelStatus
   export type UpstreamModels = import('./provider-catalog').UpstreamModels

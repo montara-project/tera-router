@@ -39,4 +39,12 @@ export type SidebarMenuData = {
     developer: NavMainItem[]
   }
   navSetting: NavMainItem[]
+  navSecondary: NavSecondaryItem[]
+}
+
+/** External link pinned to the bottom of the sidebar (docs, repo, feedback). */
+export type NavSecondaryItem = {
+  title: string
+  url: string
+  icon: typeof IconCheck
 }

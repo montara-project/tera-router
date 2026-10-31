@@ -230,7 +230,9 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	console.Get("", h.Console.Index)
 	console.Delete("", h.Console.Clear)
 
-	protected.Get("/system/stats", h.System.Stats)
+	system := protected.Group("/system")
+	system.Get("/stats", h.System.Stats)
+	system.Get("/status", h.System.Status)
 
 	protected.Get("/media", h.Media.Index)
 
