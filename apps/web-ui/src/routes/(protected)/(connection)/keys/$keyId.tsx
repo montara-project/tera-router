@@ -1,11 +1,7 @@
 import {
   IconArrowLeft,
   IconCalendar,
-  IconCheck,
-  IconCopy,
   IconCpu,
-  IconEye,
-  IconEyeOff,
   IconKey,
   IconPuzzle,
   IconSettings,
@@ -24,11 +20,8 @@ import KeySkillsTab from '@/components/block/keys/key-skills-tab'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
-import { useRevealKey } from '@/hooks/use-reveal-key'
 import { queries } from '@/lib/api/queries'
 import { formatDate } from '@/lib/date'
-import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/(protected)/(connection)/keys/$keyId')({
   component: KeyDetailRoute,
@@ -64,31 +57,9 @@ function DetailSkeleton() {
 function KeyDetailRoute() {
   const { keyId } = useParams({ from: '/(protected)/(connection)/keys/$keyId' })
   const [tab, setTab] = useState<string>('general')
-  const [revealed, setRevealed] = useState<string | null>(null)
-  const { copied, copy } = useCopyToClipboard()
 
   const keyQuery = useQuery(queries.keys.get(keyId))
   const key = keyQuery.data
-
-  const { reveal, dialog } = useRevealKey()
-
-  // The masked preview is all GET returns, so copying the real credential goes
-  // through the re-authenticated reveal dialog first; the result is kept for
-  // this visit so copy after reveal does not ask again.
-  const handleCopy = async () => {
-    const value = revealed ?? (await reveal(keyId))
-    if (!value) return
-    setRevealed(value)
-    copy(value)
-  }
-
-  const handleToggleReveal = async () => {
-    if (revealed) {
-      setRevealed(null)
-      return
-    }
-    setRevealed(await reveal(keyId))
-  }
 
   if (keyQuery.isLoading) return <DetailSkeleton />
 
@@ -129,49 +100,9 @@ function KeyDetailRoute() {
               <KeyStatusBadge status={key.status} />
             </div>
             <div className="mt-1.5 flex items-center gap-1.5">
-              <code
-                key={revealed ? 'revealed' : 'masked'}
-                className="text-muted-foreground animate-in fade-in-0 font-mono text-sm duration-200"
-              >
-                {revealed ?? key.key_preview}
+              <code className="text-muted-foreground animate-in fade-in-0 font-mono text-sm duration-200">
+                {key.key_preview}
               </code>
-              <Button
-                aria-label={revealed ? 'Hide key' : 'Reveal key'}
-                className="text-muted-foreground hover:text-foreground"
-                mode="icon"
-                onClick={handleToggleReveal}
-                size="xs"
-                variant="ghost"
-              >
-                <span className="grid *:col-start-1 *:row-start-1">
-                  <IconEye
-                    className={cn('transition-all duration-200', revealed && 'scale-50 opacity-0')}
-                  />
-                  <IconEyeOff
-                    className={cn('transition-all duration-200', !revealed && 'scale-50 opacity-0')}
-                  />
-                </span>
-              </Button>
-              <Button
-                aria-label={`Copy ${key.name} key`}
-                className="text-muted-foreground hover:text-foreground"
-                mode="icon"
-                onClick={handleCopy}
-                size="xs"
-                variant="ghost"
-              >
-                <span className="grid *:col-start-1 *:row-start-1">
-                  <IconCopy
-                    className={cn('transition-all duration-200', copied && 'scale-50 opacity-0')}
-                  />
-                  <IconCheck
-                    className={cn(
-                      'text-emerald-600 transition-all duration-200 dark:text-emerald-300',
-                      !copied && 'scale-50 opacity-0'
-                    )}
-                  />
-                </span>
-              </Button>
             </div>
           </div>
         </div>
@@ -214,7 +145,6 @@ function KeyDetailRoute() {
           <KeyGuardrailsTab apiKey={key} />
         </TabsContent>
       </Tabs>
-      {dialog}
     </div>
   )
 }

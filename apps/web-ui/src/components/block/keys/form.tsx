@@ -22,11 +22,14 @@ type TResponse = Models.ApiKey
 
 type AbstractFormProps = Omit<BaseAbstractForm<TModel, TMutation, TDto, TResponse>, 'mutation'> & {
   mutation: {
-    mutateAsync: (value: TMutation) => Promise<unknown>
+    mutateAsync: (value: TMutation) => Promise<{ data?: TResponse }>
     isPending: boolean
   }
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** Fire-and-forget create-only hook: receives the stored key (with full_key)
+   * so the parent can show the one-time secret dialog. */
+  onCreated?: (key: Models.ApiKey) => void
 }
 
 function AbstractForm({
@@ -36,6 +39,7 @@ function AbstractForm({
   schema,
   mutation,
   isEdit,
+  onCreated,
 }: AbstractFormProps) {
   const form = useAppForm({
     defaultValues,
@@ -45,7 +49,8 @@ function AbstractForm({
     },
     onSubmit: async ({ value }) => {
       try {
-        await mutation.mutateAsync(value)
+        const res = await mutation.mutateAsync(value)
+        if (!isEdit && onCreated && res?.data) onCreated(res.data)
       } catch (error) {
         toastAxiosError(error)
       } finally {
@@ -80,9 +85,11 @@ function AbstractForm({
 type AddKeyFormProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** Receives the stored key (with full_key) to show the one-time secret dialog. */
+  onCreated?: (key: Models.ApiKey) => void
 }
 
-export function AddKeyForm({ open, onOpenChange }: AddKeyFormProps) {
+export function AddKeyForm({ open, onOpenChange, onCreated }: AddKeyFormProps) {
   const mutation = useMutation(queries.keys.create())
 
   return (
@@ -94,6 +101,7 @@ export function AddKeyForm({ open, onOpenChange }: AddKeyFormProps) {
       }}
       schema={CreateKeySchema}
       mutation={mutation}
+      onCreated={onCreated}
     />
   )
 }

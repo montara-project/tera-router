@@ -38,7 +38,6 @@ import {
 } from '@/components/ui/select'
 import { env } from '@/config/env'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
-import { useRevealKey } from '@/hooks/use-reveal-key'
 import { toastAxiosError } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
 import { cn } from '@/lib/utils'
@@ -69,11 +68,9 @@ export default function ClaudeCodeConfig({ status, apiKeys }: ClaudeCodeConfigPr
   )
   const [model, setModel] = useState(status.model)
   const [showSnippet, setShowSnippet] = useState(true)
-  const [revealed, setRevealed] = useState<{ id: string; value: string } | null>(null)
   const { copied, copy } = useCopyToClipboard()
 
   const applyMutation = useMutation(queries.cliTools.applyClaudeCode())
-  const { reveal, dialog } = useRevealKey()
 
   const selectedKey = apiKeys.find((key) => key.id === keyId)
   const normalizedUrl = baseUrl.trim().replace(/\/+$/, '')
@@ -92,18 +89,9 @@ export default function ClaudeCodeConfig({ status, apiKeys }: ClaudeCodeConfigPr
     }
   }
 
-  // The list payload carries only the masked preview, so copying a usable
-  // snippet goes through the re-authenticated reveal dialog once per key.
-  const handleCopy = async () => {
-    if (!selectedKey) return
-    let token = revealed?.id === selectedKey.id ? revealed.value : null
-    if (!token) {
-      token = await reveal(selectedKey.id)
-      if (!token) return
-      setRevealed({ id: selectedKey.id, value: token })
-    }
-    copy(settingsJson(normalizedUrl, token, trimmedModel))
-  }
+  // The plaintext key is only shown once, at create/rotate time, so the
+  // snippet carries a placeholder; the user pastes the key they saved.
+  const handleCopy = () => copy(settingsJson(normalizedUrl, '<your-api-key>', trimmedModel))
 
   return (
     <>
@@ -262,19 +250,15 @@ export default function ClaudeCodeConfig({ status, apiKeys }: ClaudeCodeConfigPr
             <pre className="bg-muted/50 overflow-x-auto rounded-lg p-4 font-mono text-xs leading-relaxed">
               <span className="text-muted-foreground"># ~/.claude/settings.json</span>
               {'\n'}
-              {settingsJson(
-                normalizedUrl,
-                selectedKey?.key_preview ?? '<your-api-key>',
-                trimmedModel
-              )}
+              {settingsJson(normalizedUrl, '<your-api-key>', trimmedModel)}
             </pre>
             <p className="text-muted-foreground text-[11px]">
-              The key is masked here; Copy inserts the full key.
+              The snippet uses a placeholder for the key — paste the key you saved when the key was
+              created or rotated.
             </p>
           </CardContent>
         </Card>
       )}
-      {dialog}
     </>
   )
 }

@@ -2,8 +2,6 @@ import type { ColumnDef } from '@tanstack/react-table'
 
 import {
   IconArrowRight,
-  IconCheck,
-  IconCopy,
   IconEye,
   IconEyeOff,
   IconLink,
@@ -20,12 +18,11 @@ import type { BaseColumnProps } from '@/types/column'
 
 import { features } from '@/components/block/common/react-table'
 import SimpleAlertDialog from '@/components/block/common/simple-alert-dialog'
+import KeySecretDialog from '@/components/block/keys/key-secret-dialog'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 import { useReauthDialog } from '@/hooks/use-reauth-dialog'
-import { useRevealKey } from '@/hooks/use-reveal-key'
 import { toastAxiosError } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
 import { formatDate } from '@/lib/date'
@@ -39,42 +36,11 @@ const STATUS_DOTS: Record<Models.ApiKeyStatus, string> = {
   restricted: 'bg-amber-500 text-amber-500',
 }
 
-function KeyCopyCell({ record }: { record: Models.ApiKey }) {
-  const { copied, copy } = useCopyToClipboard()
-  const { reveal, dialog } = useRevealKey()
-
-  // The list payload only carries the masked preview, so copying the real
-  // credential goes through the re-authenticated reveal dialog (same as the
-  // detail page). An optional full_key — e.g. right after creation — skips it.
-  const handleCopy = async () => {
-    if (record.full_key) {
-      copy(record.full_key)
-      return
-    }
-    const key = await reveal(record.id)
-    if (key) copy(key)
-  }
-
-  const renderCopyIcon = () => {
-    if (copied) return <IconCheck className="text-emerald-600 dark:text-emerald-300" />
-    return <IconCopy />
-  }
-
+function KeyIdentifierCell({ record }: { record: Models.ApiKey }) {
   return (
     <div className="flex items-center gap-2">
       <IconLink className="h-4 w-4 shrink-0 text-muted-foreground" />
       <code className="font-mono text-sm">{record.key_preview}</code>
-      <Button
-        aria-label={copied ? `Copied ${record.name} key` : `Copy ${record.name} key`}
-        className="text-muted-foreground hover:text-foreground"
-        mode="icon"
-        onClick={() => void handleCopy()}
-        size="sm"
-        variant="ghost"
-      >
-        {renderCopyIcon()}
-      </Button>
-      {dialog}
     </div>
   )
 }
@@ -146,7 +112,7 @@ export function KeysColumn({ loading }: BaseColumnProps) {
           return loading ? (
             <Skeleton className="h-5 w-full" />
           ) : (
-            <KeyCopyCell record={row.original} />
+            <KeyIdentifierCell record={row.original} />
           )
         },
       },
@@ -207,12 +173,14 @@ interface ActionCellProps {
 function ActionCell({ record }: ActionCellProps) {
   const [openDelete, setOpenDelete] = useState(false)
   const [openRotate, setOpenRotate] = useState(false)
+  // One-time secret dialog payload; set from the rotate response, the only
+  // moment the API returns the new plaintext key.
+  const [rotatedKey, setRotatedKey] = useState<{ full_key: string } | null>(null)
 
   const toggleMutation = useMutation(queries.keys.toggleStatus())
   const deleteMutation = useMutation(queries.keys.delete())
   const rotateMutation = useMutation(queries.keys.rotate())
   const { confirm, dialog: reauthDialog } = useReauthDialog()
-  const { copy } = useCopyToClipboard()
 
   const handleToggle = async () => {
     const disabled = record.status === 'active'
@@ -234,17 +202,18 @@ function ActionCell({ record }: ActionCellProps) {
     }
   }
 
-  // Rotating mints a new secret, so it re-authenticates like a reveal. The new
-  // key is copied once; it stays recoverable later through reveal.
+  // Rotating mints a new secret, so it re-authenticates. The new key is shown
+  // once in the secret dialog; it cannot be recovered from the app afterwards.
   const handleRotate = async () => {
     setOpenRotate(false)
-    const key = await confirm<string>('rotate this API key', async (creds) => {
+    const rotated = await confirm<{ full_key: string }>('rotate this API key', async (creds) => {
       const res = await rotateMutation.mutateAsync({ id: record.id, ...creds })
-      return 'totp_required' in res.data ? { totpRequired: true } : { value: res.data.full_key }
+      return 'totp_required' in res.data
+        ? { totpRequired: true }
+        : { value: { full_key: res.data.full_key } }
     })
-    if (!key) return
-    copy(key)
-    toast.success('Key rotated', { description: 'The new key was copied to your clipboard.' })
+    if (!rotated) return
+    setRotatedKey(rotated)
   }
 
   return (
@@ -303,6 +272,17 @@ function ActionCell({ record }: ActionCellProps) {
         title="Do you want to rotate this key?"
         variant="destructive"
       />
+      <KeySecretDialog
+        fullKey={rotatedKey?.full_key ?? ''}
+        mode="rotated"
+        name={record.name}
+        onOpenChange={(open) => {
+          if (!open) setRotatedKey(null)
+        }}
+        open={!!rotatedKey}
+        planLabel={record.plan_label}
+      />
+
       {reauthDialog}
     </React.Fragment>
   )

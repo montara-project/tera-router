@@ -4,6 +4,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
 
 import type { KeysFilters } from '@/components/block/keys/filter-keys'
+import type { Models } from '@/lib/api/models'
 
 import IconBadge from '@/components/block/common/icon-badge'
 import ReactTable from '@/components/block/common/react-table'
@@ -14,6 +15,7 @@ import FilterKeys, {
   DEFAULT_KEYS_FILTERS,
 } from '@/components/block/keys/filter-keys'
 import { AddKeyForm } from '@/components/block/keys/form'
+import KeySecretDialog from '@/components/block/keys/key-secret-dialog'
 import KeysStatsStrip from '@/components/block/keys/keys-stats-strip'
 import { Button } from '@/components/ui/button'
 import {
@@ -48,6 +50,9 @@ function RouteComponent() {
   const [filters, setFilters] = useState<KeysFilters>(DEFAULT_KEYS_FILTERS)
 
   const [openDialog, setOpenDialog] = useState(false)
+  // The one-time secret dialog payload; set from the create response, which is
+  // the only moment the API returns the plaintext key.
+  const [createdKey, setCreatedKey] = useState<Models.ApiKey | null>(null)
   const { offset, limit, pageIndex } = usePaginationQuery()
 
   const { data, isFetching, isLoading } = useQuery(keyQueries.list({ offset, limit }))
@@ -115,7 +120,17 @@ function RouteComponent() {
         </Card>
       </div>
 
-      <AddKeyForm open={openDialog} onOpenChange={setOpenDialog} />
+      <AddKeyForm onCreated={setCreatedKey} open={openDialog} onOpenChange={setOpenDialog} />
+      <KeySecretDialog
+        fullKey={createdKey?.full_key ?? ''}
+        mode="created"
+        name={createdKey?.name ?? ''}
+        onOpenChange={(open) => {
+          if (!open) setCreatedKey(null)
+        }}
+        open={!!createdKey}
+        planLabel={createdKey?.plan_label}
+      />
     </SectionCard>
   )
 }
