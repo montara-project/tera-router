@@ -7,9 +7,11 @@ import (
 	"time"
 
 	"tera-router/server/internal/consolelog"
+	"tera-router/server/internal/core"
 	"tera-router/server/internal/dtos"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 )
 
 // traceLocal is the Fiber locals key holding the request's console trace.
@@ -37,9 +39,13 @@ func (s *Server) traceMiddleware(c fiber.Ctx) error {
 	t := &requestTrace{
 		start: time.Now(),
 		req: dtos.ConsoleRequest{
-			Endpoint: c.Method() + " " + c.Path(),
-			Client:   detectClient(c),
-			Events:   []dtos.ConsoleEvent{},
+			// Assigned here, before auth, so a rejected request has an id too;
+			// metaFrom reuses it for the usage rows.
+			RequestID: uuid.NewString(),
+			Endpoint:  c.Method() + " " + c.Path(),
+			Client:    detectClient(c),
+			IP:        c.IP(),
+			Events:    []dtos.ConsoleEvent{},
 		},
 	}
 	c.Locals(traceLocal, t)
@@ -56,6 +62,16 @@ func (s *Server) traceMiddleware(c fiber.Ctx) error {
 		t.finish(status)
 	}
 	return err
+}
+
+// requestID returns the id the trace assigned, or "" for a nil trace.
+func (t *requestTrace) requestID() string {
+	if t == nil {
+		return ""
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.req.RequestID
 }
 
 func traceFrom(c fiber.Ctx) *requestTrace {
@@ -92,14 +108,12 @@ func (t *requestTrace) setKey(name string) {
 }
 
 // received records the parsed request.
-func (t *requestTrace) received(requestID, keyName, model string, messages int, stream bool, bytes int) {
-	t.update(func(r *dtos.ConsoleRequest) {
-		r.RequestID, r.KeyName, r.Model = requestID, keyName, model
-	})
+func (t *requestTrace) received(model string, messages int, stream bool, bytes int) {
 	mode := "standard"
 	if stream {
-		mode = "stream"
+		mode = "streaming"
 	}
+	t.update(func(r *dtos.ConsoleRequest) { r.Model, r.Mode = model, mode })
 	t.event("received", fmt.Sprintf("Received · %s · %d message%s · %s · %d B", model, messages, plural(messages), mode, bytes))
 }
 
@@ -119,17 +133,23 @@ func (t *requestTrace) routedTo(target string, fallbacks int) {
 }
 
 // attemptFailed records an upstream attempt that failed (the request may
-// still succeed on a fallback).
-func (t *requestTrace) attemptFailed(target, kind string, status int) {
-	if t == nil {
+// still succeed on a fallback). The latest failure's details are kept on the
+// request so the Console can explain it.
+func (t *requestTrace) attemptFailed(target string, pe *core.ProviderError) {
+	if t == nil || pe == nil {
 		return
 	}
 	t.mu.Lock()
 	t.lastTarget = target
+	t.req.Provider = pe.Provider
+	t.req.ErrorKind = string(pe.Kind)
+	t.req.UpstreamStatus = pe.StatusCode
+	t.req.RetryAfterMs = pe.RetryAfter.Milliseconds()
+	t.req.UpstreamMessage = sanitizeErrorMessage(pe.Message)
 	t.mu.Unlock()
-	text := target + " failed · " + kind
-	if status > 0 {
-		text += fmt.Sprintf(" (HTTP %d)", status)
+	text := target + " failed · " + string(pe.Kind)
+	if pe.StatusCode > 0 {
+		text += fmt.Sprintf(" (HTTP %d)", pe.StatusCode)
 	}
 	t.event("attempt_failed", text)
 }
@@ -139,6 +159,11 @@ func (t *requestTrace) served(target, account string, tokens int) {
 	t.update(func(r *dtos.ConsoleRequest) {
 		r.ServedBy, r.Account, r.Tokens = target, account, tokens
 	})
+}
+
+// streamed records how many stream events reached the client.
+func (t *requestTrace) streamed(chunks int) {
+	t.update(func(r *dtos.ConsoleRequest) { r.Chunks = chunks })
 }
 
 // reject records why the gateway answered with an error; the last reason
@@ -198,6 +223,10 @@ func summarize(r *dtos.ConsoleRequest, routed bool, lastTarget string) (dtos.Log
 	switch {
 	case r.Status < http.StatusBadRequest:
 		r.Outcome = "completed"
+		if r.ServedBy == "" {
+			// Not a routed chat request (model list, search, media, …).
+			return dtos.LogLevelInfo, fmt.Sprintf("Completed · %s · %s", r.Endpoint, dur)
+		}
 		return dtos.LogLevelInfo, fmt.Sprintf("Completed · %s → %s · %d tokens · %s", r.Model, r.ServedBy, r.Tokens, dur)
 	case !routed:
 		r.Outcome = "rejected"

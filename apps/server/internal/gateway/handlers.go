@@ -40,7 +40,10 @@ type requestMeta struct {
 // authenticated key.
 func metaFrom(c fiber.Ctx, key models.APIKey, dialect core.Dialect) requestMeta {
 	t := traceFrom(c)
-	t.setKey(key.Name)
+	requestID := t.requestID()
+	if requestID == "" {
+		requestID = uuid.NewString()
+	}
 	return requestMeta{
 		trace:     t,
 		KeyName:   key.Name,
@@ -48,7 +51,7 @@ func metaFrom(c fiber.Ctx, key models.APIKey, dialect core.Dialect) requestMeta 
 		Client:    detectClient(c),
 		ClientIP:  c.IP(),
 		Dialect:   dialect,
-		RequestID: uuid.NewString(),
+		RequestID: requestID,
 	}
 }
 
@@ -150,7 +153,7 @@ func (s *Server) handleChat(c fiber.Ctx, dialect core.Dialect) error {
 	// upstream sees the literal suffix.
 	applyModelSuffix(req)
 	req.Metadata = meta.coreMetadata()
-	meta.trace.received(meta.RequestID, meta.KeyName, req.Model, len(req.Messages), req.Stream, len(body))
+	meta.trace.received(req.Model, len(req.Messages), req.Stream, len(body))
 
 	// Routing, access control, and planning are bounded database work, so they
 	// share a short deadline regardless of the request's streaming mode.

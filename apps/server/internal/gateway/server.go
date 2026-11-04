@@ -166,16 +166,16 @@ func Register(r *fiber.App, a *app.Application) *Server {
 
 	r.Post("/v1/chat/completions", s.traceMiddleware, s.authMiddleware, s.handleOpenAIChat)
 	r.Post("/v1/messages", s.traceMiddleware, s.authMiddleware, s.handleAnthropicMessages)
-	r.Post("/v1/messages/count_tokens", s.authMiddleware, s.handleAnthropicCountTokens)
+	r.Post("/v1/messages/count_tokens", s.traceMiddleware, s.authMiddleware, s.handleAnthropicCountTokens)
 	r.Post("/v1/responses", s.traceMiddleware, s.authMiddleware, s.handleOpenAIResponses)
 	r.Post("/responses", s.traceMiddleware, s.authMiddleware, s.handleOpenAIResponses)
-	r.Get("/v1/models", s.authMiddleware, s.handleListModels)
-	r.Post("/v1/search", s.authMiddleware, s.handleWebSearch)
-	r.Post("/v1/web/fetch", s.authMiddleware, s.handleWebFetch)
-	r.Post("/v1/audio/speech", s.authMiddleware, s.handleSpeech)
-	r.Post("/v1/audio/transcriptions", s.authMiddleware, s.handleTranscription)
-	r.Post("/v1/images/generations", s.authMiddleware, s.handleImages)
-	r.Post("/v1/embeddings", s.authMiddleware, s.handleEmbeddings)
+	r.Get("/v1/models", s.traceMiddleware, s.authMiddleware, s.handleListModels)
+	r.Post("/v1/search", s.traceMiddleware, s.authMiddleware, s.handleWebSearch)
+	r.Post("/v1/web/fetch", s.traceMiddleware, s.authMiddleware, s.handleWebFetch)
+	r.Post("/v1/audio/speech", s.traceMiddleware, s.authMiddleware, s.handleSpeech)
+	r.Post("/v1/audio/transcriptions", s.traceMiddleware, s.authMiddleware, s.handleTranscription)
+	r.Post("/v1/images/generations", s.traceMiddleware, s.authMiddleware, s.handleImages)
+	r.Post("/v1/embeddings", s.traceMiddleware, s.authMiddleware, s.handleEmbeddings)
 	return s
 }
 

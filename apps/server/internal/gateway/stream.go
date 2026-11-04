@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -100,6 +101,9 @@ func (s *Server) streamChat(
 		writer.run(ctx, w)
 	})
 }
+
+// sseData marks one server-sent event's payload line.
+var sseData = []byte("data:")
 
 // streamConn is the result of a successful connect: either a raw body for the
 // passthrough path or a canonical chunk channel for the rendered path.
@@ -319,6 +323,9 @@ func (sw *streamWriter) runDirect(ctx context.Context, w *bufio.Writer) {
 					sw.setTTFT(time.Since(sw.start))
 				}
 			}
+			// Count SSE events in passing; a "data:" prefix split across two
+			// reads is missed, which only makes the count approximate.
+			sw.chunksSent += bytes.Count(buf[:n], sseData)
 			if !sw.writeRaw(w, buf[:n]) {
 				// The client is gone: closing the body below aborts the
 				// upstream request so no quota is burned for nobody.
@@ -499,6 +506,7 @@ func (sw *streamWriter) record(ctx context.Context) {
 	}
 	// The status line went out as 200 when the stream connected; anything
 	// that went wrong after that is in the timeline, not the status.
+	sw.meta.trace.streamed(sw.chunksSent)
 	sw.meta.trace.finish(http.StatusOK)
 }
 

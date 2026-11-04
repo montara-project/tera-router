@@ -53,6 +53,7 @@ func (s *Server) authMiddleware(c fiber.Ctx) error {
 	}
 
 	c.Locals(authedKeyLocal, key)
+	traceFrom(c).setKey(key.Name)
 	return c.Next()
 }
 

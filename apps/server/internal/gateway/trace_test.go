@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"tera-router/server/internal/consolelog"
+	"tera-router/server/internal/core"
 	"tera-router/server/internal/dtos"
 )
 
@@ -52,8 +53,15 @@ func TestConsoleTraceRejectedCompletedFailed(t *testing.T) {
 	}
 	e := lastRequest(t)
 	if e.Level != dtos.LogLevelWarn || e.Request.Outcome != "rejected" || e.Request.Status != 401 ||
-		e.Request.Reason != "missing API key" || e.Request.Endpoint != "POST /v1/chat/completions" {
+		e.Request.Reason != "missing API key" || e.Request.Endpoint != "POST /v1/chat/completions" ||
+		e.Request.RequestID == "" || e.Request.IP == "" {
 		t.Errorf("rejected entry = %+v / %+v", e, *e.Request)
+	}
+
+	// Non-chat routes are traced too: a rejected model list.
+	do(t, app, http.MethodGet, "/v1/models", "", nil)
+	if e := lastRequest(t); e.Request.Endpoint != "GET /v1/models" || e.Request.Outcome != "rejected" {
+		t.Errorf("models entry = %+v", *e.Request)
 	}
 
 	auth := map[string]string{"Authorization": "Bearer " + testKeyPlaintext}
@@ -65,7 +73,7 @@ func TestConsoleTraceRejectedCompletedFailed(t *testing.T) {
 	e = lastRequest(t)
 	r := e.Request
 	if e.Level != dtos.LogLevelInfo || r.Outcome != "completed" || r.ServedBy != "fake/m" || r.Tokens != 14 ||
-		r.Model != "fake/m" || r.KeyName == "" || r.RequestID == "" {
+		r.Model != "fake/m" || r.KeyName == "" || r.RequestID == "" || r.Mode != "standard" {
 		t.Errorf("completed entry = %+v", *r)
 	}
 	if got := eventKinds(r); len(got) != 3 || got[0] != "received" || got[1] != "routed" || got[2] != "completed" {
@@ -82,6 +90,9 @@ func TestConsoleTraceRejectedCompletedFailed(t *testing.T) {
 	if e.Level != dtos.LogLevelError || r.Outcome != "failed" || r.Status != resp.StatusCode || r.Reason == "" {
 		t.Errorf("failed entry = %+v", *r)
 	}
+	if r.Provider != "gone" || r.UpstreamStatus != http.StatusNotFound || r.ErrorKind == "" {
+		t.Errorf("upstream failure = provider %q status %d kind %q", r.Provider, r.UpstreamStatus, r.ErrorKind)
+	}
 	kinds := eventKinds(r)
 	if len(kinds) < 3 || kinds[len(kinds)-2] != "attempt_failed" || kinds[len(kinds)-1] != "failed" {
 		t.Errorf("events = %v, want ..., attempt_failed, failed", kinds)
@@ -90,9 +101,9 @@ func TestConsoleTraceRejectedCompletedFailed(t *testing.T) {
 
 func TestTraceMethodsAreNilSafe(t *testing.T) {
 	var tr *requestTrace
-	tr.received("id", "key", "m", 1, false, 10)
+	tr.received("m", 1, false, 10)
 	tr.routedTo("p/m", 2)
-	tr.attemptFailed("p/m", "upstream", 502)
+	tr.attemptFailed("p/m", &core.ProviderError{Kind: core.ErrUpstream, StatusCode: 502})
 	tr.served("p/m", "acct", 5)
 	tr.reject("boom")
 	tr.deferFinish()

@@ -109,11 +109,8 @@ type usageRecord struct {
 // background context with its own timeout so a client disconnecting mid-stream
 // cannot cancel the accounting for work the upstream already performed.
 func (s *Server) recordUsage(rec usageRecord) {
-	target := rec.Provider + "/" + rec.Model
-	if rec.Failed {
-		rec.trace.attemptFailed(target, rec.ErrorKind, rec.ErrorStatus)
-	} else {
-		rec.trace.served(target, rec.AccountID, rec.Usage.PromptTokens+rec.Usage.CompletionTokens)
+	if !rec.Failed {
+		rec.trace.served(rec.Provider+"/"+rec.Model, rec.AccountID, rec.Usage.PromptTokens+rec.Usage.CompletionTokens)
 	}
 	model := models.UsageRecord{
 		APIKeyID:             optionalID(rec.APIKeyID),
@@ -160,6 +157,7 @@ func (s *Server) recordUsage(rec usageRecord) {
 // feed shows the real cause instead of a silent gap. Tokens and cost are zero:
 // no usage was produced.
 func (s *Server) recordFailure(meta requestMeta, at attempt, pe *core.ProviderError, latency time.Duration) {
+	meta.trace.attemptFailed(at.Target.Provider+"/"+at.Target.Model, pe)
 	s.recordUsage(usageRecord{
 		APIKeyID:     meta.APIKeyID,
 		AccountID:    at.AccountID,

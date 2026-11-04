@@ -19,10 +19,20 @@ export type ConsoleRequest = {
   reason?: string
   keyName?: string
   client?: string
+  ip?: string
   model?: string
   servedBy?: string
   account?: string
   tokens: number
+  /** "streaming" or "standard"; chunks counts the stream events sent. */
+  mode?: string
+  chunks?: number
+  /** The last upstream failure, when an attempt failed. */
+  provider?: string
+  errorKind?: string
+  upstreamStatus?: number
+  retryAfterMs?: number
+  upstreamMessage?: string
   durationMs: number
   /** RFC 3339 with milliseconds (UTC) */
   startedAt: string

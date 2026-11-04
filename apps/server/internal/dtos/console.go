@@ -29,15 +29,27 @@ type ConsoleRequest struct {
 	Status   int    `json:"status"`
 	// Outcome is completed, failed (an upstream attempt was made) or
 	// rejected (refused before any upstream was tried).
-	Outcome    string `json:"outcome"`
-	Reason     string `json:"reason,omitempty"`
-	KeyName    string `json:"keyName,omitempty"`
-	Client     string `json:"client,omitempty"`
-	Model      string `json:"model,omitempty"`
-	ServedBy   string `json:"servedBy,omitempty"`
-	Account    string `json:"account,omitempty"`
-	Tokens     int    `json:"tokens"`
-	DurationMs int64  `json:"durationMs"`
+	Outcome  string `json:"outcome"`
+	Reason   string `json:"reason,omitempty"`
+	KeyName  string `json:"keyName,omitempty"`
+	Client   string `json:"client,omitempty"`
+	IP       string `json:"ip,omitempty"`
+	Model    string `json:"model,omitempty"`
+	ServedBy string `json:"servedBy,omitempty"`
+	Account  string `json:"account,omitempty"`
+	Tokens   int    `json:"tokens"`
+	// Mode is "streaming" or "standard"; Chunks counts the stream events sent.
+	Mode   string `json:"mode,omitempty"`
+	Chunks int    `json:"chunks,omitempty"`
+	// The last upstream failure, when an attempt failed: the provider that
+	// answered, its error class, HTTP status, suggested retry delay and the
+	// upstream's own message.
+	Provider        string `json:"provider,omitempty"`
+	ErrorKind       string `json:"errorKind,omitempty"`
+	UpstreamStatus  int    `json:"upstreamStatus,omitempty"`
+	RetryAfterMs    int64  `json:"retryAfterMs,omitempty"`
+	UpstreamMessage string `json:"upstreamMessage,omitempty"`
+	DurationMs      int64  `json:"durationMs"`
 	// StartedAt is RFC 3339 with milliseconds (UTC).
 	StartedAt string         `json:"startedAt"`
 	Events    []ConsoleEvent `json:"events"`
