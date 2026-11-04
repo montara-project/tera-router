@@ -40,7 +40,9 @@ func (h *providerHealthHandler) Overview(c fiber.Ctx) error {
 		lookback = 15 * time.Minute
 	}
 
-	rows, err := h.app.Repos.Usage.HealthRows(c.Context(), time.Now().Add(-lookback))
+	now := time.Now()
+	from := now.Add(-lookback)
+	rows, err := h.app.Repos.Usage.HealthRows(c.Context(), from)
 	if err != nil {
 		return err
 	}
@@ -53,7 +55,7 @@ func (h *providerHealthHandler) Overview(c fiber.Ctx) error {
 	for _, ch := range chains {
 		knownChains = append(knownChains, ch.Name)
 	}
-	return dtos.OK(c, buildHealthOverview(rows, knownChains))
+	return dtos.OK(c, buildHealthOverview(rows, knownChains, from, now))
 }
 
 // healthEntry is one row of the dashboard's provider/model/chain tables; it
@@ -67,6 +69,30 @@ type healthEntry struct {
 	FallbackRate  float64 `json:"fallbackRate"`
 	FinalFailures int     `json:"finalFailures"`
 	Affected      *string `json:"affected"`
+	// SuccessRate is successful attempts over all attempts (percent).
+	SuccessRate float64 `json:"successRate"`
+	// P95Ms is the p95 latency of the successful attempts.
+	P95Ms int `json:"p95Ms"`
+	// Buckets splits the window into healthBuckets equal slices, oldest
+	// first, for the dashboard's timeline strip.
+	Buckets []healthBucket `json:"buckets"`
+	// Served is set on chains only: successful attempts per model, busiest
+	// first, which is how traffic actually spread over the chain's steps.
+	Served []servedModel `json:"served,omitempty"`
+}
+
+// healthBuckets is how many timeline slices each entry reports (hourly for
+// the 24h window).
+const healthBuckets = 24
+
+type healthBucket struct {
+	Requests int `json:"requests"`
+	Failed   int `json:"failed"`
+}
+
+type servedModel struct {
+	Model    string `json:"model"`
+	Requests int    `json:"requests"`
 }
 
 type healthOverview struct {
@@ -107,6 +133,19 @@ type groupStats struct {
 	finalFailures  int
 	latencies      []int
 	affectedChains map[string]bool
+	buckets        []healthBucket
+	served         map[string]int
+}
+
+// record adds one attempt to the timeline bucket it falls in.
+func (g *groupStats) record(bucket int, failed bool) {
+	if bucket < 0 {
+		return
+	}
+	g.buckets[bucket].Requests++
+	if failed {
+		g.buckets[bucket].Failed++
+	}
 }
 
 func (g *groupStats) entry(id string) healthEntry {
@@ -122,7 +161,19 @@ func (g *groupStats) entry(id string) healthEntry {
 		Requests:      g.attempts,
 		FallbackRate:  fallbackRate,
 		FinalFailures: g.finalFailures,
+		SuccessRate:   percent(int64(g.successes), int64(g.attempts)),
+		P95Ms:         percentile(g.latencies, 0.95),
+		Buckets:       g.buckets,
 	}
+	for model, n := range g.served {
+		e.Served = append(e.Served, servedModel{Model: model, Requests: n})
+	}
+	sort.Slice(e.Served, func(i, j int) bool {
+		if e.Served[i].Requests != e.Served[j].Requests {
+			return e.Served[i].Requests > e.Served[j].Requests
+		}
+		return e.Served[i].Model < e.Served[j].Model
+	})
 	if len(g.affectedChains) > 0 {
 		chains := make([]string, 0, len(g.affectedChains))
 		for name := range g.affectedChains {
@@ -145,12 +196,13 @@ func round1(v float64) float64 {
 	return float64(int(v*10+0.5)) / 10
 }
 
-// buildHealthOverview classifies every attempt row through its request group:
+// buildHealthOverview classifies every attempt row through its request group
+// and places it in one of the healthBuckets slices of [from, to):
 // a failed attempt whose request later succeeded is a fallback, one whose
 // request never succeeded is a final failure. Rows carry empty request ids
 // (legacy data written before attribution) group as their own request, so old
 // failures count as final ones.
-func buildHealthOverview(rows []repositories.UsageHealthRow, knownChains []string) healthOverview {
+func buildHealthOverview(rows []repositories.UsageHealthRow, knownChains []string, from, to time.Time) healthOverview {
 	succeededRequests := make(map[string]bool, len(rows))
 	for _, r := range rows {
 		if !r.Failed && r.RequestID != "" {
@@ -164,10 +216,17 @@ func buildHealthOverview(rows []repositories.UsageHealthRow, knownChains []strin
 	group := func(m map[string]*groupStats, key string) *groupStats {
 		g, ok := m[key]
 		if !ok {
-			g = &groupStats{affectedChains: map[string]bool{}}
+			g = newGroupStats()
 			m[key] = g
 		}
 		return g
+	}
+	span := to.Sub(from)
+	bucketOf := func(at time.Time) int {
+		if span <= 0 {
+			return -1
+		}
+		return min(max(int(at.Sub(from)*healthBuckets/span), 0), healthBuckets-1)
 	}
 
 	totalFallbacks := 0
@@ -176,11 +235,13 @@ func buildHealthOverview(rows []repositories.UsageHealthRow, knownChains []strin
 		if fallback {
 			totalFallbacks++
 		}
+		bucket := bucketOf(r.CreatedAt)
 
 		for _, g := range []*groupStats{
 			group(providerStats, r.Provider),
 			group(modelStats, r.Model),
 		} {
+			g.record(bucket, r.Failed)
 			g.attempts++
 			if r.Failed {
 				if fallback {
@@ -199,6 +260,7 @@ func buildHealthOverview(rows []repositories.UsageHealthRow, knownChains []strin
 
 		if r.Chain != "" {
 			g := group(chainStats, r.Chain)
+			g.record(bucket, r.Failed)
 			g.attempts++
 			if r.Failed {
 				if fallback {
@@ -209,6 +271,7 @@ func buildHealthOverview(rows []repositories.UsageHealthRow, knownChains []strin
 			} else {
 				g.successes++
 				g.latencies = append(g.latencies, r.LatencyMS)
+				g.served[r.Model]++
 			}
 		}
 	}
@@ -217,7 +280,7 @@ func buildHealthOverview(rows []repositories.UsageHealthRow, knownChains []strin
 	// and "nothing observed" reads as healthy.
 	for _, name := range knownChains {
 		if _, ok := chainStats[name]; !ok {
-			chainStats[name] = &groupStats{affectedChains: map[string]bool{}}
+			chainStats[name] = newGroupStats()
 		}
 	}
 
@@ -231,7 +294,7 @@ func buildHealthOverview(rows []repositories.UsageHealthRow, knownChains []strin
 		if len(g.latencies) == 0 {
 			continue
 		}
-		p95Sum += int64(percentile95(g.latencies))
+		p95Sum += int64(percentile(g.latencies, 0.95))
 		p95Count++
 	}
 	avgP95 := int64(0)
@@ -250,6 +313,14 @@ func buildHealthOverview(rows []repositories.UsageHealthRow, knownChains []strin
 	}
 }
 
+func newGroupStats() *groupStats {
+	return &groupStats{
+		affectedChains: map[string]bool{},
+		buckets:        make([]healthBucket, healthBuckets),
+		served:         map[string]int{},
+	}
+}
+
 // entriesSorted renders one stats map as a stable, name-ordered entry list.
 func entriesSorted(stats map[string]*groupStats) []healthEntry {
 	names := make([]string, 0, len(stats))
@@ -264,14 +335,14 @@ func entriesSorted(stats map[string]*groupStats) []healthEntry {
 	return out
 }
 
-// percentile95 returns the p95 of an unsorted latency sample (nearest-rank).
-func percentile95(sorted []int) int {
-	if len(sorted) == 0 {
+// percentile returns the p-th percentile (0..1) of an unsorted latency sample
+// (nearest-rank), or 0 for an empty sample.
+func percentile(sample []int, p float64) int {
+	if len(sample) == 0 {
 		return 0
 	}
-	cp := make([]int, len(sorted))
-	copy(cp, sorted)
+	cp := make([]int, len(sample))
+	copy(cp, sample)
 	sort.Ints(cp)
-	idx := int(float64(len(cp)-1) * 0.95)
-	return cp[idx]
+	return cp[int(float64(len(cp)-1)*p)]
 }

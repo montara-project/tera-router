@@ -481,6 +481,7 @@ func (sw *streamWriter) record(ctx context.Context) {
 		ClientIP:   sw.meta.ClientIP,
 		RequestID:  sw.meta.RequestID,
 		Chain:      sw.meta.Chain,
+		Saving:     sw.meta.Saving,
 		Usage:      usage,
 		CostMicros: cost,
 		TokenRate:  tokenRate,

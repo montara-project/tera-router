@@ -53,7 +53,11 @@ func TestApplyTokenSaving(t *testing.T) {
 	req := &core.ChatRequest{System: "Base.", Messages: []core.Message{{Role: core.RoleTool, Content: []core.ContentPart{
 		{Type: core.PartToolResult, ToolResult: &core.ToolResult{CallID: "c1", Content: "a\na\na\n"}},
 	}}}}
-	srv.applyTokenSaving(context.Background(), req)
+	saving := srv.applyTokenSaving(context.Background(), req)
+	// The fake proxy prefixes "hr:", so the text grows: nothing counts as removed.
+	if !saving.OutputShaped || saving.PromptReducedBytes != 0 {
+		t.Errorf("saving = %+v, want shaped with 0 bytes removed", saving)
+	}
 
 	if got := req.Messages[0].Content[0].ToolResult.Content; got != "hr:a\na\n... (previous line repeated 1 more times)\n" {
 		t.Errorf("tool result = %q", got)
@@ -64,9 +68,13 @@ func TestApplyTokenSaving(t *testing.T) {
 
 	// A dead proxy fails open: the request keeps its text.
 	headroom.Close()
-	req.Messages[0].Content[0].ToolResult.Content = "x"
-	srv.applyTokenSaving(context.Background(), req)
-	if got := req.Messages[0].Content[0].ToolResult.Content; got != "x" {
+	req.Messages[0].Content[0].ToolResult.Content = "x\n\n\n\nx"
+	saving = srv.applyTokenSaving(context.Background(), req)
+	// RTK still runs and collapses the blank-line run.
+	if saving.PromptReducedBytes != 2 {
+		t.Errorf("reduced bytes = %d, want 2", saving.PromptReducedBytes)
+	}
+	if got := req.Messages[0].Content[0].ToolResult.Content; got != "x\n\nx" {
 		t.Errorf("fail-open tool result = %q", got)
 	}
 	if strings.Count(req.System, cavemanPrompt) != 2 {

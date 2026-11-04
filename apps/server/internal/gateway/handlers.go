@@ -30,6 +30,8 @@ type requestMeta struct {
 	// Chain is the routing chain the request resolved through ("" for direct
 	// alias or provider/model calls).
 	Chain string
+	// Saving is what the token-saving stages did to the request.
+	Saving tokenSaving
 }
 
 // metaFrom extracts the request metadata from the Fiber context and the
@@ -259,7 +261,7 @@ func (s *Server) handleChat(c fiber.Ctx, dialect core.Dialect) error {
 
 	// Token saving runs after the guardrail screen so Headroom only ever sees
 	// redacted text, and before dispatch so every attempt sends the slim body.
-	s.applyTokenSaving(routeCtx, req)
+	meta.Saving = s.applyTokenSaving(routeCtx, req)
 
 	attempts := s.plan(routeCtx, resolved.Targets, session)
 	routeCancel()

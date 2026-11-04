@@ -98,6 +98,9 @@ type usageRecord struct {
 	ErrorKind    string
 	ErrorStatus  int
 	ErrorMessage string
+
+	// Saving is copied from the request meta onto every attempt row.
+	Saving tokenSaving
 }
 
 // recordUsage persists a metering row asynchronously. The write runs on a
@@ -126,6 +129,8 @@ func (s *Server) recordUsage(rec usageRecord) {
 		ErrorKind:            rec.ErrorKind,
 		ErrorStatus:          rec.ErrorStatus,
 		ErrorMessage:         sanitizeErrorMessage(rec.ErrorMessage),
+		PromptReducedBytes:   rec.Saving.PromptReducedBytes,
+		OutputShaped:         rec.Saving.OutputShaped,
 		CreatedAt:            time.Now(),
 	}
 
@@ -159,6 +164,7 @@ func (s *Server) recordFailure(meta requestMeta, at attempt, pe *core.ProviderEr
 		ErrorKind:    string(pe.Kind),
 		ErrorStatus:  pe.StatusCode,
 		ErrorMessage: pe.Message,
+		Saving:       meta.Saving,
 	})
 }
 

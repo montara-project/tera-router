@@ -158,6 +158,7 @@ func (s *Server) writeUnarySuccess(
 		ClientIP:   meta.ClientIP,
 		RequestID:  meta.RequestID,
 		Chain:      meta.Chain,
+		Saving:     meta.Saving,
 		Usage:      usage,
 		CostMicros: cost,
 		TokenRate:  tokenRate,

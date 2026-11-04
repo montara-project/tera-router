@@ -183,7 +183,7 @@ func (s *Server) serveDirect(c fiber.Ctx, what string, resolve func(context.Cont
 			s.recordUsage(usageRecord{
 				APIKeyID: meta.APIKeyID, AccountID: at.AccountID,
 				Provider: at.Target.Provider, Model: at.Target.Model,
-				Client: meta.Client, ClientIP: meta.ClientIP, RequestID: meta.RequestID, Chain: meta.Chain,
+				Client: meta.Client, ClientIP: meta.ClientIP, RequestID: meta.RequestID, Chain: meta.Chain, Saving: meta.Saving,
 				Usage: usage, CostMicros: costMicros(rates, usage), TokenRate: tokenRate,
 				Latency: latency,
 			})

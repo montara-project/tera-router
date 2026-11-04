@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"testing"
+	"time"
 
 	"tera-router/server/internal/repositories"
 )
@@ -46,7 +47,7 @@ func TestBuildHealthOverview(t *testing.T) {
 		{RequestID: "r3", Chain: "", Provider: "openai", Model: "gpt-4o", Failed: false, LatencyMS: 500},
 	}
 
-	got := buildHealthOverview(rows, []string{"combo", "glm-free", "idle-chain"})
+	got := buildHealthOverview(rows, []string{"combo", "glm-free", "idle-chain"}, time.Time{}, time.Time{})
 
 	if got.Fallbacks != 1 {
 		t.Fatalf("fallbacks = %d, want 1", got.Fallbacks)
@@ -120,7 +121,7 @@ func TestBuildHealthOverviewLegacyRows(t *testing.T) {
 		{Provider: "openai", Model: "gpt-4o", Failed: true, LatencyMS: 120},
 		{Provider: "openai", Model: "gpt-4o", Failed: false, LatencyMS: 340},
 	}
-	got := buildHealthOverview(rows, nil)
+	got := buildHealthOverview(rows, nil, time.Time{}, time.Time{})
 	if got.Fallbacks != 0 {
 		t.Fatalf("fallbacks = %d, want 0 for legacy rows", got.Fallbacks)
 	}
@@ -128,5 +129,31 @@ func TestBuildHealthOverviewLegacyRows(t *testing.T) {
 		if p.Name == "openai" && (p.FinalFailures != 1 || p.Status != "degraded") {
 			t.Fatalf("openai legacy = %+v, want 1 final failure, degraded", p)
 		}
+	}
+}
+
+func TestBuildHealthOverviewBucketsLatencyAndServed(t *testing.T) {
+	from := time.Date(2026, 11, 4, 0, 0, 0, 0, time.UTC)
+	to := from.Add(24 * time.Hour)
+	rows := []repositories.UsageHealthRow{
+		{RequestID: "a", Chain: "c", Provider: "p", Model: "m1", Failed: true, CreatedAt: from.Add(30 * time.Minute)},
+		{RequestID: "a", Chain: "c", Provider: "p", Model: "m2", LatencyMS: 100, CreatedAt: from.Add(31 * time.Minute)},
+		{RequestID: "b", Chain: "c", Provider: "p", Model: "m2", LatencyMS: 300, CreatedAt: to.Add(-time.Minute)},
+	}
+	got := buildHealthOverview(rows, nil, from, to)
+
+	p := got.Providers[0]
+	if len(p.Buckets) != healthBuckets || p.Buckets[0] != (healthBucket{Requests: 2, Failed: 1}) || p.Buckets[23].Requests != 1 {
+		t.Fatalf("buckets = %+v", p.Buckets)
+	}
+	if p.SuccessRate != 66.7 || p.P95Ms != 100 {
+		t.Errorf("provider = %+v, want 66.7%% success and p95 100 (nearest-rank of [100 300])", p)
+	}
+	ch := got.Chains[0]
+	if len(ch.Served) != 1 || ch.Served[0] != (servedModel{Model: "m2", Requests: 2}) {
+		t.Errorf("served = %+v, want m2 x2", ch.Served)
+	}
+	if got.Providers[0].Served != nil {
+		t.Errorf("providers must not carry served")
 	}
 }

@@ -39,16 +39,27 @@ func (s *Server) loadAppSettings(ctx context.Context) (dtos.AppSettings, error) 
 	return dtos.UnmarshalSettings([]byte(raw))
 }
 
+// tokenSaving records what the token-saving stages did to one request, so
+// the usage rows can attribute the savings on the dashboard.
+type tokenSaving struct {
+	// PromptReducedBytes is how many bytes input compression removed from the
+	// tool results.
+	PromptReducedBytes int
+	// OutputShaped is true when an output-shaping directive was appended.
+	OutputShaped bool
+}
+
 // applyTokenSaving runs the token-saving stages the operator enabled on the
 // Settings page. Every stage is an optimization, so a failure leaves the
 // request as it was instead of failing it.
-func (s *Server) applyTokenSaving(ctx context.Context, req *core.ChatRequest) {
+func (s *Server) applyTokenSaving(ctx context.Context, req *core.ChatRequest) tokenSaving {
 	st, err := s.loadAppSettings(ctx)
 	if err != nil {
 		s.log.Warn("token saving: load settings failed", "error", err)
-		return
+		return tokenSaving{}
 	}
 
+	before := toolResultBytes(req)
 	if on(st.HeadroomEnabled) {
 		if err := s.headroomCompress(ctx, req, deref(st.HeadroomURL), deref(st.HeadroomTimeout)); err != nil {
 			s.log.Warn("token saving: headroom failed open", "error", err)
@@ -57,7 +68,26 @@ func (s *Server) applyTokenSaving(ctx context.Context, req *core.ChatRequest) {
 	if on(st.RTKEnabled) {
 		compressToolResults(req, deref(st.SourceCodeFilter))
 	}
-	req.System = appendDirectives(req.System, st)
+	system := req.System
+	req.System = appendDirectives(system, st)
+	return tokenSaving{
+		PromptReducedBytes: max(before-toolResultBytes(req), 0),
+		OutputShaped:       req.System != system,
+	}
+}
+
+// toolResultBytes sums the text of every tool result, the part of the request
+// input compression rewrites.
+func toolResultBytes(req *core.ChatRequest) int {
+	n := 0
+	for i := range req.Messages {
+		for j := range req.Messages[i].Content {
+			if tr := req.Messages[i].Content[j].ToolResult; tr != nil {
+				n += len(tr.Content)
+			}
+		}
+	}
+	return n
 }
 
 // appendDirectives adds the output-shaping instructions after the client's
