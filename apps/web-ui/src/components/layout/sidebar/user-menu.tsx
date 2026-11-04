@@ -73,8 +73,8 @@ export default function UserMenu({ user, userError, onRetryUser }: UserMenuProps
           aria-label="Account menu"
           className="cursor-pointer rounded-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
-          <Avatar className="size-8 border border-border">
-            <AvatarFallback className="bg-muted text-xs font-medium">
+          <Avatar className="size-8 rounded-full">
+            <AvatarFallback className="border-sidebar-border bg-sidebar-accent/40 text-xs font-semibold">
               {user ? getInitials(name) : '?'}
             </AvatarFallback>
           </Avatar>

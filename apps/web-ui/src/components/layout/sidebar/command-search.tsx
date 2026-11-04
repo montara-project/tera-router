@@ -41,11 +41,11 @@ export default function CommandSearch() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="text-muted-foreground flex h-8 w-full max-w-sm cursor-pointer items-center gap-2 rounded-md border border-border bg-muted/30 px-2.5 text-sm transition-colors hover:bg-muted/60"
+        className="text-muted-foreground flex h-9 w-full max-w-sm cursor-pointer items-center gap-2 rounded-sm border border-muted-foreground/40 bg-sidebar-accent/40 px-[13px] text-[13px] transition-colors hover:bg-sidebar-accent"
       >
-        <IconSearch className="size-4" />
+        <IconSearch className="size-4" stroke={1.75} />
         <span className="flex-1 truncate text-left">Search {branding.name}…</span>
-        <kbd className="pointer-events-none hidden rounded border border-border bg-background px-1.5 font-mono text-[10px] sm:inline-block">
+        <kbd className="pointer-events-none hidden rounded-[4px] border border-sidebar-border bg-sidebar px-1.5 font-mono text-[10.5px] leading-[17px] sm:inline-block">
           ⌘K
         </kbd>
       </button>
