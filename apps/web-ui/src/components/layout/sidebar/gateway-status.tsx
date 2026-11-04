@@ -10,32 +10,35 @@ export default function GatewayStatus() {
   const { data, isLoading, isError } = useQuery(queries.system.status())
 
   if (isLoading) {
-    return <Skeleton className="h-14 w-full rounded-lg group-data-[collapsible=icon]:hidden" />
+    return <Skeleton className="h-[57px] w-full rounded-md group-data-[collapsible=icon]:hidden" />
   }
 
   const running = !isError && data?.status === 'running'
 
   return (
-    <div className="rounded-lg border border-sidebar-border bg-sidebar-accent/40 px-3 py-2.5 text-xs group-data-[collapsible=icon]:hidden">
-      <div className="flex items-center justify-between gap-2">
-        <span className="flex items-center gap-1.5 font-medium text-sidebar-foreground">
-          <span
-            className={cn('size-1.5 rounded-full', running ? 'bg-emerald-500' : 'bg-destructive')}
-          />
+    <section className="flex flex-col gap-0.5 rounded-md border border-sidebar-border bg-sidebar-accent/40 px-[13px] py-[9px] group-data-[collapsible=icon]:hidden">
+      <div className="flex h-[18px] items-center gap-2">
+        <span
+          className={cn(
+            'size-1.5 shrink-0 rounded-full',
+            running ? 'bg-emerald-500/80' : 'bg-destructive'
+          )}
+        />
+        <span className="flex-1 truncate text-xs font-medium text-sidebar-foreground">
           {running ? 'Gateway running' : 'Gateway unreachable'}
         </span>
         {running && data && (
-          <span className="text-muted-foreground tabular-nums">
+          <span className="text-sidebar-foreground/80 text-[11.5px] tabular-nums">
             Up {formatUptime(data.uptime_seconds)}
           </span>
         )}
       </div>
       {running && data && (
-        <div className="text-muted-foreground mt-1 flex items-center justify-between gap-2 font-mono text-[11px]">
-          <span className="truncate">{data.listen_addr}</span>
-          <span>{data.database}</span>
+        <div className="flex items-center justify-between gap-2 text-[11.5px]">
+          <span className="text-sidebar-foreground/80 truncate font-mono">{data.listen_addr}</span>
+          <span className="text-sidebar-foreground/80">{data.database}</span>
         </div>
       )}
-    </div>
+    </section>
   )
 }

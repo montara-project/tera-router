@@ -13,6 +13,12 @@ export type NavMainItem = {
   url: string
   icon: typeof IconCheck
   isActive?: boolean
+  /** Shows a green dot while the gateway is running (e.g. the live console). */
+  live?: boolean
+  /** Extra paths that also mark this item active (e.g. /budgets under Plans & budgets). */
+  activeOn?: string[]
+  /** Left out of the sidebar but still listed in ⌘K search. */
+  hidden?: boolean
   items: NavSubItem[]
 }
 
@@ -32,11 +38,10 @@ export type SidebarMenuData = {
   user: UserInfo
   navMenu: {
     overview: NavMainItem[]
-    traffic: NavMainItem[]
-    connections: NavMainItem[]
-    safety: NavMainItem[]
-    analytics: NavMainItem[]
-    developer: NavMainItem[]
+    routing: NavMainItem[]
+    providers: NavMainItem[]
+    access: NavMainItem[]
+    workspace: NavMainItem[]
   }
   navSetting: NavMainItem[]
   navSecondary: NavSecondaryItem[]
