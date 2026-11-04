@@ -8,6 +8,8 @@ interface DashboardPanelProps {
   icon: React.ElementType
   /** Link on the right of the header, e.g. "All models" → /usage. */
   action?: { label: string; to: string }
+  /** Controls on the right of the header (e.g. a filter), instead of a link. */
+  toolbar?: React.ReactNode
   children: React.ReactNode
   className?: string
 }
@@ -17,6 +19,7 @@ export default function DashboardPanel({
   title,
   icon: Icon,
   action,
+  toolbar,
   children,
   className,
 }: DashboardPanelProps) {
@@ -27,12 +30,18 @@ export default function DashboardPanel({
         className
       )}
     >
-      <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+      <header
+        className={cn(
+          'flex flex-wrap items-center justify-between gap-3 border-b border-border px-4',
+          toolbar ? 'py-2' : 'py-3'
+        )}
+      >
         <h2 className="flex items-center gap-2.5 text-[13px] font-semibold text-foreground">
           <Icon className="text-primary size-4" stroke={1.75} aria-hidden />
           {title}
         </h2>
         {action && <PanelLink {...action} />}
+        {toolbar}
       </header>
       {children}
     </section>

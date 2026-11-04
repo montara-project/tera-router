@@ -1,187 +1,218 @@
-import { IconActivity, IconInfoCircle } from '@tabler/icons-react'
-import { useState } from 'react'
+import { IconBolt, IconSearch } from '@tabler/icons-react'
+import { useMemo, useState } from 'react'
 
 import type { UsageTerminalRequestRow } from '@/lib/api/models/usage'
 
+import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
 import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import { formatMicrosUsd } from '@/lib/currency'
-import { formatCompact, formatDecimal, formatLatency } from '@/lib/format'
+import { formatDateTime } from '@/lib/date'
+import { formatCount, formatMs } from '@/lib/format'
+import { cn } from '@/lib/utils'
 
-import { RequestStatusBadge, RequestUsageBadge } from './request-badges'
 import RequestDetailDialog from './request-detail-dialog'
 
-const COLUMNS = 'grid grid-cols-[1.1fr_1.6fr_1fr_1fr_1.1fr_1.1fr_0.7fr_0.7fr] items-center gap-4'
-const PAGE_SIZE = 10
+type Row = UsageTerminalRequestRow
 
-interface RecentRequestsProps {
-  rows: UsageTerminalRequestRow[]
+const STATUS: Record<Row['status'], { label: string; tone: string }> = {
+  success: {
+    label: 'Success',
+    tone: 'bg-emerald-500/10 text-emerald-700 ring-emerald-500/25 dark:text-emerald-400',
+  },
+  failed: {
+    label: 'Failed',
+    tone: 'bg-destructive/10 text-red-700 ring-destructive/25 dark:text-red-400',
+  },
+  cancelled: { label: 'Cancelled', tone: 'text-muted-foreground ring-border' },
 }
 
-export default function UsageRecentRequests({ rows }: RecentRequestsProps) {
-  const [page, setPage] = useState(1)
-  const [selected, setSelected] = useState<UsageTerminalRequestRow | null>(null)
+const USAGE: Record<Row['usage'], string> = {
+  provider: 'Provider usage',
+  estimate: 'Usage estimate',
+  none: 'No usage reported',
+}
 
-  const pageCount = Math.max(Math.ceil(rows.length / PAGE_SIZE), 1)
-  const safePage = Math.min(page, pageCount)
-  const visible = rows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
+const Chip = ({ label, tone }: { label: string; tone: string }) => (
+  <span
+    className={cn(
+      'inline-flex h-5 items-center rounded-sm px-1.5 text-[11.5px] font-medium whitespace-nowrap ring-1 ring-inset',
+      tone
+    )}
+  >
+    {label}
+  </span>
+)
+
+/** Right-aligned two-line cell: main figure over an optional muted detail. */
+function Figure({ value, detail }: { value: string; detail?: string }) {
+  return (
+    <td className="px-4 py-3 text-right align-top whitespace-nowrap tabular-nums">
+      <div className="text-[13px]">{value}</div>
+      {detail && <div className="text-muted-foreground text-[11.5px]">{detail}</div>}
+    </td>
+  )
+}
+
+export default function UsageRecentRequests({ rows }: { rows: Row[] }) {
+  const [search, setSearch] = useState('')
+  const [failedOnly, setFailedOnly] = useState(false)
+  const [selected, setSelected] = useState<Row | null>(null)
+  const failedCount = rows.filter((r) => r.status === 'failed').length
+
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return rows.filter(
+      (r) =>
+        (!failedOnly || r.status === 'failed') &&
+        (!q ||
+          [r.model, r.keyName, r.client, r.id, r.provider, r.providerName].some((v) =>
+            v?.toLowerCase().includes(q)
+          ))
+    )
+  }, [rows, search, failedOnly])
+
+  const filters = [
+    { label: 'All', count: rows.length, active: !failedOnly, onClick: () => setFailedOnly(false) },
+    { label: 'Failed', count: failedCount, active: failedOnly, onClick: () => setFailedOnly(true) },
+  ]
 
   return (
     <>
-      <Card className="bg-background">
-        <CardContent className="p-5">
-          <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
-            <IconActivity className="h-4 w-4 text-muted-foreground" />
-            Recent terminal requests
-          </p>
-          <p className="text-muted-foreground mt-0.5 text-xs">
-            Open a request to audit tokens, cost, pricing, and latency.
-          </p>
-
-          <div className="mt-4 overflow-x-auto">
-            <div className="min-w-225">
-              <div className={`${COLUMNS} border-b border-border pb-3`}>
-                {[
-                  'Status',
-                  'Provider / Model',
-                  'Input',
-                  'Output',
-                  'Cost',
-                  'Latency',
-                  'Time',
-                  'Detail',
-                ].map((label) => (
-                  <p
-                    key={label}
-                    className="text-muted-foreground text-[10px] font-semibold uppercase tracking-[0.12em]"
-                  >
-                    {label}
-                  </p>
-                ))}
-              </div>
-
-              <div className="divide-y divide-border/60">
-                {visible.map((row) => (
-                  <div key={row.id} className={`${COLUMNS} gap-4 py-3.5`}>
-                    <div className="flex flex-col items-start gap-1">
-                      <RequestStatusBadge status={row.status} />
-                      <RequestUsageBadge usage={row.usage} />
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <ProviderAvatar slug={row.provider} apiKind={row.api_kind} size="sm" />
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-foreground">
-                          {row.model}
-                        </p>
-                        <p className="text-muted-foreground truncate font-mono text-[10px] uppercase">
-                          {row.provider}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div>
-                      <p className="text-sm tabular-nums text-foreground">
-                        {formatCompact(row.inputTokens)}
-                      </p>
-                      <p className="text-muted-foreground truncate text-xs">
-                        {formatCompact(row.inputCacheRead)} read ·{' '}
-                        {formatCompact(row.inputCacheWrite)} write
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-sm tabular-nums text-foreground">
-                        {formatCompact(row.outputTokens)}
-                      </p>
-                      <p className="text-muted-foreground truncate text-xs">
-                        {formatCompact(row.reasoningTokens)} reasoning
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-sm font-semibold tabular-nums text-foreground">
-                        {row.costMicros === null ? 'Unpriced' : formatMicrosUsd(row.costMicros)}
-                      </p>
-                      {row.costNote && (
-                        <p className="text-muted-foreground text-xs">{row.costNote}</p>
-                      )}
-                      {!row.costNote && row.costMicros === null && (
-                        <Badge variant="destructive" appearance="light" size="sm">
-                          Missing price
-                        </Badge>
-                      )}
-                      {row.tokenConsumptionRate !== undefined &&
-                      row.tokenConsumptionRate !== null &&
-                      row.tokenConsumptionRate !== 1 ? (
-                        <p className="text-muted-foreground text-xs">
-                          {row.tokenConsumptionRate === 0
-                            ? 'free token budget'
-                            : `×${formatDecimal(row.tokenConsumptionRate)} token budget`}
-                        </p>
-                      ) : null}
-                    </div>
-
-                    <div>
-                      <p className="text-sm tabular-nums text-foreground">
-                        {formatLatency(row.latencyMs)}
-                      </p>
-                      <p className="text-muted-foreground truncate text-xs">
-                        upstream {formatLatency(row.upstreamMs)}
-                      </p>
-                    </div>
-
-                    <p className="text-muted-foreground text-xs">{row.time}</p>
-
-                    <Button
-                      variant="outline"
-                      size="xs"
-                      onClick={() => setSelected(row)}
-                      aria-label={`Details for ${row.model} on ${row.provider}`}
-                    >
-                      <IconInfoCircle className="h-3.5 w-3.5" />
-                      Details
-                    </Button>
-                  </div>
-                ))}
-              </div>
+      <DashboardPanel
+        title="Recent requests"
+        icon={IconBolt}
+        toolbar={
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+            <div className="relative min-w-0 flex-1 sm:w-56 sm:flex-none">
+              <IconSearch
+                className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
+                stroke={1.75}
+                aria-hidden
+              />
+              <Input
+                value={search}
+                placeholder="Model, key, client or ID"
+                aria-label="Filter by model, key, client or ID"
+                className="h-8 pl-8 text-[13px]"
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <div role="group" aria-label="Request status" className="flex gap-1">
+              {filters.map((f) => (
+                <button
+                  key={f.label}
+                  type="button"
+                  aria-pressed={f.active}
+                  onClick={f.onClick}
+                  className={cn(
+                    'inline-flex h-8 items-center gap-1.5 rounded-sm border px-2.5 text-xs font-medium transition-colors',
+                    f.active
+                      ? 'border-primary/30 bg-primary/10 text-primary'
+                      : 'text-muted-foreground border-border hover:text-foreground'
+                  )}
+                >
+                  {f.label}
+                  <span className="tabular-nums">{f.count}</span>
+                </button>
+              ))}
             </div>
           </div>
-
-          <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
-            <p className="text-muted-foreground text-xs">{rows.length} total</p>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={safePage <= 1}
-                onClick={() => setPage((current) => Math.max(current - 1, 1))}
-              >
-                Previous
-              </Button>
-              <span className="text-muted-foreground text-xs tabular-nums">
-                {safePage} / {pageCount}
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={safePage >= pageCount}
-                onClick={() => setPage((current) => Math.min(current + 1, pageCount))}
-              >
-                Next
-              </Button>
-            </div>
+        }
+      >
+        {visible.length === 0 ? (
+          <p className="text-muted-foreground p-4 text-sm">
+            {rows.length === 0 ? 'No requests in this period.' : 'No requests match these filters.'}
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[58rem]">
+              <thead className="text-muted-foreground border-b border-border text-xs dark:bg-muted/40">
+                <tr>
+                  <th className="w-px px-4 py-2 text-left font-medium">Time</th>
+                  <th className="w-px px-4 py-2 text-left font-medium">Status</th>
+                  <th className="w-[34%] px-4 py-2 text-left font-medium">Model</th>
+                  <th className="px-4 py-2 text-right font-medium">Tokens in → out</th>
+                  <th className="px-4 py-2 text-right font-medium">Cost</th>
+                  <th className="px-4 py-2 text-right font-medium">Latency</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map((row) => {
+                  const tokensIn = row.inputTokens + row.inputCacheRead + row.inputCacheWrite
+                  return (
+                    <tr key={row.id} className="border-b border-border last:border-0">
+                      <td className="px-4 py-3 align-top">
+                        <button
+                          type="button"
+                          onClick={() => setSelected(row)}
+                          title={formatDateTime(row.createdAt)}
+                          aria-label={`Open request #${row.id} from ${row.time}`}
+                          className="text-muted-foreground hover:text-foreground h-6 rounded-sm font-mono text-xs whitespace-nowrap underline-offset-2 hover:underline"
+                        >
+                          {row.time}
+                        </button>
+                      </td>
+                      <td className="px-4 py-3.5 align-top">
+                        <div className="flex gap-1.5">
+                          <Chip {...STATUS[row.status]} />
+                          <Chip
+                            label={USAGE[row.usage]}
+                            tone="text-muted-foreground ring-border dark:bg-muted/40"
+                          />
+                        </div>
+                      </td>
+                      <td className="max-w-0 px-4 py-2.5">
+                        <div className="flex min-w-0 items-center gap-2.5">
+                          <ProviderAvatar
+                            slug={row.provider}
+                            apiKind={row.api_kind}
+                            size="xs"
+                            className="size-5 rounded-[4px]"
+                          />
+                          <div className="min-w-0">
+                            <p className="truncate font-mono text-[12.5px]" title={row.model}>
+                              {row.model}
+                            </p>
+                            <p className="text-muted-foreground truncate text-[11.5px]">
+                              {row.providerName || row.provider}
+                              {row.keyName && ` · ${row.keyName}`}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <Figure
+                        value={`${formatCount(tokensIn)} → ${formatCount(row.outputTokens)}`}
+                      />
+                      <Figure
+                        value={
+                          row.costMicros === null
+                            ? row.costNote
+                              ? '$0.00'
+                              : '—'
+                            : formatMicrosUsd(row.costMicros)
+                        }
+                        detail={row.costNote ?? (row.costMicros === null ? 'Unpriced' : undefined)}
+                      />
+                      <Figure
+                        value={row.latencyMs > 0 ? formatMs(row.latencyMs) : '—'}
+                        // Only worth a line when upstream time was measured apart from the total.
+                        detail={
+                          row.upstreamMs > 0 && row.upstreamMs !== row.latencyMs
+                            ? `upstream ${formatMs(row.upstreamMs)}`
+                            : undefined
+                        }
+                      />
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
           </div>
-        </CardContent>
-      </Card>
+        )}
+      </DashboardPanel>
 
-      <RequestDetailDialog
-        open={selected !== null}
-        onClose={() => setSelected(null)}
-        row={selected}
-      />
+      {selected && <RequestDetailDialog open onClose={() => setSelected(null)} row={selected} />}
     </>
   )
 }

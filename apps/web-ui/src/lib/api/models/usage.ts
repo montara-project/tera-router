@@ -48,6 +48,11 @@ export type UsageProviderAccountingRow = {
   usageEst: number
   legacy: number
   backfilled: number
+  /** Health over the window, from the same attempts. */
+  status: 'healthy' | 'degraded' | 'down'
+  p95Ms: number
+  /** Provider page id ("prov-<slug>" or a custom uuid); "" when it no longer exists. */
+  detailId: string
 }
 
 export type UsageModelAccountingRow = {
@@ -100,6 +105,9 @@ export type UsageTerminalRequestRow = {
   /** Request time, RFC 3339 (UTC). */
   createdAt: string
   client: string
+  /** Provider display name and API key name ("" when unknown). */
+  providerName: string
+  keyName: string
   /** Upstream failure class (auth, rate_limit, upstream, …); failed rows only. */
   errorKind?: string
   errorStatus?: number
@@ -137,6 +145,7 @@ export type UsageTelemetryOverview = {
     successRate: number
     p50Ms: number
     costMicros: number
+    tokens: number
   }
   optimization: {
     savedLabel: string
@@ -147,6 +156,13 @@ export type UsageTelemetryOverview = {
     promptReducedBytes: number
     /** Requests that carried an output-shaping directive. */
     shapedRequests: number
+    /** promptReducedBytes split by stage. */
+    headroomBytes: number
+    rtkBytes: number
+    /** Bytes removed per compression rule ("headroom" or an RTK rule), most first. */
+    rules: { rule: string; bytes: number }[]
+    /** Requests per output-shaping directive (caveman, terse, ponytail). */
+    directives: Record<string, number>
   }
   tokenComposition: {
     regularInput: number

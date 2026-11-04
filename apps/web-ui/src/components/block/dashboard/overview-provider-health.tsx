@@ -18,7 +18,7 @@ const STATUS: Record<HealthStatus, { label: string; className: string; dot: stri
   },
   degraded: {
     label: 'Degraded',
-    className: 'bg-amber-500/10 text-amber-700 ring-amber-500/25 dark:text-amber-400',
+    className: 'bg-amber-500/10 text-amber-800 ring-amber-500/25 dark:text-amber-400',
     dot: 'bg-amber-500',
   },
   down: {
@@ -26,6 +26,22 @@ const STATUS: Record<HealthStatus, { label: string; className: string; dot: stri
     className: 'bg-destructive/10 text-red-700 ring-destructive/25 dark:text-red-400',
     dot: 'bg-destructive',
   },
+}
+
+/** Provider health pill: dot + label, tinted by status. */
+export function HealthBadge({ status }: { status: HealthStatus }) {
+  const s = STATUS[status]
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-sm px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap ring-1 ring-inset',
+        s.className
+      )}
+    >
+      <span className={cn('size-1.5 rounded-full', s.dot)} aria-hidden />
+      {s.label}
+    </span>
+  )
 }
 
 /** Worst first, so problems are at the top. */
@@ -57,7 +73,6 @@ export default function OverviewProviderHealth() {
           <p className="text-muted-foreground text-sm">No provider traffic in the last 24 hours.</p>
         )}
         {providers.map((p) => {
-          const status = STATUS[p.status]
           return (
             <div key={p.id} className="flex flex-col gap-2">
               <div className="flex items-start justify-between gap-3">
@@ -68,15 +83,7 @@ export default function OverviewProviderHealth() {
                   </span>
                 </span>
                 <span className="flex shrink-0 flex-col items-end gap-1">
-                  <span
-                    className={cn(
-                      'inline-flex items-center gap-1.5 rounded-sm px-1.5 py-0.5 text-[11px] font-medium ring-1 ring-inset',
-                      status.className
-                    )}
-                  >
-                    <span className={cn('size-1.5 rounded-full', status.dot)} aria-hidden />
-                    {status.label}
-                  </span>
+                  <HealthBadge status={p.status} />
                   <span className="text-muted-foreground text-[11px] tabular-nums">
                     {p.successRate.toFixed(1)}% ok · p95 {formatMs(p.p95Ms)}
                   </span>
