@@ -104,11 +104,12 @@ export function getProviderBrand(slug: string, apiKind?: string): Brand {
 type ProviderAvatarProps = {
   slug: string
   apiKind?: string
-  size?: 'sm' | 'md' | 'lg'
+  size?: keyof typeof SIZES
   className?: string
 }
 
 const SIZES = {
+  xs: { tile: 'h-4 w-4 rounded-[3px]', icon: 'h-3 w-3', letter: 'text-[8px] font-bold' },
   sm: { tile: 'h-8 w-8', icon: 'h-4 w-4', letter: 'text-xs font-bold' },
   md: { tile: 'h-10 w-10', icon: 'h-5 w-5', letter: 'text-sm font-bold' },
   lg: { tile: 'h-12 w-12 rounded-xl', icon: 'h-6 w-6', letter: 'text-lg font-bold' },

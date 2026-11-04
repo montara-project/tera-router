@@ -69,6 +69,7 @@ const RANGE_LABELS: Record<UsageRange, string> = {
   '24h': 'Last 24 hours',
   '7d': 'Last 7 days',
   '30d': 'Last 30 days',
+  '90d': 'Last 90 days',
 }
 
 export function OptimizationBar({

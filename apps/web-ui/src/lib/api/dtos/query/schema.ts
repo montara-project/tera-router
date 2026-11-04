@@ -8,7 +8,13 @@ import { enumValues } from '../enum'
 import { PaginateSchema } from '../paginate'
 
 const QUOTA_RANGES = enumValues<QuotaRange>({ today: true, '7d': true, '30d': true })
-const USAGE_RANGES = enumValues<UsageRange>({ today: true, '24h': true, '7d': true, '30d': true })
+const USAGE_RANGES = enumValues<UsageRange>({
+  today: true,
+  '24h': true,
+  '7d': true,
+  '30d': true,
+  '90d': true,
+})
 const HEALTH_WINDOWS = enumValues<HealthWindow>({
   '5m': true,
   '15m': true,

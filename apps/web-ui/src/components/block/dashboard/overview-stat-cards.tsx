@@ -1,118 +1,166 @@
-import { IconActivity, IconCurrencyDollar, IconShieldCheck } from '@tabler/icons-react'
+import {
+  IconArrowDownRight,
+  IconArrowUpRight,
+  IconBolt,
+  IconClock,
+  IconCurrencyDollar,
+  IconShieldCheck,
+} from '@tabler/icons-react'
 
 import type { UsageTelemetryOverview } from '@/lib/api/models/usage'
 
-import { Card, CardContent } from '@/components/ui/card'
 import { formatMicrosUsd } from '@/lib/currency'
-import { formatCompact, formatLatency } from '@/lib/format'
+import { formatCount, formatMs } from '@/lib/format'
+import { cn } from '@/lib/utils'
 
-interface OverviewStatCardsProps {
-  telemetry: UsageTelemetryOverview
+type Card = {
+  label: string
+  icon: React.ElementType
+  value: string
+  /** Extra figure under the value (e.g. p95). */
+  detail?: string
+  series: number[]
+  /** Change vs the previous window, or null when it had no traffic. */
+  delta: { text: string; up: boolean; good: boolean } | null
 }
 
-function StatCard({
-  icon: Icon,
-  label,
-  tileClass,
-  big,
-  bigLabel,
-  subs,
-}: {
-  icon: React.ComponentType<{ className?: string }>
-  label: string
-  tileClass: string
-  big: string
-  bigLabel: string
-  subs: { value: string; label: string; valueClass?: string }[]
-}) {
+/** Signed change text; `better` says which direction is an improvement. */
+function change(
+  current: number,
+  previous: number,
+  hasPrevious: boolean,
+  format: (diff: number) => string,
+  better: 'up' | 'down'
+): Card['delta'] {
+  if (!hasPrevious) return null
+  const diff = current - previous
+  const up = diff >= 0
+  return { text: `${up ? '+' : '−'}${format(Math.abs(diff))}`, up, good: up === (better === 'up') }
+}
+
+function relative(current: number, previous: number) {
+  return (diff: number) =>
+    previous > 0 ? `${((diff / previous) * 100).toFixed(1)}%` : `${formatCount(current)}`
+}
+
+export default function OverviewStatCards({ telemetry }: { telemetry: UsageTelemetryOverview }) {
+  const { traffic, performance, spend, previous, trend } = telemetry
+  const hasPrevious = previous.requests > 0
+
+  const cards: Card[] = [
+    {
+      label: 'Requests',
+      icon: IconBolt,
+      value: formatCount(traffic.requests),
+      series: trend.map((p) => p.requests),
+      delta: change(
+        traffic.requests,
+        previous.requests,
+        hasPrevious,
+        relative(traffic.requests, previous.requests),
+        'up'
+      ),
+    },
+    {
+      label: 'Success rate',
+      icon: IconShieldCheck,
+      value: `${performance.successRate.toFixed(2)}%`,
+      series: trend.map((p) => (p.requests > 0 ? (p.requests - p.failures) / p.requests : 0)),
+      delta: change(
+        performance.successRate,
+        previous.successRate,
+        hasPrevious,
+        (diff) => `${diff.toFixed(1)} pts`,
+        'up'
+      ),
+    },
+    {
+      label: 'Latency p50',
+      icon: IconClock,
+      value: formatMs(performance.p50Ms),
+      detail: `p95 ${formatMs(performance.p95Ms)}`,
+      series: trend.map((p) => p.latencyMs),
+      delta: change(performance.p50Ms, previous.p50Ms, hasPrevious, formatMs, 'down'),
+    },
+    {
+      label: 'Spend',
+      icon: IconCurrencyDollar,
+      value: formatMicrosUsd(spend.costMicros),
+      series: trend.map((p) => p.costMicros),
+      delta: change(
+        spend.costMicros,
+        previous.costMicros,
+        hasPrevious && previous.costMicros > 0,
+        relative(spend.costMicros, previous.costMicros),
+        'down'
+      ),
+    },
+  ]
+
   return (
-    <Card className="bg-background">
-      <CardContent className="space-y-4 p-5">
-        <div className="flex items-center gap-2.5">
-          <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${tileClass}`}>
-            <Icon className="h-4 w-4" />
+    <dl className="grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-2 xl:grid-cols-4">
+      {cards.map((card) => (
+        <div key={card.label} className="relative flex flex-col gap-0.5 bg-card py-3.5 pr-4 pl-15">
+          <span className="bg-primary/10 text-primary absolute top-3.5 left-4 flex size-8 items-center justify-center rounded-md">
+            <card.icon className="size-4" stroke={1.75} aria-hidden />
           </span>
-          <p className="text-muted-foreground text-xs font-semibold uppercase tracking-[0.14em]">
-            {label}
-          </p>
+          <dt className="text-muted-foreground text-xs font-medium">{card.label}</dt>
+          <dd className="flex items-center justify-between gap-3">
+            <span className="text-xl font-semibold tracking-[-0.01em] text-foreground tabular-nums">
+              {card.value}
+            </span>
+            <Sparkline values={card.series} />
+          </dd>
+          <dd className="text-muted-foreground flex min-h-5 items-center gap-1.5 text-xs">
+            {card.delta ? (
+              <span
+                className={cn(
+                  'inline-flex items-center gap-0.5 font-medium tabular-nums',
+                  card.delta.good
+                    ? 'text-emerald-700 dark:text-emerald-400'
+                    : 'text-red-700 dark:text-red-400'
+                )}
+              >
+                {card.delta.up ? (
+                  <IconArrowUpRight className="size-3.5" aria-hidden />
+                ) : (
+                  <IconArrowDownRight className="size-3.5" aria-hidden />
+                )}
+                {card.delta.text}
+              </span>
+            ) : (
+              <span>No prior data</span>
+            )}
+            {card.delta && <span>vs prior period</span>}
+            {card.detail && <span className="ml-auto tabular-nums">{card.detail}</span>}
+          </dd>
         </div>
-
-        <p className="text-foreground">
-          <span className="text-3xl font-semibold">{big}</span>
-          <span className="text-muted-foreground ml-2 text-sm">{bigLabel}</span>
-        </p>
-
-        <div className="grid grid-cols-3 gap-3 border-t border-border/60 pt-4">
-          {subs.map((sub) => (
-            <div key={sub.label} className="min-w-0">
-              <p className={`text-sm font-semibold ${sub.valueClass ?? 'text-foreground'}`}>
-                {sub.value}
-              </p>
-              <p className="text-muted-foreground mt-0.5 text-[10px] uppercase tracking-wide">
-                {sub.label}
-              </p>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+      ))}
+    </dl>
   )
 }
 
-export default function OverviewStatCards({ telemetry }: OverviewStatCardsProps) {
-  const { traffic, spend, performance, quality, tokenComposition } = telemetry
-  const totalInput =
-    tokenComposition.regularInput + tokenComposition.cacheRead + tokenComposition.cacheWrite
+/** 72×24 trend line with a soft area fill; decorative, the value carries it. */
+function Sparkline({ values }: { values: number[] }) {
+  if (values.length < 2) return null
+  const max = Math.max(...values, 1)
+  const step = 72 / (values.length - 1)
+  const points = values.map(
+    (v, i) => `${(i * step).toFixed(1)},${(22 - (v / max) * 20).toFixed(1)}`
+  )
+  const line = `M${points.join(' L')}`
 
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
-      <StatCard
-        icon={IconActivity}
-        label="Traffic"
-        tileClass="bg-emerald-950 text-emerald-400"
-        big={formatCompact(traffic.requests)}
-        bigLabel="requests"
-        subs={[
-          { value: formatCompact(totalInput), label: 'Input' },
-          { value: formatCompact(traffic.outputTokens), label: 'Output' },
-          { value: formatCompact(tokenComposition.cacheRead), label: 'Cache read' },
-        ]}
+    <svg viewBox="0 0 72 24" className="text-primary h-6 w-18 shrink-0" aria-hidden>
+      <path d={`${line} L72,24 L0,24 Z`} className="fill-current opacity-10" />
+      <path
+        d={line}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        strokeLinejoin="round"
+        vectorEffect="non-scaling-stroke"
       />
-      <StatCard
-        icon={IconCurrencyDollar}
-        label="Spend & Value"
-        tileClass="bg-amber-950 text-amber-400"
-        big={formatMicrosUsd(spend.costMicros)}
-        bigLabel="tracked cost"
-        subs={[
-          {
-            value: formatMicrosUsd(spend.valueSavedMicros),
-            label: 'Value saved',
-            valueClass: 'text-emerald-500',
-          },
-          {
-            value: formatMicrosUsd(Math.round(spend.costMicros / Math.max(traffic.requests, 1))),
-            label: 'Cost / Request',
-          },
-          { value: `${quality.requestsCoverage}%`, label: 'Pricing coverage' },
-        ]}
-      />
-      <StatCard
-        icon={IconShieldCheck}
-        label="Reliability"
-        tileClass="bg-emerald-950 text-emerald-400"
-        big={traffic.requests > 0 ? `${performance.successRate}%` : '—'}
-        bigLabel="successful"
-        subs={[
-          {
-            value: `${traffic.failed}`,
-            label: 'Failed',
-            valueClass: traffic.failed > 0 ? 'text-red-500' : undefined,
-          },
-          { value: formatLatency(performance.avgLatencyMs), label: 'Avg latency' },
-          { value: formatLatency(performance.ttftMs), label: 'TTFT' },
-        ]}
-      />
-    </div>
+    </svg>
   )
 }

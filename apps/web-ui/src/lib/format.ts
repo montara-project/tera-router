@@ -29,6 +29,23 @@ export function formatLatency(ms: number): string {
   return `${(ms / 1000).toFixed(2)}s`
 }
 
+/** Smallest "nice" axis step so that 4 steps cover the max value. */
+export function niceStep(max: number): number {
+  if (max <= 0) return 1
+  const raw = max / 4
+  const pow = 10 ** Math.floor(Math.log10(raw))
+  for (const unit of [1, 1.5, 2, 2.5, 3, 4, 5, 7.5, 10]) {
+    const step = unit * pow
+    if (step >= raw) return step
+  }
+  return 10 * pow
+}
+
+/** Milliseconds as "567 ms" below a second, "1.07 s" from there. */
+export function formatMs(ms: number): string {
+  return ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(2)} s`
+}
+
 export function formatKb(bytes: number): string {
   return `${(bytes / 1e3).toFixed(1)} KB`
 }

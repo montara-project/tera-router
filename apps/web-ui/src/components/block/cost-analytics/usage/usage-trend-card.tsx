@@ -7,7 +7,7 @@ import EmptyState from '@/components/block/common/empty-state'
 import SegmentedControl from '@/components/block/common/segmented-control'
 import { Card, CardContent } from '@/components/ui/card'
 import { formatMicrosUsd } from '@/lib/currency'
-import { formatCompact } from '@/lib/format'
+import { formatCompact, niceStep } from '@/lib/format'
 
 const METRICS = [
   { value: 'requests', label: 'Requests' },
@@ -23,17 +23,6 @@ function metricValue(point: UsageTelemetryOverview['trend'][number], metric: Met
   if (metric === 'tokens') return point.tokens
   if (metric === 'cost') return point.costMicros
   return point.failures
-}
-
-/** smallest "nice" step so that 4 steps cover the max value */
-function niceStep(max: number): number {
-  const raw = max / 4
-  const pow = 10 ** Math.floor(Math.log10(raw))
-  for (const unit of [1, 1.5, 2, 2.5, 3, 4, 5, 7.5, 10]) {
-    const step = unit * pow
-    if (step >= raw) return step
-  }
-  return 10 * pow
 }
 
 export default function UsageTrendCard({ telemetry }: { telemetry: UsageTelemetryOverview }) {

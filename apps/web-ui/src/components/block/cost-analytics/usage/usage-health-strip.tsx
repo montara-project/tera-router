@@ -17,6 +17,7 @@ const HEALTH_WINDOW_BY_RANGE: Record<UsageRange, HealthWindow> = {
   '24h': '24h',
   '7d': '7d',
   '30d': '7d',
+  '90d': '7d',
 }
 
 /** The providers tab of the full provider-health dashboard, scoped to the
