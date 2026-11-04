@@ -101,12 +101,20 @@ type usageRecord struct {
 
 	// Saving is copied from the request meta onto every attempt row.
 	Saving tokenSaving
+	// trace receives the attempt's outcome for the Console timeline.
+	trace *requestTrace
 }
 
 // recordUsage persists a metering row asynchronously. The write runs on a
 // background context with its own timeout so a client disconnecting mid-stream
 // cannot cancel the accounting for work the upstream already performed.
 func (s *Server) recordUsage(rec usageRecord) {
+	target := rec.Provider + "/" + rec.Model
+	if rec.Failed {
+		rec.trace.attemptFailed(target, rec.ErrorKind, rec.ErrorStatus)
+	} else {
+		rec.trace.served(target, rec.AccountID, rec.Usage.PromptTokens+rec.Usage.CompletionTokens)
+	}
 	model := models.UsageRecord{
 		APIKeyID:             optionalID(rec.APIKeyID),
 		AccountID:            optionalID(rec.AccountID),
@@ -131,6 +139,8 @@ func (s *Server) recordUsage(rec usageRecord) {
 		ErrorMessage:         sanitizeErrorMessage(rec.ErrorMessage),
 		PromptReducedBytes:   rec.Saving.PromptReducedBytes,
 		OutputShaped:         rec.Saving.OutputShaped,
+		SavingRules:          rec.Saving.Rules,
+		OutputDirectives:     rec.Saving.Directives,
 		CreatedAt:            time.Now(),
 	}
 
@@ -165,6 +175,7 @@ func (s *Server) recordFailure(meta requestMeta, at attempt, pe *core.ProviderEr
 		ErrorStatus:  pe.StatusCode,
 		ErrorMessage: pe.Message,
 		Saving:       meta.Saving,
+		trace:        meta.trace,
 	})
 }
 

@@ -159,6 +159,7 @@ func (s *Server) writeUnarySuccess(
 		RequestID:  meta.RequestID,
 		Chain:      meta.Chain,
 		Saving:     meta.Saving,
+		trace:      meta.trace,
 		Usage:      usage,
 		CostMicros: cost,
 		TokenRate:  tokenRate,

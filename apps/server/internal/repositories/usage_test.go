@@ -135,7 +135,7 @@ func TestUsageRecentReturnsNewestFirstAndHonoursLimit(t *testing.T) {
 		})
 	}
 
-	rows, err := repo.Recent(context.Background(), 3)
+	rows, err := repo.Recent(context.Background(), time.Time{}, 3)
 	if err != nil {
 		t.Fatalf("recent: %v", err)
 	}
@@ -267,5 +267,46 @@ func TestUsageDailyWithFailuresHourlyBuckets(t *testing.T) {
 	// Failed attempts are left out of the latency average.
 	if last.Requests != 3 || last.Failed != 1 || last.LatencyMS != 200 {
 		t.Errorf("last = %+v, want 3 requests / 1 failed / 200 ms", last)
+	}
+}
+
+func TestUsageSavingBreakdown(t *testing.T) {
+	repo := newUsageRepo(t)
+	now := time.Now()
+
+	insert(t, repo, models.UsageRecord{Provider: "p", Model: "m",
+		SavingRules: map[string]int{"headroom": 100, "repeated_lines": 20}, OutputDirectives: []string{"caveman", "ponytail"}})
+	insert(t, repo, models.UsageRecord{Provider: "p", Model: "m",
+		SavingRules: map[string]int{"repeated_lines": 5}, OutputDirectives: []string{"caveman"}})
+	// Failed attempts are not counted (the request is credited once).
+	insert(t, repo, models.UsageRecord{Provider: "p", Model: "m", Failed: true,
+		SavingRules: map[string]int{"headroom": 999}, OutputDirectives: []string{"terse"}})
+	// No saving at all stores the empty defaults.
+	insert(t, repo, models.UsageRecord{Provider: "p", Model: "m"})
+
+	got, err := repo.SavingBreakdown(context.Background(), now.Add(-time.Hour), now.Add(time.Minute))
+	if err != nil {
+		t.Fatalf("breakdown: %v", err)
+	}
+	if got.RuleBytes["headroom"] != 100 || got.RuleBytes["repeated_lines"] != 25 || len(got.RuleBytes) != 2 {
+		t.Errorf("rule bytes = %v", got.RuleBytes)
+	}
+	if got.DirectiveCount["caveman"] != 2 || got.DirectiveCount["ponytail"] != 1 || got.DirectiveCount["terse"] != 0 {
+		t.Errorf("directives = %v", got.DirectiveCount)
+	}
+}
+
+func TestUsageRecentOnlyWithinWindow(t *testing.T) {
+	repo := newUsageRepo(t)
+	now := time.Now()
+	insert(t, repo, models.UsageRecord{Provider: "p", Model: "new", CreatedAt: now})
+	insert(t, repo, models.UsageRecord{Provider: "p", Model: "old", CreatedAt: now.Add(-48 * time.Hour)})
+
+	rows, err := repo.Recent(context.Background(), now.Add(-24*time.Hour), 10)
+	if err != nil {
+		t.Fatalf("recent: %v", err)
+	}
+	if len(rows) != 1 || rows[0].Model != "new" {
+		t.Errorf("rows = %+v, want only the in-window request", rows)
 	}
 }

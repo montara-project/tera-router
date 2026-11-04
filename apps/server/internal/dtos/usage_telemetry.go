@@ -82,6 +82,19 @@ type UsageTelemetryOptimization struct {
 	PromptReducedBytes int64  `json:"promptReducedBytes"`
 	// ShapedRequests counts requests that carried an output-shaping directive.
 	ShapedRequests int64 `json:"shapedRequests"`
+	// HeadroomBytes and RTKBytes split PromptReducedBytes by stage.
+	HeadroomBytes int64 `json:"headroomBytes"`
+	RTKBytes      int64 `json:"rtkBytes"`
+	// Rules lists bytes removed per compression rule, most first.
+	Rules []UsageTelemetrySavingRule `json:"rules"`
+	// Directives counts requests per output-shaping directive.
+	Directives map[string]int64 `json:"directives"`
+}
+
+// UsageTelemetrySavingRule is one compression rule's share of the savings.
+type UsageTelemetrySavingRule struct {
+	Rule  string `json:"rule"`
+	Bytes int64  `json:"bytes"`
 }
 
 // UsageTelemetryPrevious is the comparison window for the overview cards.
@@ -90,6 +103,7 @@ type UsageTelemetryPrevious struct {
 	SuccessRate float64 `json:"successRate"`
 	P50Ms       int64   `json:"p50Ms"`
 	CostMicros  int64   `json:"costMicros"`
+	Tokens      int64   `json:"tokens"`
 }
 
 // UsageTelemetryTokens is the token composition of the window.
@@ -149,6 +163,13 @@ type UsageTelemetryProviderRow struct {
 	UsageEst         int64   `json:"usageEst"`
 	Legacy           int64   `json:"legacy"`
 	Backfilled       int64   `json:"backfilled"`
+	// Status is the provider's health over the window (healthy, degraded,
+	// down); P95Ms the p95 latency of its successful attempts.
+	Status string `json:"status"`
+	P95Ms  int64  `json:"p95Ms"`
+	// DetailID is the provider page id ("prov-<slug>" or a custom uuid), or
+	// "" for a provider that no longer exists.
+	DetailID string `json:"detailId"`
 }
 
 // UsageTelemetryModelRow is one row of the model accounting table. CostMicros
@@ -207,4 +228,7 @@ type UsageTelemetryRequestRow struct {
 	Client      string `json:"client"`
 	ErrorKind   string `json:"errorKind,omitempty"`
 	ErrorStatus int    `json:"errorStatus,omitempty"`
+	// ProviderName is the provider's display name; KeyName the API key's.
+	ProviderName string `json:"providerName"`
+	KeyName      string `json:"keyName"`
 }

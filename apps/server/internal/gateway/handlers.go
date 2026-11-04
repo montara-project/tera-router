@@ -32,12 +32,17 @@ type requestMeta struct {
 	Chain string
 	// Saving is what the token-saving stages did to the request.
 	Saving tokenSaving
+	// trace is the request's Console entry (nil outside the trace middleware).
+	trace *requestTrace
 }
 
 // metaFrom extracts the request metadata from the Fiber context and the
 // authenticated key.
 func metaFrom(c fiber.Ctx, key models.APIKey, dialect core.Dialect) requestMeta {
+	t := traceFrom(c)
+	t.setKey(key.Name)
 	return requestMeta{
+		trace:     t,
 		KeyName:   key.Name,
 		APIKeyID:  key.ID,
 		Client:    detectClient(c),
@@ -145,6 +150,7 @@ func (s *Server) handleChat(c fiber.Ctx, dialect core.Dialect) error {
 	// upstream sees the literal suffix.
 	applyModelSuffix(req)
 	req.Metadata = meta.coreMetadata()
+	meta.trace.received(meta.RequestID, meta.KeyName, req.Model, len(req.Messages), req.Stream, len(body))
 
 	// Routing, access control, and planning are bounded database work, so they
 	// share a short deadline regardless of the request's streaming mode.
@@ -271,6 +277,8 @@ func (s *Server) handleChat(c fiber.Ctx, dialect core.Dialect) error {
 		return s.fail(c, dialect, http.StatusServiceUnavailable,
 			"no available account for model "+req.Model)
 	}
+	first := attempts[0].Target
+	meta.trace.routedTo(first.Provider+"/"+first.Model, len(attempts)-1)
 
 	if req.Stream {
 		// A streaming request outlives the handler: the stream writer runs

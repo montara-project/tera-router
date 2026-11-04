@@ -19,7 +19,7 @@ func TestRTKCompress(t *testing.T) {
 		"aggressive": "ok\nsame\n... (previous line repeated 2 more times)\n\ncode()\nend",
 	}
 	for filter, want := range cases {
-		if got := rtkCompress(in, filter); got != want {
+		if got := rtkCompress(in, filter, nil); got != want {
 			t.Errorf("%s:\n got %q\nwant %q", filter, got, want)
 		}
 	}
@@ -58,6 +58,9 @@ func TestApplyTokenSaving(t *testing.T) {
 	if !saving.OutputShaped || saving.PromptReducedBytes != 0 {
 		t.Errorf("saving = %+v, want shaped with 0 bytes removed", saving)
 	}
+	if strings.Join(saving.Directives, ",") != "caveman,ponytail" {
+		t.Errorf("directives = %v, want caveman,ponytail", saving.Directives)
+	}
 
 	if got := req.Messages[0].Content[0].ToolResult.Content; got != "hr:a\na\n... (previous line repeated 1 more times)\n" {
 		t.Errorf("tool result = %q", got)
@@ -71,13 +74,32 @@ func TestApplyTokenSaving(t *testing.T) {
 	req.Messages[0].Content[0].ToolResult.Content = "x\n\n\n\nx"
 	saving = srv.applyTokenSaving(context.Background(), req)
 	// RTK still runs and collapses the blank-line run.
-	if saving.PromptReducedBytes != 2 {
-		t.Errorf("reduced bytes = %d, want 2", saving.PromptReducedBytes)
+	if saving.PromptReducedBytes != 2 || saving.Rules[rtkBlankLines] != 2 {
+		t.Errorf("saving = %+v, want 2 bytes removed by blank_lines", saving)
 	}
 	if got := req.Messages[0].Content[0].ToolResult.Content; got != "x\n\nx" {
 		t.Errorf("fail-open tool result = %q", got)
 	}
 	if strings.Count(req.System, cavemanPrompt) != 2 {
 		t.Errorf("directives not applied on second pass")
+	}
+}
+
+// Every byte RTK removes is credited to exactly one rule, so the rule totals
+// add up to the size change.
+func TestRTKCompressCreditsRules(t *testing.T) {
+	in := "\x1b[32mok\x1b[0m  \nsame\nsame\nsame\n\n\n\n// note\ncode()"
+	removed := map[string]int{}
+	out := rtkCompress(in, "minimal", removed)
+
+	total := 0
+	for _, n := range removed {
+		total += n
+	}
+	if total != len(in)-len(out) {
+		t.Fatalf("rules total %d, want %d (removed = %v)", total, len(in)-len(out), removed)
+	}
+	if removed[rtkANSI] != 9 || removed[rtkTrailing] != 2 || removed[rtkBlankLines] != 2 || removed[rtkComments] != 8 {
+		t.Errorf("removed = %v", removed)
 	}
 }

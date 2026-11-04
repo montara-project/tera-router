@@ -91,7 +91,9 @@ func (s *Server) streamChat(
 	}
 
 	// The stream writer runs on its own goroutine after the handler returns,
-	// so Drain must wait for it: the writer is what records the stream's usage.
+	// so Drain must wait for it: the writer is what records the stream's usage
+	// and closes the request's Console trace.
+	meta.trace.deferFinish()
 	s.metering.Add(1)
 	return c.SendStreamWriter(func(w *bufio.Writer) {
 		defer s.metering.Done()
@@ -482,6 +484,7 @@ func (sw *streamWriter) record(ctx context.Context) {
 		RequestID:  sw.meta.RequestID,
 		Chain:      sw.meta.Chain,
 		Saving:     sw.meta.Saving,
+		trace:      sw.meta.trace,
 		Usage:      usage,
 		CostMicros: cost,
 		TokenRate:  tokenRate,
@@ -494,6 +497,9 @@ func (sw *streamWriter) record(ctx context.Context) {
 	if sw.failed() {
 		sw.logWarn("gateway stream ended with client write error", sw.writeErr)
 	}
+	// The status line went out as 200 when the stream connected; anything
+	// that went wrong after that is in the timeline, not the status.
+	sw.meta.trace.finish(http.StatusOK)
 }
 
 // logWarn emits a warning through the server's logger.

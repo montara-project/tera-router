@@ -31,13 +31,20 @@ type UsageRecord struct {
 	CacheHit             bool     `json:"cache_hit"`
 	// PromptReducedBytes is how much input compression shrank the request;
 	// OutputShaped marks a request that carried an output-shaping directive.
-	PromptReducedBytes int       `json:"prompt_reduced_bytes"`
-	OutputShaped       bool      `json:"output_shaped"`
-	LatencyMS          int       `json:"latency_ms"`
-	TTFTMS             int       `json:"ttft_ms"`
-	Failed             bool      `json:"failed"`
-	ErrorKind          string    `json:"error_kind"`
-	ErrorStatus        int       `json:"error_status"`
-	ErrorMessage       string    `json:"error_message"`
-	CreatedAt          time.Time `json:"created_at"`
+	PromptReducedBytes int  `json:"prompt_reduced_bytes"`
+	OutputShaped       bool `json:"output_shaped"`
+	// SavingRules maps each compression rule to the bytes it removed;
+	// OutputDirectives lists the output-shaping directives appended.
+	SavingRules      map[string]int `json:"saving_rules,omitempty"`
+	OutputDirectives []string       `json:"output_directives,omitempty"`
+	LatencyMS        int            `json:"latency_ms"`
+	TTFTMS           int            `json:"ttft_ms"`
+	Failed           bool           `json:"failed"`
+	ErrorKind        string         `json:"error_kind"`
+	ErrorStatus      int            `json:"error_status"`
+	ErrorMessage     string         `json:"error_message"`
+	CreatedAt        time.Time      `json:"created_at"`
+	// KeyName is not a column: UsageRepository.Recent joins it from api_keys
+	// for the request log ("" when the key is gone or the row has none).
+	KeyName string `json:"key_name,omitempty"`
 }

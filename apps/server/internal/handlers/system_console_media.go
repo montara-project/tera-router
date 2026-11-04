@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"tera-router/server/internal/consolelog"
 	"time"
 
 	"tera-router/server/internal/app"
@@ -17,13 +18,13 @@ type consoleHandler struct {
 
 // Index returns the console ring buffer, newest last.
 func (h *consoleHandler) Index(c fiber.Ctx) error {
-	return dtos.List(c, ConsoleList(), dtos.Metadata{})
+	return dtos.List(c, consolelog.List(), dtos.Metadata{})
 }
 
 // Clear empties the console feed.
 func (h *consoleHandler) Clear(c fiber.Ctx) error {
-	ConsoleClear()
-	ConsolePush(dtos.LogLevelInfo, "Console cleared", "")
+	consolelog.Clear()
+	consolelog.Push(dtos.LogLevelInfo, "Console cleared", "")
 	return dtos.List(c, []dtos.ConsoleEntry{}, dtos.Metadata{})
 }
 

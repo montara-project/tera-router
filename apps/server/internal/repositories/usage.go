@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"time"
 
 	"tera-router/server/internal/models"
@@ -18,21 +19,43 @@ type UsageRepository struct {
 
 // Insert appends one usage record.
 func (r *UsageRepository) Insert(ctx context.Context, u models.UsageRecord) error {
-	_, err := r.execContext(ctx, r.DB, `
+	rules, err := json.Marshal(nonNilMap(u.SavingRules))
+	if err != nil {
+		return errtrace.Wrap(err)
+	}
+	directives, err := json.Marshal(nonNilSlice(u.OutputDirectives))
+	if err != nil {
+		return errtrace.Wrap(err)
+	}
+	_, err = r.execContext(ctx, r.DB, `
 		INSERT INTO usage_records (api_key_id, account_id, provider, model, client, client_ip,
 			request_id, chain,
 			prompt_tokens, completion_tokens, cached_tokens, cache_write_tokens, reasoning_tokens,
 			cost_micros, token_consumption_rate, cache_hit, latency_ms, ttft_ms, failed, error_kind, error_status, error_message, created_at,
-			prompt_reduced_bytes, output_shaped)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)`,
+			prompt_reduced_bytes, output_shaped, saving_rules, output_directives)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27)`,
 		u.APIKeyID, u.AccountID, u.Provider, u.Model, u.Client, u.ClientIP,
 		u.RequestID, u.Chain,
 		u.PromptTokens, u.CompletionTokens, u.CachedTokens, u.CacheWriteTokens, u.ReasoningTokens,
 		u.CostMicros, u.TokenConsumptionRate, u.CacheHit, u.LatencyMS, u.TTFTMS, u.Failed, u.ErrorKind, u.ErrorStatus,
 		u.ErrorMessage, u.CreatedAt,
-		u.PromptReducedBytes, u.OutputShaped,
+		u.PromptReducedBytes, u.OutputShaped, string(rules), string(directives),
 	)
 	return err
+}
+
+func nonNilMap(m map[string]int) map[string]int {
+	if m == nil {
+		return map[string]int{}
+	}
+	return m
+}
+
+func nonNilSlice(s []string) []string {
+	if s == nil {
+		return []string{}
+	}
+	return s
 }
 
 // UsageSpend totals spend and tokens over a window, narrowed to one budget
@@ -267,6 +290,48 @@ func (r *UsageRepository) Traffic(ctx context.Context, from, to time.Time) (Usag
 	return t, errtrace.Wrap(err)
 }
 
+// UsageSavingBreakdown splits the window's token savings: bytes removed per
+// compression rule and requests per output-shaping directive. Like the
+// Traffic counters it covers successful attempts only.
+type UsageSavingBreakdown struct {
+	RuleBytes      map[string]int64
+	DirectiveCount map[string]int64
+}
+
+// SavingBreakdown aggregates saving_rules and output_directives over [from, to).
+func (r *UsageRepository) SavingBreakdown(ctx context.Context, from, to time.Time) (UsageSavingBreakdown, error) {
+	out := UsageSavingBreakdown{RuleBytes: map[string]int64{}, DirectiveCount: map[string]int64{}}
+	for _, q := range []struct {
+		sql  string
+		into map[string]int64
+	}{
+		{`SELECT j.key, SUM(j.value) FROM usage_records, json_each(usage_records.saving_rules) AS j
+		  WHERE created_at >= $1 AND created_at < $2 AND failed = 0 GROUP BY j.key`, out.RuleBytes},
+		{`SELECT j.value, count(*) FROM usage_records, json_each(usage_records.output_directives) AS j
+		  WHERE created_at >= $1 AND created_at < $2 AND failed = 0 GROUP BY j.value`, out.DirectiveCount},
+	} {
+		rows, err := r.queryContext(ctx, r.DB, q.sql, from, to)
+		if err != nil {
+			return out, errtrace.Wrap(err)
+		}
+		for rows.Next() {
+			var key string
+			var n int64
+			if err := rows.Scan(&key, &n); err != nil {
+				rows.Close()
+				return out, errtrace.Wrap(err)
+			}
+			q.into[key] = n
+		}
+		err = rows.Err()
+		rows.Close()
+		if err != nil {
+			return out, errtrace.Wrap(err)
+		}
+	}
+	return out, nil
+}
+
 // Latencies returns the latency of every successful attempt in [from, to),
 // sorted ascending, for percentile math.
 // ponytail: loads the whole window into memory; switch to a SQL percentile
@@ -453,14 +518,16 @@ func (r *UsageRepository) Activity(ctx context.Context, from time.Time) ([]Usage
 	return out, errtrace.Wrap(rows.Err())
 }
 
-// Recent returns the newest usage rows for the request log.
-func (r *UsageRepository) Recent(ctx context.Context, limit int) ([]models.UsageRecord, error) {
+// Recent returns the newest usage rows created at or after from, for the
+// request log of the selected period, with the API key's name filled in.
+func (r *UsageRepository) Recent(ctx context.Context, from time.Time, limit int) ([]models.UsageRecord, error) {
 	rows, err := r.queryContext(ctx, r.DB, `
-		SELECT id, api_key_id, account_id, provider, model, client, client_ip,
-		       prompt_tokens, completion_tokens, cached_tokens, cache_write_tokens, reasoning_tokens,
-		       cost_micros, token_consumption_rate, cache_hit, latency_ms, ttft_ms, failed, error_kind, error_status,
-		       error_message, created_at
-		FROM usage_records ORDER BY created_at DESC, id DESC LIMIT $1`, limit)
+		SELECT u.id, u.api_key_id, u.account_id, u.provider, u.model, u.client, u.client_ip,
+		       u.prompt_tokens, u.completion_tokens, u.cached_tokens, u.cache_write_tokens, u.reasoning_tokens,
+		       u.cost_micros, u.token_consumption_rate, u.cache_hit, u.latency_ms, u.ttft_ms, u.failed, u.error_kind, u.error_status,
+		       u.error_message, u.created_at, COALESCE(k.name, '')
+		FROM usage_records u LEFT JOIN api_keys k ON k.id = u.api_key_id
+		WHERE u.created_at >= $1 ORDER BY u.created_at DESC, u.id DESC LIMIT $2`, from, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -473,7 +540,7 @@ func (r *UsageRepository) Recent(ctx context.Context, limit int) ([]models.Usage
 		if err := rows.Scan(&u.ID, &u.APIKeyID, &u.AccountID, &u.Provider, &u.Model, &u.Client, &u.ClientIP,
 			&u.PromptTokens, &u.CompletionTokens, &u.CachedTokens, &u.CacheWriteTokens, &u.ReasoningTokens,
 			&u.CostMicros, &rate, &u.CacheHit, &u.LatencyMS, &u.TTFTMS, &u.Failed, &u.ErrorKind, &u.ErrorStatus,
-			&u.ErrorMessage, &u.CreatedAt); err != nil {
+			&u.ErrorMessage, &u.CreatedAt, &u.KeyName); err != nil {
 			return nil, errtrace.Wrap(err)
 		}
 		if rate.Valid {

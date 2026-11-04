@@ -51,6 +51,14 @@ func (h *usageHandler) buildTelemetry(ctx context.Context, from, now time.Time, 
 	if err != nil {
 		return dtos.UsageTelemetry{}, err
 	}
+	healthRows, err := h.app.Repos.Usage.HealthRows(ctx, from)
+	if err != nil {
+		return dtos.UsageTelemetry{}, err
+	}
+	saving, err := h.app.Repos.Usage.SavingBreakdown(ctx, from, until)
+	if err != nil {
+		return dtos.UsageTelemetry{}, err
+	}
 	prevFrom := from.Add(-now.Sub(from))
 	prevTraffic, err := h.app.Repos.Usage.Traffic(ctx, prevFrom, from)
 	if err != nil {
@@ -72,7 +80,7 @@ func (h *usageHandler) buildTelemetry(ctx context.Context, from, now time.Time, 
 	if err != nil {
 		return dtos.UsageTelemetry{}, err
 	}
-	recent, err := h.app.Repos.Usage.Recent(ctx, recentRequestLimit)
+	recent, err := h.app.Repos.Usage.Recent(ctx, from, recentRequestLimit)
 	if err != nil {
 		return dtos.UsageTelemetry{}, err
 	}
@@ -80,7 +88,7 @@ func (h *usageHandler) buildTelemetry(ctx context.Context, from, now time.Time, 
 	if err != nil {
 		return dtos.UsageTelemetry{}, err
 	}
-	names, kinds, err := h.providerMeta(ctx)
+	names, kinds, detailIDs, err := h.providerMeta(ctx)
 	if err != nil {
 		return dtos.UsageTelemetry{}, err
 	}
@@ -164,6 +172,10 @@ func (h *usageHandler) buildTelemetry(ctx context.Context, from, now time.Time, 
 			OptimizedRequests:  traffic.CompressedRequests,
 			PromptReducedBytes: traffic.PromptReducedBytes,
 			ShapedRequests:     traffic.ShapedRequests,
+			HeadroomBytes:      saving.RuleBytes[savingHeadroomRule],
+			RTKBytes:           sumRTK(saving.RuleBytes),
+			Rules:              savingRules(saving.RuleBytes),
+			Directives:         saving.DirectiveCount,
 		},
 		TokenComposition: dtos.UsageTelemetryTokens{
 			RegularInput:     standardInput,
@@ -178,11 +190,47 @@ func (h *usageHandler) buildTelemetry(ctx context.Context, from, now time.Time, 
 		Trend:            trendPoints(daily, from, now, hourly),
 		TrendBusiest:     busiestDay(daily, hourly),
 		Distribution:     distribution(byProvider, traffic.Requests, totalTokens, kinds),
-		ProviderRows:     providerRows(byProvider, derivedByProvider, pricedByProvider, names, kinds),
-		ModelRows:        modelRows(byModel, rates, kinds),
-		RecentRequests:   requestRows(recent, rates, time.Now(), kinds),
+		ProviderRows: withHealth(
+			providerRows(byProvider, derivedByProvider, pricedByProvider, names, kinds),
+			buildHealthOverview(healthRows, nil, from, now).Providers,
+			detailIDs,
+		),
+		ModelRows:      modelRows(byModel, rates, kinds),
+		RecentRequests: requestRows(recent, rates, time.Now(), kinds, names),
 	}
 	return out, nil
+}
+
+// savingHeadroomRule is the saving_rules key the gateway uses for bytes the
+// Headroom proxy removed; every other key is an RTK rule.
+const savingHeadroomRule = "headroom"
+
+// sumRTK totals the bytes removed by RTK rules (everything but Headroom).
+func sumRTK(rules map[string]int64) int64 {
+	var total int64
+	for rule, n := range rules {
+		if rule != savingHeadroomRule {
+			total += n
+		}
+	}
+	return total
+}
+
+// savingRules lists the rules by bytes removed, most first.
+func savingRules(rules map[string]int64) []dtos.UsageTelemetrySavingRule {
+	out := make([]dtos.UsageTelemetrySavingRule, 0, len(rules))
+	for rule, n := range rules {
+		if n > 0 {
+			out = append(out, dtos.UsageTelemetrySavingRule{Rule: rule, Bytes: n})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Bytes != out[j].Bytes {
+			return out[i].Bytes > out[j].Bytes
+		}
+		return out[i].Rule < out[j].Rule
+	})
+	return out
 }
 
 // previousWindow summarizes the comparison window. Spend is the recorded
@@ -193,6 +241,7 @@ func previousWindow(t repositories.UsageTraffic, latencies []int) dtos.UsageTele
 		SuccessRate: percent(t.Requests-t.Failed, t.Requests),
 		P50Ms:       int64(percentile(latencies, 0.5)),
 		CostMicros:  t.CostMicros,
+		Tokens:      t.PromptTokens + t.CompletionTokens,
 	}
 }
 
@@ -270,27 +319,51 @@ func groupCost(g repositories.UsageGroup, o models.PricingOverride) int64 {
 	}, g.PromptTokens, g.CachedTokens, g.CacheWriteTokens, g.CompletionTokens, g.ReasoningTokens)
 }
 
-// providerMeta maps a provider slug to the display name and api kind the
-// dashboard uses: catalog metadata for built-in providers, the
-// operator-supplied fields for custom ones, and nothing when the provider is
-// unknown (a deleted or renamed registration whose historical rows remain).
-func (h *usageHandler) providerMeta(ctx context.Context) (names, kinds map[string]string, err error) {
+// providerMeta maps a provider slug to the display name, api kind and
+// detail-page id the dashboard uses: catalog metadata for built-in providers
+// ("prov-<slug>"), the operator-supplied fields for custom ones (their uuid),
+// and nothing when the provider is unknown (a deleted or renamed registration
+// whose historical rows remain).
+func (h *usageHandler) providerMeta(ctx context.Context) (names, kinds, detailIDs map[string]string, err error) {
 	names = map[string]string{}
 	kinds = map[string]string{}
+	detailIDs = map[string]string{}
 	for _, spec := range catalog.All() {
 		names[spec.Slug] = spec.Name
 		kinds[spec.Slug] = spec.Dialect
+		detailIDs[spec.Slug] = "prov-" + spec.Slug
 	}
 
 	custom, err := h.app.Repos.Providers.List(ctx)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	for _, p := range custom {
 		names[p.Slug] = p.Name
 		kinds[p.Slug] = p.APIKind
+		detailIDs[p.Slug] = p.ID
 	}
-	return names, kinds, nil
+	return names, kinds, detailIDs, nil
+}
+
+// withHealth adds each provider's health status, p95 latency and detail-page
+// id to its accounting row. Health comes from the same window's attempts, so
+// a provider whose every attempt failed reads "down".
+func withHealth(rows []dtos.UsageTelemetryProviderRow, health []healthEntry, detailIDs map[string]string) []dtos.UsageTelemetryProviderRow {
+	bySlug := make(map[string]healthEntry, len(health))
+	for _, e := range health {
+		bySlug[e.ID] = e
+	}
+	for i := range rows {
+		e := bySlug[rows[i].Slug]
+		rows[i].Status = e.Status
+		if rows[i].Status == "" {
+			rows[i].Status = "healthy"
+		}
+		rows[i].P95Ms = int64(e.P95Ms)
+		rows[i].DetailID = detailIDs[rows[i].Slug]
+	}
+	return rows
 }
 
 // providerRows builds the provider accounting table. A provider group spans
@@ -472,7 +545,7 @@ func bucketLabel(key string, hourly bool) string {
 // attempt produced no tokens and therefore no billable usage, so its cost is
 // reported as null with an explanatory note rather than as a free request; the
 // same applies to a successful request on a model with no pricing override.
-func requestRows(records []models.UsageRecord, rates map[string]models.PricingOverride, now time.Time, kinds map[string]string) []dtos.UsageTelemetryRequestRow {
+func requestRows(records []models.UsageRecord, rates map[string]models.PricingOverride, now time.Time, kinds, names map[string]string) []dtos.UsageTelemetryRequestRow {
 	out := make([]dtos.UsageTelemetryRequestRow, 0, len(records))
 	for _, u := range records {
 		row := dtos.UsageTelemetryRequestRow{
@@ -489,13 +562,15 @@ func requestRows(records []models.UsageRecord, rates map[string]models.PricingOv
 			ReasoningTokens: int64(u.ReasoningTokens),
 			// Only the total latency is recorded; upstream time is not split
 			// out, so the row reports the same figure for both.
-			LatencyMs:   int64(u.LatencyMS),
-			UpstreamMs:  int64(u.LatencyMS),
-			Time:        relativeTime(u.CreatedAt, now),
-			CreatedAt:   u.CreatedAt.UTC().Format(time.RFC3339),
-			Client:      u.Client,
-			ErrorKind:   u.ErrorKind,
-			ErrorStatus: u.ErrorStatus,
+			LatencyMs:    int64(u.LatencyMS),
+			UpstreamMs:   int64(u.LatencyMS),
+			Time:         relativeTime(u.CreatedAt, now),
+			CreatedAt:    u.CreatedAt.UTC().Format(time.RFC3339),
+			Client:       u.Client,
+			ProviderName: providerDisplayName(names, u.Provider),
+			KeyName:      u.KeyName,
+			ErrorKind:    u.ErrorKind,
+			ErrorStatus:  u.ErrorStatus,
 		}
 		if u.Failed {
 			row.Status = "failed"

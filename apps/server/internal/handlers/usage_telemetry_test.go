@@ -167,7 +167,7 @@ func TestRequestRowsCostNullForFailedAndUnpriced(t *testing.T) {
 	}
 	rates := map[string]models.PricingOverride{pricingKey("openai", "priced"): {InputMicros: 1}}
 
-	rows := requestRows(records, rates, time.Now(), nil)
+	rows := requestRows(records, rates, time.Now(), nil, nil)
 	if len(rows) != 3 {
 		t.Fatalf("rows = %d, want 3", len(rows))
 	}
@@ -207,7 +207,7 @@ func TestRequestRowsDeriveCostWhenRecordedZero(t *testing.T) {
 		pricingKey("openai", "gpt-4o-mini"): {InputMicros: 150_000, OutputMicros: 600_000},
 	}
 
-	rows := requestRows(records, rates, time.Now(), nil)
+	rows := requestRows(records, rates, time.Now(), nil, nil)
 	if rows[0].CostMicros == nil || *rows[0].CostMicros != 750_000 {
 		t.Errorf("cost = %v, want the derived 750000", rows[0].CostMicros)
 	}
@@ -417,8 +417,8 @@ func TestTrendPointsHourly(t *testing.T) {
 }
 
 func TestPreviousWindowAndPercentile(t *testing.T) {
-	prev := previousWindow(repositories.UsageTraffic{Requests: 4, Failed: 1, CostMicros: 9}, []int{400, 100, 300, 200})
-	if prev.Requests != 4 || prev.SuccessRate != 75 || prev.CostMicros != 9 {
+	prev := previousWindow(repositories.UsageTraffic{Requests: 4, Failed: 1, CostMicros: 9, PromptTokens: 10, CompletionTokens: 5}, []int{400, 100, 300, 200})
+	if prev.Requests != 4 || prev.SuccessRate != 75 || prev.CostMicros != 9 || prev.Tokens != 15 {
 		t.Errorf("previous = %+v, want 4 requests / 75%% / 9 micros", prev)
 	}
 	// Nearest-rank on the sorted sample [100 200 300 400]: p50 -> index 1.
@@ -427,5 +427,30 @@ func TestPreviousWindowAndPercentile(t *testing.T) {
 	}
 	if got := percentile(nil, 0.95); got != 0 {
 		t.Errorf("percentile of empty = %d, want 0", got)
+	}
+}
+
+func TestSavingRulesSplit(t *testing.T) {
+	rules := map[string]int64{"headroom": 50, "repeated_lines": 30, "ansi_escapes": 30, "comments": 0}
+	if got := sumRTK(rules); got != 60 {
+		t.Errorf("rtk = %d, want 60", got)
+	}
+	got := savingRules(rules)
+	if len(got) != 3 || got[0].Rule != "headroom" || got[1].Rule != "ansi_escapes" || got[2].Rule != "repeated_lines" {
+		t.Errorf("rules = %+v, want headroom, ansi_escapes, repeated_lines (zero dropped, ties by name)", got)
+	}
+}
+
+func TestWithHealthAttachesStatusAndDetailID(t *testing.T) {
+	rows := []dtos.UsageTelemetryProviderRow{{Slug: "openai"}, {Slug: "gone"}}
+	health := []healthEntry{{ID: "openai", Status: "down", P95Ms: 81}}
+	got := withHealth(rows, health, map[string]string{"openai": "prov-openai"})
+
+	if got[0].Status != "down" || got[0].P95Ms != 81 || got[0].DetailID != "prov-openai" {
+		t.Errorf("openai = %+v", got[0])
+	}
+	// No health entry and no registration: healthy, no link.
+	if got[1].Status != "healthy" || got[1].DetailID != "" {
+		t.Errorf("gone = %+v", got[1])
 	}
 }

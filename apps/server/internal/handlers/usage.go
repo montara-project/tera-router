@@ -47,7 +47,7 @@ func (h *usageHandler) Activity(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	names, _, err := h.providerMeta(ctx)
+	names, _, _, err := h.providerMeta(ctx)
 	if err != nil {
 		return err
 	}
