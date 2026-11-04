@@ -22,7 +22,8 @@ import (
 // A valid signature is not enough: the account must still be usable and the
 // token must be newer than its sessions_revoked_at, so sign-out and an
 // env-driven password/email change end live sessions at once instead of when
-// the access token expires. That is one indexed read per dashboard request;
+// the access token expires; a token's own session (jti) must also be
+// unrevoked. That is two indexed reads per dashboard request;
 // the inference gateway authenticates with API keys and never runs this.
 func RequireAuth(a *app.Application) fiber.Handler {
 	return func(c fiber.Ctx) error {
@@ -52,8 +53,20 @@ func RequireAuth(a *app.Application) fiber.Handler {
 		if !usable || issuedBefore(claims, revokedAt) {
 			return apperr.ErrUnauthorized
 		}
+		// Tokens signed before sessions carried an id have no jti; they
+		// still fall to sessions_revoked_at and expire within the hour.
+		if claims.ID != "" {
+			active, err := a.Repos.Refresh.IsActive(c.Context(), claims.ID)
+			if err != nil {
+				return err
+			}
+			if !active {
+				return apperr.ErrUnauthorized
+			}
+		}
 
 		lib.ContextSetUID(c, uid)
+		lib.ContextSetSID(c, claims.ID)
 		return c.Next()
 	}
 }

@@ -162,8 +162,10 @@ func (s AdminUserSeeder) syncPassword() {
 
 // updateAdmin runs one UPDATE on the admin and, in the same transaction, ends
 // every session it has: refresh tokens are revoked, and sessions_revoked_at
-// makes RequireAuth refuse access tokens issued before now. Any change to how
-// the admin signs in goes through here, so old cookies stop working at once.
+// makes RequireAuth refuse access tokens issued before now. Passkeys are
+// deleted too: a passkey sign-in skips password and TOTP, so one an attacker
+// added would otherwise outlive the reset. Any change to how the admin signs
+// in goes through here, so old cookies stop working at once.
 func (s AdminUserSeeder) updateAdmin(what, query string, args ...any) {
 	tx, err := s.DB.Begin()
 	if err != nil {
@@ -177,6 +179,9 @@ func (s AdminUserSeeder) updateAdmin(what, query string, args ...any) {
 	if _, err := tx.Exec(
 		`UPDATE refresh_tokens SET revoked_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now') WHERE user_id = $1 AND revoked_at IS NULL`, adminID); err != nil {
 		log.Fatalf("revoke admin sessions: %v", err)
+	}
+	if _, err := tx.Exec(`DELETE FROM passkeys WHERE user_id = $1`, adminID); err != nil {
+		log.Fatalf("delete admin passkeys: %v", err)
 	}
 	if _, err := tx.Exec(
 		`UPDATE users SET sessions_revoked_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now') WHERE id = $1`, adminID); err != nil {

@@ -48,15 +48,25 @@ Pagination memakai query `offset` (0-based) dan `limit` (default 10, maks 100).
 
 ### Auth
 
-| Method | Path                    | Keterangan                                                    |
-| ------ | ----------------------- | ------------------------------------------------------------- |
-| POST   | `/v1/auth/sign-in`      | Masuk, terima token                                           |
-| POST   | `/v1/auth/refresh`      | Rotasi refresh token                                          |
-| GET    | `/v1/auth/me`           | Profil user saat ini                                          |
-| POST   | `/v1/auth/sign-out`     | Cabut semua token sesi                                        |
-| POST   | `/v1/auth/totp/setup`   | Terbitkan secret TOTP baru untuk pendaftaran (belum disimpan) |
-| POST   | `/v1/auth/totp/enable`  | Nyalakan autentikasi dua faktor dengan kode dari secret itu   |
-| POST   | `/v1/auth/totp/disable` | Matikan dengan kode yang berlaku                              |
+| Method | Path                                | Keterangan                                                    |
+| ------ | ----------------------------------- | ------------------------------------------------------------- |
+| POST   | `/v1/auth/sign-in`                  | Masuk, terima token                                           |
+| POST   | `/v1/auth/refresh`                  | Rotasi refresh token                                          |
+| GET    | `/v1/auth/me`                       | Profil user saat ini                                          |
+| POST   | `/v1/auth/sign-out`                 | Cabut semua token sesi                                        |
+| POST   | `/v1/auth/totp/setup`               | Terbitkan secret TOTP baru untuk pendaftaran (belum disimpan) |
+| POST   | `/v1/auth/totp/enable`              | Nyalakan autentikasi dua faktor dengan kode dari secret itu   |
+| POST   | `/v1/auth/totp/disable`             | Matikan dengan kode yang berlaku                              |
+| GET    | `/v1/auth/sessions`                 | Sesi login aktif; `current` menandai sesi pemanggil           |
+| DELETE | `/v1/auth/sessions/:id`             | Cabut satu sesi; tokennya langsung tidak berlaku              |
+| GET    | `/v1/auth/passkeys`                 | Passkey milikmu                                               |
+| POST   | `/v1/auth/passkeys/register/begin`  | Mulai menambah passkey; perlu password (+ TOTP)               |
+| POST   | `/v1/auth/passkeys/register/finish` | Verifikasi dan simpan credential baru dari browser            |
+| DELETE | `/v1/auth/passkeys/:id`             | Hapus passkey                                                 |
+| POST   | `/v1/auth/passkey/begin`            | Publik: mulai login dengan passkey                            |
+| POST   | `/v1/auth/passkey/finish`           | Publik: verifikasi passkey, terima token                      |
+
+Panggilan passkey membaca header `Origin`: RP ID passkey adalah host origin itu, jadi dashboard harus di `https` atau `http://localhost`, dengan nama host (bukan IP), dan passkey hanya berlaku di host tempat ia ditambahkan. Setiap `begin` mengembalikan `ceremony_id` dan `options` (JSON WebAuthn untuk `PublicKeyCredential.parseCreationOptionsFromJSON` / `parseRequestOptionsFromJSON`); kirim `finish` dengan `ceremony_id` yang sama dan `credential` (hasil `credential.toJSON()` browser) dalam 5 menit. Login dengan passkey melewati password dan kode TOTP.
 
 ### Keys
 

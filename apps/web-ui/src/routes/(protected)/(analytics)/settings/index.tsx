@@ -18,9 +18,11 @@ import BrandingTab from '@/components/block/settings/branding-tab'
 import ImportExportTab from '@/components/block/settings/import-export-tab'
 import IPBlockCard from '@/components/block/settings/ip-block-card'
 import NetworkTab from '@/components/block/settings/network-tab'
+import PasskeysCard from '@/components/block/settings/passkeys-card'
 import RestrictedAccessCard from '@/components/block/settings/restricted-access-card'
 import RoutingTab from '@/components/block/settings/routing-tab'
 import SecurityTab from '@/components/block/settings/security-tab'
+import SessionsCard from '@/components/block/settings/sessions-card'
 import SystemTab from '@/components/block/settings/system-tab'
 import TokenSavingTab from '@/components/block/settings/token-saving-tab'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -103,6 +105,8 @@ function RouteComponent() {
         <TabsContent value="security">
           <div className="flex flex-col gap-4">
             <SecurityTab />
+            <PasskeysCard />
+            <SessionsCard />
             <RestrictedAccessCard />
             <IPBlockCard />
           </div>

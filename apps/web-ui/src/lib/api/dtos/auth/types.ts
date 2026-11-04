@@ -16,6 +16,18 @@ export interface SignInResponse {
 
 export type RefreshTokenResponse = SignInResponse
 
+/** A begun passkey ceremony: send `options` to the browser, then finish with the id. */
+export interface PasskeyCeremony<TOptions> {
+  ceremony_id: string
+  options: { publicKey: TOptions }
+}
+
+export interface PasskeyFinishDto {
+  ceremony_id: string
+  name?: string
+  credential: ReturnType<PublicKeyCredential['toJSON']>
+}
+
 export interface TotpSetupResponse {
   secret: string
   otpauth_url: string

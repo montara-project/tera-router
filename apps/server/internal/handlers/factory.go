@@ -9,6 +9,7 @@ import (
 type Handlers struct {
 	Health         *healthHandler
 	Auth           *authHandler
+	Passkeys       *passkeysHandler
 	Keys           *keysHandler
 	Plans          *plansHandler
 	Chains         *chainsHandler
@@ -40,6 +41,7 @@ func New(app *app.Application) *Handlers {
 	return &Handlers{
 		Health:         &healthHandler{app: app},
 		Auth:           &authHandler{app: app},
+		Passkeys:       &passkeysHandler{app: app},
 		Keys:           &keysHandler{app: app},
 		Plans:          &plansHandler{app: app},
 		Chains:         &chainsHandler{app: app},

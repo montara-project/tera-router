@@ -21,6 +21,16 @@ func ContextSetUID(c fiber.Ctx, uid uuid.UUID) {
 	fiber.Locals[string](c, "uid", uid.String())
 }
 
+// ContextSetSID stores the session id (access token jti) of the request.
+func ContextSetSID(c fiber.Ctx, sid string) {
+	fiber.Locals[string](c, "sid", sid)
+}
+
+// ContextSID returns the request's session id, empty for tokens without one.
+func ContextSID(c fiber.Ctx) string {
+	return fiber.Locals[string](c, "sid")
+}
+
 func ContextParamUUID(c fiber.Ctx, key string) (uuid.UUID, error) {
 	str := c.Params(key)
 	return uuid.Parse(str)

@@ -34,6 +34,7 @@ export namespace Models {
   export type ModelTestResult = import('./provider-catalog').ModelTestResult
   export type ModelTestStreamEvent = import('./provider-catalog').ModelTestStreamEvent
   export type PricingOverride = import('./override').PricingOverride
+  export type Passkey = import('./passkey').Passkey
   export type Plan = import('./plan').Plan
   export type PlaygroundModel = import('./playground').PlaygroundModel
   export type Provider = import('./provider').Provider
@@ -49,6 +50,7 @@ export namespace Models {
   export type QuotaRange = import('./quota').QuotaRange
   export type QuotaSummary = import('./quota').QuotaSummary
   export type Role = import('./role').Role
+  export type Session = import('./session').Session
   export type Skill = import('./skill').Skill
   export type SourceCodeFilterMode = import('./settings').SourceCodeFilterMode
   export type SystemHealth = import('./system').SystemHealth
