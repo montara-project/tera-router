@@ -4,6 +4,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { toast } from 'sonner'
 
 import IconBadge from '@/components/block/common/icon-badge'
+import TablePagination, { usePagedRows } from '@/components/block/common/table-pagination'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -15,6 +16,8 @@ import {
 } from '@/components/ui/card'
 import { toastAxiosError } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
+
+const PAGE_SIZE = 5
 
 // Checked in order: Edge and Opera also say Chrome, Chrome also says Safari.
 const BROWSERS: [RegExp, string][] = [
@@ -44,6 +47,7 @@ function describeAgent(ua: string) {
 export default function SessionsCard() {
   const { data, isLoading } = useQuery(queries.auth.sessions())
   const sessions = data?.data ?? []
+  const paged = usePagedRows(sessions, PAGE_SIZE)
   const revokeMutation = useMutation(queries.auth.revokeSession())
 
   return (
@@ -72,48 +76,58 @@ export default function SessionsCard() {
             No active sessions.
           </p>
         ) : (
-          <ul className="divide-y divide-border border-t border-border">
-            {sessions.map((session) => (
-              <li key={session.id} className="flex items-center justify-between gap-4 px-4 py-3">
-                <div className="min-w-0">
-                  <p
-                    className="truncate text-[12.5px] font-medium text-foreground"
-                    title={session.user_agent}
-                  >
-                    {describeAgent(session.user_agent)}
-                    {session.current && (
-                      <span className="ml-2 rounded-md bg-emerald-950 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-400">
-                        This device
-                      </span>
-                    )}
-                  </p>
-                  <p className="text-muted-foreground mt-0.5 truncate text-xs">
-                    {session.ip_address && <span>{session.ip_address} · </span>}
-                    Signed in{' '}
-                    {formatDistanceToNow(new Date(session.created_at), { addSuffix: true })}
-                  </p>
-                </div>
-                {!session.current && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    aria-label={`Revoke ${describeAgent(session.user_agent)} session`}
-                    disabled={revokeMutation.isPending}
-                    onClick={() =>
-                      revokeMutation.mutate(session.id, {
-                        onSuccess: () => toast.success('Session revoked'),
-                        onError: toastAxiosError,
-                      })
-                    }
-                  >
-                    <IconLogout className="h-4 w-4" />
-                    Revoke
-                  </Button>
-                )}
-              </li>
-            ))}
-          </ul>
+          <>
+            <ul className="divide-y divide-border border-t border-border">
+              {paged.rows.map((session) => (
+                <li key={session.id} className="flex items-center justify-between gap-4 px-4 py-3">
+                  <div className="min-w-0">
+                    <p
+                      className="truncate text-[12.5px] font-medium text-foreground"
+                      title={session.user_agent}
+                    >
+                      {describeAgent(session.user_agent)}
+                      {session.current && (
+                        <span className="ml-2 rounded-md bg-emerald-950 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-400">
+                          This device
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-muted-foreground mt-0.5 truncate text-xs">
+                      {session.ip_address && <span>{session.ip_address} · </span>}
+                      Signed in{' '}
+                      {formatDistanceToNow(new Date(session.created_at), { addSuffix: true })}
+                    </p>
+                  </div>
+                  {!session.current && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      aria-label={`Revoke ${describeAgent(session.user_agent)} session`}
+                      disabled={revokeMutation.isPending}
+                      onClick={() =>
+                        revokeMutation.mutate(session.id, {
+                          onSuccess: () => toast.success('Session revoked'),
+                          onError: toastAxiosError,
+                        })
+                      }
+                    >
+                      <IconLogout className="h-4 w-4" />
+                      Revoke
+                    </Button>
+                  )}
+                </li>
+              ))}
+            </ul>
+            <TablePagination
+              className="px-4"
+              page={paged.page}
+              pageCount={paged.pageCount}
+              pageSize={PAGE_SIZE}
+              total={sessions.length}
+              onPageChange={paged.setPage}
+            />
+          </>
         )}
       </CardContent>
     </Card>
