@@ -7,7 +7,7 @@ import { toast } from 'sonner'
 import type { Models } from '@/lib/api/models'
 
 import EmptyState from '@/components/block/common/empty-state'
-import SectionCard from '@/components/block/common/section-card'
+import PageHeader from '@/components/block/common/page-header'
 import SelectInput from '@/components/block/common/select-input'
 import AliasDetailDialog from '@/components/block/traffic/model-alias/alias-detail-dialog'
 import AliasFormDialog from '@/components/block/traffic/model-alias/alias-form-dialog'
@@ -136,17 +136,24 @@ function ModelAliasRoute() {
   }
 
   return (
-    <SectionCard
-      title="Model Alias"
-      description="One alias name mapped to an ordered pool of provider/model targets. Keys and plans reference the alias, so provider changes never require re-assignment."
-      toolbar={
-        <Button onClick={() => setCreateOpen(true)}>
-          <IconPlus />
-          <span>Create Alias</span>
-        </Button>
-      }
-    >
-      <div className="space-y-4">
+    <div className="flex flex-col gap-4">
+      <PageHeader
+        icon={IconReplace}
+        iconClassName="border-transparent bg-orange-500/10 text-orange-600 dark:text-orange-400"
+        title="Model Alias"
+        description="One alias name mapped to an ordered pool of provider/model targets. Keys and plans reference the alias, so provider changes never require re-assignment."
+        actions={
+          <Button onClick={() => setCreateOpen(true)}>
+            <IconPlus />
+            <span>Create Alias</span>
+          </Button>
+        }
+      />
+
+      <section
+        aria-label="Aliases"
+        className="space-y-4 rounded-lg border border-border bg-card p-4"
+      >
         <div className="flex items-center gap-2">
           <InputWrapper variant="lg" className="rounded-lg">
             <IconSearch />
@@ -168,7 +175,7 @@ function ModelAliasRoute() {
         </div>
 
         {renderAliases()}
-      </div>
+      </section>
 
       <AliasDetailDialog
         alias={viewing}
@@ -194,6 +201,6 @@ function ModelAliasRoute() {
         }}
         alias={editing}
       />
-    </SectionCard>
+    </div>
   )
 }

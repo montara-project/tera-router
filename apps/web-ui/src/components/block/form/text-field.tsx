@@ -17,6 +17,8 @@ type TextFieldProps = InputProps & {
   onChange?: (value: string) => void
   icon?: typeof IconCheck
   asterisk?: boolean
+  /** Muted note right of the label, e.g. "Required" or "Optional". */
+  hint?: string
 }
 
 export default function TextField({
@@ -25,6 +27,7 @@ export default function TextField({
   onChange,
   disabled,
   asterisk = false,
+  hint,
   ...props
 }: TextFieldProps) {
   const field = useFieldContext<string | number>()
@@ -34,10 +37,13 @@ export default function TextField({
 
   return (
     <Field data-invalid={isInvalid}>
-      <FieldLabel htmlFor={field.name} className="gap-1">
-        {label}
-        {asterisk && <span className="text-destructive">*</span>}
-      </FieldLabel>
+      <div className="flex items-center justify-between gap-2">
+        <FieldLabel htmlFor={field.name} className="gap-1">
+          {label}
+          {asterisk && <span className="text-destructive">*</span>}
+        </FieldLabel>
+        {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
+      </div>
       <InputWrapper variant="lg">
         {props.icon && <props.icon />}
         <Input

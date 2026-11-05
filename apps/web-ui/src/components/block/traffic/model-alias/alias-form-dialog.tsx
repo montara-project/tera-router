@@ -1,4 +1,4 @@
-import { IconChevronDown, IconChevronUp, IconPlus, IconX } from '@tabler/icons-react'
+import { IconChevronDown, IconChevronUp, IconPlus, IconTrash } from '@tabler/icons-react'
 import { useSelector } from '@tanstack/react-form'
 import { useMutation, useQueries, useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -198,12 +198,18 @@ function AliasForm({ open, alias, onOpenChange }: AliasFormProps) {
       confirmText={submitLabel}
       loading={saving}
       disabled={hasIncompleteTarget}
+      size="lg"
     >
       <div className="space-y-5">
         <form.AppField name="name">
           {(field) => (
             <div className="space-y-1.5">
-              <field.TextField label="Name" asterisk placeholder="alias-name" />
+              <field.TextField
+                label="Alias name"
+                asterisk
+                hint="Required"
+                placeholder="alias-name"
+              />
               {editing && field.state.value.trim() !== alias?.name ? (
                 <p className="text-xs text-amber-600 dark:text-amber-400">
                   Clients, keys, and plans still using “{alias?.name}” will stop resolving.
@@ -216,7 +222,12 @@ function AliasForm({ open, alias, onOpenChange }: AliasFormProps) {
         <form.AppField name="group">
           {(field) => (
             <div className="space-y-1.5">
-              <field.TextField label="Group" placeholder="coding" list="alias-group-options" />
+              <field.TextField
+                label="Group"
+                hint="Optional"
+                placeholder="coding"
+                list="alias-group-options"
+              />
               <datalist id="alias-group-options">
                 {groups.map((group) => (
                   <option key={group} value={group}>
@@ -375,7 +386,7 @@ function AliasForm({ open, alias, onOpenChange }: AliasFormProps) {
                             aria-label={`Remove target ${i + 1}`}
                             onClick={() => field.removeValue(i)}
                           >
-                            <IconX className="size-3.5" />
+                            <IconTrash className="size-3.5" />
                           </Button>
                         </span>
                       </div>
@@ -399,7 +410,6 @@ function AliasForm({ open, alias, onOpenChange }: AliasFormProps) {
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="border-dashed"
                   onClick={() =>
                     form.pushFieldValue('targets', { provider: '', model: '', active: true })
                   }
