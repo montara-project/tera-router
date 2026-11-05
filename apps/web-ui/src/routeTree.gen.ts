@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as protectedRouteRouteImport } from './routes/(protected)/route'
+import { Route as PortalRouteImport } from './routes/portal'
 import { Route as authloginIndexRouteImport } from './routes/(auth)/(login)/index'
 import { Route as protectedDashboardIndexRouteImport } from './routes/(protected)/dashboard/index'
 import { Route as protectedanalyticsBudgetsIndexRouteImport } from './routes/(protected)/(analytics)/budgets/index'
@@ -41,6 +42,11 @@ import { Route as protectedtrafficSkillsIndexRouteImport } from './routes/(prote
 
 const protectedRouteRoute = protectedRouteRouteImport.update({
   id: '/(protected)',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PortalRoute = PortalRouteImport.update({
+  id: '/portal',
+  path: '/portal',
   getParentRoute: () => rootRouteImport,
 } as any)
 const authloginIndexRoute = authloginIndexRouteImport.update({
@@ -211,6 +217,7 @@ const protectedtrafficSkillsIndexRoute =
   } as any)
 
 export interface FileRoutesByFullPath {
+  '/portal': typeof PortalRoute
   '/': typeof authloginIndexRoute
   '/dashboard/': typeof protectedDashboardIndexRoute
   '/keys/$keyId': typeof protectedconnectionKeysKeyIdRoute
@@ -241,6 +248,7 @@ export interface FileRoutesByFullPath {
   '/skills/': typeof protectedtrafficSkillsIndexRoute
 }
 export interface FileRoutesByTo {
+  '/portal': typeof PortalRoute
   '/': typeof authloginIndexRoute
   '/dashboard': typeof protectedDashboardIndexRoute
   '/keys/$keyId': typeof protectedconnectionKeysKeyIdRoute
@@ -273,6 +281,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/(protected)': typeof protectedRouteRouteWithChildren
+  '/portal': typeof PortalRoute
   '/(auth)/(login)/': typeof authloginIndexRoute
   '/(protected)/dashboard/': typeof protectedDashboardIndexRoute
   '/(protected)/(connection)/keys/$keyId': typeof protectedconnectionKeysKeyIdRoute
@@ -305,6 +314,7 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
+    | '/portal'
     | '/'
     | '/dashboard/'
     | '/keys/$keyId'
@@ -335,6 +345,7 @@ export interface FileRouteTypes {
     | '/skills/'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/portal'
     | '/'
     | '/dashboard'
     | '/keys/$keyId'
@@ -366,6 +377,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/(protected)'
+    | '/portal'
     | '/(auth)/(login)/'
     | '/(protected)/dashboard/'
     | '/(protected)/(connection)/keys/$keyId'
@@ -398,6 +410,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   protectedRouteRoute: typeof protectedRouteRouteWithChildren
+  PortalRoute: typeof PortalRoute
   authloginIndexRoute: typeof authloginIndexRoute
 }
 
@@ -408,6 +421,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: ''
       preLoaderRoute: typeof protectedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/portal': {
+      id: '/portal'
+      path: '/portal'
+      fullPath: '/portal'
+      preLoaderRoute: typeof PortalRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/(auth)/(login)/': {
@@ -681,6 +701,7 @@ const protectedRouteRouteWithChildren = protectedRouteRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   protectedRouteRoute: protectedRouteRouteWithChildren,
+  PortalRoute: PortalRoute,
   authloginIndexRoute: authloginIndexRoute,
 }
 export const routeTree = rootRouteImport

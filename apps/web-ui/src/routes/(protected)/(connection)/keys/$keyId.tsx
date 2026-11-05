@@ -9,6 +9,7 @@ import KeyGeneralTab, { KeyStatusBadge } from '@/components/block/keys/key-gener
 import KeyGuardrailsTab from '@/components/block/keys/key-guardrails-tab'
 import KeyModelsTab from '@/components/block/keys/key-models-tab'
 import KeySkillsTab from '@/components/block/keys/key-skills-tab'
+import PortalLinkButton from '@/components/block/keys/portal-link-button'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -110,11 +111,14 @@ function KeyDetailRoute() {
             </p>
           </div>
         </div>
-        <KeyActionsMenu
-          record={key}
-          triggerClassName="size-9"
-          onRevoked={() => void navigate({ to: '/keys' })}
-        />
+        <div className="flex items-center gap-2">
+          <PortalLinkButton apiKey={key} />
+          <KeyActionsMenu
+            record={key}
+            triggerClassName="size-9"
+            onRevoked={() => void navigate({ to: '/keys' })}
+          />
+        </div>
       </header>
 
       <Tabs value={tab} onValueChange={setTab}>

@@ -15,6 +15,7 @@ import { oauthServices } from './oauth'
 import { overrideServices } from './override'
 import { planServices } from './plan'
 import { playgroundServices } from './playground'
+import { portalServices } from './portal'
 import { providerServices } from './provider'
 import { providerHealthServices } from './provider-health'
 import { proxyPoolServices } from './proxy-pool'
@@ -45,6 +46,7 @@ export const services = {
   overrides: overrideServices,
   plans: planServices,
   playground: playgroundServices,
+  portal: portalServices,
   providerHealth: providerHealthServices,
   providers: providerServices,
   proxyPools: proxyPoolServices,
