@@ -1,113 +1,52 @@
-import { IconArrowUpRight, IconCheck, IconCopy, IconServer } from '@tabler/icons-react'
-import { Link } from '@tanstack/react-router'
-import { useRef } from 'react'
+import { IconCheck, IconCopy, IconLink, IconServer, IconWorld } from '@tabler/icons-react'
 
-import IconBadge from '@/components/block/common/icon-badge'
+import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardHeading,
-  CardTitle,
-} from '@/components/ui/card'
-import { Input, InputWrapper } from '@/components/ui/input'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { env } from '@/config/env'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 
-import { Icons } from '../../common/icons'
-import ConnectApp from './connect-app'
+const LOCAL_HOSTS = ['localhost', '127.0.0.1', '[::1]']
 
-export default function ConnectSection() {
-  const { copy, copied } = useCopyToClipboard()
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  const handleCopy = () => {
-    if (inputRef.current) {
-      copy(inputRef.current.value)
-    }
+function isLocalHost(origin: string) {
+  try {
+    return LOCAL_HOSTS.includes(new URL(origin).hostname)
+  } catch {
+    return false
   }
+}
+
+interface ConnectSectionProps {
+  /** origin the router is reached on, from GET /v1/endpoints */
+  baseUrl: string
+}
+
+export default function ConnectSection({ baseUrl }: ConnectSectionProps) {
+  const url = `${baseUrl}/v1`
+  const local = isLocalHost(baseUrl)
+  const ScopeIcon = local ? IconServer : IconWorld
+  const { copy, copied } = useCopyToClipboard()
 
   return (
-    <Card className="bg-background">
-      <CardHeader className="py-4">
-        <div className="flex items-center gap-3.5">
-          <IconBadge
-            icon={IconServer}
-            variant="soft"
-            className="h-10 w-10 shrink-0"
-            iconClassName="h-5 w-5"
-          />
-          <CardHeading>
-            <CardTitle>Connect an application</CardTitle>
-            <CardDescription>
-              Copy an endpoint, then authenticate requests with a key from{' '}
-              <u>{env.VITE_APP_NAME}</u>.
-            </CardDescription>
-          </CardHeading>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <span className="flex items-center gap-1.5 text-[11px] font-medium tracking-[0.14em] text-muted-foreground uppercase">
-          <IconServer className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-300" />
-          Primary Endpoint
-        </span>
-        <InputWrapper variant="xl">
-          <Input
-            type="text"
-            readOnly
-            placeholder="Copy to clipboard"
-            defaultValue={env.VITE_API_URL}
-            className="font-mono text-sm [&[readonly]]:cursor-text [&[readonly]]:bg-transparent"
-            ref={inputRef}
-          />
-          <TooltipProvider delayDuration={0}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  onClick={handleCopy}
-                  variant="secondary"
-                  disabled={copied}
-                  className="-me-3.5"
-                >
-                  {copied ? (
-                    <IconCheck className="size-4 text-green-600" />
-                  ) : (
-                    <>
-                      <IconCopy strokeWidth={1.5} className="size-4 text-white" />
-                      Copy
-                    </>
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent className="px-2 py-1 text-xs">Copy to clipboard</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </InputWrapper>
-        <p className="text-sm text-muted-foreground">
-          Point your applications at this URL. All providers are accessible through this single
-          endpoint.
+    <DashboardPanel title="Base URL" icon={IconLink}>
+      <div className="space-y-1.5 p-4">
+        <p className="flex items-center gap-2 text-xs text-muted-foreground">
+          <ScopeIcon className="size-4" stroke={1.5} aria-hidden />
+          {local ? 'Local' : 'Remote'}
         </p>
-      </CardContent>
-      <CardFooter className="bg-muted/50 py-5 rounded-b-xl">
-        <div className="flex w-full flex-wrap items-center justify-between gap-4">
-          <ConnectApp
-            icon={Icons.keys}
-            title="Add an API key"
-            description="Create or copy a key to authenticate your application."
-            tone="accent"
-          />
-          <Button asChild>
-            <Link to="/keys">
-              <span>Manage Keys</span>
-              <IconArrowUpRight className="size-4" />
-            </Link>
+        <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 py-1 ps-3 pe-1">
+          <code className="min-w-0 flex-1 truncate font-mono text-sm text-foreground" title={url}>
+            {url}
+          </code>
+          <Button onClick={() => copy(url)} aria-label="Copy base URL">
+            {copied ? <IconCheck className="size-4" /> : <IconCopy className="size-4" />}
+            {copied ? 'Copied' : 'Copy'}
           </Button>
         </div>
-      </CardFooter>
-    </Card>
+      </div>
+      <p className="border-t border-border bg-muted/40 px-4 py-2.5 text-xs text-muted-foreground">
+        Authenticate with{' '}
+        <code className="font-mono text-foreground">Authorization: Bearer &lt;key&gt;</code> or{' '}
+        <code className="font-mono text-foreground">x-api-key</code>.
+      </p>
+    </DashboardPanel>
   )
 }

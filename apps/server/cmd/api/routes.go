@@ -244,6 +244,9 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 
 	protected.Get("/media", h.Media.Index)
 
+	// Endpoints page: base URL and the route reference the apps call
+	protected.Get("/endpoints", h.Endpoints.Catalog)
+
 	claudeCode := protected.Group("/cli-tools/claude-code")
 	claudeCode.Get("", h.CliTools.ClaudeCode)
 	claudeCode.Post("/apply", h.CliTools.ClaudeCodeApply)

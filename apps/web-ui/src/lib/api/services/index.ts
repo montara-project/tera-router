@@ -6,6 +6,7 @@ import { budgetServices } from './budget'
 import { chainServices } from './chain'
 import { cliToolServices } from './cli-tool'
 import { consoleServices } from './console'
+import { endpointServices } from './endpoint'
 import { guardrailsServices } from './guardrails'
 import { ipBlockServices } from './ip-block'
 import { keyServices } from './key'
@@ -33,6 +34,7 @@ export const services = {
   budgets: budgetServices,
   chains: chainServices,
   cliTools: cliToolServices,
+  endpoints: endpointServices,
   console: consoleServices,
   guardrails: guardrailsServices,
   ipBlocks: ipBlockServices,

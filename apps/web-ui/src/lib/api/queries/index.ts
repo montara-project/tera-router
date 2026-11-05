@@ -6,6 +6,7 @@ import { budgetQueries } from './budget'
 import { chainQueries } from './chain'
 import { cliToolQueries } from './cli-tool'
 import { consoleQueries } from './console'
+import { endpointQueries } from './endpoint'
 import { guardrailsQueries } from './guardrails'
 import { ipBlockQueries } from './ip-block'
 import { keyQueries } from './key'
@@ -32,6 +33,7 @@ export const queries = {
   budgets: budgetQueries,
   chains: chainQueries,
   cliTools: cliToolQueries,
+  endpoints: endpointQueries,
   console: consoleQueries,
   guardrails: guardrailsQueries,
   ipBlocks: ipBlockQueries,

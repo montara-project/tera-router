@@ -15,6 +15,9 @@ export namespace Models {
   export type Chain = import('./chain').Chain
   export type ChainStep = import('./chain').ChainStep
   export type ConsoleLogEntry = import('./console').ConsoleLogEntry
+  export type EndpointCatalog = import('./endpoint').EndpointCatalog
+  export type EndpointGroup = import('./endpoint').EndpointGroup
+  export type EndpointRoute = import('./endpoint').EndpointRoute
   export type CustomProvider = import('./provider-catalog').CustomProvider
   export type GuardrailPolicy = import('./guardrails').GuardrailPolicy
   export type GuardrailsAuditEntry = import('./guardrails').GuardrailsAuditEntry

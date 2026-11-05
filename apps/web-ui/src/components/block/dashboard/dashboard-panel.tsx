@@ -4,7 +4,9 @@ import { Link } from '@tanstack/react-router'
 import { cn } from '@/lib/utils'
 
 interface DashboardPanelProps {
-  title: string
+  title: React.ReactNode
+  /** Muted line under the title. */
+  description?: string
   icon: React.ElementType
   /** Link on the right of the header, e.g. "All models" → /usage. */
   action?: { label: string; to: string }
@@ -17,6 +19,7 @@ interface DashboardPanelProps {
 /** Overview panel: bordered surface with an icon + title header row. */
 export default function DashboardPanel({
   title,
+  description,
   icon: Icon,
   action,
   toolbar,
@@ -36,10 +39,15 @@ export default function DashboardPanel({
           toolbar ? 'py-2' : 'py-3'
         )}
       >
-        <h2 className="flex items-center gap-2.5 text-[13px] font-semibold text-foreground">
-          <Icon className="text-primary size-4" stroke={1.75} aria-hidden />
-          {title}
-        </h2>
+        <div className="flex items-center gap-2.5">
+          <Icon className="text-primary size-4 shrink-0" stroke={1.75} aria-hidden />
+          <div>
+            <h2 className="flex items-center gap-2 text-[13px] font-semibold text-foreground">
+              {title}
+            </h2>
+            {description && <p className="text-xs text-muted-foreground">{description}</p>}
+          </div>
+        </div>
         {action && <PanelLink {...action} />}
         {toolbar}
       </header>
