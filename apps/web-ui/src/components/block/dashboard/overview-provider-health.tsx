@@ -55,24 +55,39 @@ function cellClass(bucket: HealthEntry['buckets'][number]) {
   return 'bg-destructive/80'
 }
 
-/** 24 hourly cells, oldest first, coloured by outcome; each has a text label. */
-export function HealthTimeline({ entry, className }: { entry: HealthEntry; className?: string }) {
+/**
+ * 24 cells, oldest first, coloured by outcome; each has a text label. The
+ * cells are hourly for the default 24h window; pass `span` for others.
+ */
+export function HealthTimeline({
+  entry,
+  className,
+  span,
+}: {
+  entry: HealthEntry
+  className?: string
+  /** e.g. "7d"; omit for the hourly 24h strip */
+  span?: string
+}) {
   return (
     <ol
       className={cn('grid grid-cols-24 gap-[3px]', className)}
-      aria-label={`${entry.name}, hourly outcomes over the last 24 hours`}
+      aria-label={`${entry.name}, outcomes over the last ${span ?? '24 hours'}`}
     >
-      {entry.buckets.map((b, i) => (
-        <li
-          key={i}
-          className={cn('h-3.5 rounded-[2px]', cellClass(b))}
-          title={`${24 - i}h ago: ${b.requests} requests, ${b.failed} failed`}
-        >
-          <span className="sr-only">
-            {24 - i} hours ago: {b.requests} requests, {b.failed} failed
-          </span>
-        </li>
-      ))}
+      {entry.buckets.map((b, i) => {
+        const when = span ? `Slice ${i + 1} of 24` : `${24 - i}h ago`
+        return (
+          <li
+            key={i}
+            className={cn('h-3.5 rounded-[2px]', cellClass(b))}
+            title={`${when}: ${b.requests} requests, ${b.failed} failed`}
+          >
+            <span className="sr-only">
+              {when}: {b.requests} requests, {b.failed} failed
+            </span>
+          </li>
+        )
+      })}
     </ol>
   )
 }

@@ -28,6 +28,7 @@ const HEALTH_WINDOWS = enumValues<HealthWindow>({
   '6h': true,
   '24h': true,
   '7d': true,
+  '30d': true,
 })
 
 export const QuotaRangeSchema = z.enum(QUOTA_RANGES, { error: 'The selected range is invalid.' })
