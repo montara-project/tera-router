@@ -14,7 +14,14 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { mediaQueries } from '@/lib/api/queries/media'
 import { providerQueries } from '@/lib/api/queries/provider'
 
+const CATEGORY_VALUES = MEDIA_CATEGORIES.map((c) => c.value)
+
 export const Route = createFileRoute('/(protected)/(connection)/media/')({
+  validateSearch: (search: Record<string, unknown>): { category?: MediaCategory } => ({
+    category: CATEGORY_VALUES.includes(search.category as MediaCategory)
+      ? (search.category as MediaCategory)
+      : undefined,
+  }),
   component: RouteComponent,
 })
 
@@ -24,7 +31,10 @@ const categoryToCapability = (category: MediaCategory) =>
   category === 'embeddings' ? 'embed' : category
 
 function RouteComponent() {
-  const [category, setCategory] = useState<MediaCategory>('embeddings')
+  const navigate = Route.useNavigate()
+  const category = Route.useSearch().category ?? 'embeddings'
+  const setCategory = (next: MediaCategory) =>
+    void navigate({ search: { category: next === 'embeddings' ? undefined : next }, replace: true })
   const [search, setSearch] = useState('')
 
   const { data } = useQuery(mediaQueries.list())
@@ -90,7 +100,11 @@ function RouteComponent() {
               detail={connected.length}
             />
             {connected.length > 0 ? (
-              <MediaProviderGrid providers={connected} connections={connections} />
+              <MediaProviderGrid
+                providers={connected}
+                connections={connections}
+                category={category}
+              />
             ) : (
               <div className="flex flex-col items-center rounded-lg border border-border bg-card px-6 py-9 text-center">
                 <span className="flex size-10 items-center justify-center rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400">
@@ -111,7 +125,11 @@ function RouteComponent() {
           <section className="flex flex-col gap-3">
             <MediaSectionHeader icon={IconPlus} title="Add a provider" detail={available.length} />
             {available.length > 0 ? (
-              <MediaProviderGrid providers={available} connections={connections} />
+              <MediaProviderGrid
+                providers={available}
+                connections={connections}
+                category={category}
+              />
             ) : (
               <p className="text-[12.5px] text-muted-foreground">
                 {query

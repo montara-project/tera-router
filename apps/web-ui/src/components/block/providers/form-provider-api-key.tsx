@@ -31,6 +31,8 @@ type AddCustomProviderApiKeyFormProps = {
   /** Custom provider or a catalog provider identity. */
   provider: ProviderIdentity
   onSuccess?: () => void
+  /** "media" is the media detail page's form: every field shown, no key test or priority. */
+  variant?: 'full' | 'media'
 }
 
 /** Keyed by open state so every open starts from an empty form. */
@@ -53,6 +55,7 @@ function ApiKeyDialog({
   onOpenChange,
   provider,
   onSuccess,
+  variant = 'full',
 }: AddCustomProviderApiKeyFormProps) {
   const [moreOpen, setMoreOpen] = useState(false)
   const createMutation = useMutation(queries.accounts.create())
@@ -103,6 +106,92 @@ function ApiKeyDialog({
     } catch (error) {
       toastAxiosError(error)
     }
+  }
+
+  if (variant === 'media') {
+    const note = 'text-xs text-muted-foreground'
+    return (
+      <AlertDialog open={open} onOpenChange={onOpenChange}>
+        <AlertDialogContent className="max-w-lg gap-0 overflow-hidden p-0">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              form.handleSubmit()
+            }}
+          >
+            <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-3.5">
+              <div className="min-w-0 space-y-0.5">
+                <AlertDialogTitle className="truncate text-[15px]">
+                  Add {provider.name} account
+                </AlertDialogTitle>
+                <AlertDialogDescription className="text-[13px]">
+                  The key is encrypted and never shown again.
+                </AlertDialogDescription>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-8 text-muted-foreground"
+                aria-label="Close"
+                onClick={() => onOpenChange(false)}
+              >
+                <IconX className="size-4" />
+              </Button>
+            </div>
+
+            <div className="space-y-3.5 px-5 py-4">
+              <div className="space-y-1.5">
+                <form.AppField
+                  name="api_key"
+                  children={(field) => (
+                    <field.PasswordField
+                      label="API key"
+                      hint="Required"
+                      placeholder="sk-..."
+                      className="font-mono"
+                    />
+                  )}
+                />
+                <p className={note}>Paste a key from your {provider.name} dashboard.</p>
+              </div>
+              <div className="space-y-1.5">
+                <form.AppField
+                  name="label"
+                  children={(field) => (
+                    <field.TextField label="Label" hint="Optional" placeholder="my-key" />
+                  )}
+                />
+                <p className={note}>Shown in routing and usage.</p>
+              </div>
+              <div className="space-y-1.5">
+                <form.AppField
+                  name="base_url"
+                  children={(field) => (
+                    <field.TextField
+                      label="Base URL"
+                      hint="Optional"
+                      placeholder="https://…"
+                      className="font-mono"
+                    />
+                  )}
+                />
+                <p className={note}>Only for custom or self-hosted endpoints.</p>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 border-t border-border bg-muted/40 px-5 py-3">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={!hasKey || createMutation.isPending}>
+                {createMutation.isPending ? 'Adding…' : 'Add account'}
+              </Button>
+            </div>
+          </form>
+        </AlertDialogContent>
+      </AlertDialog>
+    )
   }
 
   return (

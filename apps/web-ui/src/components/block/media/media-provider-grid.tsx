@@ -1,11 +1,11 @@
 import { Link } from '@tanstack/react-router'
 
-import type { MediaCapability, MediaProvider } from '@/lib/api/models/media'
+import type { MediaCapability, MediaCategory, MediaProvider } from '@/lib/api/models/media'
 import type { Provider } from '@/lib/api/models/provider'
 
 import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
 
-const CAPABILITY_LABELS: Record<MediaCapability, string> = {
+export const CAPABILITY_LABELS: Record<MediaCapability, string> = {
   embed: 'Embed',
   image: 'Image',
   tts: 'TTS',
@@ -43,10 +43,16 @@ interface MediaProviderGridProps {
   providers: MediaProvider[]
   /** Entries from the providers overview keyed by slug, for account counts and detail links. */
   connections: Record<string, Provider>
+  /** Category the page shows; the detail page opens on it. */
+  category: MediaCategory
 }
 
 /** Compact provider cards, four per row on wide screens. */
-export default function MediaProviderGrid({ providers, connections }: MediaProviderGridProps) {
+export default function MediaProviderGrid({
+  providers,
+  connections,
+  category,
+}: MediaProviderGridProps) {
   return (
     <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {providers.map((provider) => {
@@ -72,23 +78,16 @@ export default function MediaProviderGrid({ providers, connections }: MediaProvi
           </>
         )
 
-        // Providers missing from the overview have no detail page; send them
-        // to the providers list, where they can be added as custom.
         return (
           <li key={provider.id} className="min-w-0">
-            {connection ? (
-              <Link
-                to="/providers/$providerId"
-                params={{ providerId: connection.id }}
-                className={CARD}
-              >
-                {content}
-              </Link>
-            ) : (
-              <Link to="/providers" className={CARD}>
-                {content}
-              </Link>
-            )}
+            <Link
+              to="/media/$slug"
+              params={{ slug: provider.slug }}
+              search={{ category }}
+              className={CARD}
+            >
+              {content}
+            </Link>
           </li>
         )
       })}

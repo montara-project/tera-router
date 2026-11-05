@@ -22,6 +22,7 @@ import { Route as protectedanalyticsUsageIndexRouteImport } from './routes/(prot
 import { Route as protectedconnectionKeysIndexRouteImport } from './routes/(protected)/(connection)/keys/index'
 import { Route as protectedconnectionKeysKeyIdRouteImport } from './routes/(protected)/(connection)/keys/$keyId'
 import { Route as protectedconnectionMediaIndexRouteImport } from './routes/(protected)/(connection)/media/index'
+import { Route as protectedconnectionMediaSlugRouteImport } from './routes/(protected)/(connection)/media/$slug'
 import { Route as protectedconnectionProvidersIndexRouteImport } from './routes/(protected)/(connection)/providers/index'
 import { Route as protectedconnectionProvidersProviderIdRouteImport } from './routes/(protected)/(connection)/providers/$providerId'
 import { Route as protectedconnectionProxyPoolsIndexRouteImport } from './routes/(protected)/(connection)/proxy-pools/index'
@@ -111,6 +112,12 @@ const protectedconnectionMediaIndexRoute =
   protectedconnectionMediaIndexRouteImport.update({
     id: '/(connection)/media/',
     path: '/media/',
+    getParentRoute: () => protectedRouteRoute,
+  } as any)
+const protectedconnectionMediaSlugRoute =
+  protectedconnectionMediaSlugRouteImport.update({
+    id: '/(connection)/media/$slug',
+    path: '/media/$slug',
     getParentRoute: () => protectedRouteRoute,
   } as any)
 const protectedconnectionProvidersIndexRoute =
@@ -221,6 +228,7 @@ export interface FileRoutesByFullPath {
   '/': typeof authloginIndexRoute
   '/dashboard/': typeof protectedDashboardIndexRoute
   '/keys/$keyId': typeof protectedconnectionKeysKeyIdRoute
+  '/media/$slug': typeof protectedconnectionMediaSlugRoute
   '/providers/$providerId': typeof protectedconnectionProvidersProviderIdRoute
   '/cli-tools/$toolId': typeof protecteddeveloperCliToolsToolIdRoute
   '/cli-tools/claude-code': typeof protecteddeveloperCliToolsClaudeCodeRoute
@@ -252,6 +260,7 @@ export interface FileRoutesByTo {
   '/': typeof authloginIndexRoute
   '/dashboard': typeof protectedDashboardIndexRoute
   '/keys/$keyId': typeof protectedconnectionKeysKeyIdRoute
+  '/media/$slug': typeof protectedconnectionMediaSlugRoute
   '/providers/$providerId': typeof protectedconnectionProvidersProviderIdRoute
   '/cli-tools/$toolId': typeof protecteddeveloperCliToolsToolIdRoute
   '/cli-tools/claude-code': typeof protecteddeveloperCliToolsClaudeCodeRoute
@@ -285,6 +294,7 @@ export interface FileRoutesById {
   '/(auth)/(login)/': typeof authloginIndexRoute
   '/(protected)/dashboard/': typeof protectedDashboardIndexRoute
   '/(protected)/(connection)/keys/$keyId': typeof protectedconnectionKeysKeyIdRoute
+  '/(protected)/(connection)/media/$slug': typeof protectedconnectionMediaSlugRoute
   '/(protected)/(connection)/providers/$providerId': typeof protectedconnectionProvidersProviderIdRoute
   '/(protected)/(developer)/cli-tools/$toolId': typeof protecteddeveloperCliToolsToolIdRoute
   '/(protected)/(developer)/cli-tools/claude-code': typeof protecteddeveloperCliToolsClaudeCodeRoute
@@ -318,6 +328,7 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard/'
     | '/keys/$keyId'
+    | '/media/$slug'
     | '/providers/$providerId'
     | '/cli-tools/$toolId'
     | '/cli-tools/claude-code'
@@ -349,6 +360,7 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/keys/$keyId'
+    | '/media/$slug'
     | '/providers/$providerId'
     | '/cli-tools/$toolId'
     | '/cli-tools/claude-code'
@@ -381,6 +393,7 @@ export interface FileRouteTypes {
     | '/(auth)/(login)/'
     | '/(protected)/dashboard/'
     | '/(protected)/(connection)/keys/$keyId'
+    | '/(protected)/(connection)/media/$slug'
     | '/(protected)/(connection)/providers/$providerId'
     | '/(protected)/(developer)/cli-tools/$toolId'
     | '/(protected)/(developer)/cli-tools/claude-code'
@@ -505,6 +518,13 @@ declare module '@tanstack/react-router' {
       path: '/media'
       fullPath: '/media/'
       preLoaderRoute: typeof protectedconnectionMediaIndexRouteImport
+      parentRoute: typeof protectedRouteRoute
+    }
+    '/(protected)/(connection)/media/$slug': {
+      id: '/(protected)/(connection)/media/$slug'
+      path: '/media/$slug'
+      fullPath: '/media/$slug'
+      preLoaderRoute: typeof protectedconnectionMediaSlugRouteImport
       parentRoute: typeof protectedRouteRoute
     }
     '/(protected)/(connection)/providers/': {
@@ -632,6 +652,7 @@ declare module '@tanstack/react-router' {
 interface protectedRouteRouteChildren {
   protectedDashboardIndexRoute: typeof protectedDashboardIndexRoute
   protectedconnectionKeysKeyIdRoute: typeof protectedconnectionKeysKeyIdRoute
+  protectedconnectionMediaSlugRoute: typeof protectedconnectionMediaSlugRoute
   protectedconnectionProvidersProviderIdRoute: typeof protectedconnectionProvidersProviderIdRoute
   protecteddeveloperCliToolsToolIdRoute: typeof protecteddeveloperCliToolsToolIdRoute
   protecteddeveloperCliToolsClaudeCodeRoute: typeof protecteddeveloperCliToolsClaudeCodeRoute
@@ -662,6 +683,7 @@ interface protectedRouteRouteChildren {
 const protectedRouteRouteChildren: protectedRouteRouteChildren = {
   protectedDashboardIndexRoute: protectedDashboardIndexRoute,
   protectedconnectionKeysKeyIdRoute: protectedconnectionKeysKeyIdRoute,
+  protectedconnectionMediaSlugRoute: protectedconnectionMediaSlugRoute,
   protectedconnectionProvidersProviderIdRoute:
     protectedconnectionProvidersProviderIdRoute,
   protecteddeveloperCliToolsToolIdRoute: protecteddeveloperCliToolsToolIdRoute,
