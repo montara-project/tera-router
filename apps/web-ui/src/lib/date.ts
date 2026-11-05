@@ -183,6 +183,12 @@ export function formatUptime(seconds: number): string {
 
 export const DAY_MS = 86_400_000
 
+/** "Resets today" / "Resets in 26d" for a period end from the server. */
+export function formatResetsIn(iso: string): string {
+  const days = Math.max(0, Math.ceil((new Date(iso).getTime() - Date.now()) / DAY_MS))
+  return days === 0 ? 'Resets today' : `Resets in ${days}d`
+}
+
 const dayFormat = new Intl.DateTimeFormat('en-US', {
   weekday: 'short',
   month: 'short',

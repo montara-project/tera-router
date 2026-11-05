@@ -5,21 +5,30 @@ import type { Models } from '@/lib/api/models'
 
 import { HealthTimeline } from '@/components/block/dashboard/overview-provider-health'
 import { formatCount, formatMs } from '@/lib/format'
+import { cn } from '@/lib/utils'
 
 export function Stat({
   icon: Icon,
   label,
   children,
   action,
+  iconClassName,
 }: {
   icon: React.ElementType
   label: string
   children: React.ReactNode
   action?: React.ReactNode
+  /** Tile tone override; defaults to the primary tint. */
+  iconClassName?: string
 }) {
   return (
     <div className="flex gap-3 bg-card px-4 py-3.5">
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+      <span
+        className={cn(
+          'flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary',
+          iconClassName
+        )}
+      >
         <Icon className="size-4" aria-hidden />
       </span>
       <div className="min-w-0 flex-1">

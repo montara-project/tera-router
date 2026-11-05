@@ -1,7 +1,6 @@
 import { IconPigMoney } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
 
-import type { BudgetStatus } from '@/lib/api/models/budget'
 import type { UsageTelemetryOverview } from '@/lib/api/models/usage'
 
 import { SCOPE_LABELS } from '@/components/block/budgets/form'
@@ -9,18 +8,11 @@ import DashboardPanel, { PanelLink } from '@/components/block/dashboard/dashboar
 import { Skeleton } from '@/components/ui/skeleton'
 import { queries } from '@/lib/api/queries'
 import { formatMicrosUsd } from '@/lib/currency'
+import { formatResetsIn } from '@/lib/date'
 import { formatCompact, formatCount } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 const BUDGET_LIMIT = 3
-
-/** Days until the budget's period rolls over (server: daily, Monday-start weekly, monthly). */
-function resetsInDays(period: BudgetStatus['period'], now = new Date()): number {
-  const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
-  if (period === 'weekly') next.setDate(next.getDate() + ((8 - next.getDay()) % 7))
-  if (period === 'monthly') next.setFullYear(now.getFullYear(), now.getMonth() + 1, 1)
-  return Math.max(1, Math.ceil((next.getTime() - now.getTime()) / 86_400_000))
-}
 
 export default function OverviewSavingsBudgets({
   telemetry,
@@ -133,7 +125,7 @@ function Budgets() {
                   : `${formatMicrosUsd(b.spent_micros)} of ${formatMicrosUsd(b.limit_micros)}`}{' '}
                 · {b.period}
               </span>
-              <span>Resets in {resetsInDays(b.period)}d</span>
+              <span>{formatResetsIn(b.resets_at)}</span>
             </div>
           </div>
         )

@@ -55,7 +55,15 @@ const selectClass =
   'h-9 w-full rounded-md border border-input bg-background px-2.5 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden'
 
 /** Label row with a muted hint on the right, as in the other forms. */
-function FieldLabel({ htmlFor, label, hint }: { htmlFor: string; label: string; hint?: string }) {
+export function FieldLabel({
+  htmlFor,
+  label,
+  hint,
+}: {
+  htmlFor: string
+  label: string
+  hint?: string
+}) {
   return (
     <div className="flex items-center justify-between gap-2">
       <label htmlFor={htmlFor} className="text-[12.5px] font-medium">
@@ -325,7 +333,7 @@ function CreateKeyDialog({ open, onOpenChange, onCreated }: AddKeyFormProps) {
 }
 
 /** Multi-select of model ids with free-form patterns such as claude-*. */
-function ModelPatternPicker({
+export function ModelPatternPicker({
   id,
   value,
   onChange,

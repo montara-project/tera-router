@@ -7,7 +7,7 @@ import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
 import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
 import { Button } from '@/components/ui/button'
 import { formatMicrosUsd } from '@/lib/currency'
-import { formatDateTime } from '@/lib/date'
+import { formatDateTime, formatResetsIn } from '@/lib/date'
 import { formatCompact, formatCount, formatKb, formatMs } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -46,9 +46,6 @@ function ModelName({ provider, model }: { provider: string; model: string }) {
   )
 }
 
-const daysUntil = (iso: string) =>
-  Math.max(0, Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000))
-
 /** Plan and budget caps with their use this period, then the model allowlist. */
 export function PortalLimits({
   limits,
@@ -68,7 +65,6 @@ export function PortalLimits({
           {limits.map((l) => {
             const pct = l.limit > 0 ? (l.used / l.limit) * 100 : 0
             const fmt = l.kind === 'spend' ? formatMicrosUsd : formatCompact
-            const days = daysUntil(l.resets_at)
             return (
               <li key={`${l.label}-${l.resets_at}`} className="flex flex-col gap-1.5 px-4 py-3">
                 <div className="flex items-center justify-between gap-3 text-[13px]">
@@ -84,9 +80,7 @@ export function PortalLimits({
                   <span>
                     {fmt(l.used)} of {fmt(l.limit)} · {fmt(Math.max(l.limit - l.used, 0))} left
                   </span>
-                  <span title={formatDateTime(l.resets_at)}>
-                    {days === 0 ? 'Resets today' : `Resets in ${days}d`}
-                  </span>
+                  <span title={formatDateTime(l.resets_at)}>{formatResetsIn(l.resets_at)}</span>
                 </div>
               </li>
             )

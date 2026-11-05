@@ -1,13 +1,12 @@
-import { IconPlus, IconShieldCheck } from '@tabler/icons-react'
+import { IconPlus } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 
-import EmptyState from '@/components/block/common/empty-state'
-import SectionCard from '@/components/block/common/section-card'
 import PlanFormDialog from '@/components/block/plans/form'
-import PlanCard from '@/components/block/plans/plan-card'
+import PlansBudgetsHeader from '@/components/block/plans/plans-budgets-header'
 import PlansStats from '@/components/block/plans/plans-stats'
+import PlansTable from '@/components/block/plans/plans-table'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { queries } from '@/lib/api/queries'
@@ -15,23 +14,6 @@ import { queries } from '@/lib/api/queries'
 export const Route = createFileRoute('/(protected)/(analytics)/plans/')({
   component: RouteComponent,
 })
-
-function RouteSkeleton() {
-  return (
-    <div className="bg-sidebar border border-sidebar-accent p-2 rounded-2xl">
-      <div className="space-y-4 rounded-lg border border-border bg-background p-4">
-        <div className="grid gap-4 lg:grid-cols-3">
-          <Skeleton className="h-24 rounded-lg" />
-          <Skeleton className="h-24 rounded-lg" />
-          <Skeleton className="h-24 rounded-lg" />
-        </div>
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Skeleton className="h-96 rounded-lg" />
-        </div>
-      </div>
-    </div>
-  )
-}
 
 function RouteComponent() {
   const [openForm, setOpenForm] = useState(false)
@@ -42,54 +24,34 @@ function RouteComponent() {
   // Defaults to on, matching the server, until settings load.
   const rateLimitsEnforced = settingsQuery.data?.data?.enforce_rate_limits ?? true
 
-  if (!data) {
-    return <RouteSkeleton />
-  }
-
   return (
-    <SectionCard
-      title="Plans"
-      description="Reusable templates for API key budget limits, rate limits, and model restrictions."
-      toolbar={
-        <Button
-          className="bg-amber-600 text-white hover:bg-amber-500 dark:bg-amber-800 dark:text-amber-200 dark:hover:bg-amber-700"
-          onClick={() => setOpenForm(true)}
-        >
-          <IconPlus />
-          <span>New plan</span>
-        </Button>
-      }
-    >
-      <div className="space-y-4">
-        <PlansStats plans={plans} />
+    <div className="flex flex-col gap-5">
+      <PlansBudgetsHeader
+        actions={
+          <Button onClick={() => setOpenForm(true)}>
+            <IconPlus />
+            <span>New plan</span>
+          </Button>
+        }
+      />
 
-        <div className="flex items-center gap-3">
-          <IconShieldCheck className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <span className="text-foreground text-xs font-semibold tracking-[0.14em] whitespace-nowrap uppercase">
-            All plans
-          </span>
-          <div className="h-px flex-1 bg-border" />
-          <span className="text-muted-foreground hidden text-xs whitespace-nowrap sm:inline">
-            API keys inherit rules from their assigned plan
-          </span>
-        </div>
-
-        {plans.length === 0 ? (
-          <EmptyState
-            icon={IconShieldCheck}
-            title="No plans yet"
-            description="Create a plan to give API keys budget limits, rate limits, and model restrictions."
+      {data ? (
+        <div className="flex flex-col gap-6">
+          <PlansStats plans={plans} />
+          <PlansTable
+            plans={plans}
+            rateLimitsEnforced={rateLimitsEnforced}
+            onCreate={() => setOpenForm(true)}
           />
-        ) : (
-          <div className="grid gap-4 lg:grid-cols-2">
-            {plans.map((plan) => (
-              <PlanCard key={plan.id} plan={plan} rateLimitsEnforced={rateLimitsEnforced} />
-            ))}
-          </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-6">
+          <Skeleton className="h-24 rounded-lg" />
+          <Skeleton className="h-36 rounded-lg" />
+        </div>
+      )}
 
       <PlanFormDialog open={openForm} onOpenChange={setOpenForm} />
-    </SectionCard>
+    </div>
   )
 }
