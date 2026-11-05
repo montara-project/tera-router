@@ -77999,7 +77999,7 @@
       "id": "Jtk7N",
       "x": 17286,
       "y": 0,
-      "name": "div",
+      "name": "Wiring - Quota tracker",
       "context": "Route - div",
       "clip": true,
       "width": 1687,
@@ -190630,7 +190630,8 @@
                       "content": "Prepended to the system prompt of matching chat requests.",
                       "lineHeight": 1.5,
                       "fontFamily": "$font-sans",
-                      "fontSize": 13
+                      "fontSize": 13,
+                      "fontWeight": "normal"
                     }
                   ]
                 },
@@ -190753,7 +190754,8 @@
                       "content": "Ranked by blocked, then masked requests",
                       "lineHeight": 1.5,
                       "fontFamily": "$font-sans",
-                      "fontSize": 12
+                      "fontSize": 12,
+                      "fontWeight": "normal"
                     }
                   ]
                 },
