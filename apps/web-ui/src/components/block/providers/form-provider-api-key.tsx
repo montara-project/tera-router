@@ -1,153 +1,227 @@
+import { IconChevronRight, IconCircleCheck, IconLoader2, IconX } from '@tabler/icons-react'
+import { useSelector } from '@tanstack/react-form'
 import { useMutation } from '@tanstack/react-query'
+import { useState } from 'react'
+import { toast } from 'sonner'
 
-import type { Models } from '@/lib/api/models'
-import type { BaseAbstractForm } from '@/types/form'
-
+import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
 import { useAppForm } from '@/hooks/form'
 import { toastAxiosError } from '@/lib/api/axios-error'
 import { AccountSchema, type AccountDto } from '@/lib/api/dtos/account/schema'
 import { queries } from '@/lib/api/queries'
 
-import SimpleAlertScrollableDialogForm from '../common/simple-alert-scrollable-dialog-form'
-
-type TModel = AccountDto
-type TMutation = AccountDto
-type TDto = AccountDto
-type TResponse = Models.Account
-
-type AbstractFormProps = Omit<BaseAbstractForm<TModel, TMutation, TDto, TResponse>, 'mutation'> & {
-  mutation: {
-    mutateAsync: (value: TMutation) => Promise<unknown>
-    isPending: boolean
-  }
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  /** Minimal identity the dialog needs; custom providers satisfy it too. */
-  provider: { slug: string; name: string }
-  onSuccess?: () => void
-}
-
-function AbstractForm({
-  open,
-  onOpenChange,
-  defaultValues,
-  schema,
-  mutation,
-  isEdit,
-  provider,
-  onSuccess,
-}: AbstractFormProps) {
-  const form = useAppForm({
-    defaultValues,
-    validators: {
-      onSubmit: schema,
-      onChange: schema,
-    },
-    onSubmit: async ({ value }) => {
-      try {
-        // base_url is a form field, not a wire field — it travels inside
-        // metadata, where probe and dispatch already look for the override.
-        const { base_url, ...rest } = value
-        const override = base_url?.trim()
-        await mutation.mutateAsync({
-          ...rest,
-          metadata: override ? { ...rest.metadata, base_url: override } : rest.metadata,
-        })
-        onSuccess?.()
-      } catch (error) {
-        toastAxiosError(error)
-      } finally {
-        form.reset()
-        onOpenChange(false)
-      }
-    },
-  })
-
-  return (
-    <SimpleAlertScrollableDialogForm
-      onSubmit={(e) => {
-        e.preventDefault()
-        form.handleSubmit()
-      }}
-      open={open}
-      onOpenChange={onOpenChange}
-      title="Add API key"
-      description={`Add a credential for ${provider.name}. The key is encrypted before storage.`}
-      confirmText={isEdit ? 'Update' : 'Save'}
-      loading={mutation.isPending}
-      size="md"
-    >
-      <form.AppField
-        name="label"
-        children={(field) => (
-          <field.TextField label="Label" placeholder="e.g. Production key" asterisk />
-        )}
-      />
-
-      <form.AppField
-        name="api_key"
-        children={(field) => <field.PasswordField label="API Key" placeholder="sk-..." asterisk />}
-      />
-
-      <form.AppField
-        name="priority"
-        children={(field) => (
-          <field.TextField
-            label="Priority"
-            type="number"
-            autoComplete="new-password"
-            placeholder="100"
-            asterisk
-          />
-        )}
-      />
-      <p className="text-xs text-muted-foreground">Lower priority numbers are tried first.</p>
-
-      <form.AppField
-        name="base_url"
-        children={(field) => (
-          <field.TextField
-            label="Base URL override"
-            placeholder="Leave empty to use the provider default"
-          />
-        )}
-      />
-    </SimpleAlertScrollableDialogForm>
-  )
+type ProviderIdentity = {
+  slug: string
+  name: string
+  /** Endpoint the key will be used against, shown under the key field. */
+  baseUrl?: string
+  apiKind?: string
 }
 
 type AddCustomProviderApiKeyFormProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
-  /** Custom provider or a catalog provider identity ({slug, name}). */
-  provider: { slug: string; name: string }
+  /** Custom provider or a catalog provider identity. */
+  provider: ProviderIdentity
   onSuccess?: () => void
 }
 
-export function AddCustomProviderApiKeyForm({
+/** Keyed by open state so every open starts from an empty form. */
+export function AddCustomProviderApiKeyForm(props: AddCustomProviderApiKeyFormProps) {
+  return <ApiKeyDialog key={`${props.provider.slug}-${props.open}`} {...props} />
+}
+
+/** base_url is a form field, not a wire field: it travels inside metadata. */
+function toPayload({ base_url, ...rest }: AccountDto): AccountDto {
+  const override = base_url?.trim()
+  return {
+    ...rest,
+    api_key: rest.api_key?.trim(),
+    metadata: override ? { ...rest.metadata, base_url: override } : rest.metadata,
+  }
+}
+
+function ApiKeyDialog({
   open,
   onOpenChange,
   provider,
   onSuccess,
 }: AddCustomProviderApiKeyFormProps) {
-  const mutation = useMutation(queries.accounts.create())
+  const [moreOpen, setMoreOpen] = useState(false)
+  const createMutation = useMutation(queries.accounts.create())
+  const testMutation = useMutation(queries.accounts.testKey())
+
+  const form = useAppForm({
+    defaultValues: {
+      provider: provider.slug,
+      label: '',
+      auth_kind: 'api_key',
+      api_key: '',
+      priority: 100,
+      base_url: '',
+    } as AccountDto,
+    validators: { onSubmit: AccountSchema },
+    onSubmit: async ({ value }) => {
+      if (!value.api_key?.trim()) {
+        toast.error('Paste the API key first')
+        return
+      }
+      try {
+        await createMutation.mutateAsync(toPayload(value))
+        toast.success(`${provider.name} account added`)
+        onOpenChange(false)
+        onSuccess?.()
+      } catch (error) {
+        // Keep the typed key so a failed save can be retried.
+        toastAxiosError(error)
+      }
+    },
+  })
+
+  const hasKey = useSelector(form.store, (s) => Boolean(s.values.api_key?.trim()))
+
+  const testKey = async () => {
+    try {
+      const res = await testMutation.mutateAsync(toPayload(form.state.values))
+      const result = res.data
+      if (result.ok) {
+        toast.success(
+          result.latency_ms
+            ? `Key works · ${result.latency_ms} ms`
+            : result.detail || 'Key accepted'
+        )
+      } else {
+        toast.error(result.detail || `Key rejected (HTTP ${result.status})`)
+      }
+    } catch (error) {
+      toastAxiosError(error)
+    }
+  }
 
   return (
-    <AbstractForm
-      open={open}
-      onOpenChange={onOpenChange}
-      defaultValues={{
-        provider: provider.slug,
-        label: '',
-        auth_kind: 'api_key',
-        api_key: '',
-        priority: 100,
-        base_url: '',
-      }}
-      schema={AccountSchema}
-      mutation={mutation}
-      provider={provider}
-      onSuccess={onSuccess}
-    />
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent className="max-w-md gap-0 overflow-hidden p-0">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            form.handleSubmit()
+          }}
+        >
+          <div className="flex items-center gap-2.5 border-b border-border px-5 py-4">
+            <ProviderAvatar
+              slug={provider.slug}
+              apiKind={provider.apiKind}
+              size="xs"
+              className="size-7"
+            />
+            <AlertDialogTitle className="min-w-0 flex-1 truncate text-[15px]">
+              Add {provider.name} API key
+            </AlertDialogTitle>
+            <AlertDialogDescription className="sr-only">
+              The key is encrypted before it is stored.
+            </AlertDialogDescription>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-7 text-muted-foreground"
+              aria-label="Close"
+              onClick={() => onOpenChange(false)}
+            >
+              <IconX className="size-4" />
+            </Button>
+          </div>
+
+          <div className="space-y-3 px-5 py-4">
+            <div className="space-y-1.5">
+              <form.AppField
+                name="api_key"
+                children={(field) => (
+                  <field.PasswordField label="API key" hint="Required" placeholder="sk-…" />
+                )}
+              />
+              {provider.baseUrl ? (
+                <p className="text-[12.5px] break-all text-muted-foreground">
+                  Uses <span className="font-mono text-xs">{provider.baseUrl}</span>
+                </p>
+              ) : null}
+            </div>
+
+            <div className="border-t border-border pt-3">
+              <button
+                type="button"
+                aria-expanded={moreOpen}
+                onClick={() => setMoreOpen((v) => !v)}
+                className="inline-flex items-center gap-1 rounded-sm text-[12.5px] font-medium text-muted-foreground hover:text-foreground"
+              >
+                <IconChevronRight
+                  className={moreOpen ? 'size-3.5 rotate-90' : 'size-3.5'}
+                  aria-hidden
+                />
+                More options
+              </button>
+              {moreOpen ? (
+                <div className="mt-3 space-y-3">
+                  <form.AppField
+                    name="label"
+                    children={(field) => (
+                      <field.TextField label="Label" hint="Optional" placeholder="personal" />
+                    )}
+                  />
+                  <form.AppField
+                    name="priority"
+                    children={(field) => (
+                      <field.TextField
+                        label="Priority"
+                        hint="Lower runs first"
+                        type="number"
+                        min={1}
+                        placeholder="100"
+                      />
+                    )}
+                  />
+                  <form.AppField
+                    name="base_url"
+                    children={(field) => (
+                      <field.TextField
+                        label="Base URL override"
+                        hint="Optional"
+                        placeholder="Leave empty to use the provider default"
+                      />
+                    )}
+                  />
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 border-t border-border bg-muted/40 px-5 py-3">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!hasKey || testMutation.isPending}
+              onClick={testKey}
+            >
+              {testMutation.isPending ? (
+                <IconLoader2 className="animate-spin" />
+              ) : (
+                <IconCircleCheck />
+              )}
+              Test key
+            </Button>
+            <Button type="submit" disabled={!hasKey || createMutation.isPending}>
+              {createMutation.isPending ? 'Adding…' : 'Add account'}
+            </Button>
+          </div>
+        </form>
+      </AlertDialogContent>
+    </AlertDialog>
   )
 }

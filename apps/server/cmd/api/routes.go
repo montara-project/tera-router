@@ -142,6 +142,7 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	accounts := protected.Group("/accounts")
 	accounts.Get("", h.Accounts.Index)
 	accounts.Post("", h.Accounts.Store)
+	accounts.Post("/test", h.Accounts.TestKey)
 	accounts.Get("/:id", h.Accounts.Get)
 	accounts.Patch("/:id", h.Accounts.Update)
 	accounts.Delete("/:id", h.Accounts.Delete)

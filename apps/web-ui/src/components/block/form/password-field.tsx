@@ -15,12 +15,15 @@ type PasswordInputProps = React.ComponentProps<'input'> &
   VariantProps<typeof inputVariants> & {
     label?: string
     asterisk?: boolean
+    /** Muted note right of the label, e.g. "Required". */
+    hint?: string
   }
 
 export default function PasswordField({
   label,
   placeholder,
   asterisk = false,
+  hint,
   ...props
 }: PasswordInputProps) {
   const [passwordVisible, setPasswordVisible] = useState(false)
@@ -32,10 +35,13 @@ export default function PasswordField({
 
   return (
     <Field data-invalid={isInvalid}>
-      <FieldLabel htmlFor={field.name} className="gap-1">
-        {label}
-        {asterisk && <span className="text-destructive">*</span>}
-      </FieldLabel>
+      <div className="flex items-center justify-between gap-2">
+        <FieldLabel htmlFor={field.name} className="gap-1">
+          {label}
+          {asterisk && <span className="text-destructive">*</span>}
+        </FieldLabel>
+        {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
+      </div>
       <div className="relative">
         <Input
           type={passwordVisible ? 'text' : 'password'}
