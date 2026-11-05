@@ -12,8 +12,8 @@ type ChainStep struct {
 
 // Chain is the chain create/update request body (POST/PUT /v1/chains).
 type Chain struct {
-	Name             string `json:"name"`
-	Strategy         string `json:"strategy"`
+	Name     string `json:"name"`
+	Strategy string `json:"strategy"`
 	// Pointers so an update can clear the final fallback or the context
 	// window by sending "" or 0, while an omitted field keeps the stored value.
 	FallbackProvider *string `json:"fallback_provider"`
