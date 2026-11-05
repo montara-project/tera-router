@@ -76,15 +76,29 @@ func (s *ceremonyStore) put(c ceremony) (string, error) {
 		s.m = map[string]ceremony{}
 	}
 	fromIP := 0
+	oldestID := ""
+	var oldestExpiry time.Time
 	for k, v := range s.m {
 		if now.After(v.expires) {
 			delete(s.m, k)
-		} else if v.ip == c.ip {
+			continue
+		}
+		if oldestID == "" || v.expires.Before(oldestExpiry) {
+			oldestID, oldestExpiry = k, v.expires
+		}
+		if v.ip == c.ip {
 			fromIP++
 		}
 	}
-	if fromIP >= maxCeremoniesPerIP || len(s.m) >= maxPendingCeremonies {
+	// Only the per-client budget refuses a request: a flood from many
+	// addresses must degrade the store, not lock everyone out of passkeys.
+	if fromIP >= maxCeremoniesPerIP {
 		return "", apperr.ErrTooManyRequests
+	}
+	// At the global cap, drop the ceremony closest to expiry so a begun flow
+	// from a legitimate client always gets a slot.
+	if len(s.m) >= maxPendingCeremonies && oldestID != "" {
+		delete(s.m, oldestID)
 	}
 	id := uuid.NewString()
 	c.expires = now.Add(passkeyCeremonyTTL)

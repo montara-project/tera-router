@@ -1,4 +1,4 @@
-import { IconArrowRight, IconCpu } from '@tabler/icons-react'
+import { IconCpu } from '@tabler/icons-react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -6,21 +6,13 @@ import { toast } from 'sonner'
 import type { ApiKeyDetail } from '@/lib/api/models/key'
 
 import SimpleAlertScrollableDialogForm from '@/components/block/common/simple-alert-scrollable-dialog-form'
-import { Badge } from '@/components/ui/badge'
+import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardHeading,
-  CardTitle,
-  CardToolbar,
-} from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { toastAxiosError } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
+import { cn } from '@/lib/utils'
 
 export default function KeyModelsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
   const [open, setOpen] = useState(false)
@@ -85,62 +77,59 @@ export default function KeyModelsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
 
   return (
     <>
-      <Card className="bg-background">
-        <CardHeader className="py-4">
-          <CardHeading>
-            <CardTitle>Model access</CardTitle>
-            <CardDescription>
-              Choose whether this key follows its plan or uses a narrower model allowlist.
-            </CardDescription>
-          </CardHeading>
-          <CardToolbar>
-            <Button variant="outline" onClick={openDialog}>
-              Restrict models
-              <IconArrowRight />
-            </Button>
-          </CardToolbar>
-        </CardHeader>
-
-        <CardContent className="space-y-3 p-4 sm:p-5">
-          <div className="bg-background flex items-start gap-4 rounded-lg border border-border p-4">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-amber-950 text-amber-400">
-              <IconCpu className="h-5 w-5" />
+      <DashboardPanel
+        icon={IconCpu}
+        title={
+          <>
+            {restricted ? 'Restricted models' : 'All models allowed'}
+            <span
+              className={cn(
+                'rounded-sm px-1.5 py-0.5 text-[11.5px] font-medium',
+                restricted
+                  ? 'bg-amber-500/10 text-amber-800 ring-1 ring-amber-500/25 ring-inset dark:text-amber-400'
+                  : 'border border-border bg-muted/40 text-muted-foreground'
+              )}
+            >
+              {restricted
+                ? `${allowedModels.length} ${allowedModels.length === 1 ? 'pattern' : 'patterns'}`
+                : 'No restriction'}
             </span>
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="text-sm font-semibold">
-                  {restricted ? 'Restricted allowlist' : 'All available models'}
-                </p>
-                <Badge variant={restricted ? 'warning' : 'secondary'} appearance="light" size="sm">
-                  {restricted
-                    ? `${allowedModels.length} ${allowedModels.length === 1 ? 'pattern' : 'patterns'}`
-                    : 'No restriction'}
-                </Badge>
-              </div>
-              <p className="text-muted-foreground mt-1 text-sm">
-                {restricted
-                  ? 'Only models matching the patterns below are reachable through this key.'
-                  : 'This key can use every model available through its assigned plan.'}
-              </p>
-
-              {restricted ? (
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {allowedModels.map((pattern) => (
-                    <span
-                      key={pattern}
-                      className="bg-muted text-muted-foreground inline-flex items-center rounded-md px-2 py-0.5 font-mono text-xs"
-                    >
-                      {pattern}
-                    </span>
-                  ))}
-                </div>
-              ) : null}
-            </div>
+          </>
+        }
+        toolbar={
+          <Button variant="outline" size="sm" onClick={openDialog}>
+            {restricted ? 'Edit allowlist' : 'Restrict models'}
+          </Button>
+        }
+      >
+        {restricted ? (
+          <div className="flex flex-col gap-3 px-4 py-4">
+            <p className="text-[13px] text-muted-foreground">
+              Only models matching these patterns work with this key.
+            </p>
+            <ul className="flex flex-wrap gap-1.5">
+              {allowedModels.map((pattern) => (
+                <li
+                  key={pattern}
+                  className="inline-flex items-center rounded-sm border border-border bg-muted/40 px-2 py-0.5 font-mono text-xs"
+                >
+                  {pattern}
+                </li>
+              ))}
+            </ul>
           </div>
-
-          <div className="text-muted-foreground text-xs">{renderPlanAccess()}</div>
-        </CardContent>
-      </Card>
+        ) : (
+          <div className="flex flex-col items-center px-6 py-10 text-center">
+            <span className="flex size-10 items-center justify-center rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400">
+              <IconCpu className="size-5" aria-hidden />
+            </span>
+            <p className="mt-3 text-[13px] font-semibold">No model restriction</p>
+            <p className="mt-1 text-[12.5px] text-muted-foreground">
+              Every routable model works with this key.
+            </p>
+          </div>
+        )}
+      </DashboardPanel>
 
       <SimpleAlertScrollableDialogForm
         confirmText="Save allowlist"
@@ -153,6 +142,7 @@ export default function KeyModelsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
         onOpenChange={setOpen}
         onSubmit={handleSubmit}
       >
+        <p className="text-xs text-muted-foreground">{renderPlanAccess()}</p>
         <div className="space-y-1.5">
           <Label htmlFor="key-allowed-models">Allowed model patterns</Label>
           <Textarea
