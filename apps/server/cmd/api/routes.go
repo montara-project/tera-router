@@ -50,6 +50,10 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 
 	v1.Get("/branding", h.Settings.Branding)
 
+	// Usage portal: a key's own usage, read with the portal token from the
+	// shared link instead of a dashboard session.
+	v1.Get("/portal/:token", h.Portal.Show)
+
 	protected := v1.Group("/", middlewares.RequireAuth(app))
 
 	// Auth
@@ -83,6 +87,9 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	keys.Post("", h.Keys.Store)
 	keys.Get("/:id", h.Keys.Get)
 	keys.Get("/:id/usage", h.Keys.Usage)
+	keys.Get("/:id/guardrails", h.Keys.GuardrailStats)
+	keys.Post("/:id/portal", h.Keys.IssuePortal)
+	keys.Delete("/:id/portal", h.Keys.RevokePortal)
 	keys.Patch("/:id", h.Keys.Update)
 	keys.Post("/:id/reveal", h.Keys.Reveal)
 	keys.Post("/:id/rotate", h.Keys.Rotate)

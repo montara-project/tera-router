@@ -11,6 +11,7 @@ type Handlers struct {
 	Auth           *authHandler
 	Passkeys       *passkeysHandler
 	Keys           *keysHandler
+	Portal         *portalHandler
 	Plans          *plansHandler
 	Chains         *chainsHandler
 	Accounts       *accountsHandler
@@ -44,6 +45,7 @@ func New(app *app.Application) *Handlers {
 		Auth:           &authHandler{app: app},
 		Passkeys:       &passkeysHandler{app: app},
 		Keys:           &keysHandler{app: app},
+		Portal:         &portalHandler{app: app},
 		Plans:          &plansHandler{app: app},
 		Chains:         &chainsHandler{app: app},
 		Accounts:       &accountsHandler{app: app},

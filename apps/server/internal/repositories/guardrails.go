@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"time"
 
 	"tera-router/server/internal/models"
 
@@ -117,4 +118,31 @@ func (r *GuardrailRepository) AuditEntries(ctx context.Context, limit int) ([]mo
 		entries = append(entries, e)
 	}
 	return entries, errtrace.Wrap(rows.Err())
+}
+
+// GuardrailDecisions counts the non-allow guardrail decisions taken on one
+// key's requests. Masked covers every PII masking strategy.
+type GuardrailDecisions struct {
+	Blocked int64 `json:"blocked"`
+	Masked  int64 `json:"masked"`
+	Warned  int64 `json:"warned"`
+	Logged  int64 `json:"logged"`
+}
+
+// DecisionsForKey totals the gateway's guardrail audit rows for one key since
+// from. Allowed requests write no row, so they are not counted here.
+func (r *GuardrailRepository) DecisionsForKey(ctx context.Context, keyID string, from time.Time) (GuardrailDecisions, error) {
+	row := r.queryRowContext(ctx, r.DB, `
+		SELECT COALESCE(SUM(action = 'guardrail.block'), 0),
+		       COALESCE(SUM(action IN ('guardrail.redact', 'guardrail.mask', 'guardrail.hash')), 0),
+		       COALESCE(SUM(action = 'guardrail.warn'), 0),
+		       COALESCE(SUM(action = 'guardrail.log'), 0)
+		FROM audit_entries
+		WHERE action LIKE 'guardrail.%'
+		  AND json_extract(detail, '$.key_id') = $1
+		  AND created_at >= $2`, keyID, from.UTC())
+
+	var d GuardrailDecisions
+	err := row.Scan(&d.Blocked, &d.Masked, &d.Warned, &d.Logged)
+	return d, errtrace.Wrap(err)
 }
