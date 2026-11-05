@@ -4,21 +4,14 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useQueryState } from 'nuqs'
 import { useEffect, useMemo, useState } from 'react'
 
+import type { QuotaFilters } from '@/components/block/quota/filter-quota'
 import type { Models } from '@/lib/api/models'
 
-import EmptyState from '@/components/block/common/empty-state'
-import ReactTable from '@/components/block/common/react-table'
-import SectionCard from '@/components/block/common/section-card'
-import SimpleButtonGroup, {
-  type SimpleButtonGroupItem,
-} from '@/components/block/common/simple-button-group'
-import { QuotaAccountColumn } from '@/components/block/quota/column'
-import FilterQuota, {
-  applyQuotaFilters,
-  DEFAULT_QUOTA_FILTERS,
-  type QuotaFilters,
-} from '@/components/block/quota/filter-quota'
-import QuotaSummarySection from '@/components/block/quota/quota-summary-section'
+import PageHeader from '@/components/block/common/page-header'
+import SegmentedControl from '@/components/block/common/segmented-control'
+import { applyQuotaFilters, DEFAULT_QUOTA_FILTERS } from '@/components/block/quota/filter-quota'
+import QuotaAccountsCard from '@/components/block/quota/quota-accounts-card'
+import QuotaStatStrip, { TEAL_CHIP } from '@/components/block/quota/quota-stat-strip'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { usePaginationQuery } from '@/hooks/use-pagination-query'
@@ -28,28 +21,18 @@ export const Route = createFileRoute('/(protected)/(analytics)/quota/')({
   component: RouteComponent,
 })
 
-const RANGE_ITEMS: SimpleButtonGroupItem[] = [
+const RANGES = [
   { value: 'today', label: 'Today' },
-  { value: '7d', label: '7D' },
-  { value: '30d', label: '30D' },
-]
+  { value: '24h', label: '24h' },
+  { value: '7d', label: '7d' },
+  { value: '30d', label: '30d' },
+  { value: '90d', label: '90d' },
+] as const satisfies readonly { value: Models.QuotaRange; label: string }[]
 
 const AUTO_REFRESH_MS = 60_000
 
-function RouteSkeleton() {
-  return (
-    <div className="bg-sidebar border border-sidebar-accent p-2 rounded-2xl">
-      <div className="space-y-4 rounded-lg border border-border bg-background p-4">
-        <div className="grid gap-4 lg:grid-cols-3">
-          <Skeleton className="h-44 rounded-lg" />
-          <Skeleton className="h-44 rounded-lg" />
-          <Skeleton className="h-44 rounded-lg" />
-        </div>
-        <Skeleton className="h-96 w-full rounded-lg" />
-      </div>
-    </div>
-  )
-}
+/** Stable empty list so the derived memos keep their identity while loading. */
+const NO_ACCOUNTS: Models.QuotaAccount[] = []
 
 function RouteComponent() {
   const queryClient = useQueryClient()
@@ -81,12 +64,9 @@ function RouteComponent() {
   }, [])
 
   const overview = overviewData?.data
-  const loading = accountsFetching || accountsLoading
+  const listData = accountsData?.data ?? NO_ACCOUNTS
 
-  const accounts = useMemo(
-    () => applyQuotaFilters(accountsData?.data ?? [], filters),
-    [accountsData, filters]
-  )
+  const accounts = useMemo(() => applyQuotaFilters(listData, filters), [listData, filters])
 
   // The API returns every account regardless of offset/limit, so page the
   // filtered set client-side.
@@ -95,23 +75,6 @@ function RouteComponent() {
     [accounts, offset, limit]
   )
   const total = accounts.length
-
-  const columns = QuotaAccountColumn({ loading })
-
-  const providerOptions = useMemo(() => {
-    const names = Array.from(
-      new Set((accountsData?.data ?? []).map((account) => account.provider))
-    ).sort()
-
-    return [
-      { value: 'all', label: 'All providers' },
-      ...names.map((name) => ({ value: name, label: name })),
-    ]
-  }, [accountsData])
-
-  if (!overview) {
-    return <RouteSkeleton />
-  }
 
   const refreshing = (overviewFetching || accountsFetching) && !(overviewLoading && accountsLoading)
 
@@ -133,65 +96,53 @@ function RouteComponent() {
   }
 
   return (
-    <SectionCard
-      title="Quota Tracker"
-      description="Monitor account capacity, reported upstream limits, and period usage."
-      toolbar={
-        <div className="flex flex-wrap items-center gap-2.5">
-          <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-border px-3 py-1.5 text-xs font-medium text-emerald-600 tabular-nums dark:text-emerald-400">
-            <span className="size-1.5 rounded-full bg-emerald-500" />
-            Auto refresh · {secondsLeft}s
-          </span>
-          <SimpleButtonGroup
-            defaultValue={range}
-            items={RANGE_ITEMS}
-            onValueChange={handleRangeChange}
-          />
-          <Button
-            aria-label="Refresh"
-            disabled={refreshing}
-            onClick={refresh}
-            radius="full"
-            size="icon"
-            variant="outline"
-          >
-            <IconRefresh className={refreshing ? 'animate-spin' : undefined} />
-          </Button>
-        </div>
-      }
-    >
-      <div className="space-y-4">
-        <QuotaSummarySection summary={overview.summary} />
-
-        <FilterQuota
-          count={accounts.length}
-          filters={filters}
-          onChange={handleFilterChange}
-          providerOptions={providerOptions}
-        />
-
-        <ReactTable
-          total={total}
-          data={pagedAccounts}
-          pageIndex={pageIndex}
-          pageSize={limit}
-          columns={columns}
-          emptyMessage={
-            <EmptyState
-              icon={IconGauge}
-              title={
-                (accountsData?.data ?? []).length === 0 ? 'No accounts yet' : 'No accounts match'
-              }
-              description={
-                (accountsData?.data ?? []).length === 0
-                  ? 'Connect a provider account to track its quota here.'
-                  : 'Try a different search or filter.'
-              }
-              className="py-8"
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        description="Upstream limits and local usage for each provider account."
+        icon={IconGauge}
+        iconClassName={TEAL_CHIP}
+        title="Quota tracker"
+        actions={
+          <>
+            <SegmentedControl
+              aria-label="Time range"
+              options={RANGES}
+              value={range}
+              onChange={handleRangeChange}
             />
-          }
-        />
-      </div>
-    </SectionCard>
+            <span className="inline-flex h-8 items-center gap-2 rounded-md border border-border px-2.5 text-xs font-medium tabular-nums">
+              <span className="size-1.5 rounded-full bg-emerald-500" />
+              Auto refresh · {secondsLeft}s
+            </span>
+            <Button
+              aria-label="Refresh"
+              disabled={refreshing}
+              onClick={refresh}
+              size="icon"
+              variant="outline"
+            >
+              <IconRefresh className={refreshing ? 'animate-spin' : undefined} />
+            </Button>
+          </>
+        }
+      />
+
+      {overview ? (
+        <QuotaStatStrip summary={overview.summary} accounts={listData} />
+      ) : (
+        <Skeleton className="h-25 rounded-lg" />
+      )}
+
+      <QuotaAccountsCard
+        accounts={listData}
+        paged={pagedAccounts}
+        total={total}
+        loading={accountsLoading && listData.length === 0}
+        pageIndex={pageIndex}
+        pageSize={limit}
+        filters={filters}
+        onChange={handleFilterChange}
+      />
+    </div>
   )
 }

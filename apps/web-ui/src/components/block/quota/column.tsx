@@ -1,8 +1,8 @@
 import type { ColumnDef } from '@tanstack/react-table'
 
-import { IconEyeOff, IconPower, IconTrash } from '@tabler/icons-react'
+import { IconDots, IconEyeOff, IconPower, IconTrash } from '@tabler/icons-react'
 import { useMutation } from '@tanstack/react-query'
-import React, { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
 import type { Models } from '@/lib/api/models'
@@ -11,11 +11,19 @@ import type { BaseColumnProps } from '@/types/column'
 import { features } from '@/components/block/common/react-table'
 import SimpleAlertDialog from '@/components/block/common/simple-alert-dialog'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Switch } from '@/components/ui/switch'
 import { toastAxiosError } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
 import { formatUsd } from '@/lib/currency'
-import { formatCompact } from '@/lib/format'
+import { formatCompact, formatCount } from '@/lib/format'
+import { cn } from '@/lib/utils'
 
 type ColumnType = ColumnDef<typeof features, Models.QuotaAccount, unknown>
 
@@ -34,16 +42,20 @@ function visibilityLabel(visibility: Models.QuotaAccount['quota_visibility']) {
 function AccountAvatar({ account }: { account: Models.QuotaAccount }) {
   return (
     <span
-      className={
-        account.brand_avatar
-          ? 'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-orange-500 text-sm font-bold text-white'
-          : 'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-sidebar-accent text-xs font-semibold text-muted-foreground'
-      }
+      className={cn(
+        'flex h-6 w-6 shrink-0 items-center justify-center rounded border border-border bg-muted/50 font-mono text-[10px] font-medium text-muted-foreground',
+        account.brand_avatar && 'border-0 bg-orange-500 text-white'
+      )}
     >
       {account.initials}
     </span>
   )
 }
+
+const BADGE_ACTIVE =
+  'inline-flex h-5 items-center rounded-md border border-emerald-500/20 bg-emerald-500/10 px-1.5 text-[11.5px] font-medium text-emerald-600 dark:text-emerald-400'
+const BADGE_PAUSED =
+  'inline-flex h-5 items-center rounded-md border border-border bg-muted/40 px-1.5 text-[11.5px] font-medium text-muted-foreground'
 
 export function QuotaAccountColumn({ loading }: BaseColumnProps) {
   const columns = useMemo<ColumnType[]>(() => {
@@ -51,15 +63,15 @@ export function QuotaAccountColumn({ loading }: BaseColumnProps) {
       {
         accessorKey: 'name',
         header: 'Account',
-        size: 180,
+        size: 380,
         cell: ({ row }) => {
           return loading ? (
             <Skeleton className="h-5 w-full" />
           ) : (
-            <div className="flex items-center gap-3">
+            <div className="flex min-w-0 items-center gap-2.5">
               <AccountAvatar account={row.original} />
               <div className="min-w-0">
-                <div className="truncate font-medium">{row.original.name}</div>
+                <div className="truncate text-[13px] font-medium">{row.original.name}</div>
                 <div className="text-muted-foreground truncate text-xs">
                   {row.original.auth_label}
                 </div>
@@ -70,63 +82,51 @@ export function QuotaAccountColumn({ loading }: BaseColumnProps) {
       },
       {
         accessorKey: 'status',
-        header: 'Status',
-        size: 100,
+        header: 'Routing',
+        size: 140,
         cell: ({ row }) => {
           return loading ? (
             <Skeleton className="h-5 w-full" />
           ) : (
-            <div>
-              {row.original.status === 'active' ? (
-                <span className="inline-flex rounded-md bg-emerald-950/40 px-2 py-0.5 text-xs font-medium text-emerald-400 ring-1 ring-emerald-900/60 ring-inset">
-                  Active
-                </span>
-              ) : (
-                <span className="inline-flex rounded-md bg-zinc-800/60 px-2 py-0.5 text-xs font-medium text-zinc-400 ring-1 ring-zinc-700/60 ring-inset">
-                  Paused
-                </span>
-              )}
-              <div className="text-muted-foreground mt-1 text-xs">
+            <div className="flex flex-col gap-1">
+              <span className={row.original.status === 'active' ? BADGE_ACTIVE : BADGE_PAUSED}>
+                {row.original.status === 'active' ? 'Active' : 'Paused'}
+              </span>
+              <span className="text-muted-foreground text-xs tabular-nums">
                 Priority {row.original.priority}
-              </div>
+              </span>
             </div>
           )
         },
       },
       {
         accessorKey: 'quota_visibility',
-        header: 'Quota Visibility',
-        size: 180,
+        header: 'Quota windows',
+        size: 300,
         cell: ({ row }) => {
           return loading ? (
             <Skeleton className="h-5 w-full" />
           ) : (
-            <div>
-              <div className="flex items-center gap-2">
-                <span
-                  className={`size-1.5 shrink-0 rounded-full ${VISIBILITY_DOTS[row.original.quota_visibility]}`}
-                />
-                <span className="font-medium">
-                  {visibilityLabel(row.original.quota_visibility)}
-                </span>
-              </div>
-              <div className="text-muted-foreground mt-1 text-xs">{row.original.quota_note}</div>
+            <div className="flex items-center gap-2">
+              <span
+                className={`size-1.5 shrink-0 rounded-full ${VISIBILITY_DOTS[row.original.quota_visibility]}`}
+              />
+              <span className="text-[13px]">{visibilityLabel(row.original.quota_visibility)}</span>
             </div>
           )
         },
       },
       {
         accessorKey: 'requests',
-        header: 'Period Usage',
-        size: 120,
+        header: 'Period usage',
+        size: 150,
         cell: ({ row }) => {
           return loading ? (
             <Skeleton className="h-5 w-full" />
           ) : (
             <div className="text-right">
-              <div className="font-semibold tabular-nums">
-                {row.original.requests}{' '}
-                <span className="text-muted-foreground font-normal">req</span>
+              <div className="text-[13px] tabular-nums">
+                {formatCount(row.original.requests)} req
               </div>
               <div className="text-muted-foreground text-xs tabular-nums">
                 {formatCompact(row.original.input_tokens + row.original.output_tokens)} tokens
@@ -137,13 +137,13 @@ export function QuotaAccountColumn({ loading }: BaseColumnProps) {
       },
       {
         accessorKey: 'attributed_cost',
-        header: 'Attributed Cost',
-        size: 120,
+        header: 'Cost',
+        size: 110,
         cell: ({ row }) => {
           return loading ? (
             <Skeleton className="h-5 w-full" />
           ) : (
-            <div className="text-right font-semibold tabular-nums">
+            <div className="text-right text-[13px] tabular-nums">
               {formatUsd(row.original.attributed_cost)}
             </div>
           )
@@ -151,7 +151,8 @@ export function QuotaAccountColumn({ loading }: BaseColumnProps) {
       },
       {
         accessorKey: 'actions',
-        header: 'Actions',
+        header: '',
+        size: 160,
         cell: ({ row }) => {
           return loading ? (
             <Skeleton className="h-5 w-full" />
@@ -159,7 +160,6 @@ export function QuotaAccountColumn({ loading }: BaseColumnProps) {
             <ActionCell record={row.original} />
           )
         },
-        size: 100,
       },
     ]
   }, [loading])
@@ -177,10 +177,10 @@ function ActionCell({ record }: ActionCellProps) {
   const toggleMutation = useMutation(queries.quota.toggleStatus())
   const deleteMutation = useMutation(queries.quota.delete())
 
-  const handleToggle = async () => {
+  const handleToggle = async (checked: boolean) => {
     try {
       await toggleMutation.mutateAsync(record.id)
-      toast.success(`Account ${record.status === 'active' ? 'paused' : 'activated'}`)
+      toast.success(`Account ${checked ? 'activated' : 'paused'}`)
     } catch (error) {
       toastAxiosError(error as Error)
     }
@@ -196,41 +196,56 @@ function ActionCell({ record }: ActionCellProps) {
     }
   }
 
-  return (
-    <React.Fragment>
-      <div className="flex items-center justify-end gap-1">
-        <Button
-          aria-label={record.status === 'active' ? 'Pause account' : 'Activate account'}
-          className="text-muted-foreground hover:text-foreground"
-          disabled={toggleMutation.isPending}
-          mode="icon"
-          onClick={() => handleToggle()}
-          size="icon"
-          variant="ghost"
-        >
-          {record.status === 'active' ? <IconEyeOff /> : <IconPower />}
-        </Button>
-        <Button
-          aria-label="Delete account"
-          className="text-muted-foreground hover:text-foreground"
-          mode="icon"
-          onClick={() => setOpenDelete(true)}
-          size="icon"
-          variant="ghost"
-        >
-          <IconTrash />
-        </Button>
-      </div>
+  const active = record.status === 'active'
 
-      <SimpleAlertDialog
-        confirmText="Delete"
-        description={`Account "${record.name}" will be removed from the quota tracker. This cannot be undone.`}
-        onConfirm={handleDelete}
-        onOpenChange={setOpenDelete}
-        open={openDelete}
-        title="Do you want to delete this account?"
-        variant="destructive"
-      />
-    </React.Fragment>
+  return (
+    <Fragment>
+      <div className="flex items-center justify-end gap-1">
+        <Switch
+          aria-label={active ? 'Pause account' : 'Activate account'}
+          checked={active}
+          className="data-[state=checked]:bg-blue-500"
+          disabled={toggleMutation.isPending}
+          onCheckedChange={handleToggle}
+          size="sm"
+        />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              aria-label="More actions"
+              className="text-muted-foreground size-8 hover:text-foreground"
+              size="icon"
+              variant="ghost"
+            >
+              <IconDots />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              onSelect={() => {
+                void handleToggle(!active)
+              }}
+            >
+              {active ? <IconEyeOff /> : <IconPower />}
+              {active ? 'Pause account' : 'Activate account'}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setOpenDelete(true)}>
+              <IconTrash />
+              Delete account
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <SimpleAlertDialog
+          confirmText="Delete"
+          description={`Account "${record.name}" will be removed from the quota tracker. This cannot be undone.`}
+          onConfirm={handleDelete}
+          onOpenChange={setOpenDelete}
+          open={openDelete}
+          title="Do you want to delete this account?"
+          variant="destructive"
+        />
+      </div>
+    </Fragment>
   )
 }
