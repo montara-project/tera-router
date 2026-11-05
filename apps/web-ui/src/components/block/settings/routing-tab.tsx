@@ -2,17 +2,11 @@ import { IconRoute } from '@tabler/icons-react'
 
 import type { AppSettings } from '@/lib/api/models/settings'
 
-import IconBadge from '@/components/block/common/icon-badge'
-import SettingRow from '@/components/block/settings/setting-row'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardHeading,
-  CardTitle,
-} from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
+import SettingRow, {
+  SegmentedControl,
+  SettingsSection,
+  UnitInput,
+} from '@/components/block/settings/setting-row'
 import { Switch } from '@/components/ui/switch'
 
 interface RoutingTabProps {
@@ -20,86 +14,62 @@ interface RoutingTabProps {
   onUpdate: (patch: Partial<AppSettings>) => void
 }
 
+const ACCOUNT_STRATEGIES = [
+  { value: 'fill-first', label: 'Fill first' },
+  { value: 'round-robin', label: 'Round robin' },
+]
+
 export default function RoutingTab({ settings, onUpdate }: RoutingTabProps) {
-  const switchClass = 'data-[state=checked]:bg-amber-600'
-
-  const distribution = settings.provider_round_robin
-    ? `Distributing requests across all available accounts with ${settings.provider_sticky_limit} ${
-        settings.provider_sticky_limit === 1 ? 'call' : 'calls'
-      } per account.`
-    : 'Requests stick to the first available account in each provider group.'
-
-  const chain = settings.chain_round_robin
-    ? 'Chains cycle through their providers round robin.'
-    : 'Chains always start with their first model.'
+  const roundRobin = settings.provider_round_robin
 
   return (
-    <Card className="bg-background">
-      <CardHeader className="py-4">
-        <div className="flex items-center gap-3.5">
-          <IconBadge
-            icon={IconRoute}
-            variant="soft"
-            className="h-10 w-10 shrink-0"
-            iconClassName="h-5 w-5"
+    <SettingsSection
+      icon={IconRoute}
+      title="Routing strategy"
+      description="Providers can override this on their Routing tab"
+    >
+      <SettingRow
+        stacked
+        title="Accounts in a provider group"
+        description={
+          roundRobin
+            ? 'Rotate requests across accounts, a few calls per account at a time.'
+            : 'Use the first available account until it fails or runs out, then the next.'
+        }
+      >
+        <SegmentedControl
+          aria-label="Accounts in a provider group"
+          options={ACCOUNT_STRATEGIES}
+          value={roundRobin ? 'round-robin' : 'fill-first'}
+          onChange={(value) => onUpdate({ provider_round_robin: value === 'round-robin' })}
+        />
+      </SettingRow>
+      {roundRobin ? (
+        <SettingRow
+          nested
+          title="Provider sticky limit"
+          description="Calls per account before moving to the next one. 1–100."
+        >
+          <UnitInput
+            label="Provider sticky limit"
+            unit="calls"
+            min={1}
+            max={100}
+            value={settings.provider_sticky_limit}
+            onCommit={(value) => onUpdate({ provider_sticky_limit: value })}
           />
-          <CardHeading>
-            <CardTitle>Routing Strategy</CardTitle>
-            <CardDescription>
-              Control how requests are distributed across accounts and chains.
-            </CardDescription>
-          </CardHeading>
-        </div>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="divide-y divide-border">
-          <SettingRow
-            title="Provider group round robin"
-            description="Cycle through accounts in the same provider. A provider can override this under Account strategy on its page."
-          >
-            <Switch
-              aria-label="Enable provider group round robin"
-              checked={settings.provider_round_robin}
-              className={switchClass}
-              onCheckedChange={(value) => onUpdate({ provider_round_robin: value })}
-            />
-          </SettingRow>
-
-          <SettingRow
-            title="Provider sticky limit"
-            description="Calls per account before switching"
-          >
-            <Input
-              aria-label="Provider sticky limit"
-              type="number"
-              min={1}
-              step={1}
-              value={settings.provider_sticky_limit}
-              className="w-24 text-center font-mono"
-              onChange={(e) => {
-                const value = e.target.valueAsNumber
-                if (!Number.isNaN(value) && value >= 1) onUpdate({ provider_sticky_limit: value })
-              }}
-            />
-          </SettingRow>
-
-          <SettingRow
-            title="Chain round robin"
-            description="Cycle through providers in chains instead of always starting with first"
-          >
-            <Switch
-              aria-label="Enable chain round robin"
-              checked={settings.chain_round_robin}
-              className={switchClass}
-              onCheckedChange={(value) => onUpdate({ chain_round_robin: value })}
-            />
-          </SettingRow>
-        </div>
-
-        <p className="text-muted-foreground border-t border-border px-5 py-4 text-xs italic">
-          {distribution} {chain}
-        </p>
-      </CardContent>
-    </Card>
+        </SettingRow>
+      ) : null}
+      <SettingRow
+        title="Chain round robin"
+        description="Rotate the models of priority chains instead of always starting with the first."
+      >
+        <Switch
+          aria-label="Chain round robin"
+          checked={settings.chain_round_robin}
+          onCheckedChange={(value) => onUpdate({ chain_round_robin: value })}
+        />
+      </SettingRow>
+    </SettingsSection>
   )
 }

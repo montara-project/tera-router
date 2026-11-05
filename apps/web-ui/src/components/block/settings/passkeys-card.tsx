@@ -42,8 +42,8 @@ export default function PasskeysCard() {
   }
 
   return (
-    <Card className="bg-background">
-      <CardHeader className="py-4">
+    <Card className="rounded-lg bg-card">
+      <CardHeader className="px-4 py-3">
         <div className="flex min-w-0 items-center gap-3.5">
           <IconBadge
             icon={IconFingerprint}
@@ -52,8 +52,8 @@ export default function PasskeysCard() {
             iconClassName="h-5 w-5"
           />
           <CardHeading>
-            <CardTitle>Passkeys</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-sm font-semibold">Passkeys</CardTitle>
+            <CardDescription className="text-xs">
               Sign in with Touch ID, Windows Hello, your phone or a security key instead of a
               password and code. A passkey only works on the address it was added on.
             </CardDescription>
@@ -64,7 +64,7 @@ export default function PasskeysCard() {
       <CardContent className="p-0">
         <form
           onSubmit={add}
-          className="flex flex-wrap items-center gap-3 border-t border-border px-5 py-4"
+          className="flex flex-wrap items-center gap-3 border-t border-border px-4 py-4"
         >
           <Input
             value={name}
@@ -86,15 +86,17 @@ export default function PasskeysCard() {
         </form>
 
         {isLoading ? null : passkeys.length === 0 ? (
-          <p className="text-muted-foreground border-t border-border px-5 py-4 text-sm">
+          <p className="text-muted-foreground border-t border-border px-4 py-4 text-sm">
             No passkeys yet.
           </p>
         ) : (
           <ul className="divide-y divide-border border-t border-border">
             {passkeys.map((passkey) => (
-              <li key={passkey.id} className="flex items-center justify-between gap-4 px-5 py-3">
+              <li key={passkey.id} className="flex items-center justify-between gap-4 px-4 py-3">
                 <div className="min-w-0">
-                  <p className="text-foreground truncate text-sm">{passkey.name}</p>
+                  <p className="truncate text-[12.5px] font-medium text-foreground">
+                    {passkey.name}
+                  </p>
                   <p className="text-muted-foreground mt-0.5 truncate text-xs">
                     <span className="font-mono">{passkey.rp_id}</span> · Added{' '}
                     {ago(passkey.created_at)}

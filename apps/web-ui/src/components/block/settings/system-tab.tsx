@@ -6,16 +6,8 @@ import {
 } from '@tabler/icons-react'
 import { useMutation } from '@tanstack/react-query'
 
-import IconBadge from '@/components/block/common/icon-badge'
+import { SettingsSection } from '@/components/block/settings/setting-row'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardHeading,
-  CardTitle,
-} from '@/components/ui/card'
 import { compareVersions, systemQueries } from '@/lib/api/queries/system'
 import { cn } from '@/lib/utils'
 
@@ -50,10 +42,16 @@ function resolveCheckState(
 const BADGES: Record<CheckState, { className: string; label: string }> = {
   idle: { className: 'bg-muted text-muted-foreground', label: 'Not checked' },
   checking: { className: 'bg-muted text-muted-foreground', label: 'Checking…' },
-  error: { className: 'bg-red-950 text-red-400', label: 'Check failed' },
+  error: { className: 'bg-red-500/10 text-red-600 dark:text-red-400', label: 'Check failed' },
   'unknown-current': { className: 'bg-muted text-muted-foreground', label: 'Development build' },
-  'up-to-date': { className: 'bg-emerald-950 text-emerald-400', label: 'Up to date' },
-  available: { className: 'bg-amber-950 text-amber-400', label: 'Update available' },
+  'up-to-date': {
+    className: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+    label: 'Up to date',
+  },
+  available: {
+    className: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+    label: 'Update available',
+  },
 }
 
 interface SystemTabProps {
@@ -74,89 +72,74 @@ export default function SystemTab({ version }: SystemTabProps) {
   )
 
   const badge = BADGES[state]
-  const badgeIcon =
-    state === 'error' ? (
-      <IconAlertTriangle className="h-3.5 w-3.5" />
-    ) : (
-      <IconArrowUpCircle className="h-3.5 w-3.5" />
-    )
+  const badgeIcon = state === 'error' ? <IconAlertTriangle className="size-3" /> : null
+
+  const cell = 'flex flex-col gap-1 bg-card px-4 py-3'
 
   return (
-    <Card className="bg-background">
-      <CardHeader className="py-4">
-        <div className="flex w-full flex-wrap items-center justify-between gap-4">
-          <div className="flex min-w-0 items-center gap-3.5">
-            <IconBadge
-              icon={IconArrowUpCircle}
-              variant="soft"
-              className="h-10 w-10 shrink-0"
-              iconClassName="h-5 w-5"
-            />
-            <CardHeading>
-              <CardTitle>Updates</CardTitle>
-              <CardDescription>
-                Check for new Tera Router releases and read the latest changelog.
-              </CardDescription>
-            </CardHeading>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            className="shrink-0"
-            disabled={checkMutation.isPending}
-            onClick={() => checkMutation.mutate()}
-          >
-            <IconRefresh className={cn('h-4 w-4', checkMutation.isPending && 'animate-spin')} />
-            Check now
-          </Button>
+    <SettingsSection
+      icon={IconArrowUpCircle}
+      title="Updates"
+      aside={
+        <Button
+          type="button"
+          variant="outline"
+          className="shrink-0"
+          disabled={checkMutation.isPending}
+          onClick={() => checkMutation.mutate()}
+        >
+          <IconRefresh
+            className={cn('size-4', checkMutation.isPending && 'motion-safe:animate-spin')}
+          />
+          Check now
+        </Button>
+      }
+    >
+      <dl className="grid gap-px bg-border sm:grid-cols-3">
+        <div className={cell}>
+          <dt className="text-xs text-muted-foreground">Current</dt>
+          <dd className="font-mono text-[15px] font-semibold">{displayVersion(version)}</dd>
         </div>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="flex items-center justify-between gap-4 border-t border-border px-5 py-4">
-          <div className="flex items-center gap-10">
-            <div>
-              <p className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">
-                Current
-              </p>
-              <p className="text-foreground mt-0.5 font-mono text-lg">{displayVersion(version)}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">
-                Latest
-              </p>
-              <p className="text-foreground mt-0.5 font-mono text-lg">
-                {displayVersion(checkMutation.data?.tag)}
-              </p>
-            </div>
-          </div>
-
-          {state === 'available' ? (
-            <a
-              href={checkMutation.data?.url}
-              target="_blank"
-              rel="noreferrer noopener"
-              className={cn(
-                'inline-flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold transition-opacity hover:opacity-90',
-                badge.className
-              )}
-            >
-              {badgeIcon}
-              {badge.label}
-              <IconExternalLink className="h-3.5 w-3.5" />
-            </a>
-          ) : (
-            <span
-              className={cn(
-                'inline-flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold',
-                badge.className
-              )}
-            >
-              {badgeIcon}
-              {badge.label}
-            </span>
+        <div className={cell}>
+          <dt className="text-xs text-muted-foreground">Latest</dt>
+          <dd className="font-mono text-[15px] font-semibold">
+            {displayVersion(checkMutation.data?.tag)}
+          </dd>
+          {checkMutation.data ? null : (
+            <dd className="text-xs text-muted-foreground">Check to see the newest release</dd>
           )}
         </div>
-      </CardContent>
-    </Card>
+        <div className={cell}>
+          <dt className="text-xs text-muted-foreground">Status</dt>
+          <dd>
+            {state === 'available' ? (
+              <a
+                href={checkMutation.data?.url}
+                target="_blank"
+                rel="noreferrer noopener"
+                className={cn(
+                  'inline-flex h-5 items-center gap-1 rounded-sm px-1.5 text-[11.5px] font-medium hover:underline',
+                  badge.className
+                )}
+              >
+                {badgeIcon}
+                {badge.label}
+                <IconExternalLink className="size-3" />
+              </a>
+            ) : (
+              <span
+                className={cn(
+                  'inline-flex h-5 items-center gap-1 rounded-sm px-1.5 text-[11.5px] font-medium',
+                  badge.className
+                )}
+              >
+                {badgeIcon}
+                {badge.label}
+              </span>
+            )}
+          </dd>
+        </div>
+      </dl>
+    </SettingsSection>
   )
 }

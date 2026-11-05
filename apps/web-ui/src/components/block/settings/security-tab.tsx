@@ -169,8 +169,8 @@ export default function SecurityTab() {
   }
 
   return (
-    <Card className="bg-background">
-      <CardHeader className="py-4">
+    <Card className="rounded-lg bg-card">
+      <CardHeader className="px-4 py-3">
         <div className="flex w-full items-center justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3.5">
             <IconBadge
@@ -180,8 +180,8 @@ export default function SecurityTab() {
               iconClassName="h-5 w-5"
             />
             <CardHeading>
-              <CardTitle>Two-factor authentication</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-sm font-semibold">Two-factor authentication</CardTitle>
+              <CardDescription className="text-xs">
                 Optional. Ask for a code from an authenticator app such as Google Authenticator when
                 signing in.
               </CardDescription>
@@ -189,7 +189,7 @@ export default function SecurityTab() {
           </div>
           <span
             className={cn(
-              'inline-flex shrink-0 items-center rounded-md px-2.5 py-1.5 text-xs font-semibold',
+              'inline-flex shrink-0 items-center rounded-md px-2.5 py-1.5 text-[11.5px] font-medium',
               enabled ? 'bg-emerald-950 text-emerald-400' : 'bg-muted text-muted-foreground'
             )}
           >
@@ -198,7 +198,7 @@ export default function SecurityTab() {
         </div>
       </CardHeader>
 
-      <CardContent className="border-t border-border px-5 py-4">{renderBody()}</CardContent>
+      <CardContent className="border-t border-border px-4 py-4">{renderBody()}</CardContent>
     </Card>
   )
 }

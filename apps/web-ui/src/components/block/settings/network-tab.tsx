@@ -1,197 +1,112 @@
-import { IconClock, IconDeviceDesktop, IconShield, IconWifi } from '@tabler/icons-react'
+import { IconClock, IconGauge, IconWorld } from '@tabler/icons-react'
 
 import type { AppSettings } from '@/lib/api/models/settings'
 
-import IconBadge from '@/components/block/common/icon-badge'
-import SettingRow from '@/components/block/settings/setting-row'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardHeading,
-  CardTitle,
-} from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
+import SettingRow, { SettingsSection, UnitInput } from '@/components/block/settings/setting-row'
 import { Switch } from '@/components/ui/switch'
+import { cn } from '@/lib/utils'
 
 interface NetworkTabProps {
   settings: AppSettings
   onUpdate: (patch: Partial<AppSettings>) => void
 }
 
-const TIMEOUT_FIELDS: {
+const TIMEOUTS: {
   key: 'connect_timeout' | 'stream_stall_timeout' | 'request_timeout'
-  label: string
-  default: string
+  title: string
+  description: string
 }[] = [
-  { key: 'connect_timeout', label: 'Connect timeout (sec)', default: '60s' },
-  { key: 'stream_stall_timeout', label: 'Stream stall timeout (sec)', default: '120s' },
-  { key: 'request_timeout', label: 'Request timeout (sec)', default: '300s (5 min)' },
+  {
+    key: 'connect_timeout',
+    title: 'First response timeout',
+    description: 'How long a provider may take to start responding. Default 60 s.',
+  },
+  {
+    key: 'stream_stall_timeout',
+    title: 'Stream stall timeout',
+    description: 'Abort a stream that sends nothing for this long. Default 300 s.',
+  },
+  {
+    key: 'request_timeout',
+    title: 'Request timeout',
+    description: 'Upper limit for a non-streaming request, fallbacks included. Default 300 s.',
+  },
 ]
 
-const ariaLabels = {
-  enforce_rate_limits: 'Enforce API key rate limits',
-  outboundProxy: 'Enable outbound proxy',
-  request_detail_recording: 'Enable request detail recording',
-}
-
 export default function NetworkTab({ settings, onUpdate }: NetworkTabProps) {
-  const switchClass = 'data-[state=checked]:bg-amber-600'
+  const proxyOn = settings.outbound_proxy_enabled
 
   return (
-    <div className="space-y-4">
-      <Card className="bg-background">
-        <CardHeader className="py-4">
-          <div className="flex items-center gap-3.5">
-            <IconBadge
-              icon={IconClock}
-              variant="soft"
-              className="h-10 w-10 shrink-0"
-              iconClassName="h-5 w-5"
+    <div className="flex flex-col gap-4">
+      <SettingsSection
+        icon={IconClock}
+        title="Timeouts"
+        description="Raise these for slow or reasoning models"
+      >
+        {TIMEOUTS.map((t) => (
+          <SettingRow key={t.key} title={t.title} description={t.description}>
+            <UnitInput
+              label={t.title}
+              unit="sec"
+              min={1}
+              value={settings[t.key]}
+              onCommit={(value) => onUpdate({ [t.key]: value })}
             />
-            <CardHeading>
-              <CardTitle>Timeouts</CardTitle>
-              <CardDescription>
-                Fine-tune upstream connection and streaming timeouts. Increase for slow providers or
-                reasoning models.
-              </CardDescription>
-            </CardHeading>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {TIMEOUT_FIELDS.map((field) => (
-              <div key={field.key} className="min-w-0 space-y-2">
-                <label
-                  className="text-xs font-medium text-muted-foreground"
-                  htmlFor={`network-${field.key}`}
-                >
-                  {field.label}
-                </label>
-                <Input
-                  id={`network-${field.key}`}
-                  aria-label={field.label}
-                  type="number"
-                  min={1}
-                  step={1}
-                  value={settings[field.key]}
-                  className="text-center font-mono"
-                  onChange={(e) => {
-                    const value = e.target.valueAsNumber
-                    if (!Number.isNaN(value) && value >= 1) onUpdate({ [field.key]: value })
-                  }}
-                />
-                <p className="text-muted-foreground text-xs">Default: {field.default}</p>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+          </SettingRow>
+        ))}
+      </SettingsSection>
 
-      <Card className="bg-background">
-        <CardHeader className="py-4">
-          <div className="flex items-center gap-3.5">
-            <IconBadge
-              icon={IconShield}
-              variant="soft"
-              className="h-10 w-10 shrink-0"
-              iconClassName="h-5 w-5"
-            />
-            <CardHeading>
-              <CardTitle>Rate Limits</CardTitle>
-              <CardDescription>
-                Enable per-key RPM, TPM, and concurrency limits from assigned plans.
-              </CardDescription>
-            </CardHeading>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="divide-y divide-border">
-            <SettingRow
-              title="Enforce API key rate limits"
-              description="When enabled, plan limits are enforced immediately. Blank or 0 plan values remain unlimited."
-            >
-              <Switch
-                aria-label={ariaLabels.enforce_rate_limits}
-                checked={settings.enforce_rate_limits}
-                className={switchClass}
-                onCheckedChange={(value) => onUpdate({ enforce_rate_limits: value })}
-              />
-            </SettingRow>
-          </div>
-        </CardContent>
-      </Card>
+      <SettingsSection
+        icon={IconWorld}
+        title="Outbound proxy"
+        description="HTTP, HTTPS or SOCKS5 proxy for provider requests"
+        aside={
+          <span
+            className={cn(
+              'inline-flex h-6 items-center rounded-md px-2.5 text-[11.5px] font-medium',
+              proxyOn
+                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                : 'bg-muted text-muted-foreground'
+            )}
+          >
+            {proxyOn ? 'Enabled' : 'Disabled'}
+          </span>
+        }
+      >
+        <SettingRow
+          title="Use outbound proxy"
+          description="Applies to provider requests and OAuth sign-ins for accounts without their own proxy pool."
+        >
+          <Switch
+            aria-label="Use outbound proxy"
+            checked={proxyOn}
+            onCheckedChange={(value) => onUpdate({ outbound_proxy_enabled: value })}
+          />
+        </SettingRow>
+      </SettingsSection>
 
-      <Card className="bg-background">
-        <CardHeader className="py-4">
-          <div className="flex items-center gap-3.5">
-            <IconBadge
-              icon={IconWifi}
-              variant="soft"
-              className="h-10 w-10 shrink-0"
-              iconClassName="h-5 w-5"
-            />
-            <CardHeading>
-              <CardTitle>Network Proxy</CardTitle>
-              <CardDescription>
-                Route all provider outbound requests through an HTTP/HTTPS/SOCKS5 proxy.
-              </CardDescription>
-            </CardHeading>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="divide-y divide-border">
-            <SettingRow
-              title="Outbound Proxy"
-              badge={
-                <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                  {settings.outbound_proxy_enabled ? 'Active' : 'Inactive'}
-                </span>
-              }
-              description="Applies to all provider and OAuth requests when no per-account proxy is set."
-            >
-              <Switch
-                aria-label={ariaLabels.outboundProxy}
-                checked={settings.outbound_proxy_enabled}
-                className={switchClass}
-                onCheckedChange={(value) => onUpdate({ outbound_proxy_enabled: value })}
-              />
-            </SettingRow>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="bg-background">
-        <CardHeader className="py-4">
-          <div className="flex items-center gap-3.5">
-            <IconBadge
-              icon={IconDeviceDesktop}
-              variant="soft"
-              className="h-10 w-10 shrink-0"
-              iconClassName="h-5 w-5"
-            />
-            <CardHeading>
-              <CardTitle>Observability</CardTitle>
-              <CardDescription>
-                Record request details for inspection in the logs view.
-              </CardDescription>
-            </CardHeading>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="divide-y divide-border">
-            <SettingRow title="Enable request detail recording">
-              <Switch
-                aria-label={ariaLabels.request_detail_recording}
-                checked={settings.request_detail_recording}
-                className={switchClass}
-                onCheckedChange={(value) => onUpdate({ request_detail_recording: value })}
-              />
-            </SettingRow>
-          </div>
-        </CardContent>
-      </Card>
+      <SettingsSection icon={IconGauge} title="Limits and logging">
+        <SettingRow
+          title="Enforce API key rate limits"
+          description="Apply each key's plan RPM, TPM and concurrency limits."
+        >
+          <Switch
+            aria-label="Enforce API key rate limits"
+            checked={settings.enforce_rate_limits}
+            onCheckedChange={(value) => onUpdate({ enforce_rate_limits: value })}
+          />
+        </SettingRow>
+        <SettingRow
+          title="Record request details"
+          description="Store request details for the logs view."
+        >
+          <Switch
+            aria-label="Record request details"
+            checked={settings.request_detail_recording}
+            onCheckedChange={(value) => onUpdate({ request_detail_recording: value })}
+          />
+        </SettingRow>
+      </SettingsSection>
     </div>
   )
 }

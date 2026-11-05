@@ -5,20 +5,11 @@ import { toast } from 'sonner'
 
 import type { AppSettings } from '@/lib/api/models/settings'
 
-import IconBadge from '@/components/block/common/icon-badge'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardHeading,
-  CardTitle,
-} from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { useThemePalette } from '@/lib/providers/themes'
 import { THEME_PALETTES } from '@/lib/theme-palettes'
+import { cn } from '@/lib/utils'
 
 import { SegmentedControl } from './setting-row'
 
@@ -60,6 +51,7 @@ function UploadZone({
   onChange,
 }: {
   label: string
+  /** e.g. "SVG or PNG" */
   hint: string
   id: string
   /** Image data URL; '' means the default. */
@@ -76,14 +68,29 @@ function UploadZone({
   }
 
   return (
-    <div className="min-w-0">
-      <p className="mb-2 text-xs font-medium text-muted-foreground">{label}</p>
-      <div className="flex items-stretch gap-2">
-        <div className="bg-muted/60 flex w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border">
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <div className="flex h-6 items-center justify-between gap-2">
+        <label htmlFor={id} className="text-[12.5px] font-medium">
+          {label}
+        </label>
+        {value ? (
+          <button
+            type="button"
+            onClick={() => onChange('')}
+            className="rounded-sm text-xs text-muted-foreground hover:text-foreground"
+          >
+            Reset to default
+          </button>
+        ) : (
+          <span className="text-xs text-muted-foreground">Default</span>
+        )}
+      </div>
+      <div className="flex items-stretch gap-3">
+        <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
           {value ? (
-            <img src={value} alt={`${label} preview`} className="h-10 w-10 object-contain" />
+            <img src={value} alt={`${label} preview`} className="size-12 object-contain" />
           ) : (
-            <IconPalette className="h-5 w-5 text-muted-foreground" />
+            <IconPalette className="size-5 text-muted-foreground" aria-hidden />
           )}
         </div>
         <button
@@ -95,15 +102,13 @@ function UploadZone({
             e.preventDefault()
             pick(e.dataTransfer.files[0])
           }}
-          className="hover:border-border/80 flex min-w-0 flex-1 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed border-border px-4 py-3 transition-colors"
+          className="flex min-w-0 flex-1 cursor-pointer flex-col justify-center gap-0.5 rounded-md border border-input px-3 text-left transition-colors hover:bg-muted/40"
         >
-          <span className="flex items-center gap-1.5 text-sm font-medium text-foreground">
-            <IconUpload className="h-4 w-4" />
-            {value ? 'Replace image' : 'Upload image'}
+          <span className="flex items-center gap-1.5 text-[13px] font-medium">
+            <IconUpload className="size-4" aria-hidden />
+            {value ? `Replace ${label.toLowerCase()}` : `Upload ${label.toLowerCase()}`}
           </span>
-          <span className="text-muted-foreground text-xs">
-            PNG, SVG, ICO — drag &amp; drop or click
-          </span>
+          <span className="text-xs text-muted-foreground">{hint} · drop or click</span>
         </button>
         <input
           ref={inputRef}
@@ -116,14 +121,6 @@ function UploadZone({
             e.target.value = ''
           }}
         />
-      </div>
-      <div className="mt-2 flex items-center justify-between gap-2">
-        <p className="text-muted-foreground text-xs">{hint}</p>
-        {value && (
-          <Button type="button" size="sm" variant="ghost" onClick={() => onChange('')}>
-            Reset
-          </Button>
-        )}
       </div>
     </div>
   )
@@ -148,168 +145,161 @@ export default function BrandingTab({ settings, onUpdate }: BrandingTabProps) {
     toast.success('Branding saved')
   }
 
+  const dirty =
+    displayName !== settings.branding_display_name ||
+    tagline !== settings.branding_tagline ||
+    logo !== (settings.branding_logo ?? '') ||
+    favicon !== (settings.branding_favicon ?? '') ||
+    palette !== settings.branding_theme
+  const block = 'border-b border-border p-4'
+  const label = 'text-[12.5px] font-medium'
+
   return (
-    <Card className="bg-background">
-      <CardHeader className="py-4">
-        <div className="flex items-center gap-3.5">
-          <IconBadge
-            icon={IconPalette}
-            variant="soft"
-            className="h-10 w-10 shrink-0"
-            iconClassName="h-5 w-5"
-          />
-          <CardHeading>
-            <CardTitle>White-Label Branding</CardTitle>
-            <CardDescription>
-              Customize the dashboard name, logo, and favicon. Changes apply to both the admin
-              dashboard and the public Usage Dashboard.
-            </CardDescription>
-          </CardHeading>
-        </div>
-      </CardHeader>
-
-      <CardContent className="p-0">
-        <div className="grid gap-6 border-t border-border p-5 sm:grid-cols-2">
-          <div className="min-w-0 space-y-2">
-            <label className="text-xs font-medium text-muted-foreground" htmlFor="branding-name">
-              Display Name
-            </label>
-            <Input
-              id="branding-name"
-              aria-label="Display Name"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-            />
-            <p className="text-muted-foreground text-xs">
-              Shown in sidebar, tab title, login screen, and Usage Dashboard.
-            </p>
-          </div>
-          <div className="min-w-0 space-y-2">
-            <label className="text-xs font-medium text-muted-foreground" htmlFor="branding-tagline">
-              Portal Tagline
-            </label>
-            <Input
-              id="branding-tagline"
-              aria-label="Portal Tagline"
-              placeholder="Enter your API Key to view usage."
-              value={tagline}
-              onChange={(e) => setTagline(e.target.value)}
-            />
-            <p className="text-muted-foreground text-xs">
-              Optional message on the Usage Dashboard login screen.
-            </p>
-          </div>
-        </div>
-
-        <div className="grid gap-6 border-t border-border p-5 sm:grid-cols-2">
-          <UploadZone
-            id="branding-logo"
-            label="Logo"
-            hint="SVG or PNG recommended. Leave empty for default."
-            value={logo}
-            onChange={setLogo}
-          />
-          <UploadZone
-            id="branding-favicon"
-            label="Favicon"
-            hint="PNG or ICO recommended. Leave empty for default."
-            value={favicon}
-            onChange={setFavicon}
-          />
-        </div>
-
-        <div className="border-t border-border p-5">
-          <p className="text-xs font-medium text-muted-foreground">Appearance</p>
-          <p className="text-muted-foreground mt-1 text-xs">
-            Choose how the dashboard looks — light, dark, or follow your system setting. Saved in
-            this browser.
+    <section className="overflow-hidden rounded-lg border border-border bg-card">
+      <header className="flex items-center gap-2.5 border-b border-border px-4 py-3">
+        <IconPalette className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+        <div className="min-w-0">
+          <h3 className="text-[13px] font-semibold">White-label branding</h3>
+          <p className="text-xs text-muted-foreground">
+            Applies to this dashboard and the Usage Dashboard
           </p>
-          <div className="mt-3">
-            <SegmentedControl
-              value={mode ?? 'system'}
-              options={[
-                { value: 'light', label: 'Light' },
-                { value: 'dark', label: 'Dark' },
-                { value: 'system', label: 'System' },
-              ]}
-              onChange={setMode}
-            />
-          </div>
         </div>
+      </header>
 
-        <div className="border-t border-border p-5">
-          <p className="text-xs font-medium text-muted-foreground">Color Theme</p>
-          <p className="text-muted-foreground mt-1 text-xs">
-            Choose a color palette for the dashboard. Changes apply instantly across all UI elements
-            and are saved in this browser.
-          </p>
+      <div className={cn(block, 'grid gap-4 sm:grid-cols-2')}>
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <label htmlFor="branding-name" className={label}>
+            Display name
+          </label>
+          <Input
+            id="branding-name"
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+          />
+          <p className="text-xs text-muted-foreground">Sidebar, browser tab and login screens.</p>
+        </div>
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <div className="flex items-center justify-between gap-2">
+            <label htmlFor="branding-tagline" className={label}>
+              Portal tagline
+            </label>
+            <span className="text-xs text-muted-foreground">Optional</span>
+          </div>
+          <Input
+            id="branding-tagline"
+            placeholder="Enter your API Key to view usage."
+            value={tagline}
+            onChange={(e) => setTagline(e.target.value)}
+          />
+          <p className="text-xs text-muted-foreground">Shown on the Usage Dashboard login.</p>
+        </div>
+      </div>
 
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-            {THEME_PALETTES.map((option) => {
-              const selected = option.value === palette
+      <div className={cn(block, 'grid gap-6 sm:grid-cols-2')}>
+        <UploadZone
+          id="branding-logo"
+          label="Logo"
+          hint="SVG or PNG"
+          value={logo}
+          onChange={setLogo}
+        />
+        <UploadZone
+          id="branding-favicon"
+          label="Favicon"
+          hint="PNG or ICO"
+          value={favicon}
+          onChange={setFavicon}
+        />
+      </div>
 
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  aria-pressed={selected}
-                  aria-label={`${option.label} theme`}
-                  onClick={() => setPalette(option.value)}
-                  className={`bg-card relative flex cursor-pointer flex-col items-center gap-2.5 rounded-lg border px-4 py-4 transition-colors ${
-                    selected
-                      ? 'border-foreground ring-ring/30 ring-2'
-                      : 'border-border hover:border-muted-foreground/40'
-                  }`}
-                >
-                  {selected && (
-                    <span className="bg-background absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full border border-border">
-                      <IconCheck className="h-3 w-3 text-foreground" />
-                    </span>
-                  )}
-                  {option.rows.map((row, rowIndex) => (
-                    <span key={rowIndex} className="flex gap-1">
-                      {row.map((color, colorIndex) => (
-                        <span
-                          key={`${rowIndex}-${colorIndex}`}
-                          className="h-4 w-4 rounded-full"
-                          style={{ backgroundColor: color }}
-                        />
-                      ))}
-                    </span>
+      <div className={block}>
+        <p className={label}>Color theme</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">Previews instantly. Save to keep it.</p>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          {THEME_PALETTES.map((option) => {
+            const selected = option.value === palette
+            const shades = [
+              option.rows[0][1],
+              option.rows[0][2],
+              option.rows[0][3],
+              option.rows[0][4],
+            ]
+            return (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => setPalette(option.value)}
+                className={cn(
+                  'flex cursor-pointer flex-col gap-2 rounded-md border p-2 text-left transition-colors',
+                  selected
+                    ? 'border-blue-500/30 bg-blue-500/10'
+                    : 'border-border bg-card hover:bg-muted/40'
+                )}
+              >
+                <span className="flex h-7 overflow-hidden rounded-sm" aria-hidden>
+                  {shades.map((color) => (
+                    <span key={color} className="flex-1" style={{ backgroundColor: color }} />
                   ))}
-                  <span className="text-muted-foreground text-xs">{option.label}</span>
-                </button>
-              )
-            })}
-          </div>
+                  <span className="w-5" style={{ backgroundColor: option.rows[1][2] }} />
+                </span>
+                <span
+                  className={cn(
+                    'flex items-center justify-between gap-2 px-0.5 text-[12.5px] font-medium',
+                    selected ? 'text-blue-600 dark:text-blue-400' : 'text-foreground'
+                  )}
+                >
+                  {option.label}
+                  {selected ? <IconCheck className="size-3.5" aria-hidden /> : null}
+                </span>
+              </button>
+            )
+          })}
         </div>
+      </div>
 
-        <div className="border-t border-border p-5">
-          <p className="text-xs font-medium text-muted-foreground">Preview</p>
-          <div className="bg-sidebar mt-3 flex items-center gap-3 rounded-lg border border-border p-4">
-            <div className="bg-muted/60 flex h-8 w-8 items-center justify-center overflow-hidden rounded-md border border-border">
-              {logo ? (
-                <img src={logo} alt="" className="h-7 w-7 object-contain" />
-              ) : (
-                <IconPalette className="text-muted-foreground h-4 w-4" />
-              )}
-            </div>
-            <span className="text-sm font-semibold text-foreground">
-              {displayName || 'Tera Router'}
-            </span>
-          </div>
+      <div className={cn(block, 'flex flex-wrap items-center justify-between gap-3')}>
+        <div>
+          <p className={label}>Appearance</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Light, dark or your system setting. Saved in this browser.
+          </p>
         </div>
-      </CardContent>
+        <SegmentedControl
+          aria-label="Appearance"
+          value={mode ?? 'system'}
+          options={[
+            { value: 'light', label: 'Light' },
+            { value: 'dark', label: 'Dark' },
+            { value: 'system', label: 'System' },
+          ]}
+          onChange={setMode}
+        />
+      </div>
 
-      <CardFooter className="justify-end border-t border-border">
-        <Button
-          type="button"
-          className="bg-amber-600 text-white hover:bg-amber-500 dark:bg-amber-800 dark:text-amber-200 dark:hover:bg-amber-700"
-          onClick={handleSave}
-        >
-          Save Branding
+      <div className={block}>
+        <p className={label}>Preview</p>
+        <div className="mt-3 flex items-center gap-3 rounded-md border border-border bg-sidebar p-3">
+          <span className="flex size-8 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
+            {logo ? (
+              <img src={logo} alt="" className="size-7 object-contain" />
+            ) : (
+              <IconPalette className="size-4 text-muted-foreground" aria-hidden />
+            )}
+          </span>
+          <span className="text-[13px] font-semibold">{displayName || 'Tera Router'}</span>
+          <span className="ml-auto text-xs font-medium text-primary">Link color</span>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-3 px-4 py-3">
+        <span className="text-xs text-muted-foreground">
+          {dirty ? 'Unsaved changes' : 'All changes saved'}
+        </span>
+        <Button type="button" disabled={!dirty} onClick={handleSave}>
+          Save branding
         </Button>
-      </CardFooter>
-    </Card>
+      </div>
+    </section>
   )
 }

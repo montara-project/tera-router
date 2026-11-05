@@ -47,8 +47,8 @@ export default function SessionsCard() {
   const revokeMutation = useMutation(queries.auth.revokeSession())
 
   return (
-    <Card className="bg-background">
-      <CardHeader className="py-4">
+    <Card className="rounded-lg bg-card">
+      <CardHeader className="px-4 py-3">
         <div className="flex min-w-0 items-center gap-3.5">
           <IconBadge
             icon={IconDevices}
@@ -57,8 +57,8 @@ export default function SessionsCard() {
             iconClassName="h-5 w-5"
           />
           <CardHeading>
-            <CardTitle>Active sessions</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-sm font-semibold">Active sessions</CardTitle>
+            <CardDescription className="text-xs">
               Devices signed in to this dashboard. Revoke one you don't recognise; it is signed out
               at once.
             </CardDescription>
@@ -68,15 +68,18 @@ export default function SessionsCard() {
 
       <CardContent className="p-0">
         {isLoading ? null : sessions.length === 0 ? (
-          <p className="text-muted-foreground border-t border-border px-5 py-4 text-sm">
+          <p className="text-muted-foreground border-t border-border px-4 py-4 text-sm">
             No active sessions.
           </p>
         ) : (
           <ul className="divide-y divide-border border-t border-border">
             {sessions.map((session) => (
-              <li key={session.id} className="flex items-center justify-between gap-4 px-5 py-3">
+              <li key={session.id} className="flex items-center justify-between gap-4 px-4 py-3">
                 <div className="min-w-0">
-                  <p className="text-foreground truncate text-sm" title={session.user_agent}>
+                  <p
+                    className="truncate text-[12.5px] font-medium text-foreground"
+                    title={session.user_agent}
+                  >
                     {describeAgent(session.user_agent)}
                     {session.current && (
                       <span className="ml-2 rounded-md bg-emerald-950 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-400">
@@ -85,9 +88,7 @@ export default function SessionsCard() {
                     )}
                   </p>
                   <p className="text-muted-foreground mt-0.5 truncate text-xs">
-                    {session.ip_address && (
-                      <span className="font-mono">{session.ip_address} · </span>
-                    )}
+                    {session.ip_address && <span>{session.ip_address} · </span>}
                     Signed in{' '}
                     {formatDistanceToNow(new Date(session.created_at), { addSuffix: true })}
                   </p>

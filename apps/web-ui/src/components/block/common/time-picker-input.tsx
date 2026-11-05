@@ -36,7 +36,7 @@ export default function TimePickerInput({ time, onTimeChange, placeholder }: Tim
             variant="outline"
             mode="input"
             placeholder={!time}
-            className="w-full"
+            className="w-full bg-card"
           >
             <IconClock />
             {time || <span>{placeholder || 'Pick a time'}</span>}
