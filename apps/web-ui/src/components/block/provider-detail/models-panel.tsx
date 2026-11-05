@@ -1,3 +1,4 @@
+import { IconDownload, IconRefresh } from '@tabler/icons-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useQueryState } from 'nuqs'
 import { useState } from 'react'
@@ -5,9 +6,13 @@ import { toast } from 'sonner'
 
 import type { Models } from '@/lib/api/models'
 
-import ModelsCatalog, { CATALOG_PAGE_SIZE } from '@/components/block/provider-detail/models-catalog'
+import SegmentedControl from '@/components/block/common/segmented-control'
+import ModelsCatalog, {
+  CATALOG_PAGE_SIZE,
+  type ModelStateFilter,
+} from '@/components/block/provider-detail/models-catalog'
 import ObservedPanel from '@/components/block/provider-detail/observed-panel'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Button } from '@/components/ui/button'
 import { useDebounce } from '@/hooks/use-debounce'
 import { usePaginationQuery } from '@/hooks/use-pagination-query'
 import { axiosErrorMessage } from '@/lib/api/axios-error'
@@ -48,7 +53,8 @@ export default function ModelsPanel({
     models: { id: string; state: Models.ProviderModelState }[]
   }) => Promise<unknown>
 }) {
-  const [subTab, setSubTab] = useState('catalog')
+  const [subTab, setSubTab] = useState<'catalog' | 'observed'>('catalog')
+  const [stateFilter, setStateFilter] = useState<ModelStateFilter>('all')
   // Catalog search and paging are server-side: the raw input is debounced
   // before it reaches the query param, and a new search resets the page.
   const [searchInput, setSearchInput] = useState('')
@@ -64,10 +70,17 @@ export default function ModelsPanel({
     setSelected([])
   }
 
+  const onStateFilterChange = (value: ModelStateFilter) => {
+    setStateFilter(value)
+    setQueryPage(null)
+    setSelected([])
+  }
+
+  const state = stateFilter === 'all' ? undefined : stateFilter
   const catalogQuery = useQuery(
     variant === 'catalog'
-      ? queries.providers.catalogModels(providerSlug, { search, offset, limit })
-      : queries.providers.customModels(providerId, { search, offset, limit })
+      ? queries.providers.catalogModels(providerSlug, { search, offset, limit, state })
+      : queries.providers.customModels(providerId, { search, offset, limit, state })
   )
   const catalog = catalogQuery.data?.data ?? null
 
@@ -145,12 +158,23 @@ export default function ModelsPanel({
   }
 
   return (
-    <Tabs value={subTab} onValueChange={setSubTab}>
-      <TabsList className="w-full justify-start overflow-x-auto">
-        <TabsTrigger value="catalog">Catalog ({catalog?.enabled ?? 0})</TabsTrigger>
-        <TabsTrigger value="observed">Observed ({observed.length})</TabsTrigger>
-      </TabsList>
-      <TabsContent value="catalog" className="mt-4">
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <SegmentedControl
+          aria-label="Model view"
+          value={subTab}
+          onChange={setSubTab}
+          options={[
+            { value: 'catalog', label: 'Catalog', count: catalog?.count ?? 0 },
+            { value: 'observed', label: 'Observed', count: observed.length },
+          ]}
+        />
+        <Button variant="outline" disabled={syncing} onClick={onSync}>
+          {syncing ? <IconRefresh className="animate-spin" /> : <IconDownload />}
+          Sync from /models
+        </Button>
+      </div>
+      {subTab === 'catalog' ? (
         <ModelsCatalog
           variant={variant}
           providerId={providerId}
@@ -159,6 +183,8 @@ export default function ModelsPanel({
           loading={catalogQuery.isLoading}
           searchValue={searchInput}
           onSearchChange={onSearchChange}
+          stateFilter={stateFilter}
+          onStateFilterChange={onStateFilterChange}
           pageIndex={pageIndex}
           onPageChange={changePage}
           selected={selected}
@@ -170,10 +196,9 @@ export default function ModelsPanel({
           testingAll={testingAll}
           onTestAll={testAll}
         />
-      </TabsContent>
-      <TabsContent value="observed" className="mt-4">
+      ) : (
         <ObservedPanel models={observed} loading={observedLoading} />
-      </TabsContent>
-    </Tabs>
+      )}
+    </div>
   )
 }
