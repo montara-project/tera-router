@@ -55,6 +55,28 @@ function cellClass(bucket: HealthEntry['buckets'][number]) {
   return 'bg-destructive/80'
 }
 
+/** 24 hourly cells, oldest first, coloured by outcome; each has a text label. */
+export function HealthTimeline({ entry, className }: { entry: HealthEntry; className?: string }) {
+  return (
+    <ol
+      className={cn('grid grid-cols-24 gap-[3px]', className)}
+      aria-label={`${entry.name}, hourly outcomes over the last 24 hours`}
+    >
+      {entry.buckets.map((b, i) => (
+        <li
+          key={i}
+          className={cn('h-3.5 rounded-[2px]', cellClass(b))}
+          title={`${24 - i}h ago: ${b.requests} requests, ${b.failed} failed`}
+        >
+          <span className="sr-only">
+            {24 - i} hours ago: {b.requests} requests, {b.failed} failed
+          </span>
+        </li>
+      ))}
+    </ol>
+  )
+}
+
 export default function OverviewProviderHealth() {
   const { data, isLoading } = useQuery(queries.providerHealth.overview('24h'))
   const providers = (data?.providers ?? [])
@@ -89,22 +111,7 @@ export default function OverviewProviderHealth() {
                   </span>
                 </span>
               </div>
-              <ol
-                className="grid grid-cols-24 gap-[3px]"
-                aria-label={`${p.name}, hourly outcomes over the last 24 hours`}
-              >
-                {p.buckets.map((b, i) => (
-                  <li
-                    key={i}
-                    className={cn('h-3.5 rounded-[2px]', cellClass(b))}
-                    title={`${24 - i}h ago: ${b.requests} requests, ${b.failed} failed`}
-                  >
-                    <span className="sr-only">
-                      {24 - i} hours ago: {b.requests} requests, {b.failed} failed
-                    </span>
-                  </li>
-                ))}
-              </ol>
+              <HealthTimeline entry={p} />
             </div>
           )
         })}
