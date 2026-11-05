@@ -3,9 +3,7 @@ import { Link } from '@tanstack/react-router'
 import type { MediaCapability, MediaProvider } from '@/lib/api/models/media'
 import type { Provider } from '@/lib/api/models/provider'
 
-import EmptyState from '@/components/block/common/empty-state'
 import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
-import { Badge, BadgeDot } from '@/components/ui/badge'
 
 const CAPABILITY_LABELS: Record<MediaCapability, string> = {
   embed: 'Embed',
@@ -14,89 +12,86 @@ const CAPABILITY_LABELS: Record<MediaCapability, string> = {
   stt: 'STT',
   search: 'Search',
   fetch: 'Fetch',
-  image_to_text: 'Image to Text',
+  image_to_text: 'Image to text',
+}
+
+const CARD =
+  'flex min-w-0 items-center gap-3 rounded-lg border border-border bg-card px-[13px] py-[11px] transition-colors hover:border-ring/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden'
+
+/** Section title with a teal icon and a muted line under it (e.g. the count). */
+export function MediaSectionHeader({
+  icon: Icon,
+  title,
+  detail,
+}: {
+  icon: React.ElementType
+  title: string
+  detail: React.ReactNode
+}) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <Icon className="size-4 shrink-0 text-teal-600 dark:text-teal-400" aria-hidden />
+      <div>
+        <h2 className="text-[13px] font-semibold">{title}</h2>
+        <p className="text-xs text-muted-foreground tabular-nums">{detail}</p>
+      </div>
+    </div>
+  )
 }
 
 interface MediaProviderGridProps {
   providers: MediaProvider[]
-  /** Entries from the providers overview keyed by slug, for status and detail links. */
+  /** Entries from the providers overview keyed by slug, for account counts and detail links. */
   connections: Record<string, Provider>
-  emptyIcon?: React.ComponentType<React.SVGProps<SVGSVGElement>>
 }
 
-const CARD_CLASS_NAME =
-  'flex items-center gap-4 rounded-xl border border-border bg-card p-4 transition-[border-color,box-shadow] hover:border-ring/50 hover:shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
-
-export default function MediaProviderGrid({
-  providers,
-  connections,
-  emptyIcon,
-}: MediaProviderGridProps) {
-  if (providers.length === 0) {
-    return (
-      <div className="p-4">
-        <EmptyState
-          className="border"
-          icon={emptyIcon}
-          title="No providers available"
-          description="Providers for this capability will appear here."
-        />
-      </div>
-    )
-  }
-
+/** Compact provider cards, four per row on wide screens. */
+export default function MediaProviderGrid({ providers, connections }: MediaProviderGridProps) {
   return (
-    <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2">
+    <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {providers.map((provider) => {
         const connection = connections[provider.slug]
-        const accounts = connection?.accounts ?? 0
+        const accounts = connection?.connected ? (connection.accounts ?? 0) : 0
+        const detail = [
+          provider.slug,
+          accounts > 0 && `${accounts} ${accounts === 1 ? 'account' : 'accounts'}`,
+          ...provider.capabilities.map((c) => CAPABILITY_LABELS[c]),
+        ]
+          .filter(Boolean)
+          .join(' · ')
 
         const content = (
           <>
-            <ProviderAvatar slug={provider.slug} />
-
-            <div className="min-w-0 flex-1 space-y-1">
-              <p className="truncate text-sm font-semibold text-foreground">{provider.name}</p>
-              <p className="truncate font-mono text-xs text-muted-foreground">{provider.slug}</p>
-              <div className="flex flex-wrap gap-1.5">
-                {provider.capabilities.map((capability) => (
-                  <Badge key={capability} variant="success" appearance="light" size="sm">
-                    {CAPABILITY_LABELS[capability]}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-
-            {connection?.connected ? (
-              <Badge variant="success" appearance="light" size="sm" shape="circle">
-                <BadgeDot />
-                {accounts} {accounts === 1 ? 'account' : 'accounts'}
-              </Badge>
-            ) : (
-              <Badge variant="secondary" size="sm" shape="circle">
-                Not connected
-              </Badge>
-            )}
+            <ProviderAvatar slug={provider.slug} size="sm" className="size-7 rounded-sm" />
+            <span className="min-w-0">
+              <span className="block truncate text-[13px] font-medium">{provider.name}</span>
+              <span className="block truncate text-[11.5px] text-muted-foreground" title={detail}>
+                {detail}
+              </span>
+            </span>
           </>
         )
 
         // Providers missing from the overview have no detail page; send them
         // to the providers list, where they can be added as custom.
-        return connection ? (
-          <Link
-            key={provider.id}
-            to="/providers/$providerId"
-            params={{ providerId: connection.id }}
-            className={CARD_CLASS_NAME}
-          >
-            {content}
-          </Link>
-        ) : (
-          <Link key={provider.id} to="/providers" className={CARD_CLASS_NAME}>
-            {content}
-          </Link>
+        return (
+          <li key={provider.id} className="min-w-0">
+            {connection ? (
+              <Link
+                to="/providers/$providerId"
+                params={{ providerId: connection.id }}
+                className={CARD}
+              >
+                {content}
+              </Link>
+            ) : (
+              <Link to="/providers" className={CARD}>
+                {content}
+              </Link>
+            )}
+          </li>
         )
       })}
-    </div>
+    </ul>
   )
 }
