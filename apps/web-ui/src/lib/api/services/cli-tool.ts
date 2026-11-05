@@ -16,6 +16,8 @@ const api = new ClientFetchApi({
 
 const resources = (): CliToolResources => {
   return {
+    /** which supported tools are installed on the server host */
+    list: () => api.get(path),
     claudeCode: () => {
       const url = `${path}/claude-code`
       return api.get(url)

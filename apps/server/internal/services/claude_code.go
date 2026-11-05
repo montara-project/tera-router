@@ -111,19 +111,13 @@ func claudeSettingsPath() (string, error) {
 // findClaudeBinary looks on PATH first, then in the locations the native and
 // npm installers use, since a service's PATH rarely includes user bin dirs.
 func findClaudeBinary() string {
-	if bin, err := exec.LookPath("claude"); err == nil {
+	home, _ := os.UserHomeDir()
+	if bin := findBinary(home, "claude"); bin != "" {
 		return bin
 	}
-	candidates := []string{"/usr/local/bin/claude", "/opt/homebrew/bin/claude"}
-	if home, err := os.UserHomeDir(); err == nil {
-		candidates = append([]string{
-			filepath.Join(home, ".local", "bin", "claude"),
-			filepath.Join(home, ".claude", "local", "claude"),
-			filepath.Join(home, ".npm-global", "bin", "claude"),
-		}, candidates...)
-	}
-	for _, c := range candidates {
-		if info, err := os.Stat(c); err == nil && info.Mode().IsRegular() && info.Mode().Perm()&0o111 != 0 {
+	// The native installer's own location.
+	if home != "" {
+		if c := filepath.Join(home, ".claude", "local", "claude"); isExecutable(c) {
 			return c
 		}
 	}

@@ -21,7 +21,7 @@ interface SystemLineChartProps {
 const WIDTH = 640
 const HEIGHT = 230
 const PADDING = { top: 10, right: 12, bottom: 26, left: 42 }
-const X_LABELS = 7
+const MIN_LABEL_GAP = 80
 
 /** Snap a 1–10 fraction to 1, 2, 5 or 10: nearest step when rounding, next step up otherwise. */
 function niceFraction(fraction: number, round: boolean): number {
@@ -113,10 +113,27 @@ export default function SystemLineChart({
   const areaPath =
     points.length > 0 ? `${linePath} L${x(timeMax)},${baseline} L${x(timeMin)},${baseline} Z` : ''
 
-  const labelEvery = Math.max(1, Math.ceil((points.length - 1) / (X_LABELS - 1)))
-  const labelIndices = points
-    .map((_, index) => index)
-    .filter((index) => index % labelEvery === 0 || index === points.length - 1)
+  // Labels sit at each point's time, so a gap in the history bunches points
+  // together; skip any label that would overlap the one before it. The last
+  // point always gets a label, replacing a neighbour that is too close.
+  const labelIndices: number[] = []
+  const placeLabel = (index: number) => {
+    const prev = labelIndices.at(-1)
+    if (prev === undefined || x(points[index].time) - x(points[prev].time) >= MIN_LABEL_GAP) {
+      labelIndices.push(index)
+    }
+  }
+  for (let i = 0; i < points.length - 1; i++) placeLabel(i)
+  if (points.length > 0) {
+    const last = points.length - 1
+    while (
+      labelIndices.length > 0 &&
+      x(points[last].time) - x(points[labelIndices.at(-1)!].time) < MIN_LABEL_GAP
+    ) {
+      labelIndices.pop()
+    }
+    labelIndices.push(last)
+  }
 
   return (
     <svg
@@ -145,7 +162,7 @@ export default function SystemLineChart({
             y2={y(tick)}
           />
           <text
-            className="text-muted-foreground"
+            className="font-mono text-muted-foreground"
             dominantBaseline="middle"
             fill="currentColor"
             fillOpacity={0.6}
@@ -161,7 +178,7 @@ export default function SystemLineChart({
 
       {threshold !== undefined && (
         <line
-          stroke="#f43f5e"
+          stroke="#f0675b"
           strokeDasharray="6 4"
           strokeWidth={1.5}
           x1={PADDING.left}
@@ -188,11 +205,11 @@ export default function SystemLineChart({
       {labelIndices.map((index) => (
         <text
           key={index}
-          className="text-muted-foreground"
+          className="font-mono text-muted-foreground"
           fill="currentColor"
           fillOpacity={0.6}
           fontSize={10}
-          textAnchor="middle"
+          textAnchor={index === points.length - 1 ? 'end' : 'middle'}
           x={x(points[index].time)}
           y={HEIGHT - 8}
         >

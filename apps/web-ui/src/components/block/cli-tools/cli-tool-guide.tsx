@@ -1,7 +1,7 @@
 import { IconAlertTriangle, IconArrowLeft, IconExternalLink } from '@tabler/icons-react'
 import { Link } from '@tanstack/react-router'
 
-import { TOOLS } from '@/components/block/cli-tools/cli-tools-grid'
+import { TOOLS, ToolLogo } from '@/components/block/cli-tools/cli-tools-grid'
 import CopyableButton from '@/components/block/common/copyable-button'
 import SectionCard from '@/components/block/common/section-card'
 import { Card } from '@/components/ui/card'
@@ -34,11 +34,7 @@ export default function CliToolGuideDetail({ toolId }: { toolId: string }) {
       </Link>
 
       <div className="flex items-center gap-3">
-        <span
-          className={`flex size-12 shrink-0 items-center justify-center rounded-xl text-base font-bold ${tool.tileClass}`}
-        >
-          {tool.glyph}
-        </span>
+        <ToolLogo id={tool.id} className="size-12 rounded-lg" />
         <div className="min-w-0">
           <h1 className="text-xl font-semibold tracking-tight">{tool.name}</h1>
           <p className="text-muted-foreground text-sm">{tool.description}</p>

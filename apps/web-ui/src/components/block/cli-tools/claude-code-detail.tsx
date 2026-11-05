@@ -10,7 +10,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 
 import ClaudeCodeConfig from '@/components/block/cli-tools/claude-code-config'
-import { Icons } from '@/components/block/cli-tools/icons'
+import { ToolLogo } from '@/components/block/cli-tools/cli-tools-grid'
 import CopyableButton from '@/components/block/common/copyable-button'
 import SectionCard from '@/components/block/common/section-card'
 import { Badge } from '@/components/ui/badge'
@@ -89,9 +89,7 @@ export default function ClaudeCodeDetail() {
       </Link>
 
       <div className="flex items-center gap-3">
-        <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-[#d97757] text-white">
-          <Icons.claude className="size-7" aria-hidden />
-        </span>
+        <ToolLogo id="claude-code" className="size-12 rounded-lg" />
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-xl font-semibold tracking-tight">Claude Code</h1>

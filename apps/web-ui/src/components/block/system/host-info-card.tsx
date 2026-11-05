@@ -2,19 +2,11 @@ import { IconWorld } from '@tabler/icons-react'
 
 import type { Models } from '@/lib/api/models'
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardHeading,
-  CardTitle,
-} from '@/components/ui/card'
+import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
 import { formatDuration } from '@/lib/date'
-import { formatMb, formatGb } from '@/lib/format'
+import { formatGb, formatMb } from '@/lib/format'
 
 import StatsGrid from './stats-grid'
-import SystemIconBadge from './system-icon-badge'
 
 interface HostInfoCardProps {
   host: Models.SystemStats['host']
@@ -28,30 +20,13 @@ export default function HostInfoCard({ host, process }: HostInfoCardProps) {
     { label: 'Architecture', value: host.architecture },
     { label: 'PID', value: process.pid },
     { label: 'Uptime', value: formatDuration(host.uptime_seconds) },
-    { label: 'Memory Available', value: formatMb(host.memory_available_mb) },
-    { label: 'Disk Free', value: formatGb(host.disk_free_gb) },
+    { label: 'Memory available', value: formatMb(host.memory_available_mb) },
+    { label: 'Disk free', value: formatGb(host.disk_free_gb) },
   ]
 
   return (
-    <Card className="bg-background">
-      <CardHeader className="py-4">
-        <div className="flex items-center gap-3.5">
-          <SystemIconBadge
-            icon={IconWorld}
-            tone="amber"
-            className="h-10 w-10 shrink-0"
-            iconClassName="h-5 w-5"
-          />
-          <CardHeading>
-            <CardTitle>Host Info</CardTitle>
-            <CardDescription>System and process details</CardDescription>
-          </CardHeading>
-        </div>
-      </CardHeader>
-
-      <CardContent>
-        <StatsGrid items={items} />
-      </CardContent>
-    </Card>
+    <DashboardPanel icon={IconWorld} title="Host info" description="System and process details">
+      <StatsGrid items={items} />
+    </DashboardPanel>
   )
 }

@@ -8,11 +8,12 @@ interface StatRowProps {
   className?: string
 }
 
+/** Label on the left, a mono value on the right. */
 export default function StatRow({ label, value, className }: StatRowProps) {
   return (
-    <div className={cn('flex items-baseline justify-between gap-4 py-1.5', className)}>
-      <span className="text-muted-foreground text-sm whitespace-nowrap">{label}</span>
-      <span className="text-sm font-semibold tabular-nums whitespace-nowrap">{value}</span>
+    <div className={cn('flex items-baseline justify-between gap-4 py-2', className)}>
+      <span className="text-[12.5px] whitespace-nowrap text-muted-foreground">{label}</span>
+      <span className="truncate font-mono text-xs text-foreground tabular-nums">{value}</span>
     </div>
   )
 }

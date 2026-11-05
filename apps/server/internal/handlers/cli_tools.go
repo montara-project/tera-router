@@ -28,6 +28,11 @@ type claudeCodeView struct {
 	CurrentKeyID *string `json:"current_key_id"`
 }
 
+// List reports which supported coding tools are installed on this host.
+func (h *cliToolsHandler) List(c fiber.Ctx) error {
+	return dtos.OK(c, services.DetectCLITools())
+}
+
 // ClaudeCode reports whether the Claude Code CLI is installed on this host
 // and what its settings file currently points at.
 func (h *cliToolsHandler) ClaudeCode(c fiber.Ctx) error {

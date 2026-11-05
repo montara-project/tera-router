@@ -12,6 +12,15 @@ export const GET_CLAUDE_CODE_QUERY_KEY = () => {
   return [CLI_TOOL_QUERY_KEY, 'claude-code']
 }
 
+const list = () =>
+  queryOptions({
+    queryKey: [CLI_TOOL_QUERY_KEY, 'list'],
+    queryFn: async () => {
+      const res = await services.cliTools.list()
+      return res.data.data
+    },
+  })
+
 const claudeCode = () =>
   queryOptions({
     queryKey: GET_CLAUDE_CODE_QUERY_KEY(),
@@ -36,6 +45,7 @@ const applyClaudeCode = () => {
 }
 
 export const cliToolQueries = {
+  list,
   claudeCode,
   applyClaudeCode,
 } as const

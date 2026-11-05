@@ -14,3 +14,11 @@ export type ClaudeCodeStatus = {
   /** API key whose plaintext is the configured ANTHROPIC_AUTH_TOKEN */
   current_key_id: string | null
 }
+
+/** GET /v1/cli-tools — one row per supported tool, found on the server host or not. */
+export type CliToolStatus = {
+  id: string
+  installed: boolean
+  /** binary or editor extension folder that was found */
+  path: string
+}

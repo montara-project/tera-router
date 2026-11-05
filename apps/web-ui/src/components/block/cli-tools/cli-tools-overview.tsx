@@ -1,20 +1,21 @@
 import { IconRefresh, IconTerminal2 } from '@tabler/icons-react'
-import { useQuery } from '@tanstack/react-query'
+import { useIsFetching, useQueryClient } from '@tanstack/react-query'
 
-import CliToolsGrid, { TOOLS } from '@/components/block/cli-tools/cli-tools-grid'
+import CliToolsGrid, { TOOLS, useInstalledTools } from '@/components/block/cli-tools/cli-tools-grid'
 import PageHeader from '@/components/block/common/page-header'
 import { Button } from '@/components/ui/button'
-import { queries } from '@/lib/api/queries'
+import { CLI_TOOL_QUERY_KEY } from '@/lib/api/queries/cli-tool'
 import { cn } from '@/lib/utils'
 
 /** /cli-tools: page header with a host rescan, then every supported tool. */
 export default function CliToolsOverview() {
-  const claudeCode = useQuery(queries.cliTools.claudeCode())
-  // Only Claude Code is detected on the host; the rest are set up by hand.
-  const connected = claudeCode.data?.installed ? 1 : 0
+  const queryClient = useQueryClient()
+  const installed = useInstalledTools()
+  const scanning = useIsFetching({ queryKey: [CLI_TOOL_QUERY_KEY] }) > 0
+  const count = [...installed.values()].filter((tool) => tool.installed).length
 
   return (
-    <>
+    <div className="flex flex-col gap-6">
       <PageHeader
         icon={IconTerminal2}
         title="CLI tools"
@@ -22,27 +23,27 @@ export default function CliToolsOverview() {
         actions={
           <Button
             variant="outline"
-            disabled={claudeCode.isFetching}
-            onClick={() => void claudeCode.refetch()}
+            disabled={scanning}
+            onClick={() => void queryClient.invalidateQueries({ queryKey: [CLI_TOOL_QUERY_KEY] })}
           >
-            <IconRefresh className={cn(claudeCode.isFetching && 'animate-spin')} />
+            <IconRefresh className={cn(scanning && 'motion-safe:animate-spin')} />
             Rescan
           </Button>
         }
       />
 
-      <section className="space-y-3">
-        <div className="flex items-start gap-2">
-          <IconTerminal2 className="text-muted-foreground mt-0.5 size-4" />
+      <section className="flex flex-col gap-3">
+        <div className="flex items-center gap-2.5">
+          <IconTerminal2 className="size-4 shrink-0 text-muted-foreground" aria-hidden />
           <div>
-            <p className="text-sm font-medium text-foreground">Tools</p>
-            <p className="text-muted-foreground text-xs">
-              {connected} of {TOOLS.length} connected
+            <h2 className="text-[13px] font-semibold text-foreground">Tools</h2>
+            <p className="text-xs text-muted-foreground">
+              {count} of {TOOLS.length} installed on this host
             </p>
           </div>
         </div>
         <CliToolsGrid />
       </section>
-    </>
+    </div>
   )
 }
