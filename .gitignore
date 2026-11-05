@@ -52,3 +52,5 @@ next-env.d.ts
 .zcode/
 .openclaude/
 __pycache__/
+
+.tanstack/
