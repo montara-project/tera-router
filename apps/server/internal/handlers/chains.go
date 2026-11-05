@@ -19,14 +19,23 @@ type chainsHandler struct {
 	app *app.Application
 }
 
+// deref reads an optional request field, zero when omitted.
+func deref[T any](p *T) T {
+	if p == nil {
+		var zero T
+		return zero
+	}
+	return *p
+}
+
 // chainFromRequest converts a Chain DTO into the stored model.
 func chainFromRequest(req dtos.Chain) models.Chain {
 	chain := models.Chain{
 		Name:             req.Name,
 		Strategy:         cmp.Or(req.Strategy, "priority"),
-		FallbackProvider: req.FallbackProvider,
-		FallbackModel:    req.FallbackModel,
-		ContextWindow:    req.ContextWindow,
+		FallbackProvider: deref(req.FallbackProvider),
+		FallbackModel:    deref(req.FallbackModel),
+		ContextWindow:    deref(req.ContextWindow),
 		Enabled:          true,
 	}
 	if req.Enabled != nil {
@@ -62,14 +71,14 @@ func applyChainPatch(chain *models.Chain, req dtos.Chain) {
 	if req.Strategy != "" {
 		chain.Strategy = req.Strategy
 	}
-	if req.FallbackProvider != "" {
-		chain.FallbackProvider = req.FallbackProvider
+	if req.FallbackProvider != nil {
+		chain.FallbackProvider = *req.FallbackProvider
 	}
-	if req.FallbackModel != "" {
-		chain.FallbackModel = req.FallbackModel
+	if req.FallbackModel != nil {
+		chain.FallbackModel = *req.FallbackModel
 	}
-	if req.ContextWindow != 0 {
-		chain.ContextWindow = req.ContextWindow
+	if req.ContextWindow != nil {
+		chain.ContextWindow = *req.ContextWindow
 	}
 	if req.Enabled != nil {
 		chain.Enabled = *req.Enabled

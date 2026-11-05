@@ -14,17 +14,23 @@ type ChainStep struct {
 type Chain struct {
 	Name             string `json:"name"`
 	Strategy         string `json:"strategy"`
-	FallbackProvider string `json:"fallback_provider"`
-	FallbackModel    string `json:"fallback_model"`
-	ContextWindow    int    `json:"context_window"`
-	Enabled          *bool  `json:"enabled"`
+	// Pointers so an update can clear the final fallback or the context
+	// window by sending "" or 0, while an omitted field keeps the stored value.
+	FallbackProvider *string `json:"fallback_provider"`
+	FallbackModel    *string `json:"fallback_model"`
+	ContextWindow    *int    `json:"context_window"`
+	Enabled          *bool   `json:"enabled"`
 	// Pointer so an update can tell "field omitted" (keep the stored steps)
 	// from "explicitly empty" (clear the chain).
 	Steps *[]ChainStep `json:"steps"`
 }
 
+// ChainNamePattern is what a chain name may contain. Callers address a chain
+// as "chain:<name>", so the name stays a plain token.
+const ChainNamePattern = `^[A-Za-z0-9._-]+$`
+
 func (d *Chain) Validate(v *validator.MapValidator) {
-	v.Field("name").Required().String()
+	v.Field("name").Required().String().Regex(ChainNamePattern)
 }
 
 // AliasTarget is one ordered candidate inside an Alias request.
