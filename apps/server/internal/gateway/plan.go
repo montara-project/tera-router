@@ -3,6 +3,7 @@ package gateway
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -139,13 +140,12 @@ func (s *Server) credentials(ctx context.Context, acc models.Account) (core.Cred
 
 	if acc.ProxyPoolID != nil && *acc.ProxyPoolID != "" {
 		pool, err := s.app.Repos.ProxyPools.Get(ctx, *acc.ProxyPoolID)
-		switch {
-		case err != nil:
+		if err != nil {
 			// A missing or unreadable pool must not strand the account: fall
 			// back to a direct connection.
 			s.log.Warn("gateway proxy pool lookup failed", "account", acc.ID, "pool", *acc.ProxyPoolID, "error", err)
-		case pool.Status == proxyPoolActive:
-			creds.ProxyURL = pool.URL
+		} else if err := applyPool(&creds, pool); err != nil {
+			return core.Credentials{}, err
 		}
 	}
 
@@ -154,6 +154,24 @@ func (s *Server) credentials(ctx context.Context, acc models.Account) (core.Cred
 
 // proxyPoolActive is the proxy_pools.status value meaning "probe succeeded".
 const proxyPoolActive = "active"
+
+// applyPool routes creds through a reachable, enabled pool. A disabled pool,
+// or an unreachable one outside strict mode, leaves the account connecting
+// directly; an unreachable strict pool is an error, so the account is skipped.
+func applyPool(creds *core.Credentials, pool models.ProxyPool) error {
+	switch {
+	case pool.Disabled:
+		return nil
+	case pool.Status == proxyPoolActive:
+		creds.ProxyURL = pool.URL
+		creds.ProxyBypass = pool.Bypass
+		return nil
+	case pool.Strict:
+		return fmt.Errorf("proxy pool %q is unreachable and in strict mode", pool.Name)
+	default:
+		return nil
+	}
+}
 
 // cooldownTracker parks accounts that recently failed in a way that will not
 // recover on an immediate retry: rate limits and rejected credentials. It is

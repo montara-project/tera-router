@@ -15,13 +15,14 @@ type ProxyPoolRepository struct {
 }
 
 const proxyPoolColumns = `
-	id, name, url, mode, label, status, last_tested_at, created_at, updated_at`
+	id, name, url, mode, label, status, last_tested_at, created_at, updated_at,
+	bypass, disabled, strict`
 
 func scanProxyPool(row rowScanner) (models.ProxyPool, error) {
 	var p models.ProxyPool
 	err := row.Scan(
 		&p.ID, &p.Name, &p.URL, &p.Mode, &p.Label, &p.Status, &p.LastTestedAt,
-		&p.CreatedAt, &p.UpdatedAt,
+		&p.CreatedAt, &p.UpdatedAt, &p.Bypass, &p.Disabled, &p.Strict,
 	)
 	return p, translateNotFound(err)
 }
@@ -29,9 +30,9 @@ func scanProxyPool(row rowScanner) (models.ProxyPool, error) {
 // Insert persists a new proxy pool.
 func (r *ProxyPoolRepository) Insert(ctx context.Context, p models.ProxyPool) error {
 	_, err := r.execContext(ctx, r.DB, `
-		INSERT INTO proxy_pools (id, name, url, mode, label, status, last_tested_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-		p.ID, p.Name, p.URL, p.Mode, p.Label, p.Status, p.LastTestedAt,
+		INSERT INTO proxy_pools (id, name, url, mode, label, status, last_tested_at, bypass, disabled, strict)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+		p.ID, p.Name, p.URL, p.Mode, p.Label, p.Status, p.LastTestedAt, p.Bypass, p.Disabled, p.Strict,
 	)
 	return err
 }
@@ -86,9 +87,9 @@ func (r *ProxyPoolRepository) InsertMany(ctx context.Context, pools []models.Pro
 	return r.withTx(ctx, func(tx Executor) error {
 		for _, p := range pools {
 			if _, err := r.execContext(ctx, tx, `
-				INSERT INTO proxy_pools (id, name, url, mode, label, status, last_tested_at)
-				VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-				p.ID, p.Name, p.URL, p.Mode, p.Label, p.Status, p.LastTestedAt,
+				INSERT INTO proxy_pools (id, name, url, mode, label, status, last_tested_at, bypass, disabled, strict)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+				p.ID, p.Name, p.URL, p.Mode, p.Label, p.Status, p.LastTestedAt, p.Bypass, p.Disabled, p.Strict,
 			); err != nil {
 				return err
 			}
@@ -101,9 +102,10 @@ func (r *ProxyPoolRepository) InsertMany(ctx context.Context, pools []models.Pro
 func (r *ProxyPoolRepository) Update(ctx context.Context, p models.ProxyPool) error {
 	res, err := r.execContext(ctx, r.DB, `
 		UPDATE proxy_pools SET name = $2, url = $3, mode = $4, label = $5,
+			bypass = $6, disabled = $7, strict = $8,
 			updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now')
 		WHERE id = $1`,
-		p.ID, p.Name, p.URL, p.Mode, p.Label,
+		p.ID, p.Name, p.URL, p.Mode, p.Label, p.Bypass, p.Disabled, p.Strict,
 	)
 	if err != nil {
 		return err

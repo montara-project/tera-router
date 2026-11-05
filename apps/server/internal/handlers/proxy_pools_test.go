@@ -52,6 +52,9 @@ func TestProxyPoolBatchEditAndRelay(t *testing.T) {
 	if relay["mode"] != "relay" {
 		t.Errorf("relay pool mode = %v, want relay", relay["mode"])
 	}
+	if first["enabled"] != true || first["strict"] != false || first["bypass"] != "" {
+		t.Errorf("new pool options = %v, want enabled, not strict, no bypass", first)
+	}
 
 	status, out = call("PATCH", "/"+first["id"].(string), `{"name":"renamed","url":"http://c:2","label":"eu"}`)
 	if status != fiber.StatusOK {
@@ -59,6 +62,16 @@ func TestProxyPoolBatchEditAndRelay(t *testing.T) {
 	}
 	if got := out["data"].(map[string]any); got["name"] != "renamed" || got["url"] != "http://c:2" || got["label"] != "eu" {
 		t.Errorf("updated pool = %v", got)
+	}
+
+	// Options: the bypass list is normalized, and an omitted switch keeps its value.
+	status, out = call("PATCH", "/"+first["id"].(string), `{"name":"renamed","url":"http://c:2","bypass":" LocalHost, ,.internal ","enabled":false,"strict":true}`)
+	if got := out["data"].(map[string]any); status != fiber.StatusOK || got["bypass"] != "localhost,.internal" || got["enabled"] != false || got["strict"] != true {
+		t.Fatalf("options update = %d %v", status, got)
+	}
+	status, out = call("PATCH", "/"+first["id"].(string), `{"name":"renamed","url":"http://c:2","bypass":"localhost"}`)
+	if got := out["data"].(map[string]any); status != fiber.StatusOK || got["enabled"] != false || got["strict"] != true {
+		t.Fatalf("omitted switches changed: %d %v", status, got)
 	}
 
 	status, out = call("POST", "/bulk-delete", `{"ids":["`+first["id"].(string)+`","`+relay["id"].(string)+`","33333333-3333-3333-3333-333333333333"]}`)

@@ -64,6 +64,9 @@ type Credentials struct {
 	Headers map[string]string
 	// ProxyURL routes the upstream call through an HTTP/HTTPS/SOCKS proxy.
 	ProxyURL string
+	// ProxyBypass lists hosts (comma separated, ".suffix" for subdomains)
+	// that skip ProxyURL and connect directly.
+	ProxyBypass string
 }
 
 // Token returns the bearer secret for the account: the API key when set,
