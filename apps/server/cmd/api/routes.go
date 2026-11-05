@@ -82,6 +82,7 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	keys.Get("", h.Keys.Index)
 	keys.Post("", h.Keys.Store)
 	keys.Get("/:id", h.Keys.Get)
+	keys.Get("/:id/usage", h.Keys.Usage)
 	keys.Patch("/:id", h.Keys.Update)
 	keys.Post("/:id/reveal", h.Keys.Reveal)
 	keys.Post("/:id/rotate", h.Keys.Rotate)

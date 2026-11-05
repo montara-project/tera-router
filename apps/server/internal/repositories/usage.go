@@ -104,6 +104,20 @@ type UsageSummary struct {
 	AvgLatencyMS     int64 `json:"avg_latency_ms"`
 }
 
+// SummaryForKey totals one API key's traffic since from. Requests counts
+// client requests, not attempts: fallback re-attempts share a request_id.
+func (r *UsageRepository) SummaryForKey(ctx context.Context, keyID string, from time.Time) (UsageSummary, error) {
+	row := r.queryRowContext(ctx, r.DB, `
+		SELECT COUNT(DISTINCT CASE WHEN request_id <> '' THEN request_id ELSE 'row-' || id END),
+		       COALESCE(SUM(prompt_tokens), 0), COALESCE(SUM(completion_tokens), 0),
+		       COALESCE(SUM(cost_micros), 0), CAST(COALESCE(AVG(latency_ms), 0) AS INTEGER)
+		FROM usage_records WHERE api_key_id = $1 AND created_at >= $2`, keyID, from)
+
+	var s UsageSummary
+	err := row.Scan(&s.Requests, &s.PromptTokens, &s.CompletionTokens, &s.CostMicros, &s.AvgLatencyMS)
+	return s, errtrace.Wrap(err)
+}
+
 // Summary totals spend and tokens over a window.
 func (r *UsageRepository) Summary(ctx context.Context, from time.Time) (UsageSummary, error) {
 	row := r.queryRowContext(ctx, r.DB, `

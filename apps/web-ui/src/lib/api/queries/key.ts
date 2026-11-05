@@ -36,6 +36,16 @@ const get = (id: string) =>
     },
   })
 
+/** Requests, tokens and spend for one key over the last 30 days. */
+const usage = (id: string) =>
+  queryOptions({
+    queryKey: [...GET_KEY_QUERY_KEY(id), 'usage'],
+    queryFn: async () => {
+      const res = await services.keys.usage(id)
+      return res.data.data
+    },
+  })
+
 const create = () => {
   const qc = getQueryClient()
 
@@ -117,6 +127,7 @@ const rotate = () => {
 export const keyQueries = {
   list,
   get,
+  usage,
   create,
   update,
   delete: del,

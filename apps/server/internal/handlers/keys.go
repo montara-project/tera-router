@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"time"
 
 	"tera-router/server/internal/app"
 	"tera-router/server/internal/dtos"
@@ -149,6 +150,33 @@ func (h *keysHandler) Get(c fiber.Ctx) error {
 	view["scopes"] = key.Scopes
 	view["updated_at"] = key.UpdatedAt
 	return dtos.OK(c, view)
+}
+
+// keyUsageDays is the window GET /v1/keys/:id/usage reports on.
+const keyUsageDays = 30
+
+// Usage reports one key's requests, tokens and spend over the last 30 days
+// (GET /v1/keys/:id/usage).
+func (h *keysHandler) Usage(c fiber.Ctx) error {
+	id, err := lib.ContextParamUUID(c, "id")
+	if err != nil {
+		return apperr.ErrBadRequest
+	}
+	if _, err := h.app.Repos.APIKeys.GetWithPlan(c.Context(), id.String()); err != nil {
+		return err
+	}
+	from := time.Now().AddDate(0, 0, -keyUsageDays)
+	summary, err := h.app.Repos.Usage.SummaryForKey(c.Context(), id.String(), from)
+	if err != nil {
+		return err
+	}
+	return dtos.OK(c, fiber.Map{
+		"days":              keyUsageDays,
+		"requests":          summary.Requests,
+		"prompt_tokens":     summary.PromptTokens,
+		"completion_tokens": summary.CompletionTokens,
+		"cost_micros":       summary.CostMicros,
+	})
 }
 
 // Update mutates name/plan/scopes/disabled on an existing key.

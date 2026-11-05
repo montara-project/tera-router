@@ -5,15 +5,8 @@ import { toast } from 'sonner'
 
 import type { Models } from '@/lib/api/models'
 
+import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardHeading,
-  CardTitle,
-} from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
@@ -91,22 +84,17 @@ export default function AccountStrategyCard({ slug }: { slug: string }) {
   }
 
   return (
-    <Card className="bg-background">
-      <CardHeader className="min-h-14">
-        <CardHeading>
-          <CardTitle className="flex items-center gap-2">
-            <IconGitFork className="size-4 text-emerald-500" />
-            Account strategy
-          </CardTitle>
-        </CardHeading>
-      </CardHeader>
-
-      <CardContent className="p-0">
+    <DashboardPanel
+      icon={IconGitFork}
+      title="Account strategy"
+      description="Takes effect with two or more accounts"
+    >
+      <div>
         <RadioGroup
           aria-label="Account strategy"
           value={form.strategy}
           onValueChange={(value) => update({ strategy: value as Strategy })}
-          className="grid grid-cols-1 gap-3 p-5 md:grid-cols-2"
+          className="grid grid-cols-1 gap-3 p-4 md:grid-cols-2"
         >
           {STRATEGIES.map((option) => (
             <Label
@@ -133,7 +121,7 @@ export default function AccountStrategyCard({ slug }: { slug: string }) {
         </RadioGroup>
 
         {rotates ? (
-          <div className="grid grid-cols-1 gap-5 border-t border-border p-5 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-5 border-t border-border p-4 md:grid-cols-2">
             <div className="flex flex-col gap-2">
               <Label htmlFor="sticky-limit">
                 {smart ? 'New sessions before rotating' : 'Requests before rotating'}
@@ -186,12 +174,13 @@ export default function AccountStrategyCard({ slug }: { slug: string }) {
             ) : null}
           </div>
         ) : null}
-      </CardContent>
+      </div>
 
-      <CardFooter className="flex items-center justify-between border-t border-border px-5 py-4">
-        <p className="text-xs text-muted-foreground">{dirty ? 'Unsaved changes' : 'Saved'}</p>
+      <div className="flex items-center justify-between gap-3 border-t border-border bg-muted/40 px-4 py-3">
+        <p className="text-[12.5px] text-muted-foreground" aria-live="polite">
+          {dirty ? 'Unsaved changes' : 'Saved'}
+        </p>
         <Button
-          size="sm"
           disabled={
             !dirty ||
             updateMutation.isPending ||
@@ -203,7 +192,7 @@ export default function AccountStrategyCard({ slug }: { slug: string }) {
           {updateMutation.isPending ? <IconLoader2 className="animate-spin" /> : null}
           Save changes
         </Button>
-      </CardFooter>
-    </Card>
+      </div>
+    </DashboardPanel>
   )
 }

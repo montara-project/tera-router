@@ -6,7 +6,7 @@ import type { Models } from '@/lib/api/models'
 import { HealthTimeline } from '@/components/block/dashboard/overview-provider-health'
 import { formatCount, formatMs } from '@/lib/format'
 
-function Stat({
+export function Stat({
   icon: Icon,
   label,
   children,

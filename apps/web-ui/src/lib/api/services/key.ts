@@ -21,6 +21,10 @@ const resources = (): KeyResources => {
       const url = path
       return api.get(url, { params })
     },
+    usage: (id) => {
+      const url = `${path}/${id}/usage`
+      return api.get(url)
+    },
     get: (id) => {
       const url = `${path}/${id}`
       return api.get(url)

@@ -25,3 +25,13 @@ export type ApiKeyDetail = ApiKey & {
   scopes: string
   updated_at: string
 }
+
+/** GET /v1/keys/:id/usage — one key's traffic over the last `days` days. */
+export type KeyUsage = {
+  days: number
+  /** client requests; fallback re-attempts count once */
+  requests: number
+  prompt_tokens: number
+  completion_tokens: number
+  cost_micros: number
+}
