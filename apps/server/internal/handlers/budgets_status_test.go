@@ -44,9 +44,10 @@ func TestBudgetStatusPerScope(t *testing.T) {
 	}
 	var out struct {
 		Data []struct {
-			ID          string `json:"id"`
-			SpentMicros int64  `json:"spent_micros"`
-			SpentTokens int64  `json:"spent_tokens"`
+			ID          string    `json:"id"`
+			SpentMicros int64     `json:"spent_micros"`
+			SpentTokens int64     `json:"spent_tokens"`
+			ResetsAt    time.Time `json:"resets_at"`
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
@@ -64,6 +65,9 @@ func TestBudgetStatusPerScope(t *testing.T) {
 	for _, b := range out.Data {
 		if got := [2]int64{b.SpentMicros, b.SpentTokens}; got != want[b.ID] {
 			t.Errorf("%s spent = %v, want %v", b.ID, got, want[b.ID])
+		}
+		if !b.ResetsAt.After(time.Now()) || b.ResetsAt.Sub(time.Now()) > 32*24*time.Hour {
+			t.Errorf("%s resets_at = %v, want within the next month", b.ID, b.ResetsAt)
 		}
 	}
 }

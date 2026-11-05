@@ -121,6 +121,7 @@ func (h *budgetsHandler) Status(c fiber.Ctx) error {
 			SpentTokens: spent.BudgetTokens,
 			SpendPct:    percentOf(spent.CostMicros, b.LimitMicros),
 			TokenPct:    percentOf(spent.BudgetTokens, b.LimitTokens),
+			ResetsAt:    periodEnd(b.Period, from),
 		})
 	}
 	return dtos.List(c, out, dtos.TotalMeta(len(out)))

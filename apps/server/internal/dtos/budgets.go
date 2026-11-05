@@ -1,6 +1,8 @@
 package dtos
 
 import (
+	"time"
+
 	"tera-router/server/internal/lib/validator"
 	"tera-router/server/internal/models"
 )
@@ -30,4 +32,6 @@ type BudgetStatus struct {
 	SpentTokens int64   `json:"spent_tokens"`
 	SpendPct    float64 `json:"spend_pct"`
 	TokenPct    float64 `json:"token_pct"`
+	// ResetsAt is when the current period ends and spend starts from zero.
+	ResetsAt time.Time `json:"resets_at"`
 }
