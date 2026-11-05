@@ -28,10 +28,11 @@ var healthWindows = map[string]time.Duration{
 	"6h":  6 * time.Hour,
 	"24h": 24 * time.Hour,
 	"7d":  7 * 24 * time.Hour,
+	"30d": 30 * 24 * time.Hour,
 }
 
 // Overview aggregates the window's usage rows into per-provider, per-model,
-// and per-chain health entries (?window=5m|15m|1h|6h|24h|7d, default 15m).
+// and per-chain health entries (?window=5m|15m|1h|6h|24h|7d|30d, default 15m).
 func (h *providerHealthHandler) Overview(c fiber.Ctx) error {
 	window := c.Query("window", "15m")
 	lookback, ok := healthWindows[window]
@@ -55,7 +56,16 @@ func (h *providerHealthHandler) Overview(c fiber.Ctx) error {
 	for _, ch := range chains {
 		knownChains = append(knownChains, ch.Name)
 	}
-	return dtos.OK(c, buildHealthOverview(rows, knownChains, from, now))
+	out := buildHealthOverview(rows, knownChains, from, now)
+	// Telemetry keys providers by slug; show their display names.
+	names, _, _, err := (&usageHandler{app: h.app}).providerMeta(c.Context())
+	if err != nil {
+		return err
+	}
+	for i := range out.Providers {
+		out.Providers[i].Name = providerDisplayName(names, out.Providers[i].ID)
+	}
+	return dtos.OK(c, out)
 }
 
 // healthEntry is one row of the dashboard's provider/model/chain tables; it
@@ -67,8 +77,14 @@ type healthEntry struct {
 	Status        string  `json:"status"`
 	Requests      int     `json:"requests"`
 	FallbackRate  float64 `json:"fallbackRate"`
+	Fallbacks     int     `json:"fallbacks"`
 	FinalFailures int     `json:"finalFailures"`
-	Affected      *string `json:"affected"`
+	// MainIssue is the most frequent failure kind (auth, rate_limit, …);
+	// empty when nothing failed.
+	MainIssue string `json:"mainIssue"`
+	// MostAffected is set on chains only: the model whose attempts failed most.
+	MostAffected string  `json:"mostAffected,omitempty"`
+	Affected     *string `json:"affected"`
 	// SuccessRate is successful attempts over all attempts (percent).
 	SuccessRate float64 `json:"successRate"`
 	// P95Ms is the p95 latency of the successful attempts.
@@ -96,7 +112,9 @@ type servedModel struct {
 }
 
 type healthOverview struct {
-	Fallbacks int           `json:"fallbacks"`
+	Fallbacks int `json:"fallbacks"`
+	// Requests counts client requests (attempts sharing a request id are one).
+	Requests  int           `json:"requests"`
 	AvgP95Ms  int64         `json:"avgP95Ms"`
 	Providers []healthEntry `json:"providers"`
 	Models    []healthEntry `json:"models"`
@@ -135,6 +153,8 @@ type groupStats struct {
 	affectedChains map[string]bool
 	buckets        []healthBucket
 	served         map[string]int
+	errorKinds     map[string]int
+	failedModels   map[string]int
 }
 
 // record adds one attempt to the timeline bucket it falls in.
@@ -160,7 +180,9 @@ func (g *groupStats) entry(id string) healthEntry {
 		Status:        healthStatus(g.attempts, g.successes, g.finalFailures, fallbackRate),
 		Requests:      g.attempts,
 		FallbackRate:  fallbackRate,
+		Fallbacks:     g.fallbacks,
 		FinalFailures: g.finalFailures,
+		MainIssue:     topKey(g.errorKinds),
 		SuccessRate:   percent(int64(g.successes), int64(g.attempts)),
 		P95Ms:         percentile(g.latencies, 0.95),
 		Buckets:       g.buckets,
@@ -230,7 +252,14 @@ func buildHealthOverview(rows []repositories.UsageHealthRow, knownChains []strin
 	}
 
 	totalFallbacks := 0
+	requests := map[string]bool{}
+	legacyRequests := 0
 	for _, r := range rows {
+		if r.RequestID == "" {
+			legacyRequests++
+		} else {
+			requests[r.RequestID] = true
+		}
 		fallback := r.Failed && succeededRequests[r.RequestID]
 		if fallback {
 			totalFallbacks++
@@ -239,11 +268,14 @@ func buildHealthOverview(rows []repositories.UsageHealthRow, knownChains []strin
 
 		for _, g := range []*groupStats{
 			group(providerStats, r.Provider),
-			group(modelStats, r.Model),
+			group(modelStats, r.Provider+"/"+r.Model),
 		} {
 			g.record(bucket, r.Failed)
 			g.attempts++
 			if r.Failed {
+				if r.ErrorKind != "" {
+					g.errorKinds[r.ErrorKind]++
+				}
 				if fallback {
 					g.fallbacks++
 				} else {
@@ -263,6 +295,10 @@ func buildHealthOverview(rows []repositories.UsageHealthRow, knownChains []strin
 			g.record(bucket, r.Failed)
 			g.attempts++
 			if r.Failed {
+				if r.ErrorKind != "" {
+					g.errorKinds[r.ErrorKind]++
+				}
+				g.failedModels[r.Provider+"/"+r.Model]++
 				if fallback {
 					g.fallbacks++
 				} else {
@@ -305,6 +341,7 @@ func buildHealthOverview(rows []repositories.UsageHealthRow, knownChains []strin
 	// probes stay empty until the guardrails endpoints exist server-side.
 	return healthOverview{
 		Fallbacks: totalFallbacks,
+		Requests:  len(requests) + legacyRequests,
 		AvgP95Ms:  avgP95,
 		Providers: providers,
 		Models:    models,
@@ -318,7 +355,21 @@ func newGroupStats() *groupStats {
 		affectedChains: map[string]bool{},
 		buckets:        make([]healthBucket, healthBuckets),
 		served:         map[string]int{},
+		errorKinds:     map[string]int{},
+		failedModels:   map[string]int{},
 	}
+}
+
+// topKey returns the key with the highest count (ties go to the smaller key),
+// or "" for an empty map.
+func topKey(counts map[string]int) string {
+	best, bestN := "", 0
+	for k, n := range counts {
+		if n > bestN || (n == bestN && k < best) {
+			best, bestN = k, n
+		}
+	}
+	return best
 }
 
 // entriesSorted renders one stats map as a stable, name-ordered entry list.
@@ -330,7 +381,9 @@ func entriesSorted(stats map[string]*groupStats) []healthEntry {
 	sort.Strings(names)
 	out := make([]healthEntry, 0, len(names))
 	for _, name := range names {
-		out = append(out, stats[name].entry(name))
+		e := stats[name].entry(name)
+		e.MostAffected = topKey(stats[name].failedModels)
+		out = append(out, e)
 	}
 	return out
 }

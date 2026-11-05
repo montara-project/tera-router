@@ -576,13 +576,15 @@ type UsageHealthRow struct {
 	Failed    bool
 	LatencyMS int
 	CreatedAt time.Time
+	// ErrorKind is the gateway's failure class (auth, rate_limit, …); empty on success.
+	ErrorKind string
 }
 
 // HealthRows streams the outcome-relevant columns of every usage record in the
 // window, oldest first so request grouping sees the final attempt last.
 func (r *UsageRepository) HealthRows(ctx context.Context, from time.Time) ([]UsageHealthRow, error) {
 	rows, err := r.queryContext(ctx, r.DB, `
-		SELECT request_id, chain, provider, model, failed, latency_ms, created_at
+		SELECT request_id, chain, provider, model, failed, latency_ms, created_at, error_kind
 		FROM usage_records WHERE created_at >= $1 ORDER BY created_at`, from)
 	if err != nil {
 		return nil, errtrace.Wrap(err)
@@ -592,7 +594,7 @@ func (r *UsageRepository) HealthRows(ctx context.Context, from time.Time) ([]Usa
 	out := make([]UsageHealthRow, 0, 64)
 	for rows.Next() {
 		var u UsageHealthRow
-		if err := rows.Scan(&u.RequestID, &u.Chain, &u.Provider, &u.Model, &u.Failed, &u.LatencyMS, &u.CreatedAt); err != nil {
+		if err := rows.Scan(&u.RequestID, &u.Chain, &u.Provider, &u.Model, &u.Failed, &u.LatencyMS, &u.CreatedAt, &u.ErrorKind); err != nil {
 			return nil, errtrace.Wrap(err)
 		}
 		out = append(out, u)
