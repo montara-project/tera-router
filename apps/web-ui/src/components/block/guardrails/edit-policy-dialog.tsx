@@ -77,7 +77,7 @@ const TARGET_LABELS: Record<Exclude<GuardrailsScope, 'global'>, string> = {
 }
 
 const TARGET_PLACEHOLDERS: Record<Exclude<GuardrailsScope, 'global'>, string> = {
-  provider: '— select a provider —',
+  provider: 'Select a provider...',
   model: 'openai/gpt-4o or an alias',
   chain: '— select a chain —',
   key: '— select an API key —',
@@ -290,6 +290,14 @@ function AbstractForm({
                   label={TARGET_LABELS.model}
                   placeholder={TARGET_PLACEHOLDERS.model}
                   autoComplete="off"
+                  asterisk
+                />
+              ) : scope === 'provider' ? (
+                <field.ComboboxField
+                  label={TARGET_LABELS.provider}
+                  placeholder={TARGET_PLACEHOLDERS.provider}
+                  options={targetOptions}
+                  defaultValues={field.state.value ? [field.state.value] : []}
                   asterisk
                 />
               ) : (
