@@ -3,6 +3,68 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [1.18.0](https://github.com/montara-project/tera-router/compare/v1.17.0...v1.18.0) (2026-11-06)
+
+### Features
+
+* add design ([613695f](https://github.com/montara-project/tera-router/commit/613695f813623ad54fd7afc342dfde7e87c715f2))
+* **auth:** add active session revoke and passkey sign-in ([98fdc52](https://github.com/montara-project/tera-router/commit/98fdc52b73e3eee6452b21010e526883a9ecf98b))
+* **dashboard:** follow the selected range in the provider health card ([e606dc4](https://github.com/montara-project/tera-router/commit/e606dc4dd5a88bee4291d8e096a9a348d32d90eb))
+* **keys:** page the key models list and editor with ReactTable ([94bd96a](https://github.com/montara-project/tera-router/commit/94bd96a4fa101aa8f19d0bce240e06d4ce1458f5))
+* **keys:** page the keys table with ReactTable ([47977da](https://github.com/montara-project/tera-router/commit/47977dab3c57d66ef78779fba1ae745ec9e147f1))
+* **keys:** show api key only on create/rotate, remove reveal from web-ui ([7315700](https://github.com/montara-project/tera-router/commit/7315700b6eebf3a9bc66def29edd0dca86b9ca44))
+* **plans,budgets:** page the plan and budget tables with ReactTable ([5917560](https://github.com/montara-project/tera-router/commit/5917560822bff390adc45afae4099f5fe6372d0c))
+* **provider-detail:** page the accounts, catalog and observed tables with ReactTable ([97f1b24](https://github.com/montara-project/tera-router/commit/97f1b24ccc2bb24ebbfc7e17d4d83c5931691955))
+* **provider-health:** page the providers, models, chains and probes tabs with ReactTable ([f11e495](https://github.com/montara-project/tera-router/commit/f11e4956d444d82be8c040ab5f6e351dfd21a751))
+* **quota:** page the accounts table with ReactTable ([ec432d9](https://github.com/montara-project/tera-router/commit/ec432d99250f4b3bb14c7d499898469663bc5cf9))
+* rebuild chains from the Pencil design ([478f2d6](https://github.com/montara-project/tera-router/commit/478f2d6f860f7dacde1ec562e540f25c1b0fca0c))
+* **server:** add bypass hosts, an on/off switch and strict mode to proxy pools ([f8ad0b9](https://github.com/montara-project/tera-router/commit/f8ad0b985e2c5a517046c958fdbeb3befb4f36b2))
+* **server:** add per-key guardrail stats and a public usage portal ([3cab9eb](https://github.com/montara-project/tera-router/commit/3cab9ebec0948b00fa3c8fc9bc8ad17559a86090))
+* **server:** label quota accounts with the provider name and auth kind ([868436d](https://github.com/montara-project/tera-router/commit/868436df02633eb2454a118b07ba16c2dc7f65fb))
+* **server:** report main issue, fallbacks and request totals in provider health ([a4c6893](https://github.com/montara-project/tera-router/commit/a4c68937e84b3b42e974dbc4c1c45f4967faa52c))
+* **server:** report when each budget period resets ([42f9121](https://github.com/montara-project/tera-router/commit/42f9121d3780e15c509f67cbec32a8c72b8d9283))
+* **server:** serve overview dashboard metrics ([49d71d1](https://github.com/montara-project/tera-router/commit/49d71d1579611730a655dbc27d7967ee213904c5))
+* **server:** usage breakdowns and per-request console traces ([7d64f82](https://github.com/montara-project/tera-router/commit/7d64f82c36442277939f09e6825c0d1b4d797dc5))
+* test an API key before saving it ([05a99af](https://github.com/montara-project/tera-router/commit/05a99af78e7d4432323077ba4903ee343aa47b9f))
+* **usage:** page the provider, model and request tables with ReactTable ([7c99034](https://github.com/montara-project/tera-router/commit/7c9903463559c546564f25a6651e2f4ae157f72e))
+* **web-ui:** add the media provider detail page and its account form ([8eca816](https://github.com/montara-project/tera-router/commit/8eca816e802b61c7afb206ed0f692cac66357445))
+* **web-ui:** format every number input with NumberInput ([ca38214](https://github.com/montara-project/tera-router/commit/ca38214bdc46b4b0ffc7da320e03046aa92e5f32))
+* **web-ui:** match sidebar to the Pencil "Sidebar - Component" design ([8f3c202](https://github.com/montara-project/tera-router/commit/8f3c20235827180e83cddf5c0069ecbebadd1353))
+* **web-ui:** match the observed models tab to the catalog table ([ae93bbb](https://github.com/montara-project/tera-router/commit/ae93bbb9db931b1218a4a8cfcd54868b3e1ec3c2))
+* **web-ui:** paginate the active sessions list in security settings ([55ac87a](https://github.com/montara-project/tera-router/commit/55ac87abff343ad14396e93f8faf40f52e1704f8))
+* **web-ui:** rebuild model alias from the Pencil design ([62d63bc](https://github.com/montara-project/tera-router/commit/62d63bccca41a4528786a6fca5028d2027d7e820))
+* **web-ui:** rebuild skills from the Pencil design ([3a5509d](https://github.com/montara-project/tera-router/commit/3a5509d4d967e16afbaf29aac61a56435dfa4163))
+* **web-ui:** rebuild the console from the Pencil design ([6b2f7e1](https://github.com/montara-project/tera-router/commit/6b2f7e1e87ffbd98e2e1974e672c98d4ef7ae7ec))
+* **web-ui:** rebuild the overview dashboard from the Pencil design ([01cfa7b](https://github.com/montara-project/tera-router/commit/01cfa7b569e1774ddeabe0440abf2856077b2f24))
+* **web-ui:** rebuild the provider detail accounts tab from the Pencil design ([756a67e](https://github.com/montara-project/tera-router/commit/756a67e4205ffc151afdf63194e89e3d373ad6e6))
+* **web-ui:** rebuild the providers list from the Pencil design ([f4dd219](https://github.com/montara-project/tera-router/commit/f4dd219e6a3982f938cda38ead56cf6d6d513b37))
+* **web-ui:** rebuild the quota page from the Pencil design ([7119c96](https://github.com/montara-project/tera-router/commit/7119c96f3efe3efd45fcbd0c56152c32a7b00998))
+* **web-ui:** rebuild the usage page tabs from the Pencil design ([3aef46d](https://github.com/montara-project/tera-router/commit/3aef46dc9e0f5a0f2eddaf48330e5166eb08331d))
+* **web-ui:** restyle every settings tab from the Pencil design ([721effa](https://github.com/montara-project/tera-router/commit/721effaa1604c1fd207bde9d2dfe3d2d07823816))
+* **web-ui:** show provider models as a table from the Pencil design ([1a221f7](https://github.com/montara-project/tera-router/commit/1a221f77be948f05ae10a99344c3a0bc496ff34c))
+* **web-ui:** wire plans and budgets tabs and forms from the Pencil design ([fa1b780](https://github.com/montara-project/tera-router/commit/fa1b7807b3cf52ceabb825284f0863e3b711be8e))
+* **web-ui:** wire the key detail tabs and the usage portal from the Pencil design ([4fd480b](https://github.com/montara-project/tera-router/commit/4fd480bfa8943df38645ada03d9bd6963be8df46))
+* **web-ui:** wire the provider health tabs from the Pencil design ([f0c691f](https://github.com/montara-project/tera-router/commit/f0c691f76237f215967df01ea640c041bc05a66f))
+* **web-ui:** wire the proxy pools page and form from the Pencil design ([e7f47e6](https://github.com/montara-project/tera-router/commit/e7f47e61cdaa67cc0e8b15ee970210c4228afa07))
+* **web-ui:** wire the quota tracker and media pages from the Pencil design ([4b7ad79](https://github.com/montara-project/tera-router/commit/4b7ad79c5c20d8c4e1952bded92d5d8d771dbece))
+* wire the endpoints page from the Pencil design ([99b4886](https://github.com/montara-project/tera-router/commit/99b488689a9d5d728fce13c5d7cb01d3b5c3864d))
+
+### Bug Fixes
+
+* **combobox:** match the search against option labels ([22aa08e](https://github.com/montara-project/tera-router/commit/22aa08ef2ec6ae3cbf86f83c436a17eb509f55e5))
+* **deps:** override follow-redirects to 1.16.2 ([e52c19b](https://github.com/montara-project/tera-router/commit/e52c19bb0ca1db0fa5067ed3321098c270dcebfb))
+* **model-alias:** replace the group datalist with a creatable combobox ([d6871e6](https://github.com/montara-project/tera-router/commit/d6871e67b7fd92ac8a4b6611a55948588e4c1bcb))
+* **server:** bump compress, x/net and x/crypto for govulncheck findings ([1506536](https://github.com/montara-project/tera-router/commit/15065368718424e4ded6440ef6f91b8e03b74e1e))
+* update api key detail page ([5228cad](https://github.com/montara-project/tera-router/commit/5228cadfd7fe5343d89b8e675c21142da100982f))
+* update api keys ([c6ea9d6](https://github.com/montara-project/tera-router/commit/c6ea9d6fb0d37c675093dd6da7ac18ecd8b394de))
+* update cli tools & system page ([5c6fafd](https://github.com/montara-project/tera-router/commit/5c6fafd1368ae573b2c4f87d66b167cf8b8b0eaf))
+* update design ([7744a86](https://github.com/montara-project/tera-router/commit/7744a86bef4545ea73d442d023b61fcd9333b19e))
+* update design ([4ed93a0](https://github.com/montara-project/tera-router/commit/4ed93a0c085d832f49dbdb9f8b0f51ac615f1f40))
+* update guardrails ([d5c9374](https://github.com/montara-project/tera-router/commit/d5c9374e7283105c0c5c665861787359adf73497))
+* update layout ([5195f3b](https://github.com/montara-project/tera-router/commit/5195f3b7832044ea125fdd49189678a6c659aa7d))
+* update polish table, select ([011f01e](https://github.com/montara-project/tera-router/commit/011f01e8d4adfd75f3bfe7a17be3106cac870910))
+* update usage & console ([af2edaf](https://github.com/montara-project/tera-router/commit/af2edaf6991d5dedc065ec5dd4ad56ece24f087f))
+
 ## [1.17.0](https://github.com/montara-project/tera-router/compare/v1.16.0...v1.17.0) (2026-10-30)
 
 ### Features
