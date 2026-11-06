@@ -33,6 +33,16 @@ const (
 	databaseRestorePath = "/v1/backup/database/restore"
 )
 
+// skipFor runs handler on every path but one, which goes straight on.
+func skipFor(path string, handler fiber.Handler) fiber.Handler {
+	return func(c fiber.Ctx) error {
+		if c.Path() == path {
+			return c.Next()
+		}
+		return handler(c)
+	}
+}
+
 func serve(app *app.Application) error {
 	// Sentry
 	sentryHandler := sentryfiber.New(sentryfiber.Config{
@@ -99,7 +109,11 @@ func serve(app *app.Application) error {
 			return gateway.IsGatewayPath(c.Path()) || strings.Contains(c.Get("Accept"), "text/event-stream")
 		},
 	}))
-	server.Use(sentryHandler)
+	// Sentry copies the whole request body into memory, and runs before
+	// RequireAuth. The restore upload is exempt from BodyLimit, so on that path
+	// the copy would read an unbounded body to EOF for anyone: skip Sentry there
+	// and let the handler stream the upload to disk once the caller is signed in.
+	server.Use(skipFor(databaseRestorePath, sentryHandler))
 
 	// CORS
 	server.Use(cors.New(cors.Config{

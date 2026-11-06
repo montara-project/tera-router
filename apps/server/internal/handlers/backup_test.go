@@ -288,6 +288,31 @@ func TestDatabaseRestoreLargerThanBodyLimit(t *testing.T) {
 	}
 }
 
+// The restore upload keeps a ceiling and runs one at a time, although it is
+// exempt from the global body limit.
+func TestDatabaseRestoreCeilingAndSingleFlight(t *testing.T) {
+	h := newBackupHarness(t, "secret")
+	status, snapshot := h.postJSON(t, "/backup/database/download", map[string]string{"password": backupAdminPassword})
+	if status != http.StatusOK {
+		t.Fatalf("download status = %d", status)
+	}
+
+	prev := restoreUploadLimit
+	restoreUploadLimit = len(snapshot) / 2
+	status, body := h.do(t, multipartUpload(t, "/backup/database/restore", "snapshot.db", snapshot))
+	restoreUploadLimit = prev
+	if status != http.StatusRequestEntityTooLarge {
+		t.Fatalf("over the ceiling = %d, want 413: %s", status, body)
+	}
+
+	restoreMu.Lock()
+	status, body = h.do(t, multipartUpload(t, "/backup/database/restore", "snapshot.db", snapshot))
+	restoreMu.Unlock()
+	if status != http.StatusConflict {
+		t.Fatalf("while another restore runs = %d, want 409: %s", status, body)
+	}
+}
+
 const nineRouterBackup = `{
   "providerConnections": [
     {"id": "c1", "provider": "openai", "authType": "apikey", "name": "OpenAI main", "apiKey": "sk-openai-imported-0001", "priority": 2, "isActive": true},

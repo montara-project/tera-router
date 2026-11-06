@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"tera-router/server/internal/app"
@@ -23,7 +24,18 @@ import (
 	"tera-router/server/internal/repositories"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/valyala/fasthttp"
 )
+
+// restoreUploadLimit caps a database restore upload. The route is exempt from
+// the 32 MiB body limit so a real database fits, but it still has a ceiling:
+// the upload spills to temporary files, then is copied beside the live
+// database, so disk space bounds it as much as anything.
+var restoreUploadLimit = 2 << 30
+
+// restoreMu lets one restore run at a time: two would overwrite the live
+// database under each other, and each holds an upload on disk.
+var restoreMu sync.Mutex
 
 type backupHandler struct {
 	app *app.Application
@@ -354,11 +366,30 @@ func (h *backupHandler) DatabaseDownload(c fiber.Ctx) error {
 // current database is written first, and an older schema is migrated up
 // after the restore.
 func (h *backupHandler) DatabaseRestore(c fiber.Ctx) error {
+	// Refusing before the body is read leaves it on the connection; close it
+	// so those bytes are not parsed as the next request.
+	refuse := func(err error) error {
+		c.RequestCtx().SetConnectionClose()
+		return err
+	}
+	if !restoreMu.TryLock() {
+		return refuse(apperr.New(apperr.KindConflict, "another database restore is already running"))
+	}
+	defer restoreMu.Unlock()
+
+	tooLarge := apperr.New(apperr.KindPayloadTooLarge, "the backup is larger than %d GiB", restoreUploadLimit>>30)
+	if c.RequestCtx().Request.Header.ContentLength() > restoreUploadLimit {
+		return refuse(tooLarge)
+	}
 	// A database is often bigger than the server's BodyLimit, which fiber's
-	// FormFile would apply, so parse the streamed upload without a cap; files
-	// spill to temporary files rather than memory. The route sits behind
-	// RequireAuth, and middlewares.BodyLimit exempts it (cmd/api/server.go).
-	form, err := c.RequestCtx().Request.MultipartFormWithLimit(0)
+	// FormFile would apply, so parse the streamed upload with the restore's
+	// own ceiling; files spill to temporary files rather than memory. The
+	// route sits behind RequireAuth, and middlewares.BodyLimit exempts it
+	// (cmd/api/server.go), which also keeps Sentry from buffering it.
+	form, err := c.RequestCtx().Request.MultipartFormWithLimit(restoreUploadLimit)
+	if errors.Is(err, fasthttp.ErrBodyTooLarge) {
+		return refuse(tooLarge)
+	}
 	if err != nil || len(form.File["file"]) == 0 {
 		return apperr.New(apperr.KindBadRequest, "upload the .db file in the multipart field \"file\"")
 	}
