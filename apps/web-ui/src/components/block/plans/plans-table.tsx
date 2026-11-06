@@ -1,4 +1,6 @@
-import { IconDots, IconEdit, IconTemplate, IconTrash } from '@tabler/icons-react'
+import type { ColumnDef } from '@tanstack/react-table'
+
+import { IconTemplate } from '@tabler/icons-react'
 import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -6,16 +8,13 @@ import { toast } from 'sonner'
 import type { Models } from '@/lib/api/models'
 
 import EmptyState from '@/components/block/common/empty-state'
+import ReactTable, { features } from '@/components/block/common/react-table'
+import RowColumnAction from '@/components/block/common/row-column-action'
 import SimpleAlertDialog from '@/components/block/common/simple-alert-dialog'
 import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
 import PlanFormDialog from '@/components/block/plans/form'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { usePaginationQuery } from '@/hooks/use-pagination-query'
 import { toastAxiosError } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
 import { formatCompact } from '@/lib/format'
@@ -25,6 +24,9 @@ const PERIOD_LABELS: Record<string, string> = {
   weekly: 'Per week',
   monthly: 'Per month',
 }
+
+/** The pager never offers fewer than 10 rows. */
+const PAGE_SIZES = [10, 25, 50, 100]
 
 const muted = 'text-muted-foreground'
 const sub = 'block text-xs text-muted-foreground'
@@ -55,6 +57,140 @@ interface PlansTableProps {
 
 /** "Plan templates" panel: one row per plan with its limits at a glance. */
 export default function PlansTable({ plans, rateLimitsEnforced, onCreate }: PlansTableProps) {
+  // The list arrives whole, so paging runs here; the pager keeps its page in ?page.
+  const { offset, limit, pageIndex } = usePaginationQuery()
+
+  // The target outlives its dialog's open flag so the dialog keeps its content while closing.
+  const [editing, setEditing] = useState<Models.Plan | null>(null)
+  const [editOpen, setEditOpen] = useState(false)
+  const [deleting, setDeleting] = useState<Models.Plan | null>(null)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const deleteMutation = useMutation(queries.plans.delete())
+
+  const columns = ((): ColumnDef<typeof features, Models.Plan, unknown>[] => {
+    const edit = (plan: Models.Plan) => {
+      setEditing(plan)
+      setEditOpen(true)
+    }
+    return [
+      {
+        id: 'plan',
+        header: 'Plan',
+        meta: { headerClassName: 'w-[29%]', cellClassName: 'max-w-0' },
+        cell: ({ row }) => {
+          const plan = row.original
+          return (
+            <>
+              <button
+                type="button"
+                onClick={() => edit(plan)}
+                className="block max-w-full truncate rounded-sm text-left font-medium hover:underline"
+                title={plan.name}
+              >
+                {plan.name}
+              </button>
+              {plan.description ? (
+                <span className={`${sub} truncate`} title={plan.description}>
+                  {plan.description}
+                </span>
+              ) : null}
+            </>
+          )
+        },
+      },
+      {
+        id: 'budget',
+        header: 'Budget',
+        cell: ({ row }) => {
+          const budget = budgetText(row.original)
+          return (
+            <>
+              <span className={budget ? undefined : muted}>{budget || 'Unlimited'}</span>
+              <span className={sub}>
+                {PERIOD_LABELS[row.original.period] ?? row.original.period}
+              </span>
+            </>
+          )
+        },
+      },
+      {
+        id: 'rate',
+        header: 'Rate limits',
+        cell: ({ row }) => {
+          const rate = rateText(row.original)
+          return (
+            <>
+              <span className={rate ? undefined : muted}>{rate || 'None'}</span>
+              {rate && !rateLimitsEnforced ? (
+                <span className="block text-xs text-amber-600 dark:text-amber-400">
+                  Not enforced in Settings
+                </span>
+              ) : null}
+            </>
+          )
+        },
+      },
+      {
+        id: 'models',
+        header: 'Models',
+        cell: ({ row }) => {
+          const models = row.original.allowed_models
+          return models ? (
+            <span title={models.join('\n')}>
+              {models.length} {models.length === 1 ? 'model' : 'models'}
+            </span>
+          ) : (
+            <span className={muted}>All models</span>
+          )
+        },
+      },
+      {
+        id: 'enforcement',
+        header: 'Enforcement',
+        cell: ({ row }) => (
+          <>
+            <span className="inline-flex h-5 items-center rounded-sm border border-border bg-card px-1.5 text-[11.5px] font-medium">
+              {row.original.hard_cutoff ? 'Hard cutoff' : 'Alert only'}
+            </span>
+            <span className={sub}>Alert at {row.original.alert_at_percent}%</span>
+          </>
+        ),
+      },
+      {
+        accessorKey: 'keys_assigned',
+        header: 'Keys',
+        meta: { headerClassName: 'w-[9%]', cellClassName: 'tabular-nums' },
+      },
+      {
+        id: 'actions',
+        header: () => <span className="sr-only">Actions</span>,
+        meta: { headerClassName: 'w-12', cellClassName: 'text-right' },
+        cell: ({ row }) => (
+          <RowColumnAction
+            noun="plan"
+            name={row.original.name}
+            onEdit={() => edit(row.original)}
+            onDelete={() => {
+              setDeleting(row.original)
+              setDeleteOpen(true)
+            }}
+          />
+        ),
+      },
+    ]
+  })()
+
+  const handleDelete = async () => {
+    if (!deleting) return
+    try {
+      await deleteMutation.mutateAsync(deleting.id)
+      toast.success('Plan deleted')
+      setDeleteOpen(false)
+    } catch (error) {
+      toastAxiosError(error)
+    }
+  }
+
   return (
     <DashboardPanel icon={IconTemplate} title="Plan templates">
       {plans.length === 0 ? (
@@ -65,132 +201,27 @@ export default function PlansTable({ plans, rateLimitsEnforced, onCreate }: Plan
           action={<Button onClick={onCreate}>New plan</Button>}
         />
       ) : (
-        <div className="relative overflow-x-auto">
-          <table className="w-full min-w-[60rem] text-[13px]">
-            <thead className="border-b border-border text-xs text-muted-foreground dark:bg-muted/40">
-              <tr>
-                <th className="w-[29%] px-4 py-2 text-left font-medium">Plan</th>
-                <th className="px-4 py-2 text-left font-medium">Budget</th>
-                <th className="px-4 py-2 text-left font-medium">Rate limits</th>
-                <th className="px-4 py-2 text-left font-medium">Models</th>
-                <th className="px-4 py-2 text-left font-medium">Enforcement</th>
-                <th className="w-[9%] px-4 py-2 text-left font-medium">Keys</th>
-                <th className="w-12 px-2 py-2">
-                  <span className="sr-only">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {plans.map((plan) => (
-                <PlanRow key={plan.id} plan={plan} rateLimitsEnforced={rateLimitsEnforced} />
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </DashboardPanel>
-  )
-}
-
-function PlanRow({ plan, rateLimitsEnforced }: { plan: Models.Plan; rateLimitsEnforced: boolean }) {
-  const [openEdit, setOpenEdit] = useState(false)
-  const [openDelete, setOpenDelete] = useState(false)
-  const deleteMutation = useMutation(queries.plans.delete())
-
-  const handleDelete = async () => {
-    try {
-      await deleteMutation.mutateAsync(plan.id)
-      toast.success('Plan deleted')
-      setOpenDelete(false)
-    } catch (error) {
-      toastAxiosError(error)
-    }
-  }
-
-  const budget = budgetText(plan)
-  const rate = rateText(plan)
-  const models = plan.allowed_models
-
-  return (
-    <tr className="border-b border-border last:border-0">
-      <td className="max-w-0 px-4 py-2.5">
-        <button
-          type="button"
-          onClick={() => setOpenEdit(true)}
-          className="block max-w-full truncate rounded-sm text-left font-medium hover:underline"
-          title={plan.name}
-        >
-          {plan.name}
-        </button>
-        {plan.description ? (
-          <span className={`${sub} truncate`} title={plan.description}>
-            {plan.description}
-          </span>
-        ) : null}
-      </td>
-      <td className="px-4 py-2.5">
-        <span className={budget ? undefined : muted}>{budget || 'Unlimited'}</span>
-        <span className={sub}>{PERIOD_LABELS[plan.period] ?? plan.period}</span>
-      </td>
-      <td className="px-4 py-2.5">
-        <span className={rate ? undefined : muted}>{rate || 'None'}</span>
-        {rate && !rateLimitsEnforced ? (
-          <span className="block text-xs text-amber-600 dark:text-amber-400">
-            Not enforced in Settings
-          </span>
-        ) : null}
-      </td>
-      <td className="px-4 py-2.5">
-        {models ? (
-          <span title={models.join('\n')}>
-            {models.length} {models.length === 1 ? 'model' : 'models'}
-          </span>
-        ) : (
-          <span className={muted}>All models</span>
-        )}
-      </td>
-      <td className="px-4 py-2.5">
-        <span className="inline-flex h-5 items-center rounded-sm border border-border bg-card px-1.5 text-[11.5px] font-medium">
-          {plan.hard_cutoff ? 'Hard cutoff' : 'Alert only'}
-        </span>
-        <span className={sub}>Alert at {plan.alert_at_percent}%</span>
-      </td>
-      <td className="px-4 py-2.5 tabular-nums">{plan.keys_assigned}</td>
-      <td className="px-2 py-2.5 text-right">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-8"
-              aria-label={`Actions for ${plan.name}`}
-            >
-              <IconDots className="size-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="min-w-36">
-            <DropdownMenuItem onClick={() => setOpenEdit(true)}>
-              <IconEdit />
-              Edit
-            </DropdownMenuItem>
-            <DropdownMenuItem variant="destructive" onClick={() => setOpenDelete(true)}>
-              <IconTrash />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <SimpleAlertDialog
-          confirmText="Delete"
-          description={`Plan "${plan.name}" will be permanently deleted. Keys assigned to it will have no plan, so its limits stop applying to them.`}
-          onConfirm={handleDelete}
-          onOpenChange={setOpenDelete}
-          open={openDelete}
-          title="Delete this plan?"
-          variant="destructive"
+        <ReactTable
+          total={plans.length}
+          data={plans.slice(offset, offset + limit)}
+          pageIndex={pageIndex}
+          pageSize={limit}
+          pageSizes={PAGE_SIZES}
+          columns={columns}
+          tableClassName="min-w-[60rem]"
         />
-        <PlanFormDialog open={openEdit} onOpenChange={setOpenEdit} plan={plan} />
-      </td>
-    </tr>
+      )}
+
+      <SimpleAlertDialog
+        confirmText="Delete"
+        description={`Plan "${deleting?.name ?? ''}" will be permanently deleted. Keys assigned to it will have no plan, so its limits stop applying to them.`}
+        onConfirm={handleDelete}
+        onOpenChange={setDeleteOpen}
+        open={deleteOpen}
+        title="Delete this plan?"
+        variant="destructive"
+      />
+      {editing && <PlanFormDialog open={editOpen} onOpenChange={setEditOpen} plan={editing} />}
+    </DashboardPanel>
   )
 }
