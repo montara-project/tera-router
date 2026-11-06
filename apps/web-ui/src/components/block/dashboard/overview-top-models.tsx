@@ -7,7 +7,7 @@ import type { UsageModelAccountingRow, UsageTelemetryOverview } from '@/lib/api/
 
 import EmptyState from '@/components/block/common/empty-state'
 import ReactTable, { features } from '@/components/block/common/react-table'
-import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
+import SectionCardPanel from '@/components/block/common/section-card-panel'
 import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
 import { formatMicrosUsd } from '@/lib/currency'
 import { formatCompact, formatCount } from '@/lib/format'
@@ -97,7 +97,7 @@ export default function OverviewTopModels({ telemetry }: { telemetry: UsageTelem
   const columns = useMemo(() => topModelColumns(total), [total])
 
   return (
-    <DashboardPanel
+    <SectionCardPanel
       title="Top models"
       icon={IconBrain}
       action={{ label: 'All models', to: '/usage' }}
@@ -118,6 +118,6 @@ export default function OverviewTopModels({ telemetry }: { telemetry: UsageTelem
           />
         }
       />
-    </DashboardPanel>
+    </SectionCardPanel>
   )
 }

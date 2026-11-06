@@ -15,7 +15,7 @@ import { toast } from 'sonner'
 
 import type { MediaCapability, MediaCategory } from '@/lib/api/models/media'
 
-import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
+import SectionCardPanel from '@/components/block/common/section-card-panel'
 import { MEDIA_CATEGORIES } from '@/components/block/media/media-tabs'
 import AccountsPanel from '@/components/block/provider-detail/accounts-panel'
 import { AddCustomProviderApiKeyForm } from '@/components/block/providers/form-provider-api-key'
@@ -307,7 +307,7 @@ function MediaModelsPanel({
   }
 
   return (
-    <DashboardPanel
+    <SectionCardPanel
       icon={IconCpu}
       title="Models"
       description={`${total} ${total === 1 ? 'model' : 'models'}`}
@@ -382,7 +382,7 @@ function MediaModelsPanel({
           ) : null}
         </div>
       )}
-    </DashboardPanel>
+    </SectionCardPanel>
   )
 }
 

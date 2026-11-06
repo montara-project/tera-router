@@ -7,7 +7,7 @@ import { useMemo, useState } from 'react'
 import EmptyState from '@/components/block/common/empty-state'
 import PageHeader from '@/components/block/common/page-header'
 import ReactTable from '@/components/block/common/react-table'
-import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
+import SectionCardPanel from '@/components/block/common/section-card-panel'
 import { ChainsColumn } from '@/components/block/traffic/chains/column'
 import FilterChain, {
   type ChainFilters,
@@ -77,7 +77,7 @@ function RouteComponent() {
         }
       />
 
-      <DashboardPanel
+      <SectionCardPanel
         icon={IconStack2}
         title={
           <>
@@ -135,7 +135,7 @@ function RouteComponent() {
             }
           />
         )}
-      </DashboardPanel>
+      </SectionCardPanel>
     </div>
   )
 }

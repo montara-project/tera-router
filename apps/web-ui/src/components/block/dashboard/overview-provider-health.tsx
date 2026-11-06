@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import type { HealthEntry, HealthStatus, HealthWindow } from '@/lib/api/models/provider-health'
 import type { UsageRange } from '@/lib/api/models/usage'
 
-import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
+import SectionCardPanel from '@/components/block/common/section-card-panel'
 import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
 import { Skeleton } from '@/components/ui/skeleton'
 import { queries } from '@/lib/api/queries'
@@ -112,7 +112,7 @@ export default function OverviewProviderHealth({ range }: { range: UsageRange })
     .sort((a, b) => b.requests - a.requests)
 
   return (
-    <DashboardPanel
+    <SectionCardPanel
       title={`Provider health ${window}`}
       icon={IconActivity}
       action={{ label: 'All providers', to: '/provider-health' }}
@@ -152,6 +152,6 @@ export default function OverviewProviderHealth({ range }: { range: UsageRange })
           )
         })}
       </div>
-    </DashboardPanel>
+    </SectionCardPanel>
   )
 }

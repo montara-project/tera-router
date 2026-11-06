@@ -14,7 +14,7 @@ import type { UsageModelAccountingRow } from '@/lib/api/models/usage'
 
 import EmptyState from '@/components/block/common/empty-state'
 import ReactTable, { features } from '@/components/block/common/react-table'
-import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
+import SectionCardPanel from '@/components/block/common/section-card-panel'
 import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
 import { Input, InputWrapper } from '@/components/ui/input'
 import { usePaginationQuery } from '@/hooks/use-pagination-query'
@@ -215,7 +215,7 @@ export default function UsageModelAccounting({ rows }: { rows: Row[] }) {
   )
 
   return (
-    <DashboardPanel
+    <SectionCardPanel
       title="Model accounting"
       icon={IconBrain}
       toolbar={
@@ -255,6 +255,6 @@ export default function UsageModelAccounting({ rows }: { rows: Row[] }) {
           />
         }
       />
-    </DashboardPanel>
+    </SectionCardPanel>
   )
 }

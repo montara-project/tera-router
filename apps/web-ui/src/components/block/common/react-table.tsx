@@ -134,7 +134,7 @@ export default function ReactTable<T extends RowData>({
   })
 
   // Styled after the /providers table: it sits flush inside a panel
-  // (DashboardPanel), so it draws no border of its own, and the pager is the
+  // (SectionCardPanel), so it draws no border of its own, and the pager is the
   // panel's footer.
   return (
     <DataGrid

@@ -2,7 +2,7 @@ import { IconStack2 } from '@tabler/icons-react'
 
 import type { Models } from '@/lib/api/models'
 
-import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
+import SectionCardPanel from '@/components/block/common/section-card-panel'
 import { formatCount, formatMb } from '@/lib/format'
 
 import StatsGrid from './stats-grid'
@@ -33,8 +33,8 @@ export default function GoRuntimeCard({ runtime, process }: GoRuntimeCardProps) 
   ]
 
   return (
-    <DashboardPanel icon={IconStack2} title="Go runtime" description="Memory and GC statistics">
+    <SectionCardPanel icon={IconStack2} title="Go runtime" description="Memory and GC statistics">
       <StatsGrid items={items} />
-    </DashboardPanel>
+    </SectionCardPanel>
   )
 }

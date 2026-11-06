@@ -2,7 +2,7 @@ import { IconCheck, IconCopy, IconWorldShare, type IconKey } from '@tabler/icons
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 
-import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
+import SectionCardPanel from '@/components/block/common/section-card-panel'
 import { Button } from '@/components/ui/button'
 import { Input, InputWrapper } from '@/components/ui/input'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
@@ -37,7 +37,7 @@ export default function TunnelSection() {
   }
 
   return (
-    <DashboardPanel
+    <SectionCardPanel
       title="Tunnels"
       description="Optional access from outside this machine"
       icon={IconWorldShare}
@@ -88,7 +88,7 @@ export default function TunnelSection() {
           {tailscale?.url && <TunnelUrl label="Tailscale URL" url={tailscale.url} />}
         </TunnelAppItem>
       </div>
-    </DashboardPanel>
+    </SectionCardPanel>
   )
 }
 

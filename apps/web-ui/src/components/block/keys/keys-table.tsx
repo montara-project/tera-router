@@ -10,8 +10,8 @@ import type { Models } from '@/lib/api/models'
 
 import EmptyState from '@/components/block/common/empty-state'
 import ReactTable, { features } from '@/components/block/common/react-table'
+import SectionCardPanel from '@/components/block/common/section-card-panel'
 import SelectInput from '@/components/block/common/select-input'
-import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
@@ -119,7 +119,7 @@ export default function KeysTable({
   }
 
   return (
-    <DashboardPanel
+    <SectionCardPanel
       icon={IconKey}
       title="Keys"
       toolbar={
@@ -134,7 +134,7 @@ export default function KeysTable({
     >
       {keys.length > 0 && <FilterKeys keys={keys} filters={filters} onChange={changeFilters} />}
       {renderBody()}
-    </DashboardPanel>
+    </SectionCardPanel>
   )
 }
 

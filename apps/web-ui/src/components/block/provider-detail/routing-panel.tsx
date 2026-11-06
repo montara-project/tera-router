@@ -4,7 +4,7 @@ import { Link } from '@tanstack/react-router'
 import type { Models } from '@/lib/api/models'
 
 import EmptyState from '@/components/block/common/empty-state'
-import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
+import SectionCardPanel from '@/components/block/common/section-card-panel'
 import { Skeleton } from '@/components/ui/skeleton'
 import { chainStrategyLabel } from '@/lib/constants/chain'
 
@@ -91,7 +91,7 @@ export default function RoutingPanel({
   }
 
   return (
-    <DashboardPanel
+    <SectionCardPanel
       icon={IconStack2}
       title={
         <>
@@ -102,6 +102,6 @@ export default function RoutingPanel({
       description="Chains that route through this provider"
     >
       {renderBody()}
-    </DashboardPanel>
+    </SectionCardPanel>
   )
 }

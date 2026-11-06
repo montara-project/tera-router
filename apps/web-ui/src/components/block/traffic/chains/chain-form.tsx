@@ -19,8 +19,8 @@ import { toast } from 'sonner'
 import type { Models } from '@/lib/api/models'
 
 import PageHeader from '@/components/block/common/page-header'
+import SectionCardPanel from '@/components/block/common/section-card-panel'
 import SegmentedControl from '@/components/block/common/segmented-control'
-import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
 import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
@@ -163,7 +163,7 @@ function AbstractForm({ defaultValues, mutation, isEdit, title }: AbstractFormPr
 
       <div className="mt-1 grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="flex min-w-0 flex-col gap-4">
-          <DashboardPanel title="Name and strategy" icon={IconForms}>
+          <SectionCardPanel title="Name and strategy" icon={IconForms}>
             <div className="flex flex-col gap-5 p-4">
               <div className="flex flex-col gap-1.5">
                 <form.AppField
@@ -238,9 +238,9 @@ function AbstractForm({ defaultValues, mutation, isEdit, title }: AbstractFormPr
                 />
               </div>
             </div>
-          </DashboardPanel>
+          </SectionCardPanel>
 
-          <DashboardPanel title="Route steps" icon={IconRoute}>
+          <SectionCardPanel title="Route steps" icon={IconRoute}>
             <form.AppField
               name="steps"
               children={(field) => {
@@ -399,7 +399,7 @@ function AbstractForm({ defaultValues, mutation, isEdit, title }: AbstractFormPr
                 />
               )}
             </div>
-          </DashboardPanel>
+          </SectionCardPanel>
         </div>
 
         <RoutePreview values={values} apiKinds={apiKinds} />
@@ -435,7 +435,7 @@ function RoutePreview({
   ]
 
   return (
-    <DashboardPanel
+    <SectionCardPanel
       title="Route preview"
       description={`${chainStrategyLabel(draft.strategy)} · ${chosen.length} ${chosen.length === 1 ? 'model' : 'models'}`}
       icon={IconRoute}
@@ -503,6 +503,6 @@ function RoutePreview({
           {copied ? <IconCheck className="size-4" /> : <IconCopy className="size-4" />}
         </Button>
       </div>
-    </DashboardPanel>
+    </SectionCardPanel>
   )
 }

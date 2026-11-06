@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router'
 
 import { cn } from '@/lib/utils'
 
-interface DashboardPanelProps {
+interface SectionCardPanelProps {
   title: React.ReactNode
   /** Muted line under the title. */
   description?: string
@@ -16,8 +16,8 @@ interface DashboardPanelProps {
   className?: string
 }
 
-/** Overview panel: bordered surface with an icon + title header row. */
-export default function DashboardPanel({
+/** Section card used across the app: bordered surface with an icon + title header row. */
+export default function SectionCardPanel({
   title,
   description,
   icon: Icon,
@@ -25,7 +25,7 @@ export default function DashboardPanel({
   toolbar,
   children,
   className,
-}: DashboardPanelProps) {
+}: SectionCardPanelProps) {
   return (
     <section
       className={cn(

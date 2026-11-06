@@ -11,7 +11,7 @@ import {
 } from '@tabler/icons-react'
 import { Link } from '@tanstack/react-router'
 
-import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
+import SectionCardPanel from '@/components/block/common/section-card-panel'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
@@ -110,7 +110,7 @@ interface QuickStartCardProps {
 
 export default function QuickStartCard({ baseUrl }: QuickStartCardProps) {
   return (
-    <DashboardPanel title="Quick start" icon={IconRocket}>
+    <SectionCardPanel title="Quick start" icon={IconRocket}>
       <Tabs defaultValue="curl">
         <TabsList variant="line" size="md" className="gap-1 overflow-x-auto px-2">
           {SNIPPETS.map(({ value, label, icon: Icon }) => (
@@ -145,7 +145,7 @@ export default function QuickStartCard({ baseUrl }: QuickStartCardProps) {
           </div>
         </div>
       </Tabs>
-    </DashboardPanel>
+    </SectionCardPanel>
   )
 }
 

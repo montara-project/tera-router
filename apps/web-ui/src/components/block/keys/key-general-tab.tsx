@@ -14,7 +14,7 @@ import { Link } from '@tanstack/react-router'
 
 import type { ApiKeyDetail } from '@/lib/api/models/key'
 
-import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
+import SectionCardPanel from '@/components/block/common/section-card-panel'
 import { Stat } from '@/components/block/provider-detail/provider-stat-strip'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
@@ -84,7 +84,7 @@ export default function KeyGeneralTab({ apiKey }: { apiKey: ApiKeyDetail }) {
         </dl>
       </section>
 
-      <DashboardPanel icon={IconGauge} title="Limits">
+      <SectionCardPanel icon={IconGauge} title="Limits">
         <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
           <div>
             <p className="text-[13px] font-medium">Plan</p>
@@ -101,9 +101,9 @@ export default function KeyGeneralTab({ apiKey }: { apiKey: ApiKeyDetail }) {
             </Link>
           </div>
         </div>
-      </DashboardPanel>
+      </SectionCardPanel>
 
-      <DashboardPanel icon={IconSettings} title="Settings">
+      <SectionCardPanel icon={IconSettings} title="Settings">
         <div className="divide-y divide-border">
           <div className="flex items-center justify-between gap-3 px-4 py-3">
             <div>
@@ -147,7 +147,7 @@ export default function KeyGeneralTab({ apiKey }: { apiKey: ApiKeyDetail }) {
             </div>
           ) : null}
         </div>
-      </DashboardPanel>
+      </SectionCardPanel>
     </div>
   )
 }

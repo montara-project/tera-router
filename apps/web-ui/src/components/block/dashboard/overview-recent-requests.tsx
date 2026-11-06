@@ -6,7 +6,7 @@ import type { UsageTerminalRequestRow } from '@/lib/api/models/usage'
 
 import EmptyState from '@/components/block/common/empty-state'
 import ReactTable, { features } from '@/components/block/common/react-table'
-import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
+import SectionCardPanel from '@/components/block/common/section-card-panel'
 import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
 import { formatMicrosUsd } from '@/lib/currency'
 import { formatClock, formatDate } from '@/lib/date'
@@ -132,7 +132,7 @@ export default function OverviewRecentRequests({ rows }: { rows: UsageTerminalRe
   const visible = rows.slice(0, LIMIT)
 
   return (
-    <DashboardPanel
+    <SectionCardPanel
       title="Recent requests"
       icon={IconBolt}
       action={{ label: 'All requests', to: '/usage' }}
@@ -153,6 +153,6 @@ export default function OverviewRecentRequests({ rows }: { rows: UsageTerminalRe
           />
         }
       />
-    </DashboardPanel>
+    </SectionCardPanel>
   )
 }

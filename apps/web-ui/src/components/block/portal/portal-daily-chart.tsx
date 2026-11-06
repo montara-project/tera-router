@@ -3,7 +3,7 @@ import { useState } from 'react'
 
 import type { PortalDay } from '@/lib/api/models/portal'
 
-import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
+import SectionCardPanel from '@/components/block/common/section-card-panel'
 import { formatMicrosUsd } from '@/lib/currency'
 import { formatCompact, formatCount, niceStep } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -64,7 +64,7 @@ export default function PortalDailyChart({ daily, days }: { daily: PortalDay[]; 
   const labelEvery = Math.max(1, Math.ceil(series.length / MAX_LABELS))
 
   return (
-    <DashboardPanel
+    <SectionCardPanel
       icon={IconChartBar}
       title="Daily usage"
       className="h-full"
@@ -180,6 +180,6 @@ export default function PortalDailyChart({ daily, days }: { daily: PortalDay[]; 
           </div>
         </div>
       </div>
-    </DashboardPanel>
+    </SectionCardPanel>
   )
 }

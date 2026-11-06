@@ -1,7 +1,7 @@
 import { IconBook2, IconCheck, IconCopy, IconEye } from '@tabler/icons-react'
 import { useState } from 'react'
 
-import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
+import SectionCardPanel from '@/components/block/common/section-card-panel'
 import SkillDetailDialog, {
   type SkillDetailTarget,
 } from '@/components/block/traffic/skills/skill-detail-dialog'
@@ -45,7 +45,7 @@ export default function ReferenceSkillsCard() {
   const entryUrl = skillUrl(entry.slug)
 
   return (
-    <DashboardPanel
+    <SectionCardPanel
       icon={IconBook2}
       title={
         <>
@@ -127,6 +127,6 @@ export default function ReferenceSkillsCard() {
       </ul>
 
       <SkillDetailDialog skill={viewing} onClose={() => setViewing(null)} />
-    </DashboardPanel>
+    </SectionCardPanel>
   )
 }

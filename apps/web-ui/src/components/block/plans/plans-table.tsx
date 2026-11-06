@@ -10,8 +10,8 @@ import type { Models } from '@/lib/api/models'
 import EmptyState from '@/components/block/common/empty-state'
 import ReactTable, { features } from '@/components/block/common/react-table'
 import RowColumnAction from '@/components/block/common/row-column-action'
+import SectionCardPanel from '@/components/block/common/section-card-panel'
 import SimpleAlertDialog from '@/components/block/common/simple-alert-dialog'
-import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
 import PlanFormDialog from '@/components/block/plans/form'
 import { Button } from '@/components/ui/button'
 import { usePaginationQuery } from '@/hooks/use-pagination-query'
@@ -192,7 +192,7 @@ export default function PlansTable({ plans, rateLimitsEnforced, onCreate }: Plan
   }
 
   return (
-    <DashboardPanel icon={IconTemplate} title="Plan templates">
+    <SectionCardPanel icon={IconTemplate} title="Plan templates">
       {plans.length === 0 ? (
         <EmptyState
           icon={IconTemplate}
@@ -222,6 +222,6 @@ export default function PlansTable({ plans, rateLimitsEnforced, onCreate }: Plan
         variant="destructive"
       />
       {editing && <PlanFormDialog open={editOpen} onOpenChange={setEditOpen} plan={editing} />}
-    </DashboardPanel>
+    </SectionCardPanel>
   )
 }

@@ -1,6 +1,6 @@
 import { IconCheck, IconCopy, IconLink, IconServer, IconWorld } from '@tabler/icons-react'
 
-import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
+import SectionCardPanel from '@/components/block/common/section-card-panel'
 import { Button } from '@/components/ui/button'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 
@@ -26,7 +26,7 @@ export default function ConnectSection({ baseUrl }: ConnectSectionProps) {
   const { copy, copied } = useCopyToClipboard()
 
   return (
-    <DashboardPanel title="Base URL" icon={IconLink}>
+    <SectionCardPanel title="Base URL" icon={IconLink}>
       <div className="space-y-1.5 p-4">
         <p className="flex items-center gap-2 text-xs text-muted-foreground">
           <ScopeIcon className="size-4" stroke={1.5} aria-hidden />
@@ -47,6 +47,6 @@ export default function ConnectSection({ baseUrl }: ConnectSectionProps) {
         <code className="font-mono text-foreground">Authorization: Bearer &lt;key&gt;</code> or{' '}
         <code className="font-mono text-foreground">x-api-key</code>.
       </p>
-    </DashboardPanel>
+    </SectionCardPanel>
   )
 }

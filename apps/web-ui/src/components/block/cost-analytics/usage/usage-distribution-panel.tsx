@@ -2,7 +2,7 @@ import { IconRoute } from '@tabler/icons-react'
 
 import type { UsageTelemetryOverview } from '@/lib/api/models/usage'
 
-import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
+import SectionCardPanel from '@/components/block/common/section-card-panel'
 import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
 import { formatMicrosUsd } from '@/lib/currency'
 import { formatCount } from '@/lib/format'
@@ -16,7 +16,7 @@ export default function UsageDistributionPanel({
   const accounting = new Map(telemetry.providerAccounting.map((p) => [p.slug, p]))
 
   return (
-    <DashboardPanel title="Where requests went" icon={IconRoute}>
+    <SectionCardPanel title="Where requests went" icon={IconRoute}>
       <ul className="scrollbar-seamless flex max-h-80 flex-col gap-4 overflow-y-auto overscroll-contain p-4">
         {telemetry.distribution.length === 0 && (
           <li className="text-muted-foreground text-sm">No requests in this period.</li>
@@ -49,6 +49,6 @@ export default function UsageDistributionPanel({
           )
         })}
       </ul>
-    </DashboardPanel>
+    </SectionCardPanel>
   )
 }

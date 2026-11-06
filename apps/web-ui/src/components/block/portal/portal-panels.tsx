@@ -3,7 +3,7 @@ import { useState } from 'react'
 
 import type { PortalLimit, PortalModel, PortalRequest } from '@/lib/api/models/portal'
 
-import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
+import SectionCardPanel from '@/components/block/common/section-card-panel'
 import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
 import { Button } from '@/components/ui/button'
 import { formatMicrosUsd } from '@/lib/currency'
@@ -55,7 +55,7 @@ export function PortalLimits({
   allowedModels: string[]
 }) {
   return (
-    <DashboardPanel icon={IconGauge} title="Limits" className="h-full">
+    <SectionCardPanel icon={IconGauge} title="Limits" className="h-full">
       {limits.length === 0 ? (
         <p className="px-4 py-3 text-[12.5px] text-muted-foreground">
           No spend or token limit on this key.
@@ -104,7 +104,7 @@ export function PortalLimits({
           </ul>
         )}
       </div>
-    </DashboardPanel>
+    </SectionCardPanel>
   )
 }
 
@@ -121,7 +121,7 @@ export function PortalModels({ models }: { models: PortalModel[] }) {
   )
 
   return (
-    <DashboardPanel
+    <SectionCardPanel
       icon={IconCpu}
       title={
         <>
@@ -210,7 +210,7 @@ export function PortalModels({ models }: { models: PortalModel[] }) {
           </table>
         </div>
       )}
-    </DashboardPanel>
+    </SectionCardPanel>
   )
 }
 
@@ -246,7 +246,7 @@ export function PortalRecent({ recent, requests }: { recent: PortalRequest[]; re
   const rows = recent.slice(current * PAGE_SIZE, (current + 1) * PAGE_SIZE)
 
   return (
-    <DashboardPanel
+    <SectionCardPanel
       icon={IconHistory}
       title={
         <>
@@ -356,6 +356,6 @@ export function PortalRecent({ recent, requests }: { recent: PortalRequest[]; re
           </nav>
         </>
       )}
-    </DashboardPanel>
+    </SectionCardPanel>
   )
 }

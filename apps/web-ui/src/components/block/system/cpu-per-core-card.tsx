@@ -2,7 +2,7 @@ import { IconCpu } from '@tabler/icons-react'
 
 import type { SystemCore } from '@/lib/api/models/system'
 
-import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
+import SectionCardPanel from '@/components/block/common/section-card-panel'
 import { cn } from '@/lib/utils'
 
 const LOAD_LEGEND = [
@@ -26,7 +26,7 @@ export default function CpuPerCoreCard({ cores }: { cores: SystemCore[] }) {
     : 0
 
   return (
-    <DashboardPanel
+    <SectionCardPanel
       icon={IconCpu}
       title="CPU per core"
       description={`${activeCores} of ${cores.length} cores active · ${averageUsage.toFixed(1)}% average`}
@@ -74,6 +74,6 @@ export default function CpuPerCoreCard({ cores }: { cores: SystemCore[] }) {
           </span>
         ))}
       </div>
-    </DashboardPanel>
+    </SectionCardPanel>
   )
 }

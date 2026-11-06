@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import type { Models } from '@/lib/api/models'
 import type { ApiKeyDetail } from '@/lib/api/models/key'
 
-import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
+import SectionCardPanel from '@/components/block/common/section-card-panel'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { toastAxiosError } from '@/lib/api/axios-error'
@@ -103,7 +103,7 @@ export default function KeySkillsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
   }
 
   return (
-    <DashboardPanel
+    <SectionCardPanel
       icon={IconPuzzle}
       title={
         <>
@@ -119,6 +119,6 @@ export default function KeySkillsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
       action={{ label: 'Manage skills', to: '/skills' }}
     >
       {renderSkills()}
-    </DashboardPanel>
+    </SectionCardPanel>
   )
 }
