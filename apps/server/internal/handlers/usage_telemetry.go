@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"tera-router/server/internal/catalog"
@@ -39,56 +40,39 @@ func (h *usageHandler) buildTelemetry(ctx context.Context, from, now time.Time, 
 	// Rows written during this call land just after `now`; read up to a
 	// minute ahead so the totals match the other (open-ended) aggregates.
 	until := now.Add(time.Minute)
-	traffic, err := h.app.Repos.Usage.Traffic(ctx, from, until)
-	if err != nil {
-		return dtos.UsageTelemetry{}, err
-	}
-	performance, err := h.app.Repos.Usage.Performance(ctx, from)
-	if err != nil {
-		return dtos.UsageTelemetry{}, err
-	}
-	latencies, err := h.app.Repos.Usage.Latencies(ctx, from, until)
-	if err != nil {
-		return dtos.UsageTelemetry{}, err
-	}
-	healthRows, err := h.app.Repos.Usage.HealthRows(ctx, from)
-	if err != nil {
-		return dtos.UsageTelemetry{}, err
-	}
-	saving, err := h.app.Repos.Usage.SavingBreakdown(ctx, from, until)
-	if err != nil {
-		return dtos.UsageTelemetry{}, err
-	}
 	prevFrom := from.Add(-now.Sub(from))
-	prevTraffic, err := h.app.Repos.Usage.Traffic(ctx, prevFrom, from)
-	if err != nil {
-		return dtos.UsageTelemetry{}, err
-	}
-	prevLatencies, err := h.app.Repos.Usage.Latencies(ctx, prevFrom, from)
-	if err != nil {
-		return dtos.UsageTelemetry{}, err
-	}
-	byProvider, err := h.app.Repos.Usage.ByProvider(ctx, from)
-	if err != nil {
-		return dtos.UsageTelemetry{}, err
-	}
-	byModel, err := h.app.Repos.Usage.ByModelGrouped(ctx, from)
-	if err != nil {
-		return dtos.UsageTelemetry{}, err
-	}
-	daily, err := h.app.Repos.Usage.DailyWithFailures(ctx, from, hourly)
-	if err != nil {
-		return dtos.UsageTelemetry{}, err
-	}
-	recent, err := h.app.Repos.Usage.Recent(ctx, from, recentRequestLimit)
-	if err != nil {
-		return dtos.UsageTelemetry{}, err
-	}
-	overrides, err := h.app.Repos.Pricing.List(ctx, "")
-	if err != nil {
-		return dtos.UsageTelemetry{}, err
-	}
-	names, kinds, detailIDs, err := h.providerMeta(ctx)
+	u := h.app.Repos.Usage
+
+	// Every read below scans the window on its own, so they run side by side
+	// (WAL lets the pool's connections read at once): on a 30-day window of
+	// ~100k rows this took 821ms one after another.
+	var (
+		traffic, prevTraffic     repositories.UsageTraffic
+		performance              repositories.UsagePerformance
+		latencies, prevLatencies []int
+		healthRows               []repositories.UsageHealthRow
+		saving                   repositories.UsageSavingBreakdown
+		byProvider, byModel      []repositories.UsageGroup
+		daily                    []repositories.UsageDailyWithFailures
+		recent                   []models.UsageRecord
+		overrides                []models.PricingOverride
+		names, kinds, detailIDs  map[string]string
+	)
+	err := parallel(
+		func() (err error) { traffic, err = u.Traffic(ctx, from, until); return },
+		func() (err error) { performance, err = u.Performance(ctx, from); return },
+		func() (err error) { latencies, err = u.Latencies(ctx, from, until); return },
+		func() (err error) { healthRows, err = u.HealthRows(ctx, from); return },
+		func() (err error) { saving, err = u.SavingBreakdown(ctx, from, until); return },
+		func() (err error) { prevTraffic, err = u.Traffic(ctx, prevFrom, from); return },
+		func() (err error) { prevLatencies, err = u.Latencies(ctx, prevFrom, from); return },
+		func() (err error) { byProvider, err = u.ByProvider(ctx, from); return },
+		func() (err error) { byModel, err = u.ByModelGrouped(ctx, from); return },
+		func() (err error) { daily, err = u.DailyWithFailures(ctx, from, hourly); return },
+		func() (err error) { recent, err = u.Recent(ctx, from, recentRequestLimit); return },
+		func() (err error) { overrides, err = h.app.Repos.Pricing.List(ctx, ""); return },
+		func() (err error) { names, kinds, detailIDs, err = h.providerMeta(ctx); return },
+	)
 	if err != nil {
 		return dtos.UsageTelemetry{}, err
 	}
@@ -668,4 +652,24 @@ func relativeTime(t, now time.Time) string {
 	default:
 		return fmt.Sprintf("%dd ago", int(d.Hours()/24))
 	}
+}
+
+// parallel runs every read at once and returns the first error.
+func parallel(reads ...func() error) error {
+	errs := make([]error, len(reads))
+	var wg sync.WaitGroup
+	for i, read := range reads {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			errs[i] = read()
+		}()
+	}
+	wg.Wait()
+	for _, err := range errs {
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
