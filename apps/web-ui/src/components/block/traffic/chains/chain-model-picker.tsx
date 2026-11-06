@@ -1,8 +1,8 @@
-import { IconSelector } from '@tabler/icons-react'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 
 import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
+import { Button, ButtonArrow } from '@/components/ui/button'
 import {
   Command,
   CommandCheck,
@@ -13,6 +13,7 @@ import {
   CommandList,
 } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { queries } from '@/lib/api/queries'
 import { cn } from '@/lib/utils'
 
@@ -94,77 +95,83 @@ export default function ChainModelPicker({
   const selected = value.provider && value.model ? `${value.provider}/${value.model}` : ''
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    // modal: the content is portaled outside any open Dialog, whose scroll lock
+    // would otherwise swallow wheel/touch scrolling in the option list.
+    <Popover modal open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button
-          type="button"
+        <Button
+          variant="outline"
           role="combobox"
           aria-expanded={open}
           aria-label={selected ? `${label}: ${selected}` : label}
-          className={cn(
-            'flex h-9 w-full min-w-0 items-center gap-2 rounded-md border border-input bg-background px-3 text-left text-[13px] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden',
-            className
-          )}
+          autoHeight={true}
+          mode="input"
+          placeholder={!selected}
+          className={cn('relative w-full min-w-0 p-1', className)}
         >
-          {selected ? (
-            <>
-              <ProviderAvatar
-                slug={value.provider}
-                apiKind={apiKinds.get(value.provider)}
-                size="xs"
-              />
-              <span className="min-w-0 flex-1 truncate font-mono text-xs" title={selected}>
-                {selected}
+          <div className="flex min-w-0 flex-1 items-center gap-2 ps-2.5 pe-7">
+            {selected ? (
+              <>
+                <ProviderAvatar
+                  slug={value.provider}
+                  apiKind={apiKinds.get(value.provider)}
+                  size="xs"
+                />
+                <span className="min-w-0 flex-1 truncate text-start" title={selected}>
+                  {selected}
+                </span>
+              </>
+            ) : (
+              <span className="truncate">
+                {loading ? 'Loading models...' : 'Choose a model...'}
               </span>
-            </>
-          ) : (
-            <span className="flex-1 text-muted-foreground">
-              {loading ? 'Loading models…' : 'Choose a model…'}
-            </span>
-          )}
-          <IconSelector className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-        </button>
+            )}
+          </div>
+          <ButtonArrow className="absolute inset-e-3 top-2" />
+        </Button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-[min(28rem,calc(100vw-2rem))] p-0">
+      <PopoverContent align="start" className="w-(--radix-popper-anchor-width) min-w-72 p-0">
         <Command>
-          <CommandInput placeholder="Search models or providers…" />
-          <CommandList className="max-h-[min(22rem,50dvh)] overscroll-contain">
-            <CommandEmpty>
-              {groups.length === 0
-                ? 'No usable provider has active models yet.'
-                : 'No model matches that search.'}
-            </CommandEmpty>
-            {groups.map((group) => (
-              <CommandGroup
-                key={group.slug}
-                heading={
-                  <span className="flex items-center gap-1.5">
-                    <ProviderAvatar slug={group.slug} apiKind={group.apiKind} size="xs" />
-                    {group.name}
-                  </span>
-                }
-              >
-                {group.models.map((model) => {
-                  const id = `${group.slug}/${model}`
-                  return (
-                    <CommandItem
-                      key={id}
-                      value={id}
-                      keywords={[group.name]}
-                      onSelect={() => {
-                        onChange({ provider: group.slug, model })
-                        setOpen(false)
-                      }}
-                    >
-                      <span className="min-w-0 flex-1 truncate font-mono text-xs" title={id}>
-                        {model}
-                      </span>
-                      {id === selected && <CommandCheck />}
-                    </CommandItem>
-                  )
-                })}
-              </CommandGroup>
-            ))}
+          <CommandInput placeholder="Search models..." />
+          <CommandList>
+            <ScrollArea viewportClassName="max-h-[300px] [&>div]:block!">
+              <CommandEmpty>
+                {groups.length === 0
+                  ? 'No usable provider has active models yet.'
+                  : 'No models found.'}
+              </CommandEmpty>
+              {groups.map((group) => (
+                <CommandGroup
+                  key={group.slug}
+                  heading={
+                    <span className="flex items-center gap-1.5">
+                      <ProviderAvatar slug={group.slug} apiKind={group.apiKind} size="xs" />
+                      {group.name}
+                    </span>
+                  }
+                >
+                  {group.models.map((model) => {
+                    const id = `${group.slug}/${model}`
+                    return (
+                      <CommandItem
+                        key={id}
+                        value={id}
+                        keywords={[group.name]}
+                        onSelect={() => {
+                          onChange({ provider: group.slug, model })
+                          setOpen(false)
+                        }}
+                      >
+                        <span className="truncate" title={id}>
+                          {model}
+                        </span>
+                        {id === selected && <CommandCheck />}
+                      </CommandItem>
+                    )
+                  })}
+                </CommandGroup>
+              ))}
+            </ScrollArea>
           </CommandList>
         </Command>
       </PopoverContent>
