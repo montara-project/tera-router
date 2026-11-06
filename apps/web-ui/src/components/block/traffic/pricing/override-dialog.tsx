@@ -235,10 +235,11 @@ export default function OverrideDialog({
         <form.AppField
           name="input_micros"
           children={(field) => (
-            <field.TextField
+            <field.NumberField
               label="Input $/M"
               placeholder="0 = free"
-              inputMode="decimal"
+              currency
+              decimalScale={6}
               asterisk
             />
           )}
@@ -246,10 +247,11 @@ export default function OverrideDialog({
         <form.AppField
           name="output_micros"
           children={(field) => (
-            <field.TextField
+            <field.NumberField
               label="Output $/M"
               placeholder="0 = free"
-              inputMode="decimal"
+              currency
+              decimalScale={6}
               asterisk
             />
           )}
@@ -276,32 +278,43 @@ export default function OverrideDialog({
               <form.AppField
                 name="cache_read_micros"
                 children={(field) => (
-                  <field.TextField label="Cache read $/M" placeholder="0" inputMode="decimal" />
+                  <field.NumberField
+                    label="Cache read $/M"
+                    placeholder="0"
+                    currency
+                    decimalScale={6}
+                  />
                 )}
               />
               <form.AppField
                 name="cache_write_micros"
                 children={(field) => (
-                  <field.TextField label="Cache write $/M" placeholder="0" inputMode="decimal" />
+                  <field.NumberField
+                    label="Cache write $/M"
+                    placeholder="0"
+                    currency
+                    decimalScale={6}
+                  />
                 )}
               />
               <form.AppField
                 name="reasoning_micros"
                 children={(field) => (
-                  <field.TextField
+                  <field.NumberField
                     label="Reasoning $/M"
                     placeholder="0 = bill at output rate"
-                    inputMode="decimal"
+                    currency
+                    decimalScale={6}
                   />
                 )}
               />
               <form.AppField
                 name="token_consumption_rate"
                 children={(field) => (
-                  <field.TextField
+                  <field.NumberField
                     label="Token consumption rate"
                     placeholder="1 = 1:1 budget drain"
-                    inputMode="decimal"
+                    decimalScale={4}
                   />
                 )}
               />

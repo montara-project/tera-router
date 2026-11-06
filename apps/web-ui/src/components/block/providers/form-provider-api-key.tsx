@@ -267,10 +267,9 @@ function ApiKeyDialog({
                   <form.AppField
                     name="priority"
                     children={(field) => (
-                      <field.TextField
+                      <field.NumberField
                         label="Priority"
                         hint="Lower runs first"
-                        type="number"
                         min={1}
                         placeholder="100"
                       />

@@ -11,6 +11,7 @@ import { useState } from 'react'
 
 import type { GuardrailsPolicyConfig as PolicyConfig } from '@/lib/api/models/guardrails'
 
+import { NumberInput } from '@/components/block/common/number-input'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import {
@@ -248,14 +249,14 @@ function ThresholdField({
   return (
     <div className="min-w-0 space-y-1.5">
       <FieldLabel>{label}</FieldLabel>
-      <Input
-        type="number"
+      <NumberInput
         min={0}
         max={max}
-        step={step}
+        // A fractional step (0.05) means a 0–1 score, so allow two decimals.
+        decimalScale={step !== undefined && step < 1 ? 2 : 0}
         value={value}
         aria-label={ariaLabel}
-        onChange={(event) => onCommit(Number(event.target.value))}
+        onValueChange={(next) => onCommit(Number(next))}
       />
     </div>
   )

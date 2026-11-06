@@ -191,10 +191,10 @@ function AbstractForm({ open, onOpenChange, defaultValues, mutation, isEdit }: A
           <form.AppField
             name="spend"
             children={(field) => (
-              <field.TextField
+              <field.NumberField
                 label="Spend limit (USD)"
                 hint={periodHint}
-                inputMode="decimal"
+                currency
                 placeholder="Unlimited"
               />
             )}
@@ -202,12 +202,7 @@ function AbstractForm({ open, onOpenChange, defaultValues, mutation, isEdit }: A
           <form.AppField
             name="tokens"
             children={(field) => (
-              <field.TextField
-                label="Token limit"
-                hint={periodHint}
-                inputMode="numeric"
-                placeholder="Unlimited"
-              />
+              <field.NumberField label="Token limit" hint={periodHint} placeholder="Unlimited" />
             )}
           />
           <form.AppField
@@ -221,7 +216,7 @@ function AbstractForm({ open, onOpenChange, defaultValues, mutation, isEdit }: A
         <div className="grid gap-3 sm:grid-cols-3">
           <form.AppField
             name="alert_pct"
-            children={(field) => <field.TextField label="Alert at (%)" inputMode="numeric" />}
+            children={(field) => <field.NumberField label="Alert at (%)" max={100} />}
           />
           <form.AppField
             name="hard_cutoff"
@@ -289,9 +284,7 @@ function AbstractForm({ open, onOpenChange, defaultValues, mutation, isEdit }: A
               <form.AppField
                 key={f.name}
                 name={f.name}
-                children={(field) => (
-                  <field.TextField label={f.label} inputMode="numeric" placeholder="Unlimited" />
-                )}
+                children={(field) => <field.NumberField label={f.label} placeholder="Unlimited" />}
               />
             ))}
           </div>

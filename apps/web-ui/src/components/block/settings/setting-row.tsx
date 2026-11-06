@@ -1,6 +1,7 @@
 import { IconInfoCircle } from '@tabler/icons-react'
+import { useState } from 'react'
 
-import { Input } from '@/components/ui/input'
+import { NumberInput } from '@/components/block/common/number-input'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 
@@ -111,25 +112,29 @@ export function UnitInput({
   /** Called with a valid number when the field loses focus. */
   onCommit: (value: number) => void
 }) {
+  const [draft, setDraft] = useState(String(value))
+  // A saved value from outside replaces whatever was typed.
+  const [prevValue, setPrevValue] = useState(value)
+  if (prevValue !== value) {
+    setPrevValue(value)
+    setDraft(String(value))
+  }
+
   return (
     <div className="relative w-28">
-      <Input
-        key={value}
+      <NumberInput
         aria-label={label}
-        type="number"
-        inputMode="numeric"
         min={min}
         max={max}
-        defaultValue={value}
-        className="pr-11 tabular-nums"
-        onBlur={(e) => {
-          const next = e.target.valueAsNumber
+        value={draft}
+        className="pr-11"
+        onValueChange={setDraft}
+        onBlur={() => {
+          const next = Number(draft)
           const ok =
-            !Number.isNaN(next) &&
-            (min === undefined || next >= min) &&
-            (max === undefined || next <= max)
+            draft !== '' && (min === undefined || next >= min) && (max === undefined || next <= max)
           if (ok && next !== value) onCommit(next)
-          else e.target.value = String(value)
+          else setDraft(String(value))
         }}
       />
       <span

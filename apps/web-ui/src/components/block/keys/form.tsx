@@ -200,17 +200,13 @@ function CreateKeyForm({ open, onOpenChange, onCreated }: AddKeyFormProps) {
               <form.AppField
                 name="limit_usd"
                 children={(field) => (
-                  <field.TextField label="Limit (USD)" inputMode="decimal" placeholder="50.00" />
+                  <field.NumberField label="Limit (USD)" currency placeholder="50.00" />
                 )}
               />
               <form.AppField
                 name="limit_tokens"
                 children={(field) => (
-                  <field.TextField
-                    label="Limit (tokens)"
-                    inputMode="numeric"
-                    placeholder="100000000"
-                  />
+                  <field.NumberField label="Limit (tokens)" placeholder="100,000,000" />
                 )}
               />
               <form.AppField
@@ -246,7 +242,7 @@ function CreateKeyForm({ open, onOpenChange, onCreated }: AddKeyFormProps) {
               <form.AppField
                 name="alert_pct"
                 children={(field) => (
-                  <field.TextField label="Alert at (%)" inputMode="numeric" disabled={!hasLimit} />
+                  <field.NumberField label="Alert at (%)" max={100} disabled={!hasLimit} />
                 )}
               />
               <form.AppField

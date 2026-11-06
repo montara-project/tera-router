@@ -4,15 +4,18 @@ import { useSelector } from '@tanstack/react-form'
 
 import { NumberInput, type NumberInputProps } from '@/components/block/common/number-input'
 import { Field, FieldError, FieldLabel } from '@/components/ui/field'
+import { InputWrapper } from '@/components/ui/input'
 import { useFieldContext } from '@/hooks/form-context'
 
 interface NumberFieldProps extends NumberInputProps {
   label?: string
-  placeholder?: string
   asterisk?: boolean
+  /** Muted note right of the label, e.g. "Optional", as in TextField. */
+  hint?: string
 }
 
-export default function NumberField({ label, placeholder, asterisk, ...props }: NumberFieldProps) {
+/** Form field around NumberInput, laid out like TextField. */
+export default function NumberField({ label, asterisk, hint, ...props }: NumberFieldProps) {
   const field = useFieldContext<string>()
   const errors = useSelector(field.store, (state) => state.meta.errors)
 
@@ -20,20 +23,25 @@ export default function NumberField({ label, placeholder, asterisk, ...props }: 
 
   return (
     <Field data-invalid={isInvalid}>
-      <FieldLabel htmlFor={field.name} className="gap-1">
-        {label}
-        {asterisk && <span className="text-destructive">*</span>}
-      </FieldLabel>
-      <NumberInput
-        id={field.name}
-        name={field.name}
-        value={field.state.value}
-        onBlur={field.handleBlur}
-        onValueChange={(value: string) => field.handleChange(value)}
-        aria-invalid={isInvalid}
-        placeholder={placeholder}
-        {...props}
-      />
+      <div className="flex items-center justify-between gap-2">
+        <FieldLabel htmlFor={field.name} className="gap-1">
+          {label}
+          {asterisk && <span className="text-destructive">*</span>}
+        </FieldLabel>
+        {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
+      </div>
+      <InputWrapper variant="lg">
+        <NumberInput
+          id={field.name}
+          name={field.name}
+          value={field.state.value}
+          onBlur={field.handleBlur}
+          onValueChange={(value) => field.handleChange(value)}
+          aria-invalid={isInvalid}
+          variant="lg"
+          {...props}
+        />
+      </InputWrapper>
       {isInvalid && <FieldError errors={field.state.meta.errors} />}
     </Field>
   )

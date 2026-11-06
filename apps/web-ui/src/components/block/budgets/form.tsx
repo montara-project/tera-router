@@ -178,18 +178,12 @@ function AbstractForm({
           <form.AppField
             name="spend"
             children={(field) => (
-              <field.TextField
-                label="Spend limit (USD)"
-                inputMode="decimal"
-                placeholder="Unlimited"
-              />
+              <field.NumberField label="Spend limit (USD)" currency placeholder="Unlimited" />
             )}
           />
           <form.AppField
             name="tokens"
-            children={(field) => (
-              <field.TextField label="Token limit" inputMode="numeric" placeholder="Unlimited" />
-            )}
+            children={(field) => <field.NumberField label="Token limit" placeholder="Unlimited" />}
           />
           <form.AppField
             name="period"
@@ -202,7 +196,7 @@ function AbstractForm({
         <div className="grid gap-3 sm:grid-cols-3">
           <form.AppField
             name="alert_pct"
-            children={(field) => <field.TextField label="Alert at (%)" inputMode="numeric" />}
+            children={(field) => <field.NumberField label="Alert at (%)" max={100} />}
           />
           <form.AppField
             name="hard_cutoff"

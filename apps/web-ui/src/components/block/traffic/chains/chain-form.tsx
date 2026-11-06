@@ -211,11 +211,10 @@ function AbstractForm({ defaultValues, mutation, isEdit, title }: AbstractFormPr
                 <form.AppField
                   name="context_window"
                   children={(field) => (
-                    <field.TextField
+                    <field.NumberField
                       label="Context window"
                       hint="Optional"
-                      inputMode="numeric"
-                      placeholder="128000"
+                      placeholder="128,000"
                     />
                   )}
                 />

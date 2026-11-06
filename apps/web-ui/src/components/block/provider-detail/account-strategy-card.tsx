@@ -5,9 +5,9 @@ import { toast } from 'sonner'
 
 import type { Models } from '@/lib/api/models'
 
+import { NumberInput } from '@/components/block/common/number-input'
 import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -126,16 +126,14 @@ export default function AccountStrategyCard({ slug }: { slug: string }) {
               <Label htmlFor="sticky-limit">
                 {smart ? 'New sessions before rotating' : 'Requests before rotating'}
               </Label>
-              <Input
+              <NumberInput
                 id="sticky-limit"
-                type="number"
-                inputMode="numeric"
                 min={1}
                 max={1000}
                 value={form.stickyLimit}
                 aria-invalid={!stickyValid}
-                className="w-32 font-mono"
-                onChange={(e) => update({ stickyLimit: e.target.value })}
+                className="w-32"
+                onValueChange={(stickyLimit) => update({ stickyLimit })}
               />
               <p
                 className={cn(
@@ -149,16 +147,14 @@ export default function AccountStrategyCard({ slug }: { slug: string }) {
             {smart ? (
               <div className="flex flex-col gap-2">
                 <Label htmlFor="affinity-hours">Session affinity (hours)</Label>
-                <Input
+                <NumberInput
                   id="affinity-hours"
-                  type="number"
-                  inputMode="numeric"
                   min={1}
                   max={720}
                   value={form.affinityHours}
                   aria-invalid={!affinityValid}
-                  className="w-32 font-mono"
-                  onChange={(e) => update({ affinityHours: e.target.value })}
+                  className="w-32"
+                  onValueChange={(affinityHours) => update({ affinityHours })}
                 />
                 <p
                   className={cn(
