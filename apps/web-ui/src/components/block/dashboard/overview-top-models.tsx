@@ -12,7 +12,7 @@ import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
 import { formatMicrosUsd } from '@/lib/currency'
 import { formatCompact, formatCount } from '@/lib/format'
 
-const LIMIT = 6
+const LIMIT = 7
 
 type ColumnType = ColumnDef<typeof features, UsageModelAccountingRow, unknown>
 
