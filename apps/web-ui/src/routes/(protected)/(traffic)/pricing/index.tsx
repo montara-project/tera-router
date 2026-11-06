@@ -9,7 +9,7 @@ import type { Models } from '@/lib/api/models'
 import EmptyState from '@/components/block/common/empty-state'
 import PageHeader from '@/components/block/common/page-header'
 import ReactTable from '@/components/block/common/react-table'
-import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
+import SectionCardPanel from '@/components/block/common/section-card-panel'
 import { PricingColumn } from '@/components/block/traffic/pricing/column'
 import FilterPricing, { type PricingScope } from '@/components/block/traffic/pricing/filter'
 import OverrideDialog from '@/components/block/traffic/pricing/override-dialog'
@@ -69,7 +69,6 @@ function PricingRoute() {
     <div className="flex flex-col gap-6">
       <PageHeader
         icon={IconCurrencyDollar}
-        iconClassName="border-transparent bg-primary/10 text-primary"
         title="Model Pricing"
         description="Per-model token rates the gateway charges with. Overrides beat the built-in catalog; a provider-wide override prices every model without a specific row."
         actions={
@@ -80,7 +79,7 @@ function PricingRoute() {
         }
       />
 
-      <DashboardPanel
+      <SectionCardPanel
         icon={IconCurrencyDollar}
         title={
           <>
@@ -136,7 +135,7 @@ function PricingRoute() {
             }
           />
         )}
-      </DashboardPanel>
+      </SectionCardPanel>
 
       <div className="px-0.5 text-xs text-muted-foreground">
         <p className="text-[12.5px] font-medium text-foreground">Resolution order</p>

@@ -16,8 +16,8 @@ import { toast } from 'sonner'
 import type { GuardrailPolicy, GuardrailsScope } from '@/lib/api/models/guardrails'
 import type { ApiKeyDetail } from '@/lib/api/models/key'
 
+import SectionCardPanel from '@/components/block/common/section-card-panel'
 import SimpleAlertDialog from '@/components/block/common/simple-alert-dialog'
-import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
 import EditPolicyDialog from '@/components/block/guardrails/edit-policy-dialog'
 import { Stat } from '@/components/block/provider-detail/provider-stat-strip'
 import { Button } from '@/components/ui/button'
@@ -200,7 +200,7 @@ export default function KeyGuardrailsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
         </dl>
       </section>
 
-      <DashboardPanel
+      <SectionCardPanel
         icon={IconShieldCheck}
         title="Per-key override"
         toolbar={
@@ -270,9 +270,9 @@ export default function KeyGuardrailsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
             </div>
           ))}
         </div>
-      </DashboardPanel>
+      </SectionCardPanel>
 
-      <DashboardPanel icon={IconShield} title="Effective protection">
+      <SectionCardPanel icon={IconShield} title="Effective protection">
         <div className="px-4 py-3">
           {activeDetectors.length === 0 ? (
             <Pill tone="muted">No detectors active</Pill>
@@ -325,7 +325,7 @@ export default function KeyGuardrailsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
             </ul>
           </CollapsibleContent>
         </Collapsible>
-      </DashboardPanel>
+      </SectionCardPanel>
 
       <EditPolicyDialog
         mode={dialog?.mode ?? 'create'}

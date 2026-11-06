@@ -8,7 +8,7 @@ import type { UsageTerminalRequestRow } from '@/lib/api/models/usage'
 
 import EmptyState from '@/components/block/common/empty-state'
 import ReactTable, { features } from '@/components/block/common/react-table'
-import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
+import SectionCardPanel from '@/components/block/common/section-card-panel'
 import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
 import { Input } from '@/components/ui/input'
 import { usePaginationQuery } from '@/hooks/use-pagination-query'
@@ -185,7 +185,7 @@ export default function UsageRecentRequests({ rows }: { rows: Row[] }) {
 
   return (
     <>
-      <DashboardPanel
+      <SectionCardPanel
         title="Recent requests"
         icon={IconBolt}
         toolbar={
@@ -253,7 +253,7 @@ export default function UsageRecentRequests({ rows }: { rows: Row[] }) {
             />
           }
         />
-      </DashboardPanel>
+      </SectionCardPanel>
 
       {selected && <RequestDetailDialog open onClose={() => setSelected(null)} row={selected} />}
     </>

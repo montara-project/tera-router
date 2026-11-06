@@ -3,7 +3,7 @@ import { useState } from 'react'
 
 import type { EndpointGroup, EndpointRoute } from '@/lib/api/models/endpoint'
 
-import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
+import SectionCardPanel from '@/components/block/common/section-card-panel'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
@@ -30,7 +30,7 @@ export default function ApiReferenceCard({ baseUrl, groups }: ApiReferenceCardPr
     setToggled(Object.fromEntries(groups.map((g) => [g.title, open])))
 
   return (
-    <DashboardPanel
+    <SectionCardPanel
       icon={IconApi}
       title={
         <>
@@ -90,7 +90,7 @@ export default function ApiReferenceCard({ baseUrl, groups }: ApiReferenceCardPr
           )
         })}
       </div>
-    </DashboardPanel>
+    </SectionCardPanel>
   )
 }
 

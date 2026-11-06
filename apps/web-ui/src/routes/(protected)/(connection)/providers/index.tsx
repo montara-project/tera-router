@@ -10,8 +10,8 @@ import type { Models } from '@/lib/api/models'
 import EmptyState from '@/components/block/common/empty-state'
 import PageHeader from '@/components/block/common/page-header'
 import ReactTable from '@/components/block/common/react-table'
+import SectionCardPanel from '@/components/block/common/section-card-panel'
 import SimpleAlertDialog from '@/components/block/common/simple-alert-dialog'
-import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
 import {
   API_KEY_PROVIDERS,
   CUSTOM_CONNECT_PRESETS,
@@ -194,7 +194,6 @@ function RouteComponent() {
       <div className="flex flex-col gap-6">
         <PageHeader
           icon={IconPackages}
-          iconClassName="border-transparent bg-teal-500/10 text-teal-700 dark:text-teal-400"
           title="Providers"
           description={`${overview.connected.length} connected · ${overview.available.length} available`}
           actions={
@@ -205,7 +204,7 @@ function RouteComponent() {
           }
         />
 
-        <DashboardPanel
+        <SectionCardPanel
           icon={IconPlugConnected}
           title={
             <>
@@ -266,7 +265,7 @@ function RouteComponent() {
               />
             }
           />
-        </DashboardPanel>
+        </SectionCardPanel>
       </div>
 
       <ConnectProviderDialog

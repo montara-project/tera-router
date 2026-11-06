@@ -4,7 +4,7 @@ import { IconServer } from '@tabler/icons-react'
 
 import type { Models } from '@/lib/api/models'
 
-import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
+import SectionCardPanel from '@/components/block/common/section-card-panel'
 import { formatDuration } from '@/lib/date'
 import { formatCount, formatMb } from '@/lib/format'
 
@@ -23,7 +23,7 @@ export default function SystemOverviewCard({ stats }: { stats: Models.SystemStat
   const { host, process } = stats
 
   return (
-    <DashboardPanel
+    <SectionCardPanel
       icon={IconServer}
       title="System overview"
       description="Host and process resource usage"
@@ -68,6 +68,6 @@ export default function SystemOverviewCard({ stats }: { stats: Models.SystemStat
           </div>
         </div>
       </div>
-    </DashboardPanel>
+    </SectionCardPanel>
   )
 }

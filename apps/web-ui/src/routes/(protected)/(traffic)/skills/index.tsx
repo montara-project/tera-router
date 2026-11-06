@@ -66,7 +66,6 @@ function RouteComponent() {
     <div className="flex flex-col gap-6">
       <PageHeader
         icon={IconPuzzle}
-        iconClassName="text-primary border-transparent bg-primary/10"
         title="Skills"
         description="Standing instructions the gateway adds to chat requests, plus reference docs that teach agents to use Tera Router."
       />

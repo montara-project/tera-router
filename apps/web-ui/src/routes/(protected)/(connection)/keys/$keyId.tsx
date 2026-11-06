@@ -94,7 +94,8 @@ function KeyDetailRoute() {
 
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400">
+          {/* Same tile as PageHeader (common/page-header.tsx). */}
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-transparent bg-primary/10 text-primary">
             <IconKey className="size-5" aria-hidden />
           </span>
           <div className="min-w-0">

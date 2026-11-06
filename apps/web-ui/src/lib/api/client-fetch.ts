@@ -7,6 +7,9 @@ import { ms } from '../date'
 
 const timeout = ms('5m')
 
+/** Requests made while signing in; their 401 is a refused attempt, not an ended session. */
+const SIGN_IN_ATTEMPT = /\/v1\/auth\/(sign-in|passkey\/(begin|finish))$/
+
 interface CreateAxiosProps {
   baseURL: string
   storageKey?: string
@@ -48,7 +51,10 @@ function createAxios({ baseURL, storageKey }: CreateAxiosProps) {
         throw new Error('Network error')
       }
 
-      if (error.response?.status === 401) {
+      // A sign-in attempt's 401 (wrong password, refused passkey) belongs to the
+      // form: pass it on with the server's message. Any other 401 means the
+      // session ended, so sign out and go to the login page.
+      if (error.response?.status === 401 && !SIGN_IN_ATTEMPT.test(error.config?.url ?? '')) {
         if (storageKey === AUTH_STORAGE_KEYS.AUTH_STORAGE) {
           clearAuthTokens()
           window.location.href = '/'

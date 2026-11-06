@@ -5,8 +5,8 @@ import { Fragment, useState } from 'react'
 import type { Models } from '@/lib/api/models'
 
 import EmptyState from '@/components/block/common/empty-state'
+import SectionCardPanel from '@/components/block/common/section-card-panel'
 import TablePagination from '@/components/block/common/table-pagination'
-import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
 import { Button } from '@/components/ui/button'
 import { Input, InputWrapper } from '@/components/ui/input'
 import {
@@ -108,7 +108,7 @@ export default function AuditEvents({
     filters.search.trim() !== '' || filters.outcome !== 'all' || filters.category !== 'all'
 
   return (
-    <DashboardPanel
+    <SectionCardPanel
       icon={IconListDetails}
       title="Events"
       toolbar={
@@ -233,7 +233,7 @@ export default function AuditEvents({
           />
         </>
       )}
-    </DashboardPanel>
+    </SectionCardPanel>
   )
 }
 

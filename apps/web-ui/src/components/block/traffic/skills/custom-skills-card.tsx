@@ -5,7 +5,7 @@ import { useState } from 'react'
 
 import type { Models } from '@/lib/api/models'
 
-import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
+import SectionCardPanel from '@/components/block/common/section-card-panel'
 import CopySkillButton from '@/components/block/traffic/skills/copy-skill-button'
 import SkillDetailDialog, {
   type SkillDetailTarget,
@@ -162,7 +162,7 @@ export default function CustomSkillsCard({
   }
 
   return (
-    <DashboardPanel
+    <SectionCardPanel
       icon={IconPuzzle}
       title="Custom skills"
       description="Switched-on skills are added to the system prompt of gateway chat requests — no client changes needed"
@@ -177,6 +177,6 @@ export default function CustomSkillsCard({
     >
       {renderSkills()}
       <SkillDetailDialog skill={viewing} onClose={() => setViewing(null)} />
-    </DashboardPanel>
+    </SectionCardPanel>
   )
 }

@@ -5,6 +5,8 @@
 package consolelog
 
 import (
+	"sort"
+	"strconv"
 	"sync"
 	"time"
 
@@ -13,6 +15,10 @@ import (
 
 // Capacity bounds the ring buffer; the oldest entries drop beyond it.
 const Capacity = 1000
+
+// Session names this process's feed. Ids restart at 1 when the server
+// restarts, so a client that polls with ?after= starts over when it changes.
+var Session = strconv.FormatInt(time.Now().UnixNano(), 36)
 
 var feed = struct {
 	mu      sync.Mutex
@@ -49,6 +55,24 @@ func List() []dtos.ConsoleEntry {
 	out := make([]dtos.ConsoleEntry, len(feed.entries))
 	copy(out, feed.entries)
 	return out
+}
+
+// ListAfter returns the entries newer than id, oldest first, and the id of the
+// oldest entry still in the buffer (0 when it is empty). A polling client
+// appends the new entries and drops any it holds below first, which is how
+// trimmed and cleared lines leave its view.
+func ListAfter(id int64) (entries []dtos.ConsoleEntry, first int64) {
+	feed.mu.Lock()
+	defer feed.mu.Unlock()
+
+	if len(feed.entries) > 0 {
+		first = feed.entries[0].ID
+	}
+	// Ids only grow, so the buffer is sorted by id.
+	i := sort.Search(len(feed.entries), func(i int) bool { return feed.entries[i].ID > id })
+	entries = make([]dtos.ConsoleEntry, len(feed.entries)-i)
+	copy(entries, feed.entries[i:])
+	return entries, first
 }
 
 // Clear empties the buffer. Ids keep increasing, so a new entry never reuses

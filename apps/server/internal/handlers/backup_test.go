@@ -41,6 +41,14 @@ type backupHarness struct {
 
 func newBackupHarness(t *testing.T, appSecret string) backupHarness {
 	t.Helper()
+	return newBackupHarnessWithLimit(t, appSecret, 32*1024*1024)
+}
+
+// newBackupHarnessWithLimit wires the backup routes the way cmd/api does:
+// bodies stream, multipart is not pre-parsed, and middlewares.BodyLimit caps
+// every route but the database restore at bodyLimit.
+func newBackupHarnessWithLimit(t *testing.T, appSecret string, bodyLimit int) backupHarness {
+	t.Helper()
 	path := filepath.Join(t.TempDir(), "terarouter.db")
 	db, err := database.Open(path)
 	if err != nil {
@@ -65,7 +73,13 @@ func newBackupHarness(t *testing.T, appSecret string) backupHarness {
 		Secrets: secrets,
 	}
 
-	f := fiber.New(fiber.Config{ErrorHandler: middlewares.ErrorHandler, BodyLimit: 32 * 1024 * 1024})
+	f := fiber.New(fiber.Config{
+		ErrorHandler:                 middlewares.ErrorHandler,
+		BodyLimit:                    bodyLimit,
+		StreamRequestBody:            true,
+		DisablePreParseMultipartForm: true,
+	})
+	f.Use(middlewares.BodyLimit(bodyLimit, func(p string) bool { return p == "/backup/database/restore" }))
 	admin := uuid.MustParse("00000000-0000-0000-0000-0000000000ff")
 	f.Use(func(c fiber.Ctx) error { lib.ContextSetUID(c, admin); return c.Next() })
 	b := &backupHandler{app: a}
@@ -245,6 +259,58 @@ func multipartUpload(t *testing.T, path, filename string, content []byte) *http.
 	req := httptest.NewRequest(http.MethodPost, path, &buf)
 	req.Header.Set("Content-Type", w.FormDataContentType())
 	return req
+}
+
+// A database bigger than the server's body limit still restores: the upload
+// streams past the cap that every other route keeps.
+func TestDatabaseRestoreLargerThanBodyLimit(t *testing.T) {
+	src := newBackupHarness(t, "secret")
+	src.seedAccount(t, "openai", "sk-large-restore-123456")
+	status, snapshot := src.postJSON(t, "/backup/database/download", map[string]string{"password": backupAdminPassword})
+	if status != http.StatusOK {
+		t.Fatalf("download status = %d", status)
+	}
+
+	limit := len(snapshot) / 4
+	h := newBackupHarnessWithLimit(t, "secret", limit)
+
+	status, body := h.do(t, multipartUpload(t, "/backup/config/import", "big.json", snapshot))
+	if status != http.StatusRequestEntityTooLarge {
+		t.Fatalf("over-limit upload to another route = %d, want 413: %s", status, body)
+	}
+
+	status, body = h.do(t, multipartUpload(t, "/backup/database/restore", "snapshot.db", snapshot))
+	if status != http.StatusOK {
+		t.Fatalf("restore of %d bytes with a %d-byte limit = %d: %s", len(snapshot), limit, status, body)
+	}
+	if got := openAccountKey(t, h, "acc-openai"); got != "sk-large-restore-123456" {
+		t.Errorf("restored key = %q", got)
+	}
+}
+
+// The restore upload keeps a ceiling and runs one at a time, although it is
+// exempt from the global body limit.
+func TestDatabaseRestoreCeilingAndSingleFlight(t *testing.T) {
+	h := newBackupHarness(t, "secret")
+	status, snapshot := h.postJSON(t, "/backup/database/download", map[string]string{"password": backupAdminPassword})
+	if status != http.StatusOK {
+		t.Fatalf("download status = %d", status)
+	}
+
+	prev := restoreUploadLimit
+	restoreUploadLimit = len(snapshot) / 2
+	status, body := h.do(t, multipartUpload(t, "/backup/database/restore", "snapshot.db", snapshot))
+	restoreUploadLimit = prev
+	if status != http.StatusRequestEntityTooLarge {
+		t.Fatalf("over the ceiling = %d, want 413: %s", status, body)
+	}
+
+	restoreMu.Lock()
+	status, body = h.do(t, multipartUpload(t, "/backup/database/restore", "snapshot.db", snapshot))
+	restoreMu.Unlock()
+	if status != http.StatusConflict {
+		t.Fatalf("while another restore runs = %d, want 409: %s", status, body)
+	}
 }
 
 const nineRouterBackup = `{

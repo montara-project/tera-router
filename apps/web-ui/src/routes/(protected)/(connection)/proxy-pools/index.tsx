@@ -100,7 +100,6 @@ function RouteComponent() {
     <div className="flex flex-col gap-6">
       <PageHeader
         icon={IconRouteAltLeft}
-        iconClassName="border-transparent bg-teal-500/10 text-teal-600 dark:text-teal-400"
         title="Proxy pools"
         description="Route provider traffic through proxies or edge relays."
         actions={

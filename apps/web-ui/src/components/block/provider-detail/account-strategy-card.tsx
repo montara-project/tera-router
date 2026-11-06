@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import type { Models } from '@/lib/api/models'
 
 import { NumberInput } from '@/components/block/common/number-input'
-import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
+import SectionCardPanel from '@/components/block/common/section-card-panel'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
@@ -84,7 +84,7 @@ export default function AccountStrategyCard({ slug }: { slug: string }) {
   }
 
   return (
-    <DashboardPanel
+    <SectionCardPanel
       icon={IconGitFork}
       title="Account strategy"
       description="Takes effect with two or more accounts"
@@ -189,6 +189,6 @@ export default function AccountStrategyCard({ slug }: { slug: string }) {
           Save changes
         </Button>
       </div>
-    </DashboardPanel>
+    </SectionCardPanel>
   )
 }

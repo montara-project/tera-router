@@ -13,9 +13,20 @@ import (
 
 // UsageRepository appends request telemetry and aggregates it for the
 // dashboard.
+//
+// created_at is UTC text, "YYYY-MM-DD HH:MM:SS.fff+00:00": the DSN writes
+// time.Time with _time_format=sqlite and _timezone=UTC (database/sqlite.go),
+// and the column default uses the same layout. Day and hour buckets are
+// therefore plain prefixes (dayBucket, hourBucket), about twice as fast over
+// a large window as strftime, which parses every row.
 type UsageRepository struct {
 	BaseRepository
 }
+
+const (
+	dayBucket  = `substr(created_at, 1, 10)`
+	hourBucket = `substr(created_at, 1, 13) || ':00'`
+)
 
 // Insert appends one usage record.
 func (r *UsageRepository) Insert(ctx context.Context, u models.UsageRecord) error {
@@ -192,7 +203,7 @@ type UsageDaily struct {
 // Daily aggregates spend and tokens per day over a window.
 func (r *UsageRepository) Daily(ctx context.Context, from time.Time) ([]UsageDaily, error) {
 	rows, err := r.queryContext(ctx, r.DB, `
-		SELECT strftime('%Y-%m-%d', created_at) AS day,
+		SELECT `+dayBucket+` AS day,
 		       count(*) AS requests,
 		       COALESCE(SUM(cost_micros), 0),
 		       COALESCE(SUM(prompt_tokens + completion_tokens), 0)
@@ -466,12 +477,12 @@ func (r *UsageRepository) groupExec(ctx context.Context, from time.Time, groupBy
 // average successful latency per bucket: one bucket per day, or per hour when
 // hourly is set (short windows).
 func (r *UsageRepository) DailyWithFailures(ctx context.Context, from time.Time, hourly bool) ([]UsageDailyWithFailures, error) {
-	format := "%Y-%m-%d"
+	bucket := dayBucket
 	if hourly {
-		format = "%Y-%m-%d %H:00"
+		bucket = hourBucket
 	}
 	rows, err := r.queryContext(ctx, r.DB, `
-		SELECT strftime($2, created_at) AS day,
+		SELECT `+bucket+` AS day,
 		       count(*),
 		       COALESCE(SUM(cost_micros), 0),
 		       COALESCE(SUM(prompt_tokens + completion_tokens), 0),
@@ -480,7 +491,7 @@ func (r *UsageRepository) DailyWithFailures(ctx context.Context, from time.Time,
 		FROM usage_records
 		WHERE created_at >= $1
 		GROUP BY 1
-		ORDER BY 1`, from, format)
+		ORDER BY 1`, from)
 	if err != nil {
 		return nil, err
 	}
@@ -521,7 +532,7 @@ type UsageActivityRow struct {
 // and then by request count (busiest model first).
 func (r *UsageRepository) Activity(ctx context.Context, from time.Time) ([]UsageActivityRow, error) {
 	rows, err := r.queryContext(ctx, r.DB, `
-		SELECT strftime('%Y-%m-%d', created_at) AS day, provider, model,
+		SELECT `+dayBucket+` AS day, provider, model,
 		       count(*), COALESCE(SUM(failed), 0)
 		FROM usage_records
 		WHERE created_at >= $1
@@ -589,13 +600,16 @@ type UsageHealthRow struct {
 	CreatedAt time.Time
 	// ErrorKind is the gateway's failure class (auth, rate_limit, …); empty on success.
 	ErrorKind string
+	// Tokens is the attempt's prompt plus completion tokens.
+	Tokens int64
 }
 
 // HealthRows streams the outcome-relevant columns of every usage record in the
 // window, oldest first so request grouping sees the final attempt last.
 func (r *UsageRepository) HealthRows(ctx context.Context, from time.Time) ([]UsageHealthRow, error) {
 	rows, err := r.queryContext(ctx, r.DB, `
-		SELECT request_id, chain, provider, model, failed, latency_ms, created_at, error_kind
+		SELECT request_id, chain, provider, model, failed, latency_ms, created_at, error_kind,
+		       prompt_tokens + completion_tokens
 		FROM usage_records WHERE created_at >= $1 ORDER BY created_at`, from)
 	if err != nil {
 		return nil, errtrace.Wrap(err)
@@ -605,7 +619,7 @@ func (r *UsageRepository) HealthRows(ctx context.Context, from time.Time) ([]Usa
 	out := make([]UsageHealthRow, 0, 64)
 	for rows.Next() {
 		var u UsageHealthRow
-		if err := rows.Scan(&u.RequestID, &u.Chain, &u.Provider, &u.Model, &u.Failed, &u.LatencyMS, &u.CreatedAt, &u.ErrorKind); err != nil {
+		if err := rows.Scan(&u.RequestID, &u.Chain, &u.Provider, &u.Model, &u.Failed, &u.LatencyMS, &u.CreatedAt, &u.ErrorKind, &u.Tokens); err != nil {
 			return nil, errtrace.Wrap(err)
 		}
 		out = append(out, u)

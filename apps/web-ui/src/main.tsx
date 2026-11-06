@@ -19,6 +19,8 @@ const router = createRouter({
   // This will ensure that the loader is always called when the route is preloaded or visited
   defaultPreloadStaleTime: 0,
   scrollRestoration: true,
+  // Pages scroll inside #app-main (layout/sidebar/layout.tsx), not the window.
+  scrollToTopSelectors: ['#app-main'],
 })
 
 // Register the router instance for type safety

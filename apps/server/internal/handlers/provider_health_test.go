@@ -38,13 +38,13 @@ func TestBuildHealthOverview(t *testing.T) {
 		// Request r1: openai attempt failed, then anthropic succeeded -> the
 		// openai row is a fallback, anthropic's is a success.
 		{RequestID: "r1", Chain: "combo", Provider: "openai", Model: "gpt-4o", Failed: true, LatencyMS: 200},
-		{RequestID: "r1", Chain: "combo", Provider: "anthropic", Model: "claude-sonnet-4", Failed: false, LatencyMS: 300},
+		{RequestID: "r1", Chain: "combo", Provider: "anthropic", Model: "claude-sonnet-4", Failed: false, LatencyMS: 300, Tokens: 800},
 		// Request r2: glm-cn failed twice and the request never succeeded ->
 		// two final failures.
 		{RequestID: "r2", Chain: "glm-free", Provider: "glm-cn", Model: "glm-4-flash", Failed: true, LatencyMS: 100, ErrorKind: "auth"},
 		{RequestID: "r2", Chain: "glm-free", Provider: "glm-cn", Model: "glm-4-flash", Failed: true, LatencyMS: 100, ErrorKind: "auth"},
 		// Request r3: clean direct call with no chain.
-		{RequestID: "r3", Chain: "", Provider: "openai", Model: "gpt-4o", Failed: false, LatencyMS: 500},
+		{RequestID: "r3", Chain: "", Provider: "openai", Model: "gpt-4o", Failed: false, LatencyMS: 500, Tokens: 1200},
 	}
 
 	got := buildHealthOverview(rows, []string{"combo", "glm-free", "idle-chain"}, time.Time{}, time.Time{})
@@ -67,6 +67,16 @@ func TestBuildHealthOverview(t *testing.T) {
 			glmcn = p
 		}
 	}
+	// Tokens add up per provider: a failed attempt carries none.
+	if openai.Tokens != 1200 || anthropic.Tokens != 800 || glmcn.Tokens != 0 {
+		t.Errorf("tokens openai=%d anthropic=%d glm-cn=%d, want 1200, 800, 0", openai.Tokens, anthropic.Tokens, glmcn.Tokens)
+	}
+	for _, c := range got.Chains {
+		if c.Name == "combo" && c.Tokens != 800 {
+			t.Errorf("chain combo tokens = %d, want 800", c.Tokens)
+		}
+	}
+
 	if openai.Requests != 2 || openai.FallbackRate != 50 || openai.FinalFailures != 0 || openai.Status != "healthy" {
 		t.Fatalf("openai = %+v, want 2 reqs, 50%% fallback, healthy", openai)
 	}

@@ -69,7 +69,6 @@ function RouteComponent() {
     <div className="flex flex-col gap-6">
       <PageHeader
         icon={IconSettings}
-        iconClassName="border-transparent bg-primary/10 text-primary"
         title="Settings"
         description="Gateway behaviour, branding, backups and updates."
         actions={

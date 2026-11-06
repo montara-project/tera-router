@@ -116,7 +116,6 @@ function RouteComponent() {
     <div className="flex flex-col gap-6">
       <PageHeader
         icon={IconActivity}
-        iconClassName={cn('border-transparent', TEAL)}
         title="Provider health"
         description="Which upstreams are failing or slow, and what to do."
         actions={

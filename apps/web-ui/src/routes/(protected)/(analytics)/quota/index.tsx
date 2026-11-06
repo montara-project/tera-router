@@ -11,7 +11,7 @@ import PageHeader from '@/components/block/common/page-header'
 import SegmentedControl from '@/components/block/common/segmented-control'
 import { applyQuotaFilters, DEFAULT_QUOTA_FILTERS } from '@/components/block/quota/filter-quota'
 import QuotaAccountsCard from '@/components/block/quota/quota-accounts-card'
-import QuotaStatStrip, { TEAL_CHIP } from '@/components/block/quota/quota-stat-strip'
+import QuotaStatStrip from '@/components/block/quota/quota-stat-strip'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { usePaginationQuery } from '@/hooks/use-pagination-query'
@@ -100,7 +100,6 @@ function RouteComponent() {
       <PageHeader
         description="Upstream limits and local usage for each provider account."
         icon={IconGauge}
-        iconClassName={TEAL_CHIP}
         title="Quota tracker"
         actions={
           <>

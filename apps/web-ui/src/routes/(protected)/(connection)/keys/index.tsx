@@ -34,7 +34,6 @@ function RouteComponent() {
     <div className="flex flex-col gap-6">
       <PageHeader
         icon={IconKey}
-        iconClassName="border-transparent bg-orange-500/10 text-orange-600 dark:text-orange-400"
         title="API keys"
         description="Keys your tools and teammates use to call Tera Router."
         actions={

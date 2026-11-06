@@ -2,7 +2,7 @@ import { type TablerIcon } from '@tabler/icons-react'
 
 import type { SystemPoint } from '@/lib/api/models/system'
 
-import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
+import SectionCardPanel from '@/components/block/common/section-card-panel'
 
 import SystemLineChart from './system-line-chart'
 
@@ -33,7 +33,7 @@ export default function SystemMetricChartCard({
   const latest = points.at(-1)?.value
 
   return (
-    <DashboardPanel
+    <SectionCardPanel
       icon={icon}
       title={title}
       description={description}
@@ -48,6 +48,6 @@ export default function SystemMetricChartCard({
       <div className="px-3 pt-3 pb-2">
         <SystemLineChart color={color} max={max} min={min} points={points} threshold={threshold} />
       </div>
-    </DashboardPanel>
+    </SectionCardPanel>
   )
 }

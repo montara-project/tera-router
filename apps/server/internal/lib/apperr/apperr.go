@@ -20,6 +20,7 @@ const (
 	KindUnprocessable
 	KindTooManyRequests
 	KindInternal
+	KindPayloadTooLarge
 )
 
 var kindStatus = map[Kind]int{
@@ -31,6 +32,7 @@ var kindStatus = map[Kind]int{
 	KindUnprocessable:   http.StatusUnprocessableEntity,
 	KindTooManyRequests: http.StatusTooManyRequests,
 	KindInternal:        http.StatusInternalServerError,
+	KindPayloadTooLarge: http.StatusRequestEntityTooLarge,
 }
 
 // Error is a typed application error. Wrap sentinel errors (ErrNotFound, …)

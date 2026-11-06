@@ -28,6 +28,21 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/static"
 )
 
+const (
+	bodyLimit           = 32 * 1024 * 1024
+	databaseRestorePath = "/v1/backup/database/restore"
+)
+
+// skipFor runs handler on every path but one, which goes straight on.
+func skipFor(path string, handler fiber.Handler) fiber.Handler {
+	return func(c fiber.Ctx) error {
+		if c.Path() == path {
+			return c.Next()
+		}
+		return handler(c)
+	}
+}
+
 func serve(app *app.Application) error {
 	// Sentry
 	sentryHandler := sentryfiber.New(sentryfiber.Config{
@@ -40,12 +55,18 @@ func serve(app *app.Application) error {
 	fiberConfig := fiber.Config{
 		// 32 MiB: agent conversations (long tool-call histories, inline
 		// base64 screenshots) routinely exceed the dashboard's 2 MiB.
-		BodyLimit:    32 * 1024 * 1024,
-		IdleTimeout:  time.Minute,
-		ReadTimeout:  20 * time.Second,
-		WriteTimeout: 3 * time.Minute,
-		TrustProxy:   true,
-		ErrorHandler: middlewares.ErrorHandler,
+		// middlewares.BodyLimit enforces it; fasthttp only buffers up to it.
+		BodyLimit: bodyLimit,
+		// Bodies stream so a database restore can upload a file larger than
+		// BodyLimit. Multipart pre-parsing stays off: fasthttp would otherwise
+		// read a multipart body of any size to disk before auth runs.
+		StreamRequestBody:            true,
+		DisablePreParseMultipartForm: true,
+		IdleTimeout:                  time.Minute,
+		ReadTimeout:                  20 * time.Second,
+		WriteTimeout:                 3 * time.Minute,
+		TrustProxy:                   true,
+		ErrorHandler:                 middlewares.ErrorHandler,
 	}
 
 	// Behind a reverse proxy, X-Forwarded-For carries the client IP. Only
@@ -73,6 +94,9 @@ func serve(app *app.Application) error {
 		return fmt.Errorf("load ip blocklist: %w", err)
 	}
 	server.Use(middlewares.IPBlock(app.IPBlocks, app.Services.Tunnel.Running))
+	// Only the database restore (routes.go: /backup/database/restore) may
+	// exceed the limit; it parses its upload after RequireAuth.
+	server.Use(middlewares.BodyLimit(bodyLimit, func(p string) bool { return p == databaseRestorePath }))
 	// HSTS is only sent on HTTPS requests; subdomains are left out so other
 	// hosts on the operator's domain are not forced onto TLS.
 	server.Use(helmet.New(helmet.Config{HSTSMaxAge: 180 * 24 * 60 * 60, HSTSExcludeSubdomains: true}))
@@ -85,7 +109,11 @@ func serve(app *app.Application) error {
 			return gateway.IsGatewayPath(c.Path()) || strings.Contains(c.Get("Accept"), "text/event-stream")
 		},
 	}))
-	server.Use(sentryHandler)
+	// Sentry copies the whole request body into memory, and runs before
+	// RequireAuth. The restore upload is exempt from BodyLimit, so on that path
+	// the copy would read an unbounded body to EOF for anyone: skip Sentry there
+	// and let the handler stream the upload to disk once the caller is signed in.
+	server.Use(skipFor(databaseRestorePath, sentryHandler))
 
 	// CORS
 	server.Use(cors.New(cors.Config{

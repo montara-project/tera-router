@@ -14,6 +14,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/maxrichie5/go-sqlfmt v0.0.0-20241025195225-e353be92414a
 	github.com/shirou/gopsutil/v4 v4.26.8
+	github.com/valyala/fasthttp v1.74.0
 	golang.org/x/crypto v0.58.1-0.20261009181718-2f1f834330b2
 	modernc.org/sqlite v1.59.0
 )
@@ -42,7 +43,6 @@ require (
 	github.com/tklauser/go-sysconf v0.3.16 // indirect
 	github.com/tklauser/numcpus v0.11.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	github.com/valyala/fasthttp v1.74.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	golang.org/x/net v0.62.0 // indirect

@@ -25,8 +25,6 @@ export const Route = createFileRoute('/(protected)/(connection)/media/')({
   component: RouteComponent,
 })
 
-const TEAL_TILE = 'border-transparent bg-teal-500/10 text-teal-600 dark:text-teal-400'
-
 const categoryToCapability = (category: MediaCategory) =>
   category === 'embeddings' ? 'embed' : category
 
@@ -64,7 +62,6 @@ function RouteComponent() {
     <div className="flex flex-col gap-5">
       <PageHeader
         icon={IconPhoto}
-        iconClassName={TEAL_TILE}
         title="Media providers"
         description="Embeddings, image, speech and web providers."
       />

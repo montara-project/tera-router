@@ -18,8 +18,8 @@ import BudgetFormDialog, { SCOPE_LABELS } from '@/components/block/budgets/form'
 import EmptyState from '@/components/block/common/empty-state'
 import ReactTable, { features } from '@/components/block/common/react-table'
 import RowColumnAction from '@/components/block/common/row-column-action'
+import SectionCardPanel from '@/components/block/common/section-card-panel'
 import SimpleAlertDialog from '@/components/block/common/simple-alert-dialog'
-import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
 import { Stat } from '@/components/block/provider-detail/provider-stat-strip'
 import { Button } from '@/components/ui/button'
 import { usePaginationQuery } from '@/hooks/use-pagination-query'
@@ -261,7 +261,7 @@ export default function BudgetsTable({
     : ''
 
   return (
-    <DashboardPanel icon={IconChartBar} title="Budget usage" description="Closest to limit first">
+    <SectionCardPanel icon={IconChartBar} title="Budget usage" description="Closest to limit first">
       {rows.length === 0 ? (
         <EmptyState
           icon={IconCoins}
@@ -298,6 +298,6 @@ export default function BudgetsTable({
         title="Delete this budget?"
         variant="destructive"
       />
-    </DashboardPanel>
+    </SectionCardPanel>
   )
 }

@@ -7,6 +7,8 @@ export type HealthEntry = {
   name: string
   status: HealthStatus
   requests: number
+  /** Prompt plus completion tokens of those attempts. */
+  tokens: number
   fallbackRate: number
   /** failed attempts another target recovered */
   fallbacks: number

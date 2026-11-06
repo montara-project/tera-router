@@ -1,8 +1,8 @@
 import { IconArrowRight, IconTemplate } from '@tabler/icons-react'
 import { useState } from 'react'
 
+import SectionCardPanel from '@/components/block/common/section-card-panel'
 import SegmentedControl from '@/components/block/common/segmented-control'
-import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
 import { Button } from '@/components/ui/button'
 import {
   estimateTokens,
@@ -29,7 +29,7 @@ export default function SkillTemplatesCard({ onUse, id }: SkillTemplatesCardProp
 
   return (
     <div id={id} className="scroll-mt-4">
-      <DashboardPanel
+      <SectionCardPanel
         icon={IconTemplate}
         title={
           <>
@@ -80,7 +80,7 @@ export default function SkillTemplatesCard({ onUse, id }: SkillTemplatesCardProp
             </Button>
           </div>
         )}
-      </DashboardPanel>
+      </SectionCardPanel>
     </div>
   )
 }

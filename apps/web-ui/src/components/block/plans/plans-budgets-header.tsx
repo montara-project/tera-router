@@ -19,7 +19,6 @@ export default function PlansBudgetsHeader({ actions }: { actions: React.ReactNo
     <>
       <PageHeader
         icon={IconReceipt}
-        iconClassName="border-transparent bg-orange-500/10 text-orange-600 dark:text-orange-400"
         title="Plans & budgets"
         description="Spend, rate and model limits for your API keys."
         actions={actions}

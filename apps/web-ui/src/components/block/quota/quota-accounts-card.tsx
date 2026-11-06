@@ -10,8 +10,8 @@ import type { Models } from '@/lib/api/models'
 import EmptyState from '@/components/block/common/empty-state'
 import ReactTable, { features } from '@/components/block/common/react-table'
 import RowColumnAction from '@/components/block/common/row-column-action'
+import SectionCardPanel from '@/components/block/common/section-card-panel'
 import SimpleAlertDialog from '@/components/block/common/simple-alert-dialog'
-import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
 import { getProviderBrand, ProviderAvatar } from '@/components/block/providers/provider-avatar'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -219,7 +219,7 @@ export default function QuotaAccountsCard({
   ]
 
   return (
-    <DashboardPanel
+    <SectionCardPanel
       icon={IconUsers}
       title="Accounts"
       toolbar={
@@ -286,7 +286,7 @@ export default function QuotaAccountsCard({
           }
         />
       )}
-    </DashboardPanel>
+    </SectionCardPanel>
   )
 }
 

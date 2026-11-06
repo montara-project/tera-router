@@ -2,7 +2,7 @@ import { IconWorld } from '@tabler/icons-react'
 
 import type { Models } from '@/lib/api/models'
 
-import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
+import SectionCardPanel from '@/components/block/common/section-card-panel'
 import { formatDuration } from '@/lib/date'
 import { formatGb, formatMb } from '@/lib/format'
 
@@ -25,8 +25,8 @@ export default function HostInfoCard({ host, process }: HostInfoCardProps) {
   ]
 
   return (
-    <DashboardPanel icon={IconWorld} title="Host info" description="System and process details">
+    <SectionCardPanel icon={IconWorld} title="Host info" description="System and process details">
       <StatsGrid items={items} />
-    </DashboardPanel>
+    </SectionCardPanel>
   )
 }

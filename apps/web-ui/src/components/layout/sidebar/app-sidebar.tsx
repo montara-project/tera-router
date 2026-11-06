@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import React from 'react'
 
+import BrandLogo from '@/components/block/common/brand-logo'
 import {
   Sidebar,
   SidebarContent,
@@ -34,9 +35,7 @@ export default function AppSidebar(props: React.ComponentProps<typeof Sidebar>) 
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader className="h-14 flex-row items-center border-b border-sidebar-border px-4 py-0 group-data-[collapsible=icon]:px-[13px]">
         <Link to="/" className="flex min-w-0 flex-1 items-center gap-2.5 rounded-sm">
-          <span className="flex size-[22px] shrink-0 items-center justify-center rounded-[5.5px] bg-neutral-100 p-[3px]">
-            <img src={branding.logo} alt="" width={16} height={16} />
-          </span>
+          <BrandLogo />
           <span className="truncate text-sm font-semibold tracking-[-0.01em] group-data-[collapsible=icon]:hidden">
             {branding.name}
           </span>

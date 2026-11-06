@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import type { UsageTelemetryOverview } from '@/lib/api/models/usage'
 
 import { SCOPE_LABELS } from '@/components/block/budgets/form'
-import DashboardPanel, { PanelLink } from '@/components/block/dashboard/dashboard-panel'
+import SectionCardPanel, { PanelLink } from '@/components/block/common/section-card-panel'
 import { Skeleton } from '@/components/ui/skeleton'
 import { queries } from '@/lib/api/queries'
 import { formatMicrosUsd } from '@/lib/currency'
@@ -42,7 +42,7 @@ export default function OverviewSavingsBudgets({
   ]
 
   return (
-    <DashboardPanel title="Savings and budgets" icon={IconPigMoney}>
+    <SectionCardPanel title="Savings and budgets" icon={IconPigMoney}>
       <div className="flex flex-col gap-2 border-b border-border p-4">
         <div className="flex items-center justify-between gap-3">
           <p className="text-muted-foreground text-[13px]">Saved by optimizers</p>
@@ -65,7 +65,7 @@ export default function OverviewSavingsBudgets({
         </ul>
       </div>
       <Budgets />
-    </DashboardPanel>
+    </SectionCardPanel>
   )
 }
 

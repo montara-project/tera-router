@@ -17,7 +17,7 @@ import type { ModelTestStatus } from '@/components/block/provider-detail/models-
 import type { Models } from '@/lib/api/models'
 
 import ReactTable, { features } from '@/components/block/common/react-table'
-import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
+import SectionCardPanel from '@/components/block/common/section-card-panel'
 import {
   ModelActionsCell,
   RouteAsCell,
@@ -261,7 +261,7 @@ export default function ModelsCatalog({
   ]
 
   return (
-    <DashboardPanel
+    <SectionCardPanel
       icon={IconApps}
       title={
         <>
@@ -337,6 +337,6 @@ export default function ModelsCatalog({
       )}
 
       {renderBody()}
-    </DashboardPanel>
+    </SectionCardPanel>
   )
 }

@@ -2,7 +2,7 @@ import { IconStack2 } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
 import { Fragment } from 'react'
 
-import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
+import SectionCardPanel from '@/components/block/common/section-card-panel'
 import { Skeleton } from '@/components/ui/skeleton'
 import { queries } from '@/lib/api/queries'
 
@@ -13,7 +13,7 @@ export default function OverviewRoutingChains() {
   const stats = new Map((health?.chains ?? []).map((c) => [c.name, c]))
 
   return (
-    <DashboardPanel
+    <SectionCardPanel
       title="Routing chains"
       icon={IconStack2}
       action={{ label: 'Manage chains', to: '/chains' }}
@@ -91,6 +91,6 @@ export default function OverviewRoutingChains() {
           )
         })}
       </div>
-    </DashboardPanel>
+    </SectionCardPanel>
   )
 }

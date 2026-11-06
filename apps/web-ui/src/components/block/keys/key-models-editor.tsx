@@ -5,8 +5,8 @@ import { useQueryState } from 'nuqs'
 import { useEffect, useId, useMemo, useState } from 'react'
 
 import ReactTable, { features } from '@/components/block/common/react-table'
+import SectionCardPanel from '@/components/block/common/section-card-panel'
 import SelectInput from '@/components/block/common/select-input'
-import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
 import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
 import { useChainModelGroups } from '@/components/block/traffic/chains/chain-model-picker'
 import { Button } from '@/components/ui/button'
@@ -192,7 +192,7 @@ export default function KeyModelsEditor({
     }
 
   return (
-    <DashboardPanel icon={IconCpu} title="Edit allowed models">
+    <SectionCardPanel icon={IconCpu} title="Edit allowed models">
       <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2.5">
         <InputWrapper className="w-full sm:w-64">
           <IconSearch aria-hidden />
@@ -332,6 +332,6 @@ export default function KeyModelsEditor({
           </Button>
         </div>
       </div>
-    </DashboardPanel>
+    </SectionCardPanel>
   )
 }

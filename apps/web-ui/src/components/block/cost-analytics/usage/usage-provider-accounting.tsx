@@ -7,7 +7,7 @@ import type { UsageProviderAccountingRow } from '@/lib/api/models/usage'
 
 import EmptyState from '@/components/block/common/empty-state'
 import ReactTable, { features } from '@/components/block/common/react-table'
-import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
+import SectionCardPanel from '@/components/block/common/section-card-panel'
 import { HealthBadge } from '@/components/block/dashboard/overview-provider-health'
 import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
 import { usePaginationQuery } from '@/hooks/use-pagination-query'
@@ -130,7 +130,7 @@ export default function UsageProviderAccounting({ rows }: { rows: Row[] }) {
   const { offset, limit, pageIndex } = usePaginationQuery({ defaultLimit: PAGE_SIZES[0] })
 
   return (
-    <DashboardPanel
+    <SectionCardPanel
       title="Provider accounting"
       icon={IconPackages}
       action={{ label: 'Provider health', to: '/provider-health' }}
@@ -152,6 +152,6 @@ export default function UsageProviderAccounting({ rows }: { rows: Row[] }) {
           />
         }
       />
-    </DashboardPanel>
+    </SectionCardPanel>
   )
 }

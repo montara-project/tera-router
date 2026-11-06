@@ -8,7 +8,7 @@ import type { Models } from '@/lib/api/models'
 
 import EmptyState from '@/components/block/common/empty-state'
 import ReactTable, { features } from '@/components/block/common/react-table'
-import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
+import SectionCardPanel from '@/components/block/common/section-card-panel'
 import { RouteAsCell } from '@/components/block/provider-detail/model-row'
 import { Button } from '@/components/ui/button'
 import { Input, InputWrapper } from '@/components/ui/input'
@@ -92,7 +92,7 @@ export default function ObservedPanel({
   }
 
   return (
-    <DashboardPanel
+    <SectionCardPanel
       icon={IconActivity}
       title={
         <>
@@ -119,7 +119,7 @@ export default function ObservedPanel({
         </div>
       )}
       {renderBody()}
-    </DashboardPanel>
+    </SectionCardPanel>
   )
 }
 

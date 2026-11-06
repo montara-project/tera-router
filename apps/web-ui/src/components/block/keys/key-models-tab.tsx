@@ -7,8 +7,8 @@ import { toast } from 'sonner'
 import type { ApiKeyDetail } from '@/lib/api/models/key'
 
 import ReactTable from '@/components/block/common/react-table'
+import SectionCardPanel from '@/components/block/common/section-card-panel'
 import SelectInput from '@/components/block/common/select-input'
-import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
 import KeyModelsEditor, {
   MODEL_COLUMNS,
   MODEL_PAGE_SIZES,
@@ -98,7 +98,7 @@ export default function KeyModelsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
   }
 
   return (
-    <DashboardPanel
+    <SectionCardPanel
       icon={IconCpu}
       title={
         <>
@@ -136,7 +136,7 @@ export default function KeyModelsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
           </p>
         </div>
       )}
-    </DashboardPanel>
+    </SectionCardPanel>
   )
 }
 

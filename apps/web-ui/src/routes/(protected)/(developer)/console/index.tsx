@@ -42,7 +42,7 @@ function RouteComponent() {
         description="Live gateway activity: one row per API request with its outcome, plus background warnings. Expand a row to see why."
       />
       <ConsoleFeed
-        entries={data?.data ?? []}
+        entries={data?.entries ?? []}
         live={live}
         onLiveChange={setLive}
         onClear={() => setConfirmClear(true)}
