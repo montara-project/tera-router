@@ -1,11 +1,6 @@
-import {
-  IconDots,
-  IconEyeOff,
-  IconGauge,
-  IconPower,
-  IconTrash,
-  IconUsers,
-} from '@tabler/icons-react'
+import type { ColumnDef } from '@tanstack/react-table'
+
+import { IconEyeOff, IconGauge, IconPower, IconUsers } from '@tabler/icons-react'
 import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -13,17 +8,14 @@ import { toast } from 'sonner'
 import type { Models } from '@/lib/api/models'
 
 import EmptyState from '@/components/block/common/empty-state'
+import ReactTable, { features } from '@/components/block/common/react-table'
+import RowColumnAction from '@/components/block/common/row-column-action'
 import SimpleAlertDialog from '@/components/block/common/simple-alert-dialog'
 import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
 import { getProviderBrand, ProviderAvatar } from '@/components/block/providers/provider-avatar'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { toastAxiosError } from '@/lib/api/axios-error'
@@ -45,6 +37,9 @@ const VISIBILITY_LABELS: Record<Models.QuotaAccount['quota_visibility'], string>
   'usage-only': 'Usage only',
   'not-reported': 'Not reported',
 }
+
+/** The pager never offers fewer than 10 rows. */
+const PAGE_SIZES = [10, 25, 50, 100]
 
 const BADGE_ACTIVE =
   'flex h-5 w-fit items-center rounded-sm border border-emerald-500/20 bg-emerald-500/10 px-1.5 text-[11.5px] font-medium text-emerald-600 dark:text-emerald-400'
@@ -73,7 +68,6 @@ interface QuotaAccountsCardProps {
   loading: boolean
   pageIndex: number
   pageSize: number
-  onPageChange: (pageIndex: number) => void
   filters: QuotaFilters
   onChange: (patch: Partial<QuotaFilters>) => void
 }
@@ -86,7 +80,6 @@ export default function QuotaAccountsCard({
   loading,
   pageIndex,
   pageSize,
-  onPageChange,
   filters,
   onChange,
 }: QuotaAccountsCardProps) {
@@ -129,9 +122,101 @@ export default function QuotaAccountsCard({
     }
   }
 
-  const pages = Math.max(1, Math.ceil(total / pageSize))
-  const first = total === 0 ? 0 : pageIndex * pageSize + 1
-  const last = Math.min(total, (pageIndex + 1) * pageSize)
+  const columns: ColumnDef<typeof features, Models.QuotaAccount, unknown>[] = [
+    {
+      id: 'select',
+      header: () => (
+        <Checkbox
+          aria-label="Select all rows"
+          checked={allVisibleSelected ? true : selectedVisible.length > 0 ? 'indeterminate' : false}
+          onCheckedChange={toggleVisible}
+        />
+      ),
+      meta: { headerClassName: 'w-10' },
+      cell: ({ row }) => (
+        <Checkbox
+          aria-label={`Select ${row.original.name}`}
+          checked={selected.has(row.original.id)}
+          onCheckedChange={() => toggleOne(row.original.id)}
+        />
+      ),
+    },
+    {
+      id: 'account',
+      header: 'Account',
+      meta: { headerClassName: 'w-[31%]', cellClassName: 'max-w-0' },
+      cell: ({ row }) => {
+        const account = row.original
+        return (
+          <div className="flex min-w-0 items-center gap-2.5">
+            <AccountAvatar account={account} />
+            <div className="min-w-0">
+              <div className="truncate font-medium" title={account.name}>
+                {account.name}
+              </div>
+              <div className="truncate text-xs text-muted-foreground">{account.auth_label}</div>
+            </div>
+          </div>
+        )
+      },
+    },
+    {
+      id: 'routing',
+      header: 'Routing',
+      cell: ({ row }) => (
+        <>
+          <span className={row.original.status === 'active' ? BADGE_ACTIVE : BADGE_PAUSED}>
+            {row.original.status === 'active' ? 'Active' : 'Paused'}
+          </span>
+          <span className="mt-1 block text-xs text-muted-foreground tabular-nums">
+            Priority {row.original.priority}
+          </span>
+        </>
+      ),
+    },
+    {
+      id: 'visibility',
+      header: 'Quota windows',
+      meta: { headerClassName: 'w-[22%]' },
+      cell: ({ row }) => (
+        <span className="flex items-center gap-2" title={row.original.quota_note}>
+          <span
+            className={cn(
+              'size-1.5 shrink-0 rounded-full',
+              VISIBILITY_DOTS[row.original.quota_visibility]
+            )}
+            aria-hidden
+          />
+          {VISIBILITY_LABELS[row.original.quota_visibility]}
+        </span>
+      ),
+    },
+    {
+      id: 'usage',
+      header: 'Period usage',
+      meta: { cellClassName: 'tabular-nums' },
+      cell: ({ row }) => (
+        <>
+          <span className="block">{formatCount(row.original.requests)} req</span>
+          <span className="block text-xs text-muted-foreground">
+            {formatCompact(row.original.input_tokens + row.original.output_tokens)} tokens
+          </span>
+        </>
+      ),
+    },
+    {
+      id: 'cost',
+      header: 'Cost',
+      meta: { cellClassName: 'tabular-nums' },
+      cell: ({ row }) => formatUsd(row.original.attributed_cost),
+    },
+    {
+      id: 'actions',
+      header: () => <span className="sr-only">Actions</span>,
+      meta: { headerClassName: 'w-32' },
+      cell: ({ row }) => <ActionCell record={row.original} />,
+    },
+  ]
 
   return (
     <DashboardPanel
@@ -178,130 +263,29 @@ export default function QuotaAccountsCard({
             <Skeleton key={i} className="h-12 w-full" />
           ))}
         </div>
-      ) : paged.length === 0 ? (
-        <EmptyState
-          icon={IconGauge}
-          title={accounts.length === 0 ? 'No accounts yet' : 'No accounts match'}
-          description={
-            accounts.length === 0
-              ? 'Connect a provider account to track its quota here.'
-              : 'Try a different search or filter.'
-          }
-          className="py-8"
-        />
       ) : (
-        <div className="relative overflow-x-auto">
-          <table className="w-full min-w-[60rem] text-[13px]">
-            <thead className="border-b border-border text-xs text-muted-foreground dark:bg-muted/40">
-              <tr>
-                <th className="w-10 py-2 pr-1 pl-3">
-                  <Checkbox
-                    aria-label="Select all rows"
-                    checked={
-                      allVisibleSelected
-                        ? true
-                        : selectedVisible.length > 0
-                          ? 'indeterminate'
-                          : false
-                    }
-                    onCheckedChange={toggleVisible}
-                  />
-                </th>
-                <th className="w-[31%] px-3 py-2 text-left font-medium">Account</th>
-                <th className="px-3 py-2 text-left font-medium">Routing</th>
-                <th className="w-[22%] px-3 py-2 text-left font-medium">Quota windows</th>
-                <th className="px-3 py-2 text-left font-medium">Period usage</th>
-                <th className="px-3 py-2 text-left font-medium">Cost</th>
-                <th className="w-32 px-3 py-2">
-                  <span className="sr-only">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {paged.map((account) => (
-                <tr key={account.id} className="border-b border-border last:border-0">
-                  <td className="py-3 pr-1 pl-3 align-top">
-                    <Checkbox
-                      aria-label={`Select ${account.name}`}
-                      checked={selected.has(account.id)}
-                      onCheckedChange={() => toggleOne(account.id)}
-                    />
-                  </td>
-                  <td className="max-w-0 p-3">
-                    <div className="flex min-w-0 items-center gap-2.5">
-                      <AccountAvatar account={account} />
-                      <div className="min-w-0">
-                        <div className="truncate font-medium" title={account.name}>
-                          {account.name}
-                        </div>
-                        <div className="truncate text-xs text-muted-foreground">
-                          {account.auth_label}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="p-3">
-                    <span className={account.status === 'active' ? BADGE_ACTIVE : BADGE_PAUSED}>
-                      {account.status === 'active' ? 'Active' : 'Paused'}
-                    </span>
-                    <span className="mt-1 block text-xs text-muted-foreground tabular-nums">
-                      Priority {account.priority}
-                    </span>
-                  </td>
-                  <td className="p-3">
-                    <span className="flex items-center gap-2" title={account.quota_note}>
-                      <span
-                        className={cn(
-                          'size-1.5 shrink-0 rounded-full',
-                          VISIBILITY_DOTS[account.quota_visibility]
-                        )}
-                        aria-hidden
-                      />
-                      {VISIBILITY_LABELS[account.quota_visibility]}
-                    </span>
-                  </td>
-                  <td className="p-3 tabular-nums">
-                    <span className="block">{formatCount(account.requests)} req</span>
-                    <span className="block text-xs text-muted-foreground">
-                      {formatCompact(account.input_tokens + account.output_tokens)} tokens
-                    </span>
-                  </td>
-                  <td className="p-3 tabular-nums">{formatUsd(account.attributed_cost)}</td>
-                  <td className="px-3 py-2.5">
-                    <ActionCell record={account} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ReactTable
+          total={total}
+          data={paged}
+          pageIndex={pageIndex}
+          pageSize={pageSize}
+          pageSizes={PAGE_SIZES}
+          columns={columns}
+          tableClassName="min-w-[60rem]"
+          emptyMessage={
+            <EmptyState
+              icon={IconGauge}
+              title={accounts.length === 0 ? 'No accounts yet' : 'No accounts match'}
+              description={
+                accounts.length === 0
+                  ? 'Connect a provider account to track its quota here.'
+                  : 'Try a different search or filter.'
+              }
+              className="py-8"
+            />
+          }
+        />
       )}
-
-      {pages > 1 ? (
-        <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-2.5 text-xs text-muted-foreground">
-          <span className="tabular-nums">
-            {first}–{last} of {total}
-          </span>
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={pageIndex === 0}
-              onClick={() => onPageChange(pageIndex - 1)}
-            >
-              Previous
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={pageIndex >= pages - 1}
-              onClick={() => onPageChange(pageIndex + 1)}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
-      ) : null}
     </DashboardPanel>
   )
 }
@@ -340,28 +324,17 @@ function ActionCell({ record }: { record: Models.QuotaAccount }) {
         onCheckedChange={(checked) => void handleToggle(checked)}
         size="sm"
       />
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            aria-label={`Actions for ${record.name}`}
-            className="size-8 text-muted-foreground hover:text-foreground"
-            size="icon"
-            variant="ghost"
-          >
-            <IconDots />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onSelect={() => void handleToggle(!active)}>
+      <RowColumnAction
+        noun="account"
+        name={record.name}
+        onDelete={() => setOpenDelete(true)}
+        dropdown={
+          <DropdownMenuItem onClick={() => void handleToggle(!active)}>
             {active ? <IconEyeOff /> : <IconPower />}
             {active ? 'Pause account' : 'Activate account'}
           </DropdownMenuItem>
-          <DropdownMenuItem variant="destructive" onSelect={() => setOpenDelete(true)}>
-            <IconTrash />
-            Delete account
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+        }
+      />
 
       <SimpleAlertDialog
         confirmText="Delete"

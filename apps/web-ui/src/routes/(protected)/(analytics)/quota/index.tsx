@@ -140,7 +140,6 @@ function RouteComponent() {
         loading={accountsLoading && listData.length === 0}
         pageIndex={pageIndex}
         pageSize={limit}
-        onPageChange={(page) => void setPageParam(page === 0 ? null : String(page))}
         filters={filters}
         onChange={handleFilterChange}
       />
