@@ -150,7 +150,7 @@ export default function LoginSection({
       {...props}
     >
       {/* The brand panel is hidden on small screens; keep the product visible. */}
-      <BrandRow name={branding.name} logo={branding.logo} className="self-start lg:hidden" />
+      <BrandRow name={branding.name} className="self-start lg:hidden" />
 
       <section className="w-full overflow-hidden rounded-lg border border-border bg-card">
         <header className="flex items-center gap-3 border-b border-border px-5 py-4">

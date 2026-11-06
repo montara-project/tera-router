@@ -1,6 +1,7 @@
 import { IconActivity, IconGitBranch, IconShield } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
 
+import BrandLogo from '@/components/block/common/brand-logo'
 import { env } from '@/config/env'
 import { useBranding } from '@/hooks/use-branding'
 import { queries } from '@/lib/api/queries'
@@ -60,7 +61,7 @@ export default function BrandPanel({
         className
       )}
     >
-      <BrandRow name={branding.name} logo={branding.logo} version={health.version} />
+      <BrandRow name={branding.name} version={health.version} />
 
       <div className="flex flex-col gap-5">
         <p className="font-mono text-[11.5px] tracking-[0.6px] text-orange-600 dark:text-orange-400">
@@ -110,18 +111,16 @@ export default function BrandPanel({
 /** Logo, product name and version pill. */
 export function BrandRow({
   name,
-  logo,
   version,
   className,
 }: {
   name: string
-  logo: string
   version?: string
   className?: string
 }) {
   return (
     <div className={cn('flex items-center gap-2.5', className)}>
-      <img src={logo} alt="" width={24} height={24} className="size-6 rounded-md object-cover" />
+      <BrandLogo />
       <span className="text-sm font-semibold tracking-[-0.14px] text-foreground">{name}</span>
       {version && (
         <span className="flex h-5 items-center rounded-sm border border-border bg-card px-1.5 font-mono text-[10.5px] text-muted-foreground">

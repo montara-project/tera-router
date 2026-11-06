@@ -12,6 +12,7 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { isAxiosError } from 'axios'
 import { useEffect, useState } from 'react'
 
+import BrandLogo from '@/components/block/common/brand-logo'
 import PortalDailyChart from '@/components/block/portal/portal-daily-chart'
 import { PortalLimits, PortalModels, PortalRecent } from '@/components/block/portal/portal-panels'
 import { Stat } from '@/components/block/provider-detail/provider-stat-strip'
@@ -112,7 +113,7 @@ function PortalHeader({
     <header className="border-b border-border bg-card">
       <div className="mx-auto flex min-h-14 max-w-[1200px] flex-wrap items-center gap-3 px-4 py-2 sm:px-6">
         <span className="flex items-center gap-2">
-          <img src={branding.logo} alt="" className="size-[22px] rounded-[5px]" />
+          <BrandLogo />
           <span className="text-sm font-semibold">{branding.name}</span>
         </span>
         <span className="h-4 w-px bg-border" aria-hidden />
