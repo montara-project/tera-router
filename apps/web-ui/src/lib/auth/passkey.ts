@@ -1,3 +1,5 @@
+import { AxiosError } from 'axios'
+
 import { throwAxiosError } from '../api/axios-error'
 import { services } from '../api/services'
 import { setAuthTokens } from './token-storage'
@@ -54,6 +56,13 @@ export async function signInWithPasskey() {
     })
     return payload
   } catch (error) {
+    // The server answers every refused passkey with a bare 401 (expired
+    // ceremony, unknown passkey, bad signature), so name what the user can do.
+    if (error instanceof AxiosError && error.response?.status === 401) {
+      throw new Error(
+        'This passkey was not accepted. It may not be registered on this server, or the prompt took too long. Try again or sign in with your password.'
+      )
+    }
     throwAxiosError(error as Error)
   }
 }
