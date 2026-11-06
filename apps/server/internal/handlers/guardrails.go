@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 
 	"tera-router/server/internal/app"
 	"tera-router/server/internal/dtos"
@@ -11,14 +12,15 @@ import (
 	"tera-router/server/internal/lib"
 	"tera-router/server/internal/lib/apperr"
 	"tera-router/server/internal/models"
+	"tera-router/server/internal/repositories"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 )
 
 const (
-	guardrailsSettingsKey = "guardrails"
-	guardrailsAuditLimit  = 20
+	guardrailsSettingsKey   = "guardrails"
+	guardrailsDecisionLimit = 100
 )
 
 type guardrailsHandler struct {
@@ -75,20 +77,9 @@ func (h *guardrailsHandler) Overview(c fiber.Ctx) error {
 		return err
 	}
 
-	entries, err := h.app.Repos.Guardrails.AuditEntries(c.Context(), guardrailsAuditLimit)
+	rows, err := h.app.Repos.Guardrails.AuditRows(c.Context(), guardrailsDecisionLimit)
 	if err != nil {
 		return err
-	}
-
-	audit := []fiber.Map{}
-	for _, entry := range entries {
-		audit = append(audit, fiber.Map{
-			"id":     entry.ID,
-			"time":   entry.CreatedAt.UTC().Format("2006-01-02 15:04:05"),
-			"actor":  entry.Actor,
-			"action": entry.Action,
-			"target": entry.Target,
-		})
 	}
 
 	settings, err := loadGuardrailsSettings(c.Context(), h.app)
@@ -104,8 +95,57 @@ func (h *guardrailsHandler) Overview(c fiber.Ctx) error {
 	return dtos.OK(c, fiber.Map{
 		"external_detectors": settings.ExternalDetectors,
 		"policies":           views,
-		"audit":              audit,
+		"decisions":          decisionViews(rows),
 	})
+}
+
+// guardrailDecisionDetail is the JSON the gateway stores on a decision's
+// audit row.
+type guardrailDecisionDetail struct {
+	Detectors  []string `json:"detectors"`
+	Entities   []string `json:"entities"`
+	Reasons    []string `json:"reasons"`
+	OverheadMS int64    `json:"overhead_ms"`
+	KeyID      string   `json:"key_id"`
+	Chain      string   `json:"chain"`
+	RequestID  string   `json:"request_id"`
+}
+
+// decisionViews renders the gateway's audit rows as the dashboard's decision
+// list: the action's suffix is the decision, everything else comes from the
+// detail JSON the gateway wrote.
+func decisionViews(rows []repositories.GuardrailDecisionRow) []dtos.GuardrailDecision {
+	out := make([]dtos.GuardrailDecision, 0, len(rows))
+	for _, row := range rows {
+		var detail guardrailDecisionDetail
+		_ = json.Unmarshal([]byte(row.Detail), &detail)
+
+		out = append(out, dtos.GuardrailDecision{
+			ID:         row.ID,
+			Time:       row.CreatedAt.UTC().Format("2006-01-02 15:04:05"),
+			Actor:      row.Actor,
+			Decision:   strings.TrimPrefix(row.Action, "guardrail."),
+			Detectors:  stringsOrEmpty(detail.Detectors),
+			Entities:   stringsOrEmpty(detail.Entities),
+			Reasons:    stringsOrEmpty(detail.Reasons),
+			KeyID:      detail.KeyID,
+			KeyName:    strings.TrimPrefix(row.Actor, "key:"),
+			Model:      row.Target,
+			Chain:      detail.Chain,
+			RequestID:  detail.RequestID,
+			OverheadMS: detail.OverheadMS,
+		})
+	}
+	return out
+}
+
+// stringsOrEmpty keeps a JSON list non-null so the dashboard never has to
+// coalesce it.
+func stringsOrEmpty(values []string) []string {
+	if values == nil {
+		return []string{}
+	}
+	return values
 }
 
 // Store creates a guardrail policy.

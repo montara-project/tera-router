@@ -1,45 +1,47 @@
 import type { ChangeEvent } from 'react'
 
-import { IconDownload, IconLock, IconPlus, IconUpload } from '@tabler/icons-react'
-import { useMutation } from '@tanstack/react-query'
+import {
+  IconChevronDown,
+  IconDownload,
+  IconListDetails,
+  IconPlus,
+  IconShield,
+  IconTrendingUp,
+  IconUpload,
+} from '@tabler/icons-react'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { toast } from 'sonner'
 
 import type { PolicyDto } from '@/lib/api/dtos/guardrails/schema'
-import type {
-  GuardrailPolicy,
-  GuardrailsOverview,
-  GuardrailsScope,
-} from '@/lib/api/models/guardrails'
+import type { GuardrailPolicy, GuardrailsOverview } from '@/lib/api/models/guardrails'
+import type { UsageRange } from '@/lib/api/models/usage'
 
-import SectionCard from '@/components/block/common/section-card'
+import PageHeader from '@/components/block/common/page-header'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toastAxiosError } from '@/lib/api/axios-error'
 import { PolicySchema } from '@/lib/api/dtos/guardrails/schema'
 import { parseDto } from '@/lib/api/dtos/parse'
 import { queries } from '@/lib/api/queries'
 import { readJsonObject, saveFile } from '@/lib/file'
 
-import AuditList from './audit-list'
 import EditPolicyDialog, { defaultGuardrailsConfig } from './edit-policy-dialog'
-import ExternalDetectorsCard from './external-detectors-card'
-import GuardrailsTabs from './guardrails-tabs'
-import PolicyRow from './policy-row'
+import GuardrailsAuditLog from './guardrails-audit-log'
+import GuardrailsOverviewTab from './guardrails-overview'
+import GuardrailsPolicies from './guardrails-policies'
 
-const PRIMARY_BUTTON_CLASS =
-  'bg-emerald-600 text-white hover:bg-emerald-600/90 dark:bg-emerald-600 dark:hover:bg-emerald-600/90'
-
-const NEW_POLICY_BUTTON_CLASS =
-  'bg-amber-600 text-white hover:bg-amber-500/90 dark:bg-amber-600 dark:hover:bg-amber-500/90'
-
-const SCOPE_HINTS: Record<GuardrailsScope, string> = {
-  global: 'Master policy that applies to every request when no more specific policy fires.',
-  provider: 'Per-provider overrides (OpenAI, Anthropic, Gemini, ...).',
-  model: 'Policies scoped to a model apply only to that model, overriding provider and global.',
-  chain:
-    'Policies scoped to a chain apply at every hop of the chain, overriding model-level rules.',
-  key: 'Policies scoped to an API key apply to that credential only, overriding everything upstream.',
-}
+const TABS = [
+  { value: 'overview', label: 'Overview', icon: IconTrendingUp },
+  { value: 'policies', label: 'Policies', icon: IconShield },
+  { value: 'audit', label: 'Audit log', icon: IconListDetails },
+]
 
 const EXPORT_FILE_NAME = 'guardrails-policies.json'
 
@@ -56,9 +58,20 @@ function toPolicyDto(policy: GuardrailPolicy, enabled = policy.enabled): PolicyD
 }
 
 export default function GuardrailsContent({ overview }: { overview: GuardrailsOverview }) {
-  const [tab, setTab] = useState<GuardrailsScope | 'audit'>('global')
+  const [tab, setTab] = useState('overview')
+  const [range, setRange] = useState<UsageRange>('24h')
+  const [live, setLive] = useState(true)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [draftPolicy, setDraftPolicy] = useState<GuardrailPolicy | null>(null)
+
+  // The overview query is shared with the route, which uses it for the loading
+  // gate; polling it here keeps the audit tab live.
+  const overviewQuery = useQuery({
+    ...queries.guardrails.overview(),
+    refetchInterval: live ? 15_000 : false,
+  })
+  const decisions = overviewQuery.data?.data.decisions ?? overview.decisions
+  const metricsQuery = useQuery(queries.guardrails.metrics(range))
 
   const createMutation = useMutation(queries.guardrails.create())
   const updateMutation = useMutation(queries.guardrails.update())
@@ -67,7 +80,6 @@ export default function GuardrailsContent({ overview }: { overview: GuardrailsOv
   const importMutation = useMutation(queries.guardrails.importPolicies())
   const importInput = useRef<HTMLInputElement>(null)
 
-  const policies = overview.policies.filter((policy) => policy.scope === tab)
   const editingPolicy = overview.policies.find((policy) => policy.id === editingId) ?? null
   const dialogPolicy = editingPolicy ?? draftPolicy
   const dialogMode = editingPolicy ? 'edit' : 'create'
@@ -103,12 +115,12 @@ export default function GuardrailsContent({ overview }: { overview: GuardrailsOv
     }
   }
 
-  const handleNewPolicy = (scope: GuardrailsScope) => {
+  const handleNewPolicy = () => {
     setDraftPolicy({
       id: crypto.randomUUID(),
       name: '',
       enabled: true,
-      scope,
+      scope: 'global',
       protections: [],
       config: defaultGuardrailsConfig(),
     })
@@ -167,7 +179,7 @@ export default function GuardrailsContent({ overview }: { overview: GuardrailsOv
   }
 
   return (
-    <>
+    <div className="flex flex-col gap-6">
       <input
         ref={importInput}
         type="file"
@@ -175,77 +187,84 @@ export default function GuardrailsContent({ overview }: { overview: GuardrailsOv
         className="hidden"
         onChange={handleImportFile}
       />
-      <SectionCard
+
+      <PageHeader
+        icon={IconShield}
+        iconClassName="border-transparent bg-primary/10 text-primary"
         title="Guardrails"
-        description="Content-safety policies layered global → provider → model → chain → API key. Most specific wins."
-        toolbar={
+        description="The most specific matching policy wins."
+        actions={
           <>
-            <Button
-              className={PRIMARY_BUTTON_CLASS}
-              disabled={importMutation.isPending}
-              onClick={() => importInput.current?.click()}
-            >
-              <IconUpload />
-              <span>Import</span>
-            </Button>
-            <Button className={PRIMARY_BUTTON_CLASS} onClick={handleExportAll}>
-              <IconDownload />
-              <span>Export all</span>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" disabled={importMutation.isPending}>
+                  Import / export
+                  <IconChevronDown />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={() => importInput.current?.click()}>
+                  <IconUpload />
+                  Import policies
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={handleExportAll}>
+                  <IconDownload />
+                  Export all policies
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button onClick={handleNewPolicy}>
+              <IconPlus />
+              New policy
             </Button>
           </>
         }
-      >
-        <div className="space-y-4">
-          <GuardrailsTabs value={tab} onChange={setTab} />
+      />
 
-          {tab === 'audit' ? (
-            <AuditList entries={overview.audit} />
-          ) : (
-            <div className="space-y-4">
-              {tab === 'global' && (
-                <ExternalDetectorsCard
-                  checked={overview.external_detectors}
-                  onCheckedChange={handleToggleDetectors}
-                />
-              )}
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList variant="line" size="md" className="w-full justify-start gap-1 overflow-x-auto">
+          {TABS.map((item) => (
+            <TabsTrigger
+              key={item.value}
+              value={item.value}
+              className="px-3 text-[13px] data-[state=active]:text-foreground!"
+            >
+              <item.icon aria-hidden />
+              {item.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
 
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <p className="text-muted-foreground text-sm">{SCOPE_HINTS[tab]}</p>
-                {tab !== 'global' && (
-                  <Button className={NEW_POLICY_BUTTON_CLASS} onClick={() => handleNewPolicy(tab)}>
-                    <IconPlus />
-                    <span>New Policy</span>
-                  </Button>
-                )}
-              </div>
+        <TabsContent value="overview" className="mt-5">
+          <GuardrailsOverviewTab
+            metrics={metricsQuery.data?.data}
+            range={range}
+            onRangeChange={setRange}
+          />
+        </TabsContent>
 
-              {policies.length > 0 ? (
-                policies.map((policy) => (
-                  <PolicyRow
-                    key={policy.id}
-                    policy={policy}
-                    onToggle={(enabled) => handleTogglePolicy(policy.id, enabled)}
-                    onEdit={() => setEditingId(policy.id)}
-                    onDelete={() => handleDeletePolicy(policy.id)}
-                  />
-                ))
-              ) : (
-                <div className="flex flex-col items-center gap-3 py-16 text-center">
-                  <span className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-                    <IconLock className="h-5 w-5 text-muted-foreground" />
-                  </span>
-                  <div className="space-y-1">
-                    <p className="text-sm font-semibold text-foreground">No {tab} policies yet</p>
-                    <p className="text-muted-foreground text-sm">
-                      Add a policy to override the global config for this scope.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </SectionCard>
+        <TabsContent value="policies" className="mt-5">
+          <GuardrailsPolicies
+            policies={overview.policies}
+            externalDetectors={overview.external_detectors}
+            onToggleExternalDetectors={handleToggleDetectors}
+            onCreate={handleNewPolicy}
+            onTogglePolicy={handleTogglePolicy}
+            onEdit={setEditingId}
+            onDelete={handleDeletePolicy}
+          />
+        </TabsContent>
+
+        <TabsContent value="audit" className="mt-5">
+          <GuardrailsAuditLog
+            decisions={decisions}
+            live={live}
+            onLiveChange={setLive}
+            refreshing={overviewQuery.isFetching}
+            onRefresh={() => void overviewQuery.refetch()}
+          />
+        </TabsContent>
+      </Tabs>
 
       <EditPolicyDialog
         policy={dialogPolicy}
@@ -255,6 +274,6 @@ export default function GuardrailsContent({ overview }: { overview: GuardrailsOv
         }}
         onSave={handleSavePolicy}
       />
-    </>
+    </div>
   )
 }

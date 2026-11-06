@@ -104,6 +104,17 @@ type UsageSummary struct {
 	AvgLatencyMS     int64 `json:"avg_latency_ms"`
 }
 
+// CountSince counts the client requests the gateway served since from.
+// Requests are deduplicated by request_id so fallback re-attempts count once,
+// matching SummaryForKey.
+func (r *UsageRepository) CountSince(ctx context.Context, from time.Time) (int64, error) {
+	var n int64
+	err := r.queryRowContext(ctx, r.DB, `
+		SELECT COUNT(DISTINCT CASE WHEN request_id <> '' THEN request_id ELSE 'row-' || id END)
+		FROM usage_records WHERE created_at >= $1`, from.UTC()).Scan(&n)
+	return n, errtrace.Wrap(err)
+}
+
 // SummaryForKey totals one API key's traffic since from. Requests counts
 // client requests, not attempts: fallback re-attempts share a request_id.
 func (r *UsageRepository) SummaryForKey(ctx context.Context, keyID string, from time.Time) (UsageSummary, error) {

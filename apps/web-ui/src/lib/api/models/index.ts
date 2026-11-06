@@ -24,7 +24,12 @@ export namespace Models {
   export type EndpointRoute = import('./endpoint').EndpointRoute
   export type CustomProvider = import('./provider-catalog').CustomProvider
   export type GuardrailPolicy = import('./guardrails').GuardrailPolicy
-  export type GuardrailsAuditEntry = import('./guardrails').GuardrailsAuditEntry
+  export type GuardrailsDecisionEntry = import('./guardrails').GuardrailsDecisionEntry
+  export type GuardrailMetrics = import('./guardrails').GuardrailMetrics
+  export type GuardrailSeriesPoint = import('./guardrails').GuardrailSeriesPoint
+  export type GuardrailBreakdownRow = import('./guardrails').GuardrailBreakdownRow
+  export type GuardrailCountRow = import('./guardrails').GuardrailCountRow
+  export type GuardrailOverhead = import('./guardrails').GuardrailOverhead
   export type GuardrailsOverview = import('./guardrails').GuardrailsOverview
   export type GuardrailsScope = import('./guardrails').GuardrailsScope
   export type HealthEntry = import('./provider-health').HealthEntry

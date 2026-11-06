@@ -1,14 +1,10 @@
-import { IconShieldCheck, IconTrash } from '@tabler/icons-react'
+import { IconPencil, IconShieldCheck, IconTrash } from '@tabler/icons-react'
 
 import type { GuardrailPolicy } from '@/lib/api/models/guardrails'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
-
-const EDIT_BUTTON_CLASS =
-  'bg-emerald-600 text-white hover:bg-emerald-600/90 dark:bg-emerald-600 dark:hover:bg-emerald-600/90'
 
 interface PolicyRowProps {
   policy: GuardrailPolicy
@@ -17,50 +13,48 @@ interface PolicyRowProps {
   onDelete: () => void
 }
 
+/** One stored policy: scope line, its detectors, and the enabled switch. */
 export default function PolicyRow({ policy, onToggle, onEdit, onDelete }: PolicyRowProps) {
-  const scopeLine = [
-    'scope',
-    policy.scope,
-    ...(policy.target ? [policy.target] : []),
-    ...policy.protections,
-  ].join(' · ')
-
   return (
-    <Card className="bg-background">
-      <CardContent className="flex flex-wrap items-center gap-x-4 gap-y-3 p-4 sm:p-5">
-        <IconShieldCheck className="h-5 w-5 shrink-0 text-muted-foreground" />
+    <section className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-lg border border-border bg-card px-4 py-3">
+      <span className="bg-primary/10 text-primary flex size-7 shrink-0 items-center justify-center rounded-md">
+        <IconShieldCheck className="size-4" aria-hidden />
+      </span>
 
-        <div className="min-w-0 flex-1 basis-48">
-          <div className="flex items-center gap-2">
-            <p className="truncate text-sm font-semibold text-foreground">{policy.name}</p>
-            {policy.enabled ? (
-              <Badge variant="success" appearance="light" size="sm">
-                Active
-              </Badge>
-            ) : null}
-          </div>
-          <p className="text-muted-foreground mt-1 truncate text-xs">{scopeLine}</p>
+      <div className="min-w-0 flex-1 basis-48">
+        <div className="flex items-center gap-2">
+          <p className="truncate text-[13px] font-semibold text-foreground">{policy.name}</p>
+          {policy.enabled ? null : (
+            <Badge variant="secondary" size="sm">
+              Disabled
+            </Badge>
+          )}
         </div>
+        <p className="text-muted-foreground mt-0.5 truncate text-xs">
+          {[
+            policy.scope,
+            ...(policy.target ? [policy.target] : []),
+            ...(policy.protections.length > 0
+              ? [policy.protections.join(' · ')]
+              : ['no detectors']),
+          ].join(' · ')}
+        </p>
+      </div>
 
-        <div className="ml-auto flex shrink-0 items-center gap-4">
-          <Switch
-            checked={policy.enabled}
-            onCheckedChange={onToggle}
-            aria-label={`Toggle ${policy.name}`}
-          />
-          <Button size="sm" className={EDIT_BUTTON_CLASS} onClick={onEdit}>
-            Edit
-          </Button>
-          <Button
-            variant="secondary"
-            size="icon"
-            aria-label={`Delete ${policy.name}`}
-            onClick={onDelete}
-          >
-            <IconTrash className="h-4 w-4" />
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+      <div className="ml-auto flex shrink-0 items-center gap-2">
+        <Switch
+          checked={policy.enabled}
+          onCheckedChange={onToggle}
+          aria-label={`Toggle ${policy.name}`}
+        />
+        <Button variant="ghost" size="sm" onClick={onEdit}>
+          <IconPencil />
+          Edit
+        </Button>
+        <Button variant="ghost" size="icon" aria-label={`Delete ${policy.name}`} onClick={onDelete}>
+          <IconTrash />
+        </Button>
+      </div>
+    </section>
   )
 }

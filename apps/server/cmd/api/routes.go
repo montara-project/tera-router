@@ -217,6 +217,7 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	// model → chain → key; most specific wins)
 	guardrails := protected.Group("/guardrails")
 	guardrails.Get("", h.Guardrails.Overview)
+	guardrails.Get("/metrics", h.Guardrails.Metrics)
 	guardrails.Post("", h.Guardrails.Store)
 	guardrails.Put("/settings", h.Guardrails.UpdateSettings)
 	guardrails.Post("/evaluate", h.Guardrails.Evaluate)

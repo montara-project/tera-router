@@ -50,6 +50,11 @@ export const UsageQuerySchema = z.object({
   range: UsageRangeSchema.optional(),
 })
 
+/** Guardrails metrics window (GET /v1/guardrails/metrics). */
+export const GuardrailsMetricsQuerySchema = z.object({
+  range: UsageRangeSchema.optional(),
+})
+
 export const HealthWindowSchema = z.enum(HEALTH_WINDOWS, {
   error: 'The selected window is invalid.',
 })
@@ -62,4 +67,5 @@ export const ProviderHealthQuerySchema = z.object({
 export type QuotaListDto = z.infer<typeof QuotaListSchema>
 export type QuotaOverviewDto = z.infer<typeof QuotaOverviewSchema>
 export type UsageQueryDto = z.infer<typeof UsageQuerySchema>
+export type GuardrailsMetricsQueryDto = z.infer<typeof GuardrailsMetricsQuerySchema>
 export type ProviderHealthQueryDto = z.infer<typeof ProviderHealthQuerySchema>
