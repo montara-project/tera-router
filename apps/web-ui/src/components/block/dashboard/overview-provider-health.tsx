@@ -1,7 +1,8 @@
 import { IconActivity } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
 
-import type { HealthEntry, HealthStatus } from '@/lib/api/models/provider-health'
+import type { HealthEntry, HealthStatus, HealthWindow } from '@/lib/api/models/provider-health'
+import type { UsageRange } from '@/lib/api/models/usage'
 
 import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
 import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
@@ -92,22 +93,36 @@ export function HealthTimeline({
   )
 }
 
-export default function OverviewProviderHealth() {
-  const { data, isLoading } = useQuery(queries.providerHealth.overview('24h'))
+const SPANS: Record<HealthWindow, string> = {
+  '5m': '5 minutes',
+  '15m': '15 minutes',
+  '1h': 'hour',
+  '6h': '6 hours',
+  '24h': '24 hours',
+  '7d': '7 days',
+  '30d': '30 days',
+  '90d': '90 days',
+}
+
+/** Health over the dashboard's time range; "today" reads as the last 24h. */
+export default function OverviewProviderHealth({ range }: { range: UsageRange }) {
+  const window: HealthWindow = range === 'today' ? '24h' : range
+  const span = SPANS[window]
+  const { data, isLoading } = useQuery(queries.providerHealth.overview(window))
   const providers = (data?.providers ?? [])
     .filter((p) => p.requests > 0)
     .sort((a, b) => SEVERITY[a.status] - SEVERITY[b.status] || b.requests - a.requests)
 
   return (
     <DashboardPanel
-      title="Provider health 24h"
+      title={`Provider health ${window}`}
       icon={IconActivity}
       action={{ label: 'All providers', to: '/provider-health' }}
     >
       <div className="scrollbar-seamless flex max-h-[19rem] flex-col gap-5 overflow-y-auto overscroll-contain p-4">
         {isLoading && <Skeleton className="h-14 w-full rounded-md" />}
         {!isLoading && providers.length === 0 && (
-          <p className="text-muted-foreground text-sm">No provider traffic in the last 24 hours.</p>
+          <p className="text-muted-foreground text-sm">No provider traffic in the last {span}.</p>
         )}
         {providers.map((p) => {
           return (
@@ -126,7 +141,7 @@ export default function OverviewProviderHealth() {
                   </span>
                 </span>
               </div>
-              <HealthTimeline entry={p} />
+              <HealthTimeline entry={p} span={window === '24h' ? undefined : span} />
             </div>
           )
         })}

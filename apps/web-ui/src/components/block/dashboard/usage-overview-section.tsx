@@ -43,7 +43,7 @@ export default function UsageOverviewSection({ range }: { range: UsageRange }) {
 
       <div className={ROW}>
         <OverviewTrafficChart telemetry={data} />
-        <OverviewProviderHealth />
+        <OverviewProviderHealth range={range} />
       </div>
 
       <OverviewUsageActivity />

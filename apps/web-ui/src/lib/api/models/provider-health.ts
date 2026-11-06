@@ -1,6 +1,6 @@
 export type HealthStatus = 'healthy' | 'degraded' | 'down'
 
-export type HealthWindow = '5m' | '15m' | '1h' | '6h' | '24h' | '7d' | '30d'
+export type HealthWindow = '5m' | '15m' | '1h' | '6h' | '24h' | '7d' | '30d' | '90d'
 
 export type HealthEntry = {
   id: string

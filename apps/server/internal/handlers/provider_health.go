@@ -29,10 +29,11 @@ var healthWindows = map[string]time.Duration{
 	"24h": 24 * time.Hour,
 	"7d":  7 * 24 * time.Hour,
 	"30d": 30 * 24 * time.Hour,
+	"90d": 90 * 24 * time.Hour,
 }
 
 // Overview aggregates the window's usage rows into per-provider, per-model,
-// and per-chain health entries (?window=5m|15m|1h|6h|24h|7d|30d, default 15m).
+// and per-chain health entries (?window=5m|15m|1h|6h|24h|7d|30d|90d, default 15m).
 func (h *providerHealthHandler) Overview(c fiber.Ctx) error {
 	window := c.Query("window", "15m")
 	lookback, ok := healthWindows[window]
