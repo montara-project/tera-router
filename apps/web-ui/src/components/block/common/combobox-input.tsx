@@ -1,6 +1,6 @@
 'use client'
 
-import { IconX } from '@tabler/icons-react'
+import { IconPlus, IconX } from '@tabler/icons-react'
 import React, { useState } from 'react'
 
 import type { Option } from '@/types/select'
@@ -32,6 +32,11 @@ interface ComboboxInputProps<TData> {
   /** Trigger text while nothing is selected; falls back to the label */
   placeholder?: string
   disabled?: boolean
+  /**
+   * Single mode only: offers the typed text as a new value, and picking the
+   * selected value again clears it. For optional free-form fields.
+   */
+  creatable?: boolean
 }
 
 export default function ComboboxInput<TData>({
@@ -44,10 +49,18 @@ export default function ComboboxInput<TData>({
   multiple = true,
   placeholder,
   disabled = false,
+  creatable = false,
 }: ComboboxInputProps<TData>) {
   const [open, setOpen] = useState(false)
   const [fallbackSelection, setFallbackSelection] = React.useState<string[]>(defaultValues)
   const selectedValues = selection ?? fallbackSelection
+  const [search, setSearch] = useState('')
+  const typed = search.trim()
+  const canCreate =
+    creatable &&
+    typed !== '' &&
+    !options.some((o) => o.value === typed) &&
+    !selectedValues.includes(typed)
 
   const applySelection = (next: string[]) => {
     if (selection === undefined) setFallbackSelection(next)
@@ -56,7 +69,8 @@ export default function ComboboxInput<TData>({
 
   const toggleSelection = (value: string) => {
     if (!multiple) {
-      applySelection([value])
+      applySelection(creatable && selectedValues[0] === value ? [] : [value])
+      setSearch('')
       setOpen(false)
       return
     }
@@ -76,7 +90,15 @@ export default function ComboboxInput<TData>({
   return (
     // modal: the content is portaled outside any open Dialog, whose scroll lock
     // would otherwise swallow wheel/touch scrolling in the option list.
-    <Popover modal open={open} onOpenChange={setOpen}>
+    <Popover
+      modal
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next)
+        // Every open starts with an empty search, as when the input was uncontrolled.
+        if (!next) setSearch('')
+      }}
+    >
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -124,10 +146,26 @@ export default function ComboboxInput<TData>({
       </PopoverTrigger>
       <PopoverContent className="w-(--radix-popper-anchor-width) p-0">
         <Command>
-          <CommandInput placeholder={`Search ${label.toLowerCase()}...`} />
+          <CommandInput
+            placeholder={
+              creatable
+                ? `Search or create ${label.toLowerCase()}...`
+                : `Search ${label.toLowerCase()}...`
+            }
+            value={search}
+            onValueChange={setSearch}
+          />
           <CommandList>
             <ScrollArea viewportClassName="max-h-[300px] [&>div]:block!">
-              <CommandEmpty>No {label.toLowerCase()} found.</CommandEmpty>
+              {canCreate ? null : <CommandEmpty>No {label.toLowerCase()} found.</CommandEmpty>}
+              {canCreate ? (
+                <CommandGroup>
+                  <CommandItem value={`create:${typed}`} onSelect={() => toggleSelection(typed)}>
+                    <IconPlus className="text-muted-foreground" aria-hidden />
+                    <span className="truncate">Create “{typed}”</span>
+                  </CommandItem>
+                </CommandGroup>
+              ) : null}
               <CommandGroup>
                 {options.map((item) => (
                   <CommandItem

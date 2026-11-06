@@ -207,8 +207,11 @@ function AliasForm({ open, alias, onOpenChange }: AliasFormProps) {
               <field.TextField
                 label="Alias name"
                 asterisk
-                hint="Required"
                 placeholder="alias-name"
+                // Keeps the browser's saved-name autofill off this field.
+                autoComplete="off"
+                autoCapitalize="none"
+                spellCheck={false}
               />
               {editing && field.state.value.trim() !== alias?.name ? (
                 <p className="text-xs text-amber-600 dark:text-amber-400">
@@ -222,21 +225,19 @@ function AliasForm({ open, alias, onOpenChange }: AliasFormProps) {
         <form.AppField name="group">
           {(field) => (
             <div className="space-y-1.5">
-              <field.TextField
+              <field.ComboboxField
                 label="Group"
-                hint="Optional"
-                placeholder="coding"
-                list="alias-group-options"
+                placeholder="Ungrouped"
+                // A just-created group is listed too, so it can be picked again to clear it.
+                options={[...new Set([...groups, field.state.value].filter(Boolean))].map(
+                  (group) => ({ value: group, label: group })
+                )}
+                defaultValues={field.state.value ? [field.state.value] : []}
+                creatable
               />
-              <datalist id="alias-group-options">
-                {groups.map((group) => (
-                  <option key={group} value={group}>
-                    {group}
-                  </option>
-                ))}
-              </datalist>
               <p className="text-muted-foreground text-xs">
-                Groups only organise the alias list; leave empty for Ungrouped.
+                Groups only organise the alias list. Type a name to create one; pick the selected
+                group again to clear it.
               </p>
             </div>
           )}

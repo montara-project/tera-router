@@ -21,6 +21,8 @@ interface ComboboxFieldProps<TData> {
   disabled?: boolean
   /** keeps the label for assistive tech only (compact inline rows) */
   hideLabel?: boolean
+  /** offers the typed text as a new value and lets the pick be cleared (single mode) */
+  creatable?: boolean
 }
 
 export default function ComboboxField<TData>({
@@ -33,6 +35,7 @@ export default function ComboboxField<TData>({
   placeholder,
   disabled = false,
   hideLabel = false,
+  creatable = false,
 }: ComboboxFieldProps<TData>) {
   const field = useFieldContext<string>()
   const errors = useSelector(field.store, (state) => state.meta.errors)
@@ -55,6 +58,7 @@ export default function ComboboxField<TData>({
         disabled={disabled}
         multiple={multiple}
         placeholder={placeholder}
+        creatable={creatable}
         onBlur={field.handleBlur}
         onSelect={(value: any) => {
           const next = multiple ? value : (value[0] ?? '')
