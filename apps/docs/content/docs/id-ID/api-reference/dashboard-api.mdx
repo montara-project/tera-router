@@ -133,17 +133,17 @@ Endpoint uji model menerima `{"model", "messages", "stream"}`. Dengan `"stream":
 
 ### Budgets & usage
 
-| Method               | Path                  | Keterangan                                                                                           |
-| -------------------- | --------------------- | ---------------------------------------------------------------------------------------------------- |
-| GET / POST           | `/v1/budgets`         | Daftar / buat budget                                                                                 |
-| GET                  | `/v1/budgets/status`  | Pemakaian berjalan per budget                                                                        |
-| PUT / PATCH / DELETE | `/v1/budgets/:id`     | Kelola budget                                                                                        |
-| GET                  | `/v1/usage/telemetry` | Payload penuh halaman Usage                                                                          |
-| GET                  | `/v1/usage/activity`  | Request per hari (UTC) selama 53 minggu terakhir, dengan jumlah per model                            |
+| Method               | Path                  | Keterangan                                                                                                     |
+| -------------------- | --------------------- | -------------------------------------------------------------------------------------------------------------- |
+| GET / POST           | `/v1/budgets`         | Daftar / buat budget                                                                                           |
+| GET                  | `/v1/budgets/status`  | Pemakaian berjalan per budget                                                                                  |
+| PUT / PATCH / DELETE | `/v1/budgets/:id`     | Kelola budget                                                                                                  |
+| GET                  | `/v1/usage/telemetry` | Payload penuh halaman Usage                                                                                    |
+| GET                  | `/v1/usage/activity`  | Request per hari (UTC) selama 53 minggu terakhir, dengan jumlah per model                                      |
 | GET                  | `/v1/provider-health` | Kesehatan per provider, per model, dan per chain (`?window=5m\|15m\|1h\|6h\|24h\|7d\|30d\|90d`, default `15m`) |
-| GET                  | `/v1/quota`           | Daftar kuota aktif                                                                                   |
-| GET                  | `/v1/quota/overview`  | Ringkasan kuota                                                                                      |
-| PATCH / DELETE       | `/v1/quota/:id`       | Jeda / hapus kuota                                                                                   |
+| GET                  | `/v1/quota`           | Daftar kuota aktif                                                                                             |
+| GET                  | `/v1/quota/overview`  | Ringkasan kuota                                                                                                |
+| PATCH / DELETE       | `/v1/quota/:id`       | Jeda / hapus kuota                                                                                             |
 
 ### Proxy pools
 

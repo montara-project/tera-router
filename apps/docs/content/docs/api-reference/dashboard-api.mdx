@@ -133,17 +133,17 @@ The model test endpoints take `{"model", "messages", "stream"}`. With `"stream":
 
 ### Budgets & usage
 
-| Method               | Path                  | Notes                                                                                             |
-| -------------------- | --------------------- | ------------------------------------------------------------------------------------------------- |
-| GET / POST           | `/v1/budgets`         | List / create budgets                                                                             |
-| GET                  | `/v1/budgets/status`  | Running usage per budget                                                                          |
-| PUT / PATCH / DELETE | `/v1/budgets/:id`     | Manage budget                                                                                     |
-| GET                  | `/v1/usage/telemetry` | Full Usage page payload                                                                           |
-| GET                  | `/v1/usage/activity`  | Requests per UTC day for the last 53 weeks, with per-model counts                                 |
+| Method               | Path                  | Notes                                                                                                       |
+| -------------------- | --------------------- | ----------------------------------------------------------------------------------------------------------- |
+| GET / POST           | `/v1/budgets`         | List / create budgets                                                                                       |
+| GET                  | `/v1/budgets/status`  | Running usage per budget                                                                                    |
+| PUT / PATCH / DELETE | `/v1/budgets/:id`     | Manage budget                                                                                               |
+| GET                  | `/v1/usage/telemetry` | Full Usage page payload                                                                                     |
+| GET                  | `/v1/usage/activity`  | Requests per UTC day for the last 53 weeks, with per-model counts                                           |
 | GET                  | `/v1/provider-health` | Per-provider, per-model, and per-chain health (`?window=5m\|15m\|1h\|6h\|24h\|7d\|30d\|90d`, default `15m`) |
-| GET                  | `/v1/quota`           | Active quotas                                                                                     |
-| GET                  | `/v1/quota/overview`  | Quota summary                                                                                     |
-| PATCH / DELETE       | `/v1/quota/:id`       | Pause / delete quota                                                                              |
+| GET                  | `/v1/quota`           | Active quotas                                                                                               |
+| GET                  | `/v1/quota/overview`  | Quota summary                                                                                               |
+| PATCH / DELETE       | `/v1/quota/:id`       | Pause / delete quota                                                                                        |
 
 ### Proxy pools
 
