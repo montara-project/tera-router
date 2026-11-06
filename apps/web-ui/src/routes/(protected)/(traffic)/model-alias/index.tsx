@@ -139,7 +139,6 @@ function ModelAliasRoute() {
     <div className="flex flex-col gap-4">
       <PageHeader
         icon={IconReplace}
-        iconClassName="border-transparent bg-orange-500/10 text-orange-600 dark:text-orange-400"
         title="Model Alias"
         description="One alias name mapped to an ordered pool of provider/model targets. Keys and plans reference the alias, so provider changes never require re-assignment."
         actions={

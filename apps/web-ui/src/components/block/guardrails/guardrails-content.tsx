@@ -190,7 +190,6 @@ export default function GuardrailsContent({ overview }: { overview: GuardrailsOv
 
       <PageHeader
         icon={IconShield}
-        iconClassName="border-transparent bg-primary/10 text-primary"
         title="Guardrails"
         description="The most specific matching policy wins."
         actions={

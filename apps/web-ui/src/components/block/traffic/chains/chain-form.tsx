@@ -155,11 +155,7 @@ function AbstractForm({ defaultValues, mutation, isEdit, title }: AbstractFormPr
         </ol>
       </nav>
 
-      <PageHeader
-        icon={IconStack2}
-        iconClassName="text-primary border-transparent bg-primary/10"
-        title={isEdit ? 'Edit chain' : 'Create chain'}
-      />
+      <PageHeader icon={IconStack2} title={isEdit ? 'Edit chain' : 'Create chain'} />
 
       <div className="mt-1 grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="flex min-w-0 flex-col gap-4">

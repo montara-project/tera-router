@@ -23,7 +23,6 @@ function RouteComponent() {
     <div className="flex flex-col gap-6">
       <PageHeader
         icon={IconPlug}
-        iconClassName="text-primary border-transparent bg-primary/10"
         title="Endpoints"
         description="One base URL and API key for every provider."
         actions={

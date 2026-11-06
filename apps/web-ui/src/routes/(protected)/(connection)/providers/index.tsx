@@ -194,7 +194,6 @@ function RouteComponent() {
       <div className="flex flex-col gap-6">
         <PageHeader
           icon={IconPackages}
-          iconClassName="border-transparent bg-teal-500/10 text-teal-700 dark:text-teal-400"
           title="Providers"
           description={`${overview.connected.length} connected · ${overview.available.length} available`}
           actions={

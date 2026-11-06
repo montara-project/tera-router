@@ -59,7 +59,6 @@ function RouteComponent() {
     <div className="flex flex-col gap-6">
       <PageHeader
         icon={IconStack2}
-        iconClassName="text-primary border-transparent bg-primary/10"
         title="Chains"
         description={
           <>

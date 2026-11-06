@@ -59,7 +59,6 @@ function RouteComponent() {
     <div className="flex flex-col gap-6">
       <PageHeader
         icon={IconHistory}
-        iconClassName="border-transparent bg-primary/10 text-primary"
         title="Audit log"
         description="Every dashboard sign-in and configuration change: who did it, from where, and whether it worked. Rows are hash-chained so tampering is detectable."
         actions={

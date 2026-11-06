@@ -69,7 +69,6 @@ function PricingRoute() {
     <div className="flex flex-col gap-6">
       <PageHeader
         icon={IconCurrencyDollar}
-        iconClassName="border-transparent bg-primary/10 text-primary"
         title="Model Pricing"
         description="Per-model token rates the gateway charges with. Overrides beat the built-in catalog; a provider-wide override prices every model without a specific row."
         actions={
