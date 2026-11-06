@@ -1,6 +1,15 @@
 'use client'
 
-import { IconLogout, IconRotate } from '@tabler/icons-react'
+import {
+  IconCheck,
+  IconDeviceDesktop,
+  IconLogout,
+  IconMoon,
+  IconRotate,
+  IconSettings,
+  IconSun,
+} from '@tabler/icons-react'
+import { Link } from '@tanstack/react-router'
 import { useState } from 'react'
 
 import type { Models } from '@/lib/api/models'
@@ -15,6 +24,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Skeleton } from '@/components/ui/skeleton'
+import { type ThemeChoice, useAnimatedTheme } from '@/hooks/use-animated-theme'
 import { services } from '@/lib/api/services'
 import { clearAuthTokens } from '@/lib/auth/token-storage'
 
@@ -39,9 +49,16 @@ function getInitials(name: string) {
     .join('')
 }
 
-/** Top-bar avatar with the profile summary and sign-out. */
+const THEMES: { value: ThemeChoice; label: string; icon: typeof IconSun }[] = [
+  { value: 'light', label: 'Light', icon: IconSun },
+  { value: 'dark', label: 'Dark', icon: IconMoon },
+  { value: 'system', label: 'System', icon: IconDeviceDesktop },
+]
+
+/** Top-bar avatar with the profile summary, theme choice, settings and sign-out. */
 export default function UserMenu({ user, userError, onRetryUser }: UserMenuProps) {
   const [signingOut, setSigningOut] = useState(false)
+  const { theme, changeTheme } = useAnimatedTheme()
 
   // Ends the session on the server (every device, see POST /v1/auth/sign-out),
   // then drops the cookies and reloads to the login page so no cached data
@@ -83,8 +100,8 @@ export default function UserMenu({ user, userError, onRetryUser }: UserMenuProps
       <DropdownMenuContent className="min-w-56 rounded-lg" align="end" sideOffset={6}>
         {user ? (
           <DropdownMenuLabel className="font-normal">
-            <div className="grid text-sm leading-tight">
-              <span className="truncate font-medium">{name}</span>
+            <div className="grid gap-0.5 text-sm leading-tight">
+              <span className="truncate font-semibold">{name}</span>
               <span className="text-muted-foreground truncate text-xs">{email}</span>
             </div>
           </DropdownMenuLabel>
@@ -95,9 +112,32 @@ export default function UserMenu({ user, userError, onRetryUser }: UserMenuProps
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
+        <DropdownMenuLabel className="text-muted-foreground text-xs font-normal">
+          Theme
+        </DropdownMenuLabel>
+        {THEMES.map(({ value, label, icon: Icon }) => (
+          <DropdownMenuItem
+            key={value}
+            role="menuitemradio"
+            aria-checked={theme === value}
+            // The reveal grows from the picked row.
+            onSelect={(e) => changeTheme(value, e.currentTarget as HTMLElement)}
+          >
+            <Icon />
+            {label}
+            {theme === value && <IconCheck className="ms-auto" aria-hidden />}
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link to="/settings">
+            <IconSettings />
+            Settings
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuItem variant="destructive" disabled={signingOut} onClick={handleSignOut}>
           <IconLogout />
-          {signingOut ? 'Logging out…' : 'Log out'}
+          {signingOut ? 'Signing out…' : 'Sign out'}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

@@ -181,6 +181,15 @@
   }
 }
 
+/* Theme switch reveal (hooks/use-animated-theme.ts, after Magic UI's animated
+   theme toggler): the new snapshot is clipped from JS, so neither layer runs
+   the default cross-fade. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
 /* Keyframes the kit components reference from inline `animation` styles. */
 @keyframes pop-in {
   from {
