@@ -1,7 +1,12 @@
+import type { ColumnDef } from '@tanstack/react-table'
+
 import { IconBrain } from '@tabler/icons-react'
+import { useMemo } from 'react'
 
-import type { UsageTelemetryOverview } from '@/lib/api/models/usage'
+import type { UsageModelAccountingRow, UsageTelemetryOverview } from '@/lib/api/models/usage'
 
+import EmptyState from '@/components/block/common/empty-state'
+import ReactTable, { features } from '@/components/block/common/react-table'
 import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
 import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
 import { formatMicrosUsd } from '@/lib/currency'
@@ -9,11 +14,87 @@ import { formatCompact, formatCount } from '@/lib/format'
 
 const LIMIT = 6
 
+type ColumnType = ColumnDef<typeof features, UsageModelAccountingRow, unknown>
+
+const RIGHT = { headerClassName: 'text-right', cellClassName: 'text-right tabular-nums' }
+
+function topModelColumns(total: number): ColumnType[] {
+  return [
+    {
+      accessorKey: 'model',
+      header: 'Model',
+      meta: { headerClassName: 'w-2/5', cellClassName: 'max-w-0' },
+      cell: ({ row }) => (
+        <div className="flex min-w-0 items-center gap-2.5">
+          <ProviderAvatar slug={row.original.provider} apiKind={row.original.api_kind} size="xs" />
+          <div className="min-w-0 font-mono">
+            <p className="truncate" title={row.original.model}>
+              {row.original.model}
+            </p>
+            <p className="text-muted-foreground truncate text-xs" title={row.original.provider}>
+              {row.original.provider}
+            </p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'requests',
+      header: 'Requests',
+      meta: RIGHT,
+      cell: ({ row }) => formatCount(row.original.requests),
+    },
+    {
+      id: 'tokens',
+      header: 'Tokens',
+      meta: RIGHT,
+      cell: ({ row }) =>
+        formatCompact(
+          row.original.inputTokens + row.original.cachedTokens + row.original.outputTokens
+        ),
+    },
+    {
+      id: 'cost',
+      header: 'Cost',
+      meta: { ...RIGHT, cellClassName: 'text-right tabular-nums text-muted-foreground' },
+      cell: ({ row }) =>
+        row.original.costMicros === null ? '—' : formatMicrosUsd(row.original.costMicros),
+    },
+    {
+      id: 'share',
+      header: 'Share',
+      meta: {
+        headerClassName: 'w-40',
+        cellClassName: 'text-right text-xs tabular-nums text-muted-foreground',
+      },
+      cell: ({ row }) => {
+        const share = total > 0 ? (row.original.requests / total) * 100 : 0
+        return (
+          <>
+            <span
+              className="bg-muted mr-3 inline-block h-1.5 w-[calc(100%-3rem)] overflow-hidden rounded-full align-middle"
+              aria-hidden
+            >
+              <span
+                className="bg-primary block h-full rounded-full"
+                style={{ width: `${share}%` }}
+              />
+            </span>
+            {Math.round(share)}%
+          </>
+        )
+      },
+    },
+  ]
+}
+
 export default function OverviewTopModels({ telemetry }: { telemetry: UsageTelemetryOverview }) {
   const total = telemetry.traffic.requests
-  const rows = [...telemetry.modelAccounting]
-    .sort((a, b) => b.requests - a.requests)
-    .slice(0, LIMIT)
+  const rows = useMemo(
+    () => [...telemetry.modelAccounting].sort((a, b) => b.requests - a.requests).slice(0, LIMIT),
+    [telemetry.modelAccounting]
+  )
+  const columns = useMemo(() => topModelColumns(total), [total])
 
   return (
     <DashboardPanel
@@ -21,68 +102,22 @@ export default function OverviewTopModels({ telemetry }: { telemetry: UsageTelem
       icon={IconBrain}
       action={{ label: 'All models', to: '/usage' }}
     >
-      {rows.length === 0 ? (
-        <p className="text-muted-foreground p-4 text-sm">No model traffic in this period.</p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[36rem] text-[13px]">
-            <thead className="dark:bg-muted/40 text-muted-foreground border-b border-border text-xs">
-              <tr>
-                <th className="w-2/5 px-4 py-2 text-left font-medium">Model</th>
-                <th className="px-4 py-2 text-right font-medium">Requests</th>
-                <th className="px-4 py-2 text-right font-medium">Tokens</th>
-                <th className="px-4 py-2 text-right font-medium">Cost</th>
-                <th className="w-40 px-4 py-2 text-left font-medium">Share</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => {
-                const share = total > 0 ? (row.requests / total) * 100 : 0
-                const tokens = row.inputTokens + row.cachedTokens + row.outputTokens
-                return (
-                  <tr key={row.id} className="border-b border-border last:border-0">
-                    <td className="max-w-0 px-4 py-2.5">
-                      <div className="flex min-w-0 items-center gap-2.5">
-                        <ProviderAvatar slug={row.provider} apiKind={row.api_kind} size="xs" />
-                        <div className="min-w-0 font-mono">
-                          <p className="truncate" title={row.model}>
-                            {row.model}
-                          </p>
-                          <p
-                            className="text-muted-foreground truncate text-xs"
-                            title={row.provider}
-                          >
-                            {row.provider}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-2.5 text-right tabular-nums">
-                      {formatCount(row.requests)}
-                    </td>
-                    <td className="px-4 py-2.5 text-right tabular-nums">{formatCompact(tokens)}</td>
-                    <td className="text-muted-foreground px-4 py-2.5 text-right tabular-nums">
-                      {row.costMicros === null ? '—' : formatMicrosUsd(row.costMicros)}
-                    </td>
-                    <td className="text-muted-foreground px-4 py-2.5 text-right text-xs tabular-nums">
-                      <span
-                        className="bg-muted mr-3 inline-block h-1.5 w-[calc(100%-3rem)] overflow-hidden rounded-full align-middle"
-                        aria-hidden
-                      >
-                        <span
-                          className="bg-primary block h-full rounded-full"
-                          style={{ width: `${share}%` }}
-                        />
-                      </span>
-                      {Math.round(share)}%
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <ReactTable
+        data={rows}
+        total={rows.length}
+        pageSize={LIMIT}
+        columns={columns}
+        pagination={false}
+        tableClassName="min-w-[36rem]"
+        emptyMessage={
+          <EmptyState
+            icon={IconBrain}
+            title="No model traffic"
+            description="No model served requests in this period."
+            className="py-8"
+          />
+        }
+      />
     </DashboardPanel>
   )
 }

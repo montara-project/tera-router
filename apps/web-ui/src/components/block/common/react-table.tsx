@@ -66,6 +66,10 @@ interface ReactTableProps<T extends RowData> {
   globalFilterFn?: FilterFnOption<typeof features, T>
   getRowId?: (row: T) => string
   emptyMessage?: React.ReactNode
+  /** Show the pager footer; summary tables of a fixed top-N turn it off. */
+  pagination?: boolean
+  /** Extra classes on the <table>, e.g. a min width before it scrolls. */
+  tableClassName?: string
 }
 
 export default function ReactTable<T extends RowData>({
@@ -80,6 +84,8 @@ export default function ReactTable<T extends RowData>({
   emptyMessage,
   onPageChange,
   onPageSizeChange,
+  pagination: showPagination = true,
+  tableClassName,
 }: ReactTableProps<T>) {
   const [sorting, setSorting] = useState<SortingState>(columnSort)
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
@@ -133,6 +139,7 @@ export default function ReactTable<T extends RowData>({
       recordCount={total}
       emptyMessage={emptyMessage}
       tableLayout={{ width: 'auto' }}
+      tableClassNames={{ base: tableClassName }}
     >
       <div className="w-full">
         {emptyMessage && data.length === 0 ? (
@@ -145,7 +152,7 @@ export default function ReactTable<T extends RowData>({
             </ScrollArea>
           </DataGridContainer>
         )}
-        {total > 0 && (
+        {showPagination && total > 0 && (
           <DataGridPagination
             className="border-t border-border px-4 py-2.5 sm:py-2.5"
             total={total}
