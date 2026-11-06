@@ -1,14 +1,18 @@
 import { IconCpu, IconSearch } from '@tabler/icons-react'
 import { useMutation, useQuery } from '@tanstack/react-query'
+import { useQueryState } from 'nuqs'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
 import type { ApiKeyDetail } from '@/lib/api/models/key'
 
+import ReactTable from '@/components/block/common/react-table'
 import SelectInput from '@/components/block/common/select-input'
 import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
 import KeyModelsEditor, {
-  ModelCells,
+  MODEL_COLUMNS,
+  MODEL_PAGE_SIZES,
+  useClampedPage,
   useModelRows,
 } from '@/components/block/keys/key-models-editor'
 import { Button } from '@/components/ui/button'
@@ -20,7 +24,15 @@ import { formatCount } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 export default function KeyModelsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
-  const [editing, setEditing] = useState(false)
+  const [editing, setEditingState] = useState(false)
+  // The list and the editor page on their own, so a page from the other view is dropped.
+  const [, setPage] = useQueryState('page')
+  const [, setPageSize] = useQueryState('pageSize')
+  const setEditing = (value: boolean) => {
+    setEditingState(value)
+    void setPage(null)
+    void setPageSize(null)
+  }
 
   const plansQuery = useQuery(queries.plans.list())
   const plan = plansQuery.data?.data.find((item) => item.id === apiKey.plan_id) ?? null
@@ -131,8 +143,8 @@ export default function KeyModelsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
 /** The key's allowlist as a table: listed models by name, other entries as patterns. */
 function AllowedModelsList({ allowed }: { allowed: string[] }) {
   const { rows, loading } = useModelRows()
-  const [search, setSearch] = useState('')
-  const [provider, setProvider] = useState('')
+  const [search, setSearchValue] = useState('')
+  const [provider, setProviderValue] = useState('')
 
   const byId = new Map(rows.map((r) => [r.id, r]))
   const entries = allowed.map((id) => byId.get(id) ?? { id })
@@ -147,6 +159,16 @@ function AllowedModelsList({ allowed }: { allowed: string[] }) {
       (!query || e.id.toLowerCase().includes(query))
   )
   const hasPatterns = entries.some((e) => !('slug' in e))
+  const { pageIndex, limit, start, resetPage } = useClampedPage(filtered.length)
+  // A filter change re-pages the list, so drop a stale page index.
+  const setSearch = (value: string) => {
+    setSearchValue(value)
+    resetPage()
+  }
+  const setProvider = (value: string) => {
+    setProviderValue(value)
+    resetPage()
+  }
 
   return (
     <>
@@ -176,37 +198,26 @@ function AllowedModelsList({ allowed }: { allowed: string[] }) {
           {formatCount(filtered.length)} shown
         </span>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[32rem] text-[13px]">
-          <thead className="border-b border-border bg-muted/40 text-xs text-muted-foreground">
-            <tr>
-              <th className="px-4 py-2 text-left font-medium">Model</th>
-              <th className="w-[36%] px-4 py-2 text-left font-medium">Provider</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={2} className="px-4 py-2.5">
-                  <Skeleton className="h-8 w-full" />
-                </td>
-              </tr>
-            ) : filtered.length === 0 ? (
-              <tr>
-                <td colSpan={2} className="px-4 py-8 text-center text-muted-foreground">
-                  No allowed model matches. Try another filter.
-                </td>
-              </tr>
-            ) : (
-              filtered.map((e) => (
-                <tr key={e.id} className="border-b border-border last:border-0">
-                  <ModelCells row={e} />
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      {loading ? (
+        <div className="p-4">
+          <Skeleton className="h-8 w-full" />
+        </div>
+      ) : (
+        <ReactTable
+          total={filtered.length}
+          data={filtered.slice(start, start + limit)}
+          pageIndex={pageIndex}
+          pageSize={limit}
+          pageSizes={MODEL_PAGE_SIZES}
+          columns={MODEL_COLUMNS}
+          tableClassName="min-w-[32rem]"
+          emptyMessage={
+            <p className="px-4 py-8 text-center text-muted-foreground">
+              No allowed model matches. Try another filter.
+            </p>
+          }
+        />
+      )}
     </>
   )
 }

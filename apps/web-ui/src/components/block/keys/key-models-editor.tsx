@@ -1,6 +1,10 @@
-import { IconCpu, IconPlus, IconSearch, IconX } from '@tabler/icons-react'
-import { useId, useMemo, useState } from 'react'
+import type { ColumnDef } from '@tanstack/react-table'
 
+import { IconCpu, IconPlus, IconSearch, IconX } from '@tabler/icons-react'
+import { useQueryState } from 'nuqs'
+import { useEffect, useId, useMemo, useState } from 'react'
+
+import ReactTable, { features } from '@/components/block/common/react-table'
 import SelectInput from '@/components/block/common/select-input'
 import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
 import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
@@ -9,10 +13,9 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input, InputWrapper } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
+import { usePaginationQuery } from '@/hooks/use-pagination-query'
 import { formatCount } from '@/lib/format'
 import { cn } from '@/lib/utils'
-
-const PAGE_SIZE = 25
 
 export type ModelRow = {
   id: string
@@ -41,34 +44,73 @@ export function useModelRows() {
   return { rows, groups, loading }
 }
 
-/** Model and Provider cells shared by the allowlist list and editor. */
-export function ModelCells({ row }: { row: ModelRow | { id: string } }) {
-  const known = 'slug' in row
-  return (
-    <>
-      <td className="max-w-0 px-2 py-2.5 first:pl-4">
-        <span className="block truncate font-medium" title={known ? row.model : row.id}>
-          {known ? row.model : row.id}
-        </span>
-        <span
-          className={cn('block truncate text-[11.5px] text-muted-foreground', known && 'font-mono')}
-          title={known ? row.id : undefined}
-        >
-          {known ? row.id : 'Pattern'}
-        </span>
-      </td>
-      <td className="px-4 py-2.5">
-        {known ? (
-          <span className="flex items-center gap-2 text-muted-foreground">
-            <ProviderAvatar slug={row.slug} apiKind={row.apiKind} size="xs" />
-            <span className="truncate">{row.provider}</span>
+export type ModelEntry = ModelRow | { id: string }
+
+/** Model and Provider columns shared by the allowlist list and editor. */
+export const MODEL_COLUMNS: ColumnDef<typeof features, ModelEntry, unknown>[] = [
+  {
+    id: 'model',
+    header: 'Model',
+    meta: { cellClassName: 'max-w-0' },
+    cell: ({ row }) => {
+      const r = row.original
+      const known = 'slug' in r
+      return (
+        <>
+          <span className="block truncate font-medium" title={known ? r.model : r.id}>
+            {known ? r.model : r.id}
           </span>
-        ) : (
-          <span className="text-muted-foreground">Any matching provider</span>
-        )}
-      </td>
-    </>
-  )
+          <span
+            className={cn(
+              'block truncate text-[11.5px] text-muted-foreground',
+              known && 'font-mono'
+            )}
+            title={known ? r.id : undefined}
+          >
+            {known ? r.id : 'Pattern'}
+          </span>
+        </>
+      )
+    },
+  },
+  {
+    id: 'provider',
+    header: 'Provider',
+    meta: { headerClassName: 'w-[32%]' },
+    cell: ({ row }) => {
+      const r = row.original
+      return 'slug' in r ? (
+        <span className="flex items-center gap-2 text-muted-foreground">
+          <ProviderAvatar slug={r.slug} apiKind={r.apiKind} size="xs" />
+          <span className="truncate">{r.provider}</span>
+        </span>
+      ) : (
+        <span className="text-muted-foreground">Any matching provider</span>
+      )
+    },
+  },
+]
+
+/** The pager never offers fewer than 10 rows. */
+export const MODEL_PAGE_SIZES = [10, 25, 50, 100]
+
+/** Client-side paging over ?page; drops back to the last page when the list shrinks under it. */
+export function useClampedPage(total: number) {
+  const { offset, limit, pageIndex } = usePaginationQuery()
+  const [, setPageParam] = useQueryState('page')
+  const last = Math.max(0, Math.ceil(total / limit) - 1)
+  const current = Math.min(pageIndex, last)
+
+  useEffect(() => {
+    if (pageIndex > last) void setPageParam(last === 0 ? null : String(last))
+  }, [pageIndex, last, setPageParam])
+
+  return {
+    pageIndex: current,
+    limit,
+    start: current === pageIndex ? offset : current * limit,
+    resetPage: () => void setPageParam(null),
+  }
 }
 
 interface KeyModelsEditorProps {
@@ -102,7 +144,6 @@ export default function KeyModelsEditor({
   const [provider, setProvider] = useState('')
   const [view, setView] = useState<'all' | 'selected'>('all')
   const [pattern, setPattern] = useState('')
-  const [page, setPage] = useState(0)
 
   const rowIds = useMemo(() => new Set(rows.map((r) => r.id)), [rows])
   // Selections that are not a listed model: wildcards, bare ids, chains, or
@@ -116,12 +157,26 @@ export default function KeyModelsEditor({
       (view === 'all' || selected.includes(r.id)) &&
       (!query || r.id.toLowerCase().includes(query))
   )
-  const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-  const current = Math.min(page, pages - 1)
-  const visible = filtered.slice(current * PAGE_SIZE, (current + 1) * PAGE_SIZE)
+  const { pageIndex, limit, start, resetPage: clearPage } = useClampedPage(filtered.length)
 
   const toggle = (value: string, on: boolean) =>
     setSelected((s) => (on ? [...s, value] : s.filter((v) => v !== value)))
+
+  const columns: ColumnDef<typeof features, ModelEntry, unknown>[] = [
+    {
+      id: 'allowed',
+      header: () => <span className="sr-only">Allowed</span>,
+      meta: { headerClassName: 'w-12' },
+      cell: ({ row }) => (
+        <Checkbox
+          aria-label={`Allow ${row.original.id}`}
+          checked={selected.includes(row.original.id)}
+          onCheckedChange={(on) => toggle(row.original.id, on === true)}
+        />
+      ),
+    },
+    ...MODEL_COLUMNS,
+  ]
 
   const addPattern = () => {
     const value = pattern.trim()
@@ -133,7 +188,7 @@ export default function KeyModelsEditor({
     <T,>(set: (v: T) => void) =>
     (v: T) => {
       set(v)
-      setPage(0)
+      clearPage()
     }
 
   return (
@@ -228,84 +283,30 @@ export default function KeyModelsEditor({
         ) : null}
       </div>
 
-      <div className="relative overflow-x-auto">
-        <table className="w-full min-w-[36rem] text-[13px]">
-          <thead className="border-b border-border bg-muted/40 text-xs text-muted-foreground">
-            <tr>
-              <th className="w-12 py-2 pr-2 pl-4">
-                <span className="sr-only">Allowed</span>
-              </th>
-              <th className="px-2 py-2 text-left font-medium">Model</th>
-              <th className="w-[28%] px-4 py-2 text-left font-medium">Provider</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              Array.from({ length: 4 }, (_, i) => (
-                <tr key={i} className="border-b border-border last:border-0">
-                  <td colSpan={3} className="px-4 py-2.5">
-                    <Skeleton className="h-8 w-full" />
-                  </td>
-                </tr>
-              ))
-            ) : visible.length === 0 ? (
-              <tr>
-                <td colSpan={3} className="px-4 py-8 text-center text-[13px] text-muted-foreground">
-                  {rows.length === 0
-                    ? 'No usable provider has active models yet. Add a pattern instead.'
-                    : 'No models match. Try another filter.'}
-                </td>
-              </tr>
-            ) : (
-              visible.map((r) => {
-                const checked = selected.includes(r.id)
-                return (
-                  <tr key={r.id} className="border-b border-border last:border-0">
-                    <td className="py-2.5 pr-2 pl-4">
-                      <Checkbox
-                        aria-label={`Allow ${r.id}`}
-                        checked={checked}
-                        onCheckedChange={(on) => toggle(r.id, on === true)}
-                      />
-                    </td>
-                    <ModelCells row={r} />
-                  </tr>
-                )
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      <nav
-        aria-label="Model pages"
-        className="flex items-center justify-between gap-2 border-t border-border bg-muted/40 px-4 py-2"
-      >
-        <span className="text-xs text-muted-foreground tabular-nums">
-          {formatCount(rows.length)} total
-        </span>
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={current === 0}
-            onClick={() => setPage(current - 1)}
-          >
-            Previous
-          </Button>
-          <span className="px-3 text-xs font-medium tabular-nums">
-            {current + 1} / {pages}
-          </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={current >= pages - 1}
-            onClick={() => setPage(current + 1)}
-          >
-            Next
-          </Button>
+      {loading ? (
+        <div className="space-y-2 p-4">
+          {Array.from({ length: 4 }, (_, i) => (
+            <Skeleton key={i} className="h-8 w-full" />
+          ))}
         </div>
-      </nav>
+      ) : (
+        <ReactTable
+          total={filtered.length}
+          data={filtered.slice(start, start + limit)}
+          pageIndex={pageIndex}
+          pageSize={limit}
+          pageSizes={MODEL_PAGE_SIZES}
+          columns={columns}
+          tableClassName="min-w-[36rem]"
+          emptyMessage={
+            <p className="px-4 py-8 text-center text-[13px] text-muted-foreground">
+              {rows.length === 0
+                ? 'No usable provider has active models yet. Add a pattern instead.'
+                : 'No models match. Try another filter.'}
+            </p>
+          }
+        />
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-muted/40 px-4 py-3">
         <p
