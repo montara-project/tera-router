@@ -73,10 +73,12 @@ func (h *providerHealthHandler) Overview(c fiber.Ctx) error {
 // mirrors the web-ui HealthEntry shape. Requests counts attempts (successes
 // plus failures), not client requests.
 type healthEntry struct {
-	ID            string  `json:"id"`
-	Name          string  `json:"name"`
-	Status        string  `json:"status"`
-	Requests      int     `json:"requests"`
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Status   string `json:"status"`
+	Requests int    `json:"requests"`
+	// Tokens is the prompt plus completion tokens of those attempts.
+	Tokens        int64   `json:"tokens"`
 	FallbackRate  float64 `json:"fallbackRate"`
 	Fallbacks     int     `json:"fallbacks"`
 	FinalFailures int     `json:"finalFailures"`
@@ -147,6 +149,7 @@ func healthStatus(attempts, successes, finalFailures int, fallbackRate float64) 
 // groupStats accumulates one entity's outcomes across the window.
 type groupStats struct {
 	attempts       int
+	tokens         int64
 	successes      int
 	fallbacks      int
 	finalFailures  int
@@ -180,6 +183,7 @@ func (g *groupStats) entry(id string) healthEntry {
 		Name:          id,
 		Status:        healthStatus(g.attempts, g.successes, g.finalFailures, fallbackRate),
 		Requests:      g.attempts,
+		Tokens:        g.tokens,
 		FallbackRate:  fallbackRate,
 		Fallbacks:     g.fallbacks,
 		FinalFailures: g.finalFailures,
@@ -273,6 +277,7 @@ func buildHealthOverview(rows []repositories.UsageHealthRow, knownChains []strin
 		} {
 			g.record(bucket, r.Failed)
 			g.attempts++
+			g.tokens += r.Tokens
 			if r.Failed {
 				if r.ErrorKind != "" {
 					g.errorKinds[r.ErrorKind]++
@@ -295,6 +300,7 @@ func buildHealthOverview(rows []repositories.UsageHealthRow, knownChains []strin
 			g := group(chainStats, r.Chain)
 			g.record(bucket, r.Failed)
 			g.attempts++
+			g.tokens += r.Tokens
 			if r.Failed {
 				if r.ErrorKind != "" {
 					g.errorKinds[r.ErrorKind]++
