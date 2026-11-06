@@ -1,16 +1,21 @@
+import type { ColumnDef } from '@tanstack/react-table'
+
 import { IconKey } from '@tabler/icons-react'
 import { useMutation } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import { useQueryState } from 'nuqs'
 import { toast } from 'sonner'
 
 import type { Models } from '@/lib/api/models'
 
 import EmptyState from '@/components/block/common/empty-state'
+import ReactTable, { features } from '@/components/block/common/react-table'
 import SelectInput from '@/components/block/common/select-input'
 import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
+import { usePaginationQuery } from '@/hooks/use-pagination-query'
 import { toastAxiosError } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
 import { formatDate, formatTimeAgo } from '@/lib/date'
@@ -23,6 +28,9 @@ const STATUS_LABEL: Record<Models.ApiKeyStatus, string> = {
   disabled: 'Disabled',
   restricted: 'Restricted',
 }
+
+/** The pager never offers fewer than 10 rows. */
+const PAGE_SIZES = [10, 25, 50, 100]
 
 interface KeysTableProps {
   /** every key, for the chip counts */
@@ -43,6 +51,16 @@ export default function KeysTable({
   onFiltersChange,
   onCreate,
 }: KeysTableProps) {
+  // Rows arrive whole, so paging runs here; the pager keeps its page in ?page.
+  const { offset, limit, pageIndex } = usePaginationQuery()
+  const [, setPageParam] = useQueryState('page')
+
+  // A filter change re-pages the list, so drop a stale page index.
+  const changeFilters = (patch: Partial<KeysFilters>) => {
+    onFiltersChange(patch)
+    void setPageParam(null)
+  }
+
   const renderBody = () => {
     if (loading) {
       return (
@@ -79,7 +97,7 @@ export default function KeysTable({
             <Button
               size="sm"
               variant="outline"
-              onClick={() => onFiltersChange({ search: '', status: 'all' })}
+              onClick={() => changeFilters({ search: '', status: 'all' })}
             >
               Clear filters
             </Button>
@@ -88,27 +106,15 @@ export default function KeysTable({
       )
     }
     return (
-      <div className="relative overflow-x-auto">
-        <table className="w-full min-w-[52rem] text-[13px]">
-          <thead className="border-b border-border text-xs text-muted-foreground dark:bg-muted/40">
-            <tr>
-              <th className="w-[24%] px-4 py-2 text-left font-medium">Name</th>
-              <th className="px-4 py-2 text-left font-medium">Plan</th>
-              <th className="px-4 py-2 text-left font-medium">Status</th>
-              <th className="px-4 py-2 text-left font-medium">Last used</th>
-              <th className="px-4 py-2 text-left font-medium">Created</th>
-              <th className="w-12 px-2 py-2">
-                <span className="sr-only">Actions</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((key) => (
-              <KeyRow key={key.id} record={key} />
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <ReactTable
+        total={rows.length}
+        data={rows.slice(offset, offset + limit)}
+        pageIndex={pageIndex}
+        pageSize={limit}
+        pageSizes={PAGE_SIZES}
+        columns={COLUMNS}
+        tableClassName="min-w-[52rem]"
+      />
     )
   }
 
@@ -120,19 +126,83 @@ export default function KeysTable({
         <SelectInput
           aria-label="Sort keys"
           value={filters.sort}
-          onSelect={(value) => onFiltersChange({ sort: value as KeysSortValue })}
+          onSelect={(value) => changeFilters({ sort: value as KeysSortValue })}
           className="w-44"
           options={SORT_OPTIONS.map((o) => ({ value: o.value as string, label: o.label }))}
         />
       }
     >
-      {keys.length > 0 && <FilterKeys keys={keys} filters={filters} onChange={onFiltersChange} />}
+      {keys.length > 0 && <FilterKeys keys={keys} filters={filters} onChange={changeFilters} />}
       {renderBody()}
     </DashboardPanel>
   )
 }
 
-function KeyRow({ record }: { record: Models.ApiKey }) {
+const COLUMNS: ColumnDef<typeof features, Models.ApiKey, unknown>[] = [
+  {
+    id: 'name',
+    header: 'Name',
+    meta: { headerClassName: 'w-[24%]', cellClassName: 'max-w-0' },
+    cell: ({ row }) => (
+      <>
+        <Link
+          to="/keys/$keyId"
+          params={{ keyId: row.original.id }}
+          className="block truncate rounded-sm font-medium hover:underline"
+          title={row.original.name}
+        >
+          {row.original.name}
+        </Link>
+        <code className="block truncate font-mono text-xs text-muted-foreground">
+          {row.original.key_preview}
+        </code>
+      </>
+    ),
+  },
+  {
+    id: 'plan',
+    header: 'Plan',
+    cell: ({ row }) => (
+      <>
+        <span className="block">{row.original.plan_label}</span>
+        {row.original.plan_note ? (
+          <span className="block text-xs text-muted-foreground">{row.original.plan_note}</span>
+        ) : null}
+      </>
+    ),
+  },
+  {
+    id: 'status',
+    header: 'Status',
+    cell: ({ row }) => <StatusCell record={row.original} />,
+  },
+  {
+    id: 'last_used',
+    header: 'Last used',
+    cell: ({ row }) =>
+      row.original.last_used_at ? (
+        <span title={formatDate(row.original.last_used_at)}>
+          {formatTimeAgo(row.original.last_used_at)}
+        </span>
+      ) : (
+        <span className="text-muted-foreground">Never</span>
+      ),
+  },
+  {
+    id: 'created',
+    header: 'Created',
+    meta: { cellClassName: 'text-muted-foreground' },
+    cell: ({ row }) => formatDate(row.original.created_at),
+  },
+  {
+    id: 'actions',
+    header: () => <span className="sr-only">Actions</span>,
+    meta: { headerClassName: 'w-12', cellClassName: 'text-right' },
+    cell: ({ row }) => <KeyActionsMenu record={row.original} showDetails />,
+  },
+]
+
+function StatusCell({ record }: { record: Models.ApiKey }) {
   const toggleMutation = useMutation(queries.keys.toggleStatus())
   const enabled = record.status !== 'disabled'
 
@@ -146,48 +216,14 @@ function KeyRow({ record }: { record: Models.ApiKey }) {
   }
 
   return (
-    <tr className="border-b border-border last:border-0">
-      <td className="max-w-0 px-4 py-2.5">
-        <Link
-          to="/keys/$keyId"
-          params={{ keyId: record.id }}
-          className="block truncate rounded-sm font-medium hover:underline"
-          title={record.name}
-        >
-          {record.name}
-        </Link>
-        <code className="block truncate font-mono text-xs text-muted-foreground">
-          {record.key_preview}
-        </code>
-      </td>
-      <td className="px-4 py-2.5">
-        <span className="block">{record.plan_label}</span>
-        {record.plan_note ? (
-          <span className="block text-xs text-muted-foreground">{record.plan_note}</span>
-        ) : null}
-      </td>
-      <td className="px-4 py-2.5">
-        <span className="flex items-center gap-2">
-          <Switch
-            checked={enabled}
-            disabled={toggleMutation.isPending}
-            onCheckedChange={(on) => void handleToggle(on)}
-            aria-label={`${record.name} enabled`}
-          />
-          <span className="text-xs text-muted-foreground">{STATUS_LABEL[record.status]}</span>
-        </span>
-      </td>
-      <td className="px-4 py-2.5">
-        {record.last_used_at ? (
-          <span title={formatDate(record.last_used_at)}>{formatTimeAgo(record.last_used_at)}</span>
-        ) : (
-          <span className="text-muted-foreground">Never</span>
-        )}
-      </td>
-      <td className="px-4 py-2.5 text-muted-foreground">{formatDate(record.created_at)}</td>
-      <td className="px-2 py-2.5 text-right">
-        <KeyActionsMenu record={record} showDetails />
-      </td>
-    </tr>
+    <span className="flex items-center gap-2">
+      <Switch
+        checked={enabled}
+        disabled={toggleMutation.isPending}
+        onCheckedChange={(on) => void handleToggle(on)}
+        aria-label={`${record.name} enabled`}
+      />
+      <span className="text-xs text-muted-foreground">{STATUS_LABEL[record.status]}</span>
+    </span>
   )
 }
