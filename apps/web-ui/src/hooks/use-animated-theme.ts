@@ -71,6 +71,9 @@ export function useAnimatedTheme() {
         )
       })
       .catch(() => {})
+    // A newer switch can skip this one; its promises then reject, which is expected.
+    transition.finished.catch(() => {})
+    transition.updateCallbackDone.catch(() => {})
   }
 
   return { theme: (theme ?? 'system') as ThemeChoice, changeTheme }

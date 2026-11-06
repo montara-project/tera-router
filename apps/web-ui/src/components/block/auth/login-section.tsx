@@ -34,16 +34,21 @@ const SUBMIT_LABELS = {
 /** TOTP codes change on 30-second boundaries (server: internal/lib/totp, period = 30). */
 const TOTP_PERIOD = 30
 
-/** Seconds until the authenticator shows its next code, ticking once a second. */
+const totpSecondsLeft = () => TOTP_PERIOD - (Math.floor(Date.now() / 1000) % TOTP_PERIOD)
+
+/**
+ * Seconds until the authenticator shows its next code. The clock is read on
+ * every render, so the value is current the moment the code step appears; the
+ * interval only re-renders once a second while it is active.
+ */
 function useTotpSecondsLeft(active: boolean) {
-  const left = () => TOTP_PERIOD - (Math.floor(Date.now() / 1000) % TOTP_PERIOD)
-  const [seconds, setSeconds] = useState(left)
+  const [, setTick] = useState(0)
   useEffect(() => {
     if (!active) return
-    const timer = window.setInterval(() => setSeconds(left()), 1000)
+    const timer = window.setInterval(() => setTick((n) => n + 1), 1000)
     return () => window.clearInterval(timer)
   }, [active])
-  return seconds
+  return totpSecondsLeft()
 }
 
 const canReadClipboard = () => typeof navigator !== 'undefined' && !!navigator.clipboard?.readText
@@ -222,7 +227,11 @@ export default function LoginSection({
                 <InputOTP
                   id="otp"
                   value={otp}
-                  onChange={setOtp}
+                  onChange={(value) => {
+                    setOtp(value)
+                    // Editing the code clears the last attempt's error and aria-invalid.
+                    setError(null)
+                  }}
                   maxLength={6}
                   pattern={REGEXP_ONLY_DIGITS}
                   aria-invalid={!!error}
