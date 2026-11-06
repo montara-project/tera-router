@@ -66,6 +66,8 @@ interface ReactTableProps<T extends RowData> {
   globalFilterFn?: FilterFnOption<typeof features, T>
   getRowId?: (row: T) => string
   emptyMessage?: React.ReactNode
+  /** Choices in the pager's "Rows per page" select. */
+  pageSizes?: number[]
   /** Show the pager footer; summary tables of a fixed top-N turn it off. */
   pagination?: boolean
   /** Extra classes on the <table>, e.g. a min width before it scrolls. */
@@ -84,6 +86,7 @@ export default function ReactTable<T extends RowData>({
   emptyMessage,
   onPageChange,
   onPageSizeChange,
+  pageSizes,
   pagination: showPagination = true,
   tableClassName,
 }: ReactTableProps<T>) {
@@ -160,6 +163,7 @@ export default function ReactTable<T extends RowData>({
             pageIndex={pagination.pageIndex}
             onPageChange={onPageChange}
             onPageSizeChange={onPageSizeChange}
+            {...(pageSizes ? { sizes: pageSizes } : {})}
           />
         )}
       </div>

@@ -1,16 +1,23 @@
+import type { ColumnDef } from '@tanstack/react-table'
+
 import { IconBolt, IconSearch } from '@tabler/icons-react'
+import { useQueryState } from 'nuqs'
 import { useMemo, useState } from 'react'
 
 import type { UsageTerminalRequestRow } from '@/lib/api/models/usage'
 
+import EmptyState from '@/components/block/common/empty-state'
+import ReactTable, { features } from '@/components/block/common/react-table'
 import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
 import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
 import { Input } from '@/components/ui/input'
+import { usePaginationQuery } from '@/hooks/use-pagination-query'
 import { formatMicrosUsd } from '@/lib/currency'
 import { formatDateTime } from '@/lib/date'
 import { formatCount, formatMs } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
+import { Figure, FIGURE } from './figure'
 import RequestDetailDialog from './request-detail-dialog'
 
 type Row = UsageTerminalRequestRow
@@ -44,14 +51,109 @@ const Chip = ({ label, tone }: { label: string; tone: string }) => (
   </span>
 )
 
-/** Right-aligned two-line cell: main figure over an optional muted detail. */
-function Figure({ value, detail }: { value: string; detail?: string }) {
-  return (
-    <td className="px-4 py-3 text-right align-top whitespace-nowrap tabular-nums">
-      <div className="text-[13px]">{value}</div>
-      {detail && <div className="text-muted-foreground text-[11.5px]">{detail}</div>}
-    </td>
-  )
+type ColumnType = ColumnDef<typeof features, Row, unknown>
+
+const PAGE_SIZES = [25, 50, 100]
+
+function requestColumns(onOpen: (row: Row) => void): ColumnType[] {
+  return [
+    {
+      accessorKey: 'time',
+      header: 'Time',
+      meta: { headerClassName: 'w-px', cellClassName: 'align-top' },
+      cell: ({ row: { original: row } }) => (
+        <button
+          type="button"
+          onClick={() => onOpen(row)}
+          title={formatDateTime(row.createdAt)}
+          aria-label={`Open request #${row.id} from ${row.time}`}
+          className="text-muted-foreground hover:text-foreground h-6 rounded-sm font-mono text-xs whitespace-nowrap underline-offset-2 hover:underline"
+        >
+          {row.time}
+        </button>
+      ),
+    },
+    {
+      accessorKey: 'status',
+      header: 'Status',
+      meta: { headerClassName: 'w-px', cellClassName: 'align-top' },
+      cell: ({ row: { original: row } }) => (
+        <div className="flex gap-1.5">
+          <Chip {...STATUS[row.status]} />
+          <Chip
+            label={USAGE[row.usage]}
+            tone="text-muted-foreground ring-border dark:bg-muted/40"
+          />
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'model',
+      header: 'Model',
+      meta: { headerClassName: 'w-[34%]', cellClassName: 'max-w-0' },
+      cell: ({ row: { original: row } }) => (
+        <div className="flex min-w-0 items-center gap-2.5">
+          <ProviderAvatar
+            slug={row.provider}
+            apiKind={row.api_kind}
+            size="xs"
+            className="size-5 rounded-[4px]"
+          />
+          <div className="min-w-0">
+            <p className="truncate font-mono text-[12.5px]" title={row.model}>
+              {row.model}
+            </p>
+            <p className="text-muted-foreground truncate text-[11.5px]">
+              {row.providerName || row.provider}
+              {row.keyName && ` · ${row.keyName}`}
+            </p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: 'tokens',
+      header: 'Tokens in → out',
+      meta: FIGURE,
+      cell: ({ row: { original: row } }) => {
+        const tokensIn = row.inputTokens + row.inputCacheRead + row.inputCacheWrite
+        return <Figure value={`${formatCount(tokensIn)} → ${formatCount(row.outputTokens)}`} />
+      },
+    },
+    {
+      accessorKey: 'costMicros',
+      header: 'Cost',
+      meta: FIGURE,
+      cell: ({ row: { original: row } }) => (
+        <Figure
+          value={
+            row.costMicros === null
+              ? row.costNote
+                ? '$0.00'
+                : '—'
+              : formatMicrosUsd(row.costMicros)
+          }
+          detail={row.costNote ?? (row.costMicros === null ? 'Unpriced' : undefined)}
+        />
+      ),
+    },
+    {
+      accessorKey: 'latencyMs',
+      header: 'Latency',
+      meta: FIGURE,
+      cell: ({ row: { original: row } }) => (
+        <Figure
+          value={row.latencyMs > 0 ? formatMs(row.latencyMs) : '—'}
+          // Only worth a line when upstream time was measured apart from the total.
+          detail={
+            row.upstreamMs > 0 && row.upstreamMs !== row.latencyMs
+              ? `upstream ${formatMs(row.upstreamMs)}`
+              : undefined
+          }
+        />
+      ),
+    },
+  ]
 }
 
 export default function UsageRecentRequests({ rows }: { rows: Row[] }) {
@@ -59,6 +161,10 @@ export default function UsageRecentRequests({ rows }: { rows: Row[] }) {
   const [failedOnly, setFailedOnly] = useState(false)
   const [selected, setSelected] = useState<Row | null>(null)
   const failedCount = rows.filter((r) => r.status === 'failed').length
+  // The list arrives whole, so filtering and paging run here.
+  const { offset, limit, pageIndex } = usePaginationQuery({ defaultLimit: PAGE_SIZES[0] })
+  const [, setPageParam] = useQueryState('page')
+  const columns = useMemo(() => requestColumns(setSelected), [])
 
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -73,8 +179,8 @@ export default function UsageRecentRequests({ rows }: { rows: Row[] }) {
   }, [rows, search, failedOnly])
 
   const filters = [
-    { label: 'All', count: rows.length, active: !failedOnly, onClick: () => setFailedOnly(false) },
-    { label: 'Failed', count: failedCount, active: failedOnly, onClick: () => setFailedOnly(true) },
+    { label: 'All', count: rows.length, active: !failedOnly, failed: false },
+    { label: 'Failed', count: failedCount, active: failedOnly, failed: true },
   ]
 
   return (
@@ -95,7 +201,10 @@ export default function UsageRecentRequests({ rows }: { rows: Row[] }) {
                 placeholder="Model, key, client or ID"
                 aria-label="Filter by model, key, client or ID"
                 className="h-8 pl-8 text-[13px]"
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => {
+                  setSearch(e.target.value)
+                  void setPageParam(null)
+                }}
               />
             </div>
             <div role="group" aria-label="Request status" className="flex gap-1">
@@ -104,7 +213,10 @@ export default function UsageRecentRequests({ rows }: { rows: Row[] }) {
                   key={f.label}
                   type="button"
                   aria-pressed={f.active}
-                  onClick={f.onClick}
+                  onClick={() => {
+                    setFailedOnly(f.failed)
+                    void setPageParam(null)
+                  }}
                   className={cn(
                     'inline-flex h-8 items-center gap-1.5 rounded-sm border px-2.5 text-xs font-medium transition-colors',
                     f.active
@@ -120,96 +232,27 @@ export default function UsageRecentRequests({ rows }: { rows: Row[] }) {
           </div>
         }
       >
-        {visible.length === 0 ? (
-          <p className="text-muted-foreground p-4 text-sm">
-            {rows.length === 0 ? 'No requests in this period.' : 'No requests match these filters.'}
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[58rem]">
-              <thead className="text-muted-foreground border-b border-border text-xs dark:bg-muted/40">
-                <tr>
-                  <th className="w-px px-4 py-2 text-left font-medium">Time</th>
-                  <th className="w-px px-4 py-2 text-left font-medium">Status</th>
-                  <th className="w-[34%] px-4 py-2 text-left font-medium">Model</th>
-                  <th className="px-4 py-2 text-right font-medium">Tokens in → out</th>
-                  <th className="px-4 py-2 text-right font-medium">Cost</th>
-                  <th className="px-4 py-2 text-right font-medium">Latency</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visible.map((row) => {
-                  const tokensIn = row.inputTokens + row.inputCacheRead + row.inputCacheWrite
-                  return (
-                    <tr key={row.id} className="border-b border-border last:border-0">
-                      <td className="px-4 py-3 align-top">
-                        <button
-                          type="button"
-                          onClick={() => setSelected(row)}
-                          title={formatDateTime(row.createdAt)}
-                          aria-label={`Open request #${row.id} from ${row.time}`}
-                          className="text-muted-foreground hover:text-foreground h-6 rounded-sm font-mono text-xs whitespace-nowrap underline-offset-2 hover:underline"
-                        >
-                          {row.time}
-                        </button>
-                      </td>
-                      <td className="px-4 py-3.5 align-top">
-                        <div className="flex gap-1.5">
-                          <Chip {...STATUS[row.status]} />
-                          <Chip
-                            label={USAGE[row.usage]}
-                            tone="text-muted-foreground ring-border dark:bg-muted/40"
-                          />
-                        </div>
-                      </td>
-                      <td className="max-w-0 px-4 py-2.5">
-                        <div className="flex min-w-0 items-center gap-2.5">
-                          <ProviderAvatar
-                            slug={row.provider}
-                            apiKind={row.api_kind}
-                            size="xs"
-                            className="size-5 rounded-[4px]"
-                          />
-                          <div className="min-w-0">
-                            <p className="truncate font-mono text-[12.5px]" title={row.model}>
-                              {row.model}
-                            </p>
-                            <p className="text-muted-foreground truncate text-[11.5px]">
-                              {row.providerName || row.provider}
-                              {row.keyName && ` · ${row.keyName}`}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <Figure
-                        value={`${formatCount(tokensIn)} → ${formatCount(row.outputTokens)}`}
-                      />
-                      <Figure
-                        value={
-                          row.costMicros === null
-                            ? row.costNote
-                              ? '$0.00'
-                              : '—'
-                            : formatMicrosUsd(row.costMicros)
-                        }
-                        detail={row.costNote ?? (row.costMicros === null ? 'Unpriced' : undefined)}
-                      />
-                      <Figure
-                        value={row.latencyMs > 0 ? formatMs(row.latencyMs) : '—'}
-                        // Only worth a line when upstream time was measured apart from the total.
-                        detail={
-                          row.upstreamMs > 0 && row.upstreamMs !== row.latencyMs
-                            ? `upstream ${formatMs(row.upstreamMs)}`
-                            : undefined
-                        }
-                      />
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <ReactTable
+          data={visible.slice(offset, offset + limit)}
+          total={visible.length}
+          pageIndex={pageIndex}
+          pageSize={limit}
+          pageSizes={PAGE_SIZES}
+          columns={columns}
+          tableClassName="min-w-[58rem]"
+          emptyMessage={
+            <EmptyState
+              icon={IconBolt}
+              title={rows.length === 0 ? 'No requests' : 'No requests match'}
+              description={
+                rows.length === 0
+                  ? 'No requests in this period.'
+                  : 'Try a different search or status filter.'
+              }
+              className="py-8"
+            />
+          }
+        />
       </DashboardPanel>
 
       {selected && <RequestDetailDialog open onClose={() => setSelected(null)} row={selected} />}

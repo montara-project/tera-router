@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { useQueryState } from 'nuqs'
 
 import type { UsageRange } from '@/lib/api/models/usage'
 
@@ -41,6 +42,10 @@ function Count({ value }: { value: number }) {
 
 export default function UsageSection({ range }: { range: UsageRange }) {
   const { data } = useQuery(usageQueries.telemetry(range))
+  // Each tab's table pages on its own; a page or size from another tab
+  // would not fit (the requests table starts at 25 rows).
+  const [, setPage] = useQueryState('page')
+  const [, setPageSize] = useQueryState('pageSize')
 
   if (!data) {
     return <UsageSkeleton />
@@ -50,7 +55,14 @@ export default function UsageSection({ range }: { range: UsageRange }) {
     <div className="flex flex-col gap-6">
       <UsageStatCards telemetry={data} />
 
-      <Tabs defaultValue="overview" className="gap-6">
+      <Tabs
+        defaultValue="overview"
+        className="gap-6"
+        onValueChange={() => {
+          void setPage(null)
+          void setPageSize(null)
+        }}
+      >
         <TabsList
           variant="line"
           size="md"

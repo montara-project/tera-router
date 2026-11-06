@@ -2,7 +2,10 @@ import { useQueryState } from 'nuqs'
 
 interface UsePaginationQueryProps {
   offset?: number
+  /** Forces the page size, ignoring ?pageSize. */
   limit?: number
+  /** Page size when ?pageSize is absent (default 10). */
+  defaultLimit?: number
 }
 
 const parseParam = (value: string | null, fallback: number) => {
@@ -12,12 +15,12 @@ const parseParam = (value: string | null, fallback: number) => {
   return Number.isFinite(n) && n >= 0 ? n : fallback
 }
 
-export function usePaginationQuery({ offset, limit }: UsePaginationQueryProps = {}) {
+export function usePaginationQuery({ offset, limit, defaultLimit }: UsePaginationQueryProps = {}) {
   const [queryPage] = useQueryState('page')
   const [queryPageSize] = useQueryState('pageSize')
 
   const pageIndex = parseParam(queryPage, offset ?? 0)
-  const pageSize = parseParam(queryPageSize, limit ?? 10)
+  const pageSize = parseParam(queryPageSize, limit ?? defaultLimit ?? 10)
 
   const calculatedOffset = pageIndex * pageSize
 

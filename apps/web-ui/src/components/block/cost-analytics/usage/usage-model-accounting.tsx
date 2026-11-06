@@ -1,3 +1,5 @@
+import type { ColumnDef } from '@tanstack/react-table'
+
 import {
   IconArrowDown,
   IconArrowsSort,
@@ -5,31 +7,41 @@ import {
   IconBrain,
   IconSearch,
 } from '@tabler/icons-react'
+import { useQueryState } from 'nuqs'
 import { useMemo, useState } from 'react'
 
 import type { UsageModelAccountingRow } from '@/lib/api/models/usage'
 
+import EmptyState from '@/components/block/common/empty-state'
+import ReactTable, { features } from '@/components/block/common/react-table'
 import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
 import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
-import { Input } from '@/components/ui/input'
+import { Input, InputWrapper } from '@/components/ui/input'
+import { usePaginationQuery } from '@/hooks/use-pagination-query'
 import { formatMicrosUsd } from '@/lib/currency'
 import { formatCompact, formatCount, formatMs } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
+import { Figure, FIGURE } from './figure'
+
 type Row = UsageModelAccountingRow
 type SortKey = 'model' | 'requests' | 'tokens' | 'cost' | 'latency' | 'pricing'
+type Sort = { key: SortKey; desc: boolean }
+type ColumnType = ColumnDef<typeof features, Row, unknown>
+
+const PAGE_SIZES = [10, 25, 50, 100]
 
 const tokens = (r: Row) => r.inputTokens + r.outputTokens
 
-const COLUMNS: { key: SortKey; label: string; value: (r: Row) => number | string }[] = [
-  { key: 'model', label: 'Model', value: (r) => r.model.toLowerCase() },
-  { key: 'requests', label: 'Requests', value: (r) => r.requests },
-  { key: 'tokens', label: 'Tokens', value: tokens },
+const SORT_VALUES: Record<SortKey, (r: Row) => number | string> = {
+  model: (r) => r.model.toLowerCase(),
+  requests: (r) => r.requests,
+  tokens,
   // Unpriced rows sort below every priced one.
-  { key: 'cost', label: 'Cost', value: (r) => r.costMicros ?? -1 },
-  { key: 'latency', label: 'Latency', value: (r) => r.latencyMs },
-  { key: 'pricing', label: 'Pricing', value: (r) => r.coverage },
-]
+  cost: (r) => r.costMicros ?? -1,
+  latency: (r) => r.latencyMs,
+  pricing: (r) => r.coverage,
+}
 
 /** Pricing badge: nothing billable, a missing price, or the rates in use. */
 function pricingBadge(r: Row): { label: string; tone: string; title?: string } {
@@ -39,23 +51,146 @@ function pricingBadge(r: Row): { label: string; tone: string; title?: string } {
   return { label: 'Priced', tone: 'text-foreground/80', title: r.pricingRates ?? undefined }
 }
 
-/** Right-aligned two-line cell: main figure over a muted detail. */
-function Figure({ value, detail }: { value: string; detail: string }) {
+/** Header button that sorts by its column; numbers start descending. */
+function SortHeader({
+  label,
+  column,
+  sort,
+  onSort,
+}: {
+  label: string
+  column: SortKey
+  sort: Sort
+  onSort: (key: SortKey) => void
+}) {
+  const active = sort.key === column
+  const Arrow = !active ? IconArrowsSort : sort.desc ? IconArrowDown : IconArrowUp
   return (
-    <td className="px-4 py-3 text-right align-top whitespace-nowrap tabular-nums">
-      <div className="text-[13px]">{value}</div>
-      <div className="text-muted-foreground text-[11.5px]">{detail}</div>
-    </td>
+    <button
+      type="button"
+      onClick={() => onSort(column)}
+      aria-label={`Sort by ${label}${active ? (sort.desc ? ', descending' : ', ascending') : ''}`}
+      className={cn(
+        'inline-flex h-6 items-center gap-1 rounded-sm hover:text-foreground',
+        column !== 'model' && 'flex-row-reverse',
+        active && 'text-foreground'
+      )}
+    >
+      {label}
+      <Arrow className="size-3" aria-hidden />
+    </button>
   )
+}
+
+function modelColumns(sort: Sort, onSort: (key: SortKey) => void): ColumnType[] {
+  const header = (label: string, column: SortKey) => () => (
+    <SortHeader label={label} column={column} sort={sort} onSort={onSort} />
+  )
+  return [
+    {
+      accessorKey: 'model',
+      header: header('Model', 'model'),
+      meta: { headerClassName: 'w-[34%]', cellClassName: 'max-w-0' },
+      cell: ({ row: { original: row } }) => (
+        <div className="flex min-w-0 items-center gap-2.5">
+          <ProviderAvatar
+            slug={row.provider}
+            apiKind={row.api_kind}
+            size="xs"
+            className="size-[22px] rounded-[4px]"
+          />
+          <div className="min-w-0">
+            <p className="truncate font-mono text-[12.5px]" title={row.model}>
+              {row.model}
+            </p>
+            <p className="text-muted-foreground truncate text-[11.5px]" title={row.provider}>
+              {row.provider}
+            </p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'requests',
+      header: header('Requests', 'requests'),
+      meta: FIGURE,
+      cell: ({ row: { original: row } }) => (
+        <Figure value={formatCount(row.requests)} detail={`${row.successPct.toFixed(1)}% ok`} />
+      ),
+    },
+    {
+      id: 'tokens',
+      header: header('Tokens', 'tokens'),
+      meta: FIGURE,
+      cell: ({ row: { original: row } }) => (
+        <Figure
+          value={formatCompact(tokens(row))}
+          detail={`${formatCompact(row.inputTokens)} in · ${formatCompact(row.outputTokens)} out`}
+        />
+      ),
+    },
+    {
+      accessorKey: 'costMicros',
+      header: header('Cost', 'cost'),
+      meta: FIGURE,
+      cell: ({ row: { original: row } }) => (
+        <Figure
+          value={row.costMicros === null ? '—' : formatMicrosUsd(row.costMicros)}
+          detail={`${formatMicrosUsd(row.savedMicros)} saved`}
+        />
+      ),
+    },
+    {
+      accessorKey: 'latencyMs',
+      header: header('Latency', 'latency'),
+      meta: FIGURE,
+      cell: ({ row: { original: row } }) => (
+        <Figure
+          value={row.latencyMs > 0 ? formatMs(row.latencyMs) : '—'}
+          detail={`TTFT ${row.ttftMs > 0 ? formatMs(row.ttftMs) : '—'}`}
+        />
+      ),
+    },
+    {
+      accessorKey: 'coverage',
+      header: header('Pricing', 'pricing'),
+      meta: {
+        headerClassName: 'text-right',
+        cellClassName: 'text-right align-top whitespace-nowrap',
+      },
+      cell: ({ row: { original: row } }) => {
+        const badge = pricingBadge(row)
+        return (
+          <>
+            <span
+              className={cn(
+                'inline-flex h-5 items-center rounded-sm border border-border px-1.5 text-[11.5px] font-medium dark:bg-muted/40',
+                badge.tone
+              )}
+              title={badge.title}
+            >
+              {badge.label}
+            </span>
+            <div className="text-muted-foreground mt-1 text-[11.5px] tabular-nums">
+              {tokens(row) === 0 ? '—' : `${row.coverage.toFixed(0)}%`} covered
+            </div>
+          </>
+        )
+      },
+    },
+  ]
 }
 
 export default function UsageModelAccounting({ rows }: { rows: Row[] }) {
   const [search, setSearch] = useState('')
-  const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({ key: 'cost', desc: true })
+  const [sort, setSort] = useState<Sort>({ key: 'cost', desc: true })
+  // The list arrives whole, so filtering, sorting and paging run here.
+  const { offset, limit, pageIndex } = usePaginationQuery({ defaultLimit: PAGE_SIZES[0] })
+  const [, setPageParam] = useQueryState('page')
 
   const visible = useMemo(() => {
     const query = search.trim().toLowerCase()
-    const value = COLUMNS.find((c) => c.key === sort.key)!.value
+    const value = SORT_VALUES[sort.key]
     return rows
       .filter(
         (r) =>
@@ -70,133 +205,56 @@ export default function UsageModelAccounting({ rows }: { rows: Row[] }) {
       })
   }, [rows, search, sort])
 
-  const toggle = (key: SortKey) =>
-    setSort((s) => (s.key === key ? { key, desc: !s.desc } : { key, desc: key !== 'model' }))
+  const columns = useMemo(
+    () =>
+      modelColumns(sort, (key) => {
+        setSort((s) => (s.key === key ? { key, desc: !s.desc } : { key, desc: key !== 'model' }))
+        void setPageParam(null)
+      }),
+    [sort, setPageParam]
+  )
 
   return (
     <DashboardPanel
       title="Model accounting"
       icon={IconBrain}
       toolbar={
-        <div className="relative w-full sm:w-64">
-          <IconSearch
-            className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
-            stroke={1.75}
-            aria-hidden
-          />
+        <InputWrapper className="w-full sm:w-64">
+          <IconSearch aria-hidden />
           <Input
+            type="search"
             value={search}
             placeholder="Filter provider or model"
             aria-label="Filter provider or model"
-            className="h-8 pl-8 text-[13px]"
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value)
+              void setPageParam(null)
+            }}
           />
-        </div>
+        </InputWrapper>
       }
     >
-      {visible.length === 0 ? (
-        <p className="text-muted-foreground p-4 text-sm">
-          {rows.length === 0
-            ? 'No model traffic in this period.'
-            : `No models match "${search.trim()}".`}
-        </p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[56rem]">
-            <thead className="text-muted-foreground border-b border-border text-xs dark:bg-muted/40">
-              <tr>
-                {COLUMNS.map((c) => {
-                  const active = sort.key === c.key
-                  const Arrow = !active ? IconArrowsSort : sort.desc ? IconArrowDown : IconArrowUp
-                  return (
-                    <th
-                      key={c.key}
-                      aria-sort={active ? (sort.desc ? 'descending' : 'ascending') : undefined}
-                      className={cn(
-                        'px-4 py-2 font-medium',
-                        c.key === 'model' ? 'w-[34%] text-left' : 'text-right'
-                      )}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => toggle(c.key)}
-                        className={cn(
-                          'inline-flex h-6 items-center gap-1 rounded-sm hover:text-foreground',
-                          c.key !== 'model' && 'flex-row-reverse',
-                          active && 'text-foreground'
-                        )}
-                      >
-                        {c.label}
-                        <Arrow className="size-3" aria-hidden />
-                      </button>
-                    </th>
-                  )
-                })}
-              </tr>
-            </thead>
-            <tbody>
-              {visible.map((row) => {
-                const badge = pricingBadge(row)
-                return (
-                  <tr key={row.id} className="border-b border-border last:border-0">
-                    <td className="max-w-0 px-4 py-3">
-                      <div className="flex min-w-0 items-center gap-2.5">
-                        <ProviderAvatar
-                          slug={row.provider}
-                          apiKind={row.api_kind}
-                          size="xs"
-                          className="size-[22px] rounded-[4px]"
-                        />
-                        <div className="min-w-0">
-                          <p className="truncate font-mono text-[12.5px]" title={row.model}>
-                            {row.model}
-                          </p>
-                          <p
-                            className="text-muted-foreground truncate text-[11.5px]"
-                            title={row.provider}
-                          >
-                            {row.provider}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <Figure
-                      value={formatCount(row.requests)}
-                      detail={`${row.successPct.toFixed(1)}% ok`}
-                    />
-                    <Figure
-                      value={formatCompact(tokens(row))}
-                      detail={`${formatCompact(row.inputTokens)} in · ${formatCompact(row.outputTokens)} out`}
-                    />
-                    <Figure
-                      value={row.costMicros === null ? '—' : formatMicrosUsd(row.costMicros)}
-                      detail={`${formatMicrosUsd(row.savedMicros)} saved`}
-                    />
-                    <Figure
-                      value={row.latencyMs > 0 ? formatMs(row.latencyMs) : '—'}
-                      detail={`TTFT ${row.ttftMs > 0 ? formatMs(row.ttftMs) : '—'}`}
-                    />
-                    <td className="px-4 py-2.5 text-right align-top whitespace-nowrap">
-                      <span
-                        className={cn(
-                          'inline-flex h-5 items-center rounded-sm border border-border px-1.5 text-[11.5px] font-medium dark:bg-muted/40',
-                          badge.tone
-                        )}
-                        title={badge.title}
-                      >
-                        {badge.label}
-                      </span>
-                      <div className="text-muted-foreground mt-1 text-[11.5px] tabular-nums">
-                        {tokens(row) === 0 ? '—' : `${row.coverage.toFixed(0)}%`} covered
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <ReactTable
+        data={visible.slice(offset, offset + limit)}
+        total={visible.length}
+        pageIndex={pageIndex}
+        pageSize={limit}
+        pageSizes={PAGE_SIZES}
+        columns={columns}
+        tableClassName="min-w-[56rem]"
+        emptyMessage={
+          <EmptyState
+            icon={IconBrain}
+            title={rows.length === 0 ? 'No model traffic' : 'No models match'}
+            description={
+              rows.length === 0
+                ? 'No model served requests in this period.'
+                : `Nothing matches "${search.trim()}".`
+            }
+            className="py-8"
+          />
+        }
+      />
     </DashboardPanel>
   )
 }

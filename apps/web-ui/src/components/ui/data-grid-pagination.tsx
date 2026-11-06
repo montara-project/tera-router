@@ -184,6 +184,8 @@ function DataGridPagination({
                 const result = Number(value)
                 onPageSizeChange?.(result)
                 setQueryPageSize(result.toString())
+                // The current page may not exist at the new size.
+                setQueryPage(null)
               }}
             >
               <SelectTrigger className="w-fit" size="sm">
