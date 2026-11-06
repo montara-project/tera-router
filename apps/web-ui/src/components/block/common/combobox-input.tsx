@@ -178,6 +178,8 @@ export default function ComboboxInput<TData>({
                   <CommandItem
                     key={item.value}
                     value={item.value}
+                    // Search matches the label too, so an id-valued option (an API key) is found by name.
+                    keywords={[item.label]}
                     onSelect={() => toggleSelection(item.value)}
                     onBlur={onBlur}
                   >
