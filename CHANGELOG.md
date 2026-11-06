@@ -3,6 +3,30 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [1.19.0](https://github.com/montara-project/tera-router/compare/v1.18.0...v1.19.0) (2026-11-06)
+
+### Features
+
+* **auth:** build the sign-in and TOTP pages from the Pencil design ([83d8f07](https://github.com/montara-project/tera-router/commit/83d8f07f6a674c96c3654098ee716c29e4967c3c))
+* **dashboard:** order provider health by usage and size it to five rows ([acf4154](https://github.com/montara-project/tera-router/commit/acf4154ea3fac6bd1d3f82d097234275c46c34af))
+* **provider-health:** report tokens per provider, model and chain ([af4159a](https://github.com/montara-project/tera-router/commit/af4159a3013fbcd3d46a058c009b911befab7509))
+* **web-ui:** theme choice and settings in the profile menu ([8ea6266](https://github.com/montara-project/tera-router/commit/8ea62664d3a8a98ade382b335c9fdb7419e7a731))
+
+### Bug Fixes
+
+* **auth:** show why a sign-in failed instead of reloading the page ([e90ca1f](https://github.com/montara-project/tera-router/commit/e90ca1ff494af9e544107d87b4eb84bc955f9c89))
+* **server:** keep the restore upload unread until the caller signs in ([56b4ea0](https://github.com/montara-project/tera-router/commit/56b4ea0f56c7303f3b029569b0ccdfa1301a816e))
+* **server:** restore databases larger than the request body limit ([9366d08](https://github.com/montara-project/tera-router/commit/9366d08a440f10f1ed41b7768df5dea6347e39a5))
+* **web-ui:** review fixes for console rows, TOTP step and theme switch ([c909f03](https://github.com/montara-project/tera-router/commit/c909f034af1f16a14791ab5ba36da572f092acd1))
+* **web-ui:** scroll pages below the top bar, not the whole window ([b85a1e5](https://github.com/montara-project/tera-router/commit/b85a1e59c177bcd899a8b9b2a07a71c3e7eebe6c)), references [#app-main](https://github.com/montara-project/tera-router/issues/app-main) [#app-main](https://github.com/montara-project/tera-router/issues/app-main)
+* **web-ui:** show the logo on the sidebar's light tile on login and portal ([b2f3989](https://github.com/montara-project/tera-router/commit/b2f3989f673dc79cb512653356467162fb8574c8))
+
+### Performance Improvements
+
+* **console:** poll only new lines instead of the whole feed ([1e4bc2c](https://github.com/montara-project/tera-router/commit/1e4bc2c6785526775bf5f573200171764501c5b0))
+* **server:** bucket usage by day and hour with a prefix, not strftime ([01498ab](https://github.com/montara-project/tera-router/commit/01498ab559851675285d8e127580d488e9dd9968))
+* **server:** run the usage telemetry reads side by side ([1797458](https://github.com/montara-project/tera-router/commit/179745871db0ea928f2a5507ac998dd015ef30d5))
+
 ## [1.18.0](https://github.com/montara-project/tera-router/compare/v1.17.0...v1.18.0) (2026-11-06)
 
 ### Features
