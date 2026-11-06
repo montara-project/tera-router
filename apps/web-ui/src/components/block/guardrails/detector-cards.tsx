@@ -144,7 +144,7 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 }
 
 function FieldHint({ children }: { children: React.ReactNode }) {
-  return <p className="text-muted-foreground text-xs leading-relaxed">{children}</p>
+  return <p className="text-xs leading-relaxed text-foreground/75">{children}</p>
 }
 
 function SelectField({
@@ -216,10 +216,10 @@ function ChipGroup({
             aria-pressed={active}
             onClick={() => onToggle(option)}
             className={cn(
-              'h-7 cursor-pointer rounded-md border px-2 font-mono text-[11.5px] transition-colors',
+              'h-7 cursor-pointer rounded-md border px-2 font-mono text-[11.5px] transition-colors focus-visible:ring-ring/40 focus-visible:ring-2 focus-visible:outline-hidden',
               active
                 ? 'border-primary/50 bg-primary/10 text-foreground'
-                : 'border-border text-muted-foreground hover:border-foreground/25 hover:text-foreground'
+                : 'border-input text-foreground/80 hover:border-foreground/25 hover:text-foreground'
             )}
           >
             {option}
@@ -513,7 +513,7 @@ export function DetectorCards({ config, onPatch }: DetectorCardsProps) {
                 aria-expanded={expanded}
                 aria-controls={panelId}
                 onClick={() => toggleRow(detector.key)}
-                className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 py-2.5 pl-3 text-left"
+                className="focus-visible:ring-ring/40 flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 rounded-sm py-2.5 pl-3 text-left focus-visible:ring-2 focus-visible:outline-hidden"
               >
                 <IconChevronRight
                   className={cn(
@@ -534,7 +534,7 @@ export function DetectorCards({ config, onPatch }: DetectorCardsProps) {
                     </Badge>
                   ) : null}
                   <span
-                    className="text-muted-foreground min-w-0 truncate text-xs"
+                    className="min-w-0 truncate text-xs text-foreground/75"
                     title={enabled ? detector.summary(config) : detector.hint}
                   >
                     {enabled ? detector.summary(config) : detector.hint}

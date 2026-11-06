@@ -70,7 +70,7 @@ export default function SimpleAlertScrollableDialogForm({
         <form className="flex min-h-0 flex-1 flex-col" onSubmit={onSubmit}>
           <div className="flex items-start justify-between gap-3 px-6 pt-6 pb-4">
             <AlertDialogHeader className="min-w-0 flex-1">
-              <AlertDialogTitle className="flex items-center gap-2">
+              <AlertDialogTitle className="flex items-center gap-2 text-[15px] font-semibold tracking-[-0.01em]">
                 {Icon ? (
                   <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                 ) : null}
