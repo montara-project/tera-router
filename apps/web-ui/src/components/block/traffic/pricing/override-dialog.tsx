@@ -1,24 +1,18 @@
+import { IconChevronDown } from '@tabler/icons-react'
 import { useSelector } from '@tanstack/react-form'
 import { useMutation, useQuery } from '@tanstack/react-query'
+import { useId, useState } from 'react'
 import { toast } from 'sonner'
 import z from 'zod'
 
 import type { Models } from '@/lib/api/models'
 import type { Option } from '@/types/select'
 
-import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import SimpleAlertScrollableDialogForm from '@/components/block/common/simple-alert-scrollable-dialog-form'
 import { useAppForm } from '@/hooks/form'
 import { toastAxiosError } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
+import { cn } from '@/lib/utils'
 
 /** USD per million tokens; the wire format is micros of that. */
 const MICROS_PER_DOLLAR = 1_000_000
@@ -68,6 +62,16 @@ export default function OverrideDialog({
   override = null,
   providers,
 }: OverrideDialogProps) {
+  const id = useId()
+  // Open from the start when the override being edited already sets an advanced rate.
+  const [advanced, setAdvanced] = useState(
+    () =>
+      !!override &&
+      (override.cache_read_micros > 0 ||
+        override.cache_write_micros > 0 ||
+        override.reasoning_micros > 0 ||
+        override.token_consumption_rate != null)
+  )
   const upsertMutation = useMutation(queries.overrides.pricingUpsert())
 
   const form = useAppForm({
@@ -80,9 +84,8 @@ export default function OverrideDialog({
       cache_read_micros: override ? microsToUsd(override.cache_read_micros) : '',
       cache_write_micros: override ? microsToUsd(override.cache_write_micros) : '',
       reasoning_micros: override ? microsToUsd(override.reasoning_micros) : '',
-      token_consumption_rate: override?.token_consumption_rate
-        ? String(override.token_consumption_rate)
-        : '',
+      token_consumption_rate:
+        override?.token_consumption_rate != null ? String(override.token_consumption_rate) : '',
     },
     validators: {
       onSubmit: OverrideDialogSchema,
@@ -149,151 +152,167 @@ export default function OverrideDialog({
   const scope = useSelector(form.store, (s) => s.values.scope)
 
   return (
-    <Dialog
+    <SimpleAlertScrollableDialogForm
+      onSubmit={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        void form.handleSubmit()
+      }}
       open={open}
       onOpenChange={(next) => {
         if (!next) onClose()
       }}
+      title={override ? 'Edit pricing override' : 'Add pricing override'}
+      description="Rates in USD per million tokens. An override beats the built-in catalog and applies on the next request."
+      confirmText={override ? 'Save changes' : 'Add override'}
+      loading={saving}
+      size="md"
     >
-      <DialogContent className="max-w-xl">
-        <DialogHeader>
-          <DialogTitle>{override ? 'Edit pricing override' : 'Add pricing override'}</DialogTitle>
-          <DialogDescription>
-            Per-model rates in USD per million tokens. An override beats the built-in catalog and
-            takes effect on the next request — no restart.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form.AppForm>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              form.handleSubmit()
+      <form.AppField
+        name="provider"
+        children={(field) => (
+          <field.ComboboxField
+            label="Provider"
+            placeholder="Select a provider..."
+            options={providerOptions}
+            defaultValues={override ? [override.provider] : []}
+            disabled={!!override}
+            asterisk
+            onSelect={() => {
+              // Model ids are provider-specific; start clean on switch.
+              form.setFieldValue('model', '')
             }}
-          >
-            <DialogBody className="space-y-4">
-              <form.AppField name="provider">
-                {(field) => (
-                  <field.ComboboxField
-                    label="Provider"
-                    placeholder="Select a provider..."
-                    options={providerOptions}
-                    defaultValues={override ? [override.provider] : []}
-                    disabled={!!override}
-                    asterisk
-                    onSelect={() => {
-                      // Model ids are provider-specific; start clean on switch.
-                      form.setFieldValue('model', '')
-                    }}
+          />
+        )}
+      />
+
+      <div className="space-y-1.5">
+        <form.AppField
+          name="scope"
+          children={(field) => (
+            <field.SelectField
+              label="Scope"
+              className="w-full"
+              options={[
+                { value: 'all', label: 'All models on this provider' },
+                { value: 'model', label: 'A specific model' },
+              ]}
+              disabled={!!override && override.model !== ''}
+              onSelect={() => {
+                // Model text survives scope flips so an accidental
+                // toggle does not wipe the typed id.
+                if (field.state.value === 'all') form.setFieldValue('model', '')
+              }}
+            />
+          )}
+        />
+        {scope === 'all' ? (
+          <p className="text-xs text-muted-foreground">
+            Blanket rate for every model on this provider without a more specific override.
+          </p>
+        ) : null}
+      </div>
+
+      {scope === 'model' ? (
+        <form.AppField
+          name="model"
+          children={(field) => (
+            <field.ComboboxField
+              label="Model"
+              placeholder={
+                selectedProviderModel ? 'Select a model...' : 'Select a provider first...'
+              }
+              options={modelOptions}
+              defaultValues={override?.model ? [override.model] : []}
+              disabled={!selectedProviderModel}
+              asterisk
+            />
+          )}
+        />
+      ) : null}
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <form.AppField
+          name="input_micros"
+          children={(field) => (
+            <field.TextField
+              label="Input $/M"
+              placeholder="0 = free"
+              inputMode="decimal"
+              asterisk
+            />
+          )}
+        />
+        <form.AppField
+          name="output_micros"
+          children={(field) => (
+            <field.TextField
+              label="Output $/M"
+              placeholder="0 = free"
+              inputMode="decimal"
+              asterisk
+            />
+          )}
+        />
+      </div>
+
+      <div className="overflow-hidden rounded-md border border-border">
+        <button
+          type="button"
+          aria-expanded={advanced}
+          aria-controls={`${id}-advanced`}
+          onClick={() => setAdvanced((v) => !v)}
+          className="flex h-10 w-full items-center justify-between gap-2 px-3 text-[13px] font-medium hover:bg-muted/40"
+        >
+          Advanced · cache and reasoning rates
+          <IconChevronDown
+            className={cn('size-4 text-muted-foreground', advanced && 'rotate-180')}
+            aria-hidden
+          />
+        </button>
+        {advanced ? (
+          <div id={`${id}-advanced`} className="space-y-4 border-t border-border p-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <form.AppField
+                name="cache_read_micros"
+                children={(field) => (
+                  <field.TextField label="Cache read $/M" placeholder="0" inputMode="decimal" />
+                )}
+              />
+              <form.AppField
+                name="cache_write_micros"
+                children={(field) => (
+                  <field.TextField label="Cache write $/M" placeholder="0" inputMode="decimal" />
+                )}
+              />
+              <form.AppField
+                name="reasoning_micros"
+                children={(field) => (
+                  <field.TextField
+                    label="Reasoning $/M"
+                    placeholder="0 = bill at output rate"
+                    inputMode="decimal"
                   />
                 )}
-              </form.AppField>
-
-              <form.AppField name="scope">
-                {(field) => (
-                  <field.SelectField
-                    label="Scope"
-                    options={[
-                      { value: 'all', label: 'All models on this provider' },
-                      { value: 'model', label: 'A specific model' },
-                    ]}
-                    disabled={!!override && override.model !== ''}
-                    onSelect={() => {
-                      // Model text survives scope flips so an accidental
-                      // toggle does not wipe the typed id.
-                      if (field.state.value === 'all') form.setFieldValue('model', '')
-                    }}
+              />
+              <form.AppField
+                name="token_consumption_rate"
+                children={(field) => (
+                  <field.TextField
+                    label="Token consumption rate"
+                    placeholder="1 = 1:1 budget drain"
+                    inputMode="decimal"
                   />
                 )}
-              </form.AppField>
-
-              {scope === 'model' ? (
-                <form.AppField name="model">
-                  {(field) => (
-                    <field.ComboboxField
-                      label="Model"
-                      placeholder={
-                        selectedProviderModel ? 'Select a model...' : 'Select a provider first...'
-                      }
-                      options={modelOptions}
-                      defaultValues={override?.model ? [override.model] : []}
-                      disabled={!selectedProviderModel}
-                      asterisk
-                    />
-                  )}
-                </form.AppField>
-              ) : (
-                <p className="text-xs text-muted-foreground">
-                  Blanket rate for every model on this provider without a more specific override.
-                </p>
-              )}
-
-              <div className="grid grid-cols-2 gap-3">
-                <form.AppField name="input_micros">
-                  {(field) => (
-                    <field.TextField label="Input $/M" placeholder="0 = free" inputMode="decimal" />
-                  )}
-                </form.AppField>
-                <form.AppField name="output_micros">
-                  {(field) => (
-                    <field.TextField
-                      label="Output $/M"
-                      placeholder="0 = free"
-                      inputMode="decimal"
-                    />
-                  )}
-                </form.AppField>
-              </div>
-
-              <details className="rounded-lg border border-border px-3 py-2">
-                <summary className="cursor-pointer text-xs font-semibold text-muted-foreground">
-                  Advanced rates (cache and reasoning)
-                </summary>
-                <div className="mt-3 grid grid-cols-2 gap-3">
-                  <form.AppField name="cache_read_micros">
-                    {(field) => <field.TextField label="Cache read $/M" inputMode="decimal" />}
-                  </form.AppField>
-                  <form.AppField name="cache_write_micros">
-                    {(field) => <field.TextField label="Cache write $/M" inputMode="decimal" />}
-                  </form.AppField>
-                  <form.AppField name="reasoning_micros">
-                    {(field) => (
-                      <field.TextField
-                        label="Reasoning $/M"
-                        placeholder="0 = bill at output rate"
-                        inputMode="decimal"
-                      />
-                    )}
-                  </form.AppField>
-                  <form.AppField name="token_consumption_rate">
-                    {(field) => (
-                      <field.TextField
-                        label="Token consumption rate"
-                        placeholder="1 = 1:1 budget drain"
-                        inputMode="decimal"
-                      />
-                    )}
-                  </form.AppField>
-                </div>
-                <p className="mt-3 text-xs text-muted-foreground">
-                  Token consumption rate scales budget drain only — cost accounting always uses real
-                  tokens. A rate of 0 makes the model drain no token budget.
-                </p>
-              </details>
-            </DialogBody>
-
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={onClose}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={saving}>
-                {override ? 'Save changes' : 'Add override'}
-              </Button>
-            </DialogFooter>
-          </form>
-        </form.AppForm>
-      </DialogContent>
-    </Dialog>
+              />
+            </div>
+            <p className="-mt-2 text-xs text-muted-foreground">
+              Empty rates count as 0. Token consumption rate scales budget drain only; cost
+              accounting always uses real tokens, and 0 drains no token budget.
+            </p>
+          </div>
+        ) : null}
+      </div>
+    </SimpleAlertScrollableDialogForm>
   )
 }
