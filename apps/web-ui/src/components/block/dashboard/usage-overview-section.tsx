@@ -21,9 +21,10 @@ function OverviewSkeleton() {
   return (
     <div className="flex flex-col gap-6">
       <Skeleton className="h-25 rounded-lg" />
+      {/* Traffic chart and provider health: the health card is sized to five providers. */}
       <div className={ROW}>
-        <Skeleton className="h-92 rounded-lg" />
-        <Skeleton className="h-92 rounded-lg" />
+        <Skeleton className="h-117 rounded-lg" />
+        <Skeleton className="h-117 rounded-lg" />
       </div>
       <Skeleton className="h-84 rounded-lg" />
     </div>
