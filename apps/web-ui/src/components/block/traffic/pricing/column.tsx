@@ -103,16 +103,17 @@ export function PricingColumn({ loading, onEdit }: PricingColumnProps) {
         size: 80,
       },
       {
-        accessorKey: 'actions',
-        header: 'Actions',
+        // Same as the /chains table: a narrow last column, the menu flush right.
+        id: 'actions',
+        header: () => <span className="sr-only">Actions</span>,
+        meta: { headerClassName: 'w-12', cellClassName: 'text-right' },
         cell: ({ row }) => {
           return loading ? (
-            <Skeleton className="h-5 w-full" />
+            <Skeleton className="ms-auto h-5 w-8" />
           ) : (
             <ActionCell record={row.original} onEdit={onEdit} />
           )
         },
-        size: 50,
       },
     ]
   }, [loading, onEdit])
