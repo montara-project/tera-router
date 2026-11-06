@@ -267,6 +267,10 @@ export default function ConsoleFeed({ entries, live, onLiveChange, onClear }: Co
       ? 'grid-cols-[1.5rem_7rem_3.5rem_minmax(0,1fr)_auto]'
       : 'grid-cols-[1.5rem_7rem_3.25rem_minmax(0,1fr)_auto]'
 
+  // Rows take id-based callbacks, so their props stay stable between polls and
+  // the compiler-memoized rows that did not change skip re-rendering.
+  const toggleRow = (id: number) => setExpanded((cur) => toggle(cur, id))
+
   /** Jump from a line to the full request view of the same entry. */
   const openRequest = (id: number) => {
     setView('requests')
@@ -488,8 +492,8 @@ export default function ConsoleFeed({ entries, live, onLiveChange, onClear }: Co
               lines={view === 'all'}
               columns={columns}
               open={expanded.includes(e.id)}
-              onToggle={() => setExpanded((cur) => toggle(cur, e.id))}
-              onOpenRequest={() => openRequest(e.id)}
+              onToggle={toggleRow}
+              onOpenRequest={openRequest}
             />
           ))}
         </ul>
@@ -528,8 +532,8 @@ function ConsoleRow({
   lines: boolean
   columns: string
   open: boolean
-  onToggle: () => void
-  onOpenRequest: () => void
+  onToggle: (id: number) => void
+  onOpenRequest: (id: number) => void
 }) {
   const r = e.request
   const expandable = Boolean(r || e.detail)
@@ -539,7 +543,7 @@ function ConsoleRow({
     <li id={`console-row-${e.id}`} className="border-b border-border/60 last:border-0">
       <button
         type="button"
-        onClick={onToggle}
+        onClick={() => onToggle(e.id)}
         disabled={!expandable}
         aria-expanded={expandable ? open : undefined}
         className={cn(
@@ -592,7 +596,9 @@ function ConsoleRow({
       </button>
 
       {open && r && !lines && <RequestDetail id={e.id} request={r} />}
-      {open && r && lines && <LineDetail entry={e} request={r} onOpenRequest={onOpenRequest} />}
+      {open && r && lines && (
+        <LineDetail entry={e} request={r} onOpenRequest={() => onOpenRequest(e.id)} />
+      )}
       {open && !r && e.detail && (
         <pre className="text-muted-foreground mx-3 mb-2 ml-12 overflow-x-auto rounded-md border border-border p-3 font-mono text-xs whitespace-pre-wrap">
           {e.detail}

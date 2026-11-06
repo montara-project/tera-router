@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"strconv"
 	"tera-router/server/internal/consolelog"
 	"time"
 
@@ -18,7 +19,11 @@ type consoleHandler struct {
 
 // Index returns the console ring buffer, newest last.
 func (h *consoleHandler) Index(c fiber.Ctx) error {
-	return dtos.List(c, consolelog.List(), dtos.Metadata{})
+	// ?after=<id> returns only newer entries, so a live view polling every
+	// couple of seconds fetches what changed instead of all 1,000 lines.
+	after, _ := strconv.ParseInt(c.Query("after", "0"), 10, 64)
+	entries, first := consolelog.ListAfter(after)
+	return dtos.List(c, entries, dtos.Metadata{"first": first, "session": consolelog.Session})
 }
 
 // Clear empties the console feed.

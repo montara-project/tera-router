@@ -228,7 +228,7 @@ Menyalakan dan mematikan tercatat di audit log. Lihat [Akses jarak jauh](/id-ID/
 | GET          | `/v1/audit/stats`         | Total, kategori aksi, tulisan dan tulisan gagal sejak server start                                                                                           |
 | POST         | `/v1/audit/verify`        | Telusuri hash chain dan laporkan baris pertama yang tidak cocok                                                                                              |
 | GET          | `/v1/audit/export`        | Seluruh jejak sebagai JSON Lines (`application/x-ndjson`)                                                                                                    |
-| GET / DELETE | `/v1/console`             | Log ring buffer (500 entri) / bersihkan                                                                                                                      |
+| GET / DELETE | `/v1/console`             | Log ring buffer (1.000 entri; `?after=<id>` hanya mengembalikan baris yang lebih baru, dengan `metadata.first` dan `metadata.session`) / bersihkan           |
 | GET          | `/v1/system/stats`        | Metrik host & proses                                                                                                                                         |
 | GET          | `/v1/system/status`       | Kartu status gateway: status, versi, uptime proses, alamat listen, database                                                                                  |
 | GET          | `/v1/media`               | Provider katalog per kemampuan non-chat                                                                                                                      |
