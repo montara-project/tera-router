@@ -1,4 +1,4 @@
-import { IconChevronDown, IconSearch, IconSelector, IconX } from '@tabler/icons-react'
+import { IconChevronDown } from '@tabler/icons-react'
 import { useSelector } from '@tanstack/react-form'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useId, useState } from 'react'
@@ -6,15 +6,7 @@ import { toast } from 'sonner'
 
 import type { Models } from '@/lib/api/models'
 
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from '@/components/ui/command'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import ComboboxInput from '@/components/block/common/combobox-input'
 import { Switch } from '@/components/ui/switch'
 import { useAppForm } from '@/hooks/form'
 import { toastAxiosError } from '@/lib/api/axios-error'
@@ -301,89 +293,20 @@ export function ModelPatternPicker({
   value: string[]
   onChange: (value: string[]) => void
 }) {
-  const [open, setOpen] = useState(false)
-  const [search, setSearch] = useState('')
   const modelsQuery = useQuery(queries.playground.models())
-  const ids = (modelsQuery.data?.data ?? []).map((m) => m.id)
-  const typed = search.trim()
-
-  const toggle = (model: string) =>
-    onChange(value.includes(model) ? value.filter((m) => m !== model) : [...value, model])
+  const options = (modelsQuery.data?.data ?? []).map((m) => ({ value: m.id, label: m.id }))
 
   return (
-    <div className="space-y-2">
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <button
-            id={id}
-            type="button"
-            role="combobox"
-            aria-expanded={open}
-            className="flex h-9 w-full items-center gap-2 rounded-md border border-input bg-background px-3 text-left text-sm text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
-          >
-            <IconSearch className="size-4 shrink-0" aria-hidden />
-            <span className="flex-1 truncate">
-              {value.length ? `${value.length} selected` : 'Search and select models…'}
-            </span>
-            <IconSelector className="size-4 shrink-0" aria-hidden />
-          </button>
-        </PopoverTrigger>
-        <PopoverContent align="start" className="w-[min(28rem,calc(100vw-2rem))] p-0">
-          <Command>
-            <CommandInput
-              placeholder="Model id or pattern, e.g. claude-*"
-              value={search}
-              onValueChange={setSearch}
-            />
-            <CommandList className="max-h-64 overscroll-contain">
-              <CommandEmpty>No model matches.</CommandEmpty>
-              {typed && !ids.includes(typed) && !value.includes(typed) ? (
-                <CommandGroup heading="Pattern">
-                  <CommandItem
-                    value={`add:${typed}`}
-                    onSelect={() => {
-                      onChange([...value, typed])
-                      setSearch('')
-                    }}
-                  >
-                    Add “{typed}”
-                  </CommandItem>
-                </CommandGroup>
-              ) : null}
-              <CommandGroup heading="Models">
-                {ids.map((model) => (
-                  <CommandItem key={model} value={model} onSelect={() => toggle(model)}>
-                    <span className="min-w-0 flex-1 truncate font-mono text-xs">{model}</span>
-                    {value.includes(model) ? (
-                      <span className="text-xs text-muted-foreground">Selected</span>
-                    ) : null}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </CommandList>
-          </Command>
-        </PopoverContent>
-      </Popover>
-      {value.length ? (
-        <ul className="flex flex-wrap gap-1.5" aria-label="Allowed models">
-          {value.map((model) => (
-            <li
-              key={model}
-              className="inline-flex items-center gap-1 rounded-sm border border-border bg-muted/40 py-0.5 ps-1.5 pe-0.5 font-mono text-xs"
-            >
-              {model}
-              <button
-                type="button"
-                aria-label={`Remove ${model}`}
-                onClick={() => toggle(model)}
-                className="rounded-sm p-0.5 text-muted-foreground hover:text-foreground"
-              >
-                <IconX className="size-3" />
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </div>
+    <ComboboxInput
+      id={id}
+      label="Models"
+      placeholder="Search and select models..."
+      options={options}
+      defaultValues={value}
+      selection={value}
+      onSelect={onChange}
+      multiple
+      creatable
+    />
   )
 }

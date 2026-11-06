@@ -33,10 +33,12 @@ interface ComboboxInputProps<TData> {
   placeholder?: string
   disabled?: boolean
   /**
-   * Single mode only: offers the typed text as a new value, and picking the
-   * selected value again clears it. For optional free-form fields.
+   * Offers the typed text as a new value, for free-form fields. In single
+   * mode, picking the selected value again also clears it.
    */
   creatable?: boolean
+  /** id for the trigger, so a field label can point at it */
+  id?: string
 }
 
 export default function ComboboxInput<TData>({
@@ -50,6 +52,7 @@ export default function ComboboxInput<TData>({
   placeholder,
   disabled = false,
   creatable = false,
+  id,
 }: ComboboxInputProps<TData>) {
   const [open, setOpen] = useState(false)
   const [fallbackSelection, setFallbackSelection] = React.useState<string[]>(defaultValues)
@@ -79,6 +82,8 @@ export default function ComboboxInput<TData>({
         ? selectedValues.filter((v) => v !== value)
         : [...selectedValues, value]
     )
+    // A created value leaves the list open for the next pick, with a clean search.
+    if (creatable) setSearch('')
   }
 
   const removeSelection = (value: string) => {
@@ -101,6 +106,7 @@ export default function ComboboxInput<TData>({
     >
       <PopoverTrigger asChild>
         <Button
+          id={id}
           variant="outline"
           role="combobox"
           aria-expanded={open}
@@ -115,13 +121,14 @@ export default function ComboboxInput<TData>({
               multiple ? (
                 selectedValues.map((val) => {
                   const item = options.find((c) => c.value === val)
-                  return item ? (
+                  // Created values (patterns) have no option of their own.
+                  return item || creatable ? (
                     <Badge
                       key={val}
                       variant="outline"
                       className="text-primary bg-ivory font-medium"
                     >
-                      {item.label}
+                      {item?.label ?? val}
                       <BadgeButton
                         className="text-primary"
                         onClick={(e) => {
