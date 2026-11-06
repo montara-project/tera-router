@@ -1,15 +1,20 @@
+import type { ColumnDef, RowData } from '@tanstack/react-table'
+
 import { IconActivity, IconChevronRight } from '@tabler/icons-react'
 import { Link } from '@tanstack/react-router'
+import { useMemo } from 'react'
 
-import type { HealthEntry, HealthStatus } from '@/lib/api/models/provider-health'
+import type { HealthEntry, HealthStatus, ProbeEntry } from '@/lib/api/models/provider-health'
 
-import TablePagination, { usePagedRows } from '@/components/block/common/table-pagination'
+import ReactTable, { features } from '@/components/block/common/react-table'
 import { HealthTimeline } from '@/components/block/dashboard/overview-provider-health'
 import { getProviderBrand, ProviderAvatar } from '@/components/block/providers/provider-avatar'
+import { usePaginationQuery } from '@/hooks/use-pagination-query'
+import { formatDateTime } from '@/lib/date'
 import { formatCount, formatMs } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
-const PAGE_SIZE = 10
+const PAGE_SIZES = [25, 50, 100]
 
 export const STATUS_META: Record<HealthStatus, { label: string; pill: string; text: string }> = {
   healthy: {
@@ -99,52 +104,56 @@ export function StatusPill({ status }: { status: HealthStatus }) {
   )
 }
 
-const TH = 'px-4 py-2 text-left font-medium'
-const THEAD = 'border-b border-border text-xs text-muted-foreground dark:bg-muted/40'
-const ROW = 'border-b border-border last:border-0'
+type Column<T extends RowData> = ColumnDef<typeof features, T, unknown>
 
-function Panel({
-  entries,
+/** Empty state of a health table, inside the table's card. */
+function Empty({ title, note }: { title: string; note: string }) {
+  return (
+    <div className="flex flex-col items-center px-6 py-9 text-center">
+      <span className="flex size-10 items-center justify-center rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400">
+        <IconActivity className="size-5" aria-hidden />
+      </span>
+      <p className="mt-2.5 text-[13px] font-semibold">{title}</p>
+      <p className="mt-1 text-[12.5px] text-muted-foreground">{note}</p>
+    </div>
+  )
+}
+
+const TRAFFIC_NOTE = 'Rows appear once traffic flows through the gateway.'
+
+/**
+ * One health table: the whole list arrives at once, so it is paged here
+ * (25 rows by default) with the page kept in ?page like the other tables.
+ */
+function HealthTable<T extends RowData>({
+  rows,
+  columns,
+  minWidth,
   empty,
-  children,
 }: {
-  entries: unknown[]
-  empty: string
-  children: React.ReactNode
+  rows: T[]
+  columns: Column<T>[]
+  minWidth: string
+  empty: React.ReactNode
 }) {
-  if (entries.length === 0) {
-    return (
-      <div className="flex flex-col items-center rounded-lg border border-border bg-card px-6 py-9 text-center">
-        <span className="flex size-10 items-center justify-center rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400">
-          <IconActivity className="size-5" aria-hidden />
-        </span>
-        <p className="mt-2.5 text-[13px] font-semibold">{empty}</p>
-        <p className="mt-1 text-[12.5px] text-muted-foreground">
-          Rows appear once traffic flows through the gateway.
-        </p>
-      </div>
-    )
-  }
-  return <div className="overflow-hidden rounded-lg border border-border bg-card">{children}</div>
+  const { offset, limit, pageIndex } = usePaginationQuery({ defaultLimit: PAGE_SIZES[0] })
+  return (
+    <div className="overflow-hidden rounded-lg border border-border bg-card">
+      <ReactTable
+        data={rows.slice(offset, offset + limit)}
+        total={rows.length}
+        pageIndex={pageIndex}
+        pageSize={limit}
+        pageSizes={PAGE_SIZES}
+        columns={columns}
+        tableClassName={minWidth}
+        emptyMessage={empty}
+      />
+    </div>
+  )
 }
 
-function Pager({
-  paged,
-  total,
-}: {
-  paged: ReturnType<typeof usePagedRows<unknown>>
-  total: number
-}) {
-  return paged.pageCount > 1 ? (
-    <TablePagination
-      page={paged.page}
-      pageCount={paged.pageCount}
-      pageSize={PAGE_SIZE}
-      total={total}
-      onPageChange={paged.setPage}
-    />
-  ) : null
-}
+const muted = (text: string) => <span className="text-muted-foreground">{text}</span>
 
 function ProviderMark({ slug }: { slug: string }) {
   if (getProviderBrand(slug).icon) {
@@ -169,160 +178,180 @@ export function ProvidersHealthTable({
   accounts: Map<string, number>
   onOpen: (slug: string) => void
 }) {
-  const paged = usePagedRows(entries, PAGE_SIZE)
+  const columns = useMemo<Column<HealthEntry>[]>(
+    () => [
+      {
+        accessorKey: 'name',
+        header: 'Provider',
+        meta: { headerClassName: 'w-[30%]', cellClassName: 'max-w-0' },
+        cell: ({ row: { original: e } }) => {
+          const n = accounts.get(e.id) ?? 0
+          return (
+            <button
+              type="button"
+              onClick={() => onOpen(e.id)}
+              className="flex w-full min-w-0 items-center gap-2.5 rounded-sm text-left"
+            >
+              <ProviderMark slug={e.id} />
+              <span className="min-w-0">
+                <span className="block truncate font-medium hover:underline">{e.name}</span>
+                <span className="block truncate font-mono text-[11.5px] text-muted-foreground">
+                  {e.id} · {n} {n === 1 ? 'account' : 'accounts'}
+                </span>
+              </span>
+            </button>
+          )
+        },
+      },
+      {
+        accessorKey: 'status',
+        header: 'Status',
+        cell: ({ row: { original: e } }) => <StatusPill status={e.status} />,
+      },
+      {
+        id: 'uptime',
+        header: `Uptime · ${span}`,
+        meta: { headerClassName: 'w-44' },
+        cell: ({ row: { original: e } }) => (
+          <HealthTimeline entry={e} span={span} className="w-40 gap-0.5" />
+        ),
+      },
+      {
+        accessorKey: 'requests',
+        header: 'Requests',
+        meta: { cellClassName: 'tabular-nums' },
+        cell: ({ row: { original: e } }) => formatCount(e.requests),
+      },
+      {
+        accessorKey: 'successRate',
+        header: 'Success',
+        cell: ({ row: { original: e } }) => (
+          <span className={cn('tabular-nums', STATUS_META[e.status].text)}>
+            {e.requests ? `${e.successRate.toFixed(1)}%` : '—'}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'p95Ms',
+        header: 'p95',
+        meta: { cellClassName: 'text-muted-foreground tabular-nums' },
+        cell: ({ row: { original: e } }) => (e.p95Ms ? formatMs(e.p95Ms) : '—'),
+      },
+      {
+        id: 'issue',
+        header: 'Main issue',
+        meta: { headerClassName: 'w-[22%]' },
+        cell: ({ row: { original: e } }) => {
+          const issue = issueOf(e)
+          if (!issue) return muted('—')
+          return (
+            <>
+              <span className="block">{issue.label}</span>
+              {issue.advice ? (
+                <span className="block text-xs text-muted-foreground">{issue.advice}</span>
+              ) : null}
+            </>
+          )
+        },
+      },
+    ],
+    [span, accounts, onOpen]
+  )
   return (
-    <Panel entries={entries} empty="No provider traffic in this range">
-      <div className="relative overflow-x-auto">
-        <table className="w-full min-w-[64rem] text-[13px]">
-          <thead className={THEAD}>
-            <tr>
-              <th className={cn(TH, 'w-[30%]')}>Provider</th>
-              <th className={TH}>Status</th>
-              <th className={cn(TH, 'w-44')}>Uptime · {span}</th>
-              <th className={TH}>Requests</th>
-              <th className={TH}>Success</th>
-              <th className={TH}>p95</th>
-              <th className={cn(TH, 'w-[22%]')}>Main issue</th>
-            </tr>
-          </thead>
-          <tbody>
-            {paged.rows.map((e) => {
-              const n = accounts.get(e.id) ?? 0
-              const issue = issueOf(e)
-              return (
-                <tr key={e.id} className={ROW}>
-                  <td className="max-w-0 px-4 py-2.5">
-                    <button
-                      type="button"
-                      onClick={() => onOpen(e.id)}
-                      className="flex w-full min-w-0 items-center gap-2.5 rounded-sm text-left"
-                    >
-                      <ProviderMark slug={e.id} />
-                      <span className="min-w-0">
-                        <span className="block truncate font-medium hover:underline">{e.name}</span>
-                        <span className="block truncate font-mono text-[11.5px] text-muted-foreground">
-                          {e.id} · {n} {n === 1 ? 'account' : 'accounts'}
-                        </span>
-                      </span>
-                    </button>
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <StatusPill status={e.status} />
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <HealthTimeline entry={e} span={span} className="w-40 gap-0.5" />
-                  </td>
-                  <td className="px-4 py-2.5 tabular-nums">{formatCount(e.requests)}</td>
-                  <td className={cn('px-4 py-2.5 tabular-nums', STATUS_META[e.status].text)}>
-                    {e.requests ? `${e.successRate.toFixed(1)}%` : '—'}
-                  </td>
-                  <td className="px-4 py-2.5 text-muted-foreground tabular-nums">
-                    {e.p95Ms ? formatMs(e.p95Ms) : '—'}
-                  </td>
-                  <td className="px-4 py-2.5">
-                    {issue ? (
-                      <>
-                        <span className="block">{issue.label}</span>
-                        {issue.advice ? (
-                          <span className="block text-xs text-muted-foreground">
-                            {issue.advice}
-                          </span>
-                        ) : null}
-                      </>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
-      <Pager paged={paged} total={entries.length} />
-    </Panel>
+    <HealthTable
+      rows={entries}
+      columns={columns}
+      minWidth="min-w-[64rem]"
+      empty={<Empty title="No provider traffic in this range" note={TRAFFIC_NOTE} />}
+    />
   )
 }
 
 /** 0–100: success rate, discounted by how often another target had to step in. */
 const scoreOf = (e: HealthEntry) => Math.round(e.successRate * (1 - e.fallbackRate / 100))
 
+const MODEL_COLUMNS: Column<HealthEntry>[] = [
+  {
+    accessorKey: 'name',
+    header: 'Model',
+    meta: { headerClassName: 'w-[37%]', cellClassName: 'max-w-0' },
+    cell: ({ row: { original: e } }) => {
+      const slash = e.name.indexOf('/')
+      return (
+        <span className="block truncate font-mono text-[12.5px]" title={e.name}>
+          <span className="text-muted-foreground">{e.name.slice(0, slash + 1)}</span>
+          {e.name.slice(slash + 1)}
+        </span>
+      )
+    },
+  },
+  {
+    accessorKey: 'status',
+    header: 'Status',
+    cell: ({ row: { original: e } }) => <StatusPill status={e.status} />,
+  },
+  {
+    id: 'score',
+    header: 'Score',
+    cell: ({ row: { original: e } }) => {
+      if (!e.requests) return muted('—')
+      const score = scoreOf(e)
+      return (
+        <span className="flex items-center gap-2">
+          <span className={cn('w-7 font-medium tabular-nums', STATUS_META[e.status].text)}>
+            {score}
+          </span>
+          <span className="h-1.5 w-12 overflow-hidden rounded-full bg-muted" aria-hidden>
+            <span
+              className={cn(
+                'block h-full',
+                e.status === 'healthy'
+                  ? 'bg-emerald-500'
+                  : e.status === 'degraded'
+                    ? 'bg-amber-500'
+                    : 'bg-red-500'
+              )}
+              style={{ width: `${score}%` }}
+            />
+          </span>
+        </span>
+      )
+    },
+  },
+  {
+    accessorKey: 'successRate',
+    header: 'Success',
+    meta: { cellClassName: 'tabular-nums' },
+    cell: ({ row: { original: e } }) => (e.requests ? `${e.successRate.toFixed(1)}%` : '—'),
+  },
+  {
+    accessorKey: 'p95Ms',
+    header: 'p95',
+    meta: { cellClassName: 'tabular-nums' },
+    cell: ({ row: { original: e } }) => (e.p95Ms ? formatMs(e.p95Ms) : '—'),
+  },
+  {
+    accessorKey: 'fallbacks',
+    header: 'Fallbacks',
+    meta: { cellClassName: 'text-muted-foreground tabular-nums' },
+    cell: ({ row: { original: e } }) => formatCount(e.fallbacks),
+  },
+  {
+    id: 'issue',
+    header: 'Main issue',
+    meta: { cellClassName: 'text-muted-foreground' },
+    cell: ({ row: { original: e } }) => issueOf(e)?.label ?? '—',
+  },
+]
+
 export function ModelsHealthTable({ entries }: { entries: HealthEntry[] }) {
-  const paged = usePagedRows(entries, PAGE_SIZE)
   return (
-    <Panel entries={entries} empty="No model traffic in this range">
-      <div className="relative overflow-x-auto">
-        <table className="w-full min-w-[60rem] text-[13px]">
-          <thead className={THEAD}>
-            <tr>
-              <th className={cn(TH, 'w-[37%]')}>Model</th>
-              <th className={TH}>Status</th>
-              <th className={TH}>Score</th>
-              <th className={TH}>Success</th>
-              <th className={TH}>p95</th>
-              <th className={TH}>Fallbacks</th>
-              <th className={TH}>Main issue</th>
-            </tr>
-          </thead>
-          <tbody>
-            {paged.rows.map((e) => {
-              const slash = e.name.indexOf('/')
-              const score = scoreOf(e)
-              const tone = STATUS_META[e.status]
-              return (
-                <tr key={e.id} className={ROW}>
-                  <td className="max-w-0 px-4 py-2.5">
-                    <span className="block truncate font-mono text-[12.5px]" title={e.name}>
-                      <span className="text-muted-foreground">{e.name.slice(0, slash + 1)}</span>
-                      {e.name.slice(slash + 1)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <StatusPill status={e.status} />
-                  </td>
-                  <td className="px-4 py-2.5">
-                    {e.requests ? (
-                      <span className="flex items-center gap-2">
-                        <span className={cn('w-7 font-medium tabular-nums', tone.text)}>
-                          {score}
-                        </span>
-                        <span
-                          className="h-1.5 w-12 overflow-hidden rounded-full bg-muted"
-                          aria-hidden
-                        >
-                          <span
-                            className={cn(
-                              'block h-full',
-                              e.status === 'healthy'
-                                ? 'bg-emerald-500'
-                                : e.status === 'degraded'
-                                  ? 'bg-amber-500'
-                                  : 'bg-red-500'
-                            )}
-                            style={{ width: `${score}%` }}
-                          />
-                        </span>
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-2.5 tabular-nums">
-                    {e.requests ? `${e.successRate.toFixed(1)}%` : '—'}
-                  </td>
-                  <td className="px-4 py-2.5 tabular-nums">{e.p95Ms ? formatMs(e.p95Ms) : '—'}</td>
-                  <td className="px-4 py-2.5 text-muted-foreground tabular-nums">
-                    {formatCount(e.fallbacks)}
-                  </td>
-                  <td className="px-4 py-2.5 text-muted-foreground">{issueOf(e)?.label ?? '—'}</td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
-      <Pager paged={paged} total={entries.length} />
-    </Panel>
+    <HealthTable
+      rows={entries}
+      columns={MODEL_COLUMNS}
+      minWidth="min-w-[60rem]"
+      empty={<Empty title="No model traffic in this range" note={TRAFFIC_NOTE} />}
+    />
   )
 }
 
@@ -334,70 +363,140 @@ export function ChainsHealthTable({
   /** chain id per name, for the detail link */
   chainIds: Map<string, string>
 }) {
-  const paged = usePagedRows(entries, PAGE_SIZE)
+  const columns = useMemo<Column<HealthEntry>[]>(
+    () => [
+      {
+        accessorKey: 'name',
+        header: 'Chain',
+        meta: { headerClassName: 'w-[23%]', cellClassName: 'max-w-0' },
+        cell: ({ row: { original: e } }) => (
+          <span className="block truncate font-medium" title={e.name}>
+            {e.name}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'status',
+        header: 'Status',
+        cell: ({ row: { original: e } }) => <StatusPill status={e.status} />,
+      },
+      {
+        accessorKey: 'requests',
+        header: 'Requests',
+        meta: { cellClassName: 'tabular-nums' },
+        cell: ({ row: { original: e } }) => formatCount(e.requests),
+      },
+      {
+        accessorKey: 'fallbackRate',
+        header: 'Fallback rate',
+        meta: { cellClassName: 'tabular-nums' },
+        cell: ({ row: { original: e } }) => `${e.fallbackRate.toFixed(1)}%`,
+      },
+      {
+        accessorKey: 'finalFailures',
+        header: 'Final failures',
+        meta: { cellClassName: 'text-muted-foreground tabular-nums' },
+        cell: ({ row: { original: e } }) => formatCount(e.finalFailures),
+      },
+      {
+        id: 'affected',
+        header: 'Most affected',
+        meta: { cellClassName: 'max-w-0' },
+        cell: ({ row: { original: e } }) =>
+          e.mostAffected ? (
+            <code className="block truncate font-mono text-xs" title={e.mostAffected}>
+              {e.mostAffected}
+            </code>
+          ) : (
+            muted('—')
+          ),
+      },
+      {
+        // Same as the /chains table: a narrow last column, the link flush right.
+        id: 'open',
+        header: () => <span className="sr-only">Open</span>,
+        meta: { headerClassName: 'w-12', cellClassName: 'text-right' },
+        cell: ({ row: { original: e } }) => {
+          const id = chainIds.get(e.name)
+          return id ? (
+            <Link
+              to="/chains/$chainId"
+              params={{ chainId: id }}
+              aria-label={`Open chain ${e.name}`}
+              className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <IconChevronRight className="size-4" />
+            </Link>
+          ) : null
+        },
+      },
+    ],
+    [chainIds]
+  )
   return (
-    <Panel entries={entries} empty="No chains yet">
-      <div className="relative overflow-x-auto">
-        <table className="w-full min-w-[52rem] text-[13px]">
-          <thead className={THEAD}>
-            <tr>
-              <th className={cn(TH, 'w-[23%]')}>Chain</th>
-              <th className={TH}>Status</th>
-              <th className={TH}>Requests</th>
-              <th className={TH}>Fallback rate</th>
-              <th className={TH}>Final failures</th>
-              <th className={TH}>Most affected</th>
-              <th className="w-12 px-2 py-2">
-                <span className="sr-only">Open</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {paged.rows.map((e) => {
-              const id = chainIds.get(e.name)
-              return (
-                <tr key={e.id} className={ROW}>
-                  <td className="max-w-0 px-4 py-2.5">
-                    <span className="block truncate font-medium" title={e.name}>
-                      {e.name}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <StatusPill status={e.status} />
-                  </td>
-                  <td className="px-4 py-2.5 tabular-nums">{formatCount(e.requests)}</td>
-                  <td className="px-4 py-2.5 tabular-nums">{e.fallbackRate.toFixed(1)}%</td>
-                  <td className="px-4 py-2.5 text-muted-foreground tabular-nums">
-                    {formatCount(e.finalFailures)}
-                  </td>
-                  <td className="max-w-0 px-4 py-2.5">
-                    {e.mostAffected ? (
-                      <code className="block truncate font-mono text-xs" title={e.mostAffected}>
-                        {e.mostAffected}
-                      </code>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </td>
-                  <td className="px-2 py-2.5 text-right">
-                    {id ? (
-                      <Link
-                        to="/chains/$chainId"
-                        params={{ chainId: id }}
-                        aria-label={`Open chain ${e.name}`}
-                        className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                      >
-                        <IconChevronRight className="size-4" />
-                      </Link>
-                    ) : null}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
-      <Pager paged={paged} total={entries.length} />
-    </Panel>
+    <HealthTable
+      rows={entries}
+      columns={columns}
+      minWidth="min-w-[52rem]"
+      empty={<Empty title="No chains yet" note={TRAFFIC_NOTE} />}
+    />
+  )
+}
+
+const PROBE_COLUMNS: Column<ProbeEntry>[] = [
+  {
+    accessorKey: 'name',
+    header: 'Probe',
+    meta: { headerClassName: 'w-[28%]', cellClassName: 'max-w-0' },
+    cell: ({ row: { original: p } }) => (
+      <span className="block truncate font-medium" title={p.name}>
+        {p.name}
+      </span>
+    ),
+  },
+  {
+    accessorKey: 'target',
+    header: 'Target',
+    meta: { cellClassName: 'max-w-0' },
+    cell: ({ row: { original: p } }) => (
+      <code className="block truncate font-mono text-xs" title={p.target}>
+        {p.target}
+      </code>
+    ),
+  },
+  {
+    accessorKey: 'status',
+    header: 'Result',
+    cell: ({ row: { original: p } }) => (
+      <StatusPill status={p.status === 'pass' ? 'healthy' : 'down'} />
+    ),
+  },
+  {
+    accessorKey: 'latencyMs',
+    header: 'Latency',
+    meta: { cellClassName: 'tabular-nums' },
+    cell: ({ row: { original: p } }) => (p.latencyMs ? formatMs(p.latencyMs) : '—'),
+  },
+  {
+    accessorKey: 'lastRun',
+    header: 'Last run',
+    meta: { cellClassName: 'text-muted-foreground whitespace-nowrap tabular-nums' },
+    cell: ({ row: { original: p } }) => formatDateTime(p.lastRun),
+  },
+]
+
+export function ProbesHealthTable({ entries }: { entries: ProbeEntry[] }) {
+  return (
+    <HealthTable
+      rows={entries}
+      columns={PROBE_COLUMNS}
+      minWidth="min-w-[48rem]"
+      empty={
+        <Empty
+          title="No probes in this range"
+          note="Scheduled health probes are not recorded yet."
+        />
+      }
+    />
   )
 }

@@ -8,6 +8,7 @@ import {
 } from '@tabler/icons-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
+import { useQueryState } from 'nuqs'
 import { useMemo, useState } from 'react'
 
 import type { HealthStatus, HealthWindow } from '@/lib/api/models/provider-health'
@@ -18,6 +19,7 @@ import { Stat } from '@/components/block/provider-detail/provider-stat-strip'
 import {
   ChainsHealthTable,
   ModelsHealthTable,
+  ProbesHealthTable,
   ProvidersHealthTable,
 } from '@/components/block/provider-health/health-tables'
 import { Button } from '@/components/ui/button'
@@ -64,6 +66,14 @@ function RouteComponent() {
   const [range, setRange] = useState<Range>('24h')
   const [tab, setTab] = useState<Tab>('providers')
   const [status, setStatus] = useState<HealthStatus | 'all'>('all')
+  // Each tab's table pages on its own, so a page from another tab or from
+  // before a status filter is dropped.
+  const [, setPage] = useQueryState('page')
+  const [, setPageSize] = useQueryState('pageSize')
+  const resetPaging = () => {
+    void setPage(null)
+    void setPageSize(null)
+  }
 
   const live = range === 'live'
   const healthWindow = live ? LIVE_WINDOW : range
@@ -173,7 +183,10 @@ function RouteComponent() {
                 type="button"
                 role="tab"
                 aria-selected={tab === t}
-                onClick={() => setTab(t)}
+                onClick={() => {
+                  setTab(t)
+                  resetPaging()
+                }}
                 className={cn(
                   '-mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-2.5 text-[13px] font-medium capitalize transition-colors',
                   tab === t
@@ -197,7 +210,10 @@ function RouteComponent() {
                   key={f.value}
                   type="button"
                   aria-pressed={status === f.value}
-                  onClick={() => setStatus(f.value)}
+                  onClick={() => {
+                    setStatus(f.value)
+                    void setPage(null)
+                  }}
                   className={cn(
                     'inline-flex h-7 items-center rounded-md border px-2.5 text-xs font-medium transition-colors',
                     status === f.value
@@ -227,15 +243,7 @@ function RouteComponent() {
         ) : tab === 'chains' ? (
           <ChainsHealthTable entries={data.chains} chainIds={chainIds} />
         ) : (
-          <div className="flex flex-col items-center rounded-lg border border-border bg-card px-6 py-9 text-center">
-            <span className={cn('flex size-10 items-center justify-center rounded-lg', TEAL)}>
-              <IconActivity className="size-5" aria-hidden />
-            </span>
-            <p className="mt-2.5 text-[13px] font-semibold">No probes in this range</p>
-            <p className="mt-1 text-[12.5px] text-muted-foreground">
-              Scheduled health probes are not recorded yet.
-            </p>
-          </div>
+          <ProbesHealthTable entries={data.probes} />
         )}
       </div>
     </div>
