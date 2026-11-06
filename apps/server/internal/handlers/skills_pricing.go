@@ -45,7 +45,7 @@ func (h *skillsHandler) Store(c fiber.Ctx) error {
 	if err := h.app.Repos.Skills.Insert(c.Context(), skill); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "skill.create", skill.ID, map[string]string{"name": skill.Name})
+	auditRecord(c, actorFrom(c), "skill.create", skill.ID, map[string]string{"name": skill.Name})
 	return dtos.Created(c, skill, "Skill created")
 }
 
@@ -71,7 +71,7 @@ func (h *skillsHandler) Update(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "skill.update", skill.ID, map[string]bool{"enabled": skill.Enabled})
+	auditRecord(c, actorFrom(c), "skill.update", skill.ID, map[string]bool{"enabled": skill.Enabled})
 	return dtos.Item(c, fiber.StatusOK, skill, "Skill updated")
 }
 
@@ -86,7 +86,7 @@ func (h *skillsHandler) Delete(c fiber.Ctx) error {
 	}
 	// The delete also strips the skill from every key that selected it.
 	h.app.KeysChanged()
-	auditRecord(c.Context(), h.app, actorFrom(c), "skill.delete", id.String(), nil)
+	auditRecord(c, actorFrom(c), "skill.delete", id.String(), nil)
 	return dtos.Deleted(c, "Skill deleted")
 }
 
@@ -131,7 +131,7 @@ func (h *pricingHandler) PricingUpsert(c fiber.Ctx) error {
 	if err := h.app.Repos.Pricing.Upsert(c.Context(), override); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "pricing.upsert", override.Provider+"/"+override.Model, nil)
+	auditRecord(c, actorFrom(c), "pricing.upsert", override.Provider+"/"+override.Model, nil)
 	return dtos.OK(c, override)
 }
 
@@ -144,7 +144,7 @@ func (h *pricingHandler) PricingDelete(c fiber.Ctx) error {
 	if err := h.app.Repos.Pricing.Delete(c.Context(), provider, model); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "pricing.delete", provider+"/"+model, nil)
+	auditRecord(c, actorFrom(c), "pricing.delete", provider+"/"+model, nil)
 	return dtos.Deleted(c, "Pricing override deleted")
 }
 
@@ -171,7 +171,7 @@ func (h *pricingHandler) CapabilityPut(c fiber.Ctx) error {
 	if err := h.app.Repos.Capability.Upsert(c.Context(), override); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "capability.upsert", override.Provider+"/"+override.Model, override.Capabilities)
+	auditRecord(c, actorFrom(c), "capability.upsert", override.Provider+"/"+override.Model, override.Capabilities)
 	return dtos.OK(c, override)
 }
 
@@ -180,7 +180,7 @@ func (h *pricingHandler) CapabilityDelete(c fiber.Ctx) error {
 	if err := h.app.Repos.Capability.Delete(c.Context(), provider, model); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "capability.delete", provider+"/"+model, nil)
+	auditRecord(c, actorFrom(c), "capability.delete", provider+"/"+model, nil)
 	return dtos.Deleted(c, "Capability override deleted")
 }
 
@@ -188,6 +188,6 @@ func (h *pricingHandler) CapabilityReset(c fiber.Ctx) error {
 	if err := h.app.Repos.Capability.Reset(c.Context()); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "capability.reset", "*", nil)
+	auditRecord(c, actorFrom(c), "capability.reset", "*", nil)
 	return dtos.Message(c, fiber.StatusOK, "Capability overrides reset")
 }

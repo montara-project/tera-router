@@ -48,15 +48,25 @@ Pagination uses the `offset` (0-based) and `limit` (default 10, max 100) query p
 
 ### Auth
 
-| Method | Path                    | Notes                                                    |
-| ------ | ----------------------- | -------------------------------------------------------- |
-| POST   | `/v1/auth/sign-in`      | Sign in, receive tokens                                  |
-| POST   | `/v1/auth/refresh`      | Rotate refresh token                                     |
-| GET    | `/v1/auth/me`           | Current user profile                                     |
-| POST   | `/v1/auth/sign-out`     | Revoke all session tokens                                |
-| POST   | `/v1/auth/totp/setup`   | Issue a fresh TOTP secret to enroll (nothing stored yet) |
-| POST   | `/v1/auth/totp/enable`  | Turn on two-factor auth with a code from that secret     |
-| POST   | `/v1/auth/totp/disable` | Turn it off with a current code                          |
+| Method | Path                                | Notes                                                    |
+| ------ | ----------------------------------- | -------------------------------------------------------- |
+| POST   | `/v1/auth/sign-in`                  | Sign in, receive tokens                                  |
+| POST   | `/v1/auth/refresh`                  | Rotate refresh token                                     |
+| GET    | `/v1/auth/me`                       | Current user profile                                     |
+| POST   | `/v1/auth/sign-out`                 | Revoke all session tokens                                |
+| POST   | `/v1/auth/totp/setup`               | Issue a fresh TOTP secret to enroll (nothing stored yet) |
+| POST   | `/v1/auth/totp/enable`              | Turn on two-factor auth with a code from that secret     |
+| POST   | `/v1/auth/totp/disable`             | Turn it off with a current code                          |
+| GET    | `/v1/auth/sessions`                 | Active sign-in sessions; `current` marks the caller's    |
+| DELETE | `/v1/auth/sessions/:id`             | Revoke one session; its tokens stop working at once      |
+| GET    | `/v1/auth/passkeys`                 | Your passkeys                                            |
+| POST   | `/v1/auth/passkeys/register/begin`  | Start adding a passkey; needs password (+ TOTP)          |
+| POST   | `/v1/auth/passkeys/register/finish` | Verify and store the browser's new credential            |
+| DELETE | `/v1/auth/passkeys/:id`             | Remove a passkey                                         |
+| POST   | `/v1/auth/passkey/begin`            | Public: start a passkey sign-in                          |
+| POST   | `/v1/auth/passkey/finish`           | Public: verify the passkey, receive tokens               |
+
+Passkey calls read the `Origin` header: the passkey's RP ID is that origin's host, so the dashboard must be on `https` or `http://localhost`, under a host name (not an IP), and a passkey works only on the host it was added on. Each `begin` returns `ceremony_id` and `options` (WebAuthn JSON for `PublicKeyCredential.parseCreationOptionsFromJSON` / `parseRequestOptionsFromJSON`); send `finish` the same `ceremony_id` and `credential` (the browser's `credential.toJSON()`) within 5 minutes. A passkey sign-in skips the password and TOTP code.
 
 ### Keys
 
@@ -113,6 +123,7 @@ The playground authenticates with the dashboard JWT, not an API key. Its usage i
 | GET / POST           | `/v1/accounts`                         | List / add accounts                                                                            |
 | GET / PATCH / DELETE | `/v1/accounts/:id`                     | Manage account                                                                                 |
 | POST                 | `/v1/accounts/:id/test`                | Test account connection                                                                        |
+| POST                 | `/v1/accounts/test`                    | Test a key before saving it; nothing is stored                                                 |
 | GET                  | `/v1/accounts/:id/quota`               | Account quota                                                                                  |
 | GET / PUT            | `/v1/providers/:id/routing`            | Account strategy (`:id` is the provider slug)                                                  |
 | POST                 | `/v1/oauth/:provider/authorize`        | Start a PKCE sign-in (`anthropic`, `codex`); returns the URL to open                           |
@@ -122,17 +133,17 @@ The model test endpoints take `{"model", "messages", "stream"}`. With `"stream":
 
 ### Budgets & usage
 
-| Method               | Path                  | Notes                                                                                             |
-| -------------------- | --------------------- | ------------------------------------------------------------------------------------------------- |
-| GET / POST           | `/v1/budgets`         | List / create budgets                                                                             |
-| GET                  | `/v1/budgets/status`  | Running usage per budget                                                                          |
-| PUT / PATCH / DELETE | `/v1/budgets/:id`     | Manage budget                                                                                     |
-| GET                  | `/v1/usage/telemetry` | Full Usage page payload                                                                           |
-| GET                  | `/v1/usage/activity`  | Requests per UTC day for the last 53 weeks, with per-model counts                                 |
-| GET                  | `/v1/provider-health` | Per-provider, per-model, and per-chain health (`?window=5m\|15m\|1h\|6h\|24h\|7d`, default `15m`) |
-| GET                  | `/v1/quota`           | Active quotas                                                                                     |
-| GET                  | `/v1/quota/overview`  | Quota summary                                                                                     |
-| PATCH / DELETE       | `/v1/quota/:id`       | Pause / delete quota                                                                              |
+| Method               | Path                  | Notes                                                                                                       |
+| -------------------- | --------------------- | ----------------------------------------------------------------------------------------------------------- |
+| GET / POST           | `/v1/budgets`         | List / create budgets                                                                                       |
+| GET                  | `/v1/budgets/status`  | Running usage per budget                                                                                    |
+| PUT / PATCH / DELETE | `/v1/budgets/:id`     | Manage budget                                                                                               |
+| GET                  | `/v1/usage/telemetry` | Full Usage page payload                                                                                     |
+| GET                  | `/v1/usage/activity`  | Requests per UTC day for the last 53 weeks, with per-model counts                                           |
+| GET                  | `/v1/provider-health` | Per-provider, per-model, and per-chain health (`?window=5m\|15m\|1h\|6h\|24h\|7d\|30d\|90d`, default `15m`) |
+| GET                  | `/v1/quota`           | Active quotas                                                                                               |
+| GET                  | `/v1/quota/overview`  | Quota summary                                                                                               |
+| PATCH / DELETE       | `/v1/quota/:id`       | Pause / delete quota                                                                                        |
 
 ### Proxy pools
 
@@ -212,19 +223,25 @@ Enabling and disabling are audit-logged. See [Remote access](/docs/getting-start
 
 ### Misc
 
-| Method       | Path                              | Notes                                                                                                 |
-| ------------ | --------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| GET / PATCH  | `/v1/settings`                    | Router settings (timeout, round-robin, etc.)                                                          |
-| GET          | `/v1/branding`                    | Public (no auth): display name, tagline, logo, favicon                                                |
-| GET / POST   | `/v1/skills`                      | List / create skills                                                                                  |
-| PATCH        | `/v1/skills/:id`                  | Switch gateway injection (`enabled`)                                                                  |
-| DELETE       | `/v1/skills/:id`                  | Delete skill                                                                                          |
-| GET / DELETE | `/v1/console`                     | Ring buffer log (500 entries) / clear                                                                 |
-| GET          | `/v1/system/stats`                | Host & process metrics                                                                                |
-| GET          | `/v1/media`                       | Catalog providers grouped by non-chat capability                                                      |
-| GET          | `/v1/cli-tools/claude-code`       | Whether the `claude` CLI is installed on the host and what its settings point at                      |
-| POST         | `/v1/cli-tools/claude-code/apply` | Write the gateway URL, an API key, and an optional default model into the host's Claude Code settings |
-| GET          | `/health`                         | Server health (no auth)                                                                               |
-| GET          | `/skills/:slug/SKILL.md`          | Public skill document an agent fetches by URL (no auth)                                               |
+| Method       | Path                      | Notes                                                                                                                                                                                      |
+| ------------ | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| GET / PATCH  | `/v1/settings`            | Router settings (timeout, round-robin, etc.)                                                                                                                                               |
+| GET          | `/v1/branding`            | Public (no auth): display name, tagline, logo, favicon                                                                                                                                     |
+| GET / POST   | `/v1/skills`              | List / create skills                                                                                                                                                                       |
+| PATCH        | `/v1/skills/:id`          | Switch gateway injection (`enabled`)                                                                                                                                                       |
+| DELETE       | `/v1/skills/:id`          | Delete skill                                                                                                                                                                               |
+| GET          | `/v1/audit`               | Audit trail, newest first. Query: `search`, `outcome` (`success`/`failed`), `category`, `offset`, `limit`                                                                                  |
+| GET          | `/v1/audit/stats`         | Totals, action categories, writes and lost writes since start                                                                                                                              |
+| POST         | `/v1/audit/verify`        | Walk the hash chain and report the first row that does not match                                                                                                                           |
+| GET          | `/v1/audit/export`        | Whole trail as JSON Lines (`application/x-ndjson`)                                                                                                                                         |
+| GET / DELETE | `/v1/console`             | Ring buffer log (500 entries) / clear                                                                                                                                                      |
+| GET          | `/v1/system/stats`        | Host & process metrics                                                                                                                                                                     |
+| GET          | `/v1/system/status`       | Gateway status card: status, version, process uptime, listen address, database                                                                                                             |
+| GET          | `/v1/media`               | Catalog providers grouped by non-chat capability                                                                                                                                           |
+| GET          | `/v1/endpoints`           | Base URL and route reference for the Endpoints page                                                                                                                                        |
+| GET          | `/v1/cli-tools/:id`       | One tool's install status and a preview of its config files. Query: `base_url`, `model` (the key is a placeholder)                                                                         |
+| POST         | `/v1/cli-tools/:id/apply` | Write the gateway URL, a key and the model into the tool's config files on the host. Body: `base_url`, `model`, and `key_name` (create a dedicated key) or `api_key` (paste an active key) |
+| GET          | `/health`                 | Server health (no auth)                                                                                                                                                                    |
+| GET          | `/skills/:slug/SKILL.md`  | Public skill document an agent fetches by URL (no auth)                                                                                                                                    |
 
 The key reveal and rotate, both backup downloads, and a `PATCH /v1/accounts/:id` that changes `metadata.base_url` re-authenticate: send `"password"`, and when two-factor auth is on the server answers `{ "totp_required": true }` until you resend with `"otp"`. Wrong passwords or codes return `422` and count toward the IP block, like failed sign-ins.

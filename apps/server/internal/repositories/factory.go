@@ -46,6 +46,8 @@ type Repositories struct {
 	Capability *CapabilityRepository
 	Backup     *BackupRepository
 	IPBlocks   *IPBlockRepository
+	Passkeys   *PasskeyRepository
+	Portal     *PortalTokenRepository
 }
 
 // New builds every repository on top of the shared connection pool, handing
@@ -68,11 +70,13 @@ func New(db *sql.DB, cfg *config.ConfigApp) *Repositories {
 		ProxyPools: &ProxyPoolRepository{base},
 		Skills:     &SkillRepository{base},
 		Settings:   &SettingRepository{base},
-		Audit:      &AuditRepository{base},
+		Audit:      &AuditRepository{BaseRepository: base},
 		Guardrails: &GuardrailRepository{base},
 		Pricing:    &PricingRepository{base},
 		Capability: &CapabilityRepository{base},
 		Backup:     &BackupRepository{base},
 		IPBlocks:   &IPBlockRepository{base},
+		Passkeys:   &PasskeyRepository{base},
+		Portal:     &PortalTokenRepository{base},
 	}
 }

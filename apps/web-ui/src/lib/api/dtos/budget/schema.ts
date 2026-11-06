@@ -30,3 +30,45 @@ export const BudgetSchema = z.object({
 }) satisfies z.ZodType<BudgetPayload>
 
 export type BudgetDto = z.infer<typeof BudgetSchema>
+
+const SCOPE_NOUN: Record<BudgetScopeKind, string> = {
+  tenant: '',
+  api_key: 'key',
+  account: 'account',
+}
+
+/**
+ * Values of the budget dialog. Limits are typed as text: empty means
+ * unlimited and is sent as 0, which the server stores as "no limit".
+ */
+export const BudgetFormSchema = z
+  .object({
+    scope_kind: z.enum(SCOPE_KINDS),
+    scope_id: z.string(),
+    period: z.enum(['daily', 'weekly', 'monthly']),
+    spend: z
+      .string()
+      .refine((v) => v.trim() === '' || Number(v) > 0, 'Spend limit must be more than 0.'),
+    tokens: z
+      .string()
+      .refine(
+        (v) => v.trim() === '' || /^\d+$/.test(v.trim()),
+        'Token limit must be a whole number.'
+      ),
+    alert_pct: z.string().refine((v) => {
+      const n = Number(v)
+      return Number.isInteger(n) && n >= 1 && n <= 100
+    }, 'Alert at must be between 1 and 100.'),
+    hard_cutoff: z.boolean(),
+  })
+  .superRefine((v, ctx) => {
+    if (v.scope_kind !== 'tenant' && !v.scope_id) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['scope_id'],
+        message: `Pick the ${SCOPE_NOUN[v.scope_kind]} this budget applies to.`,
+      })
+    }
+  })
+
+export type BudgetFormValues = z.infer<typeof BudgetFormSchema>

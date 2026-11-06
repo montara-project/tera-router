@@ -23,4 +23,6 @@ export type BudgetStatus = Budget & {
   spent_tokens: number
   spend_pct: number
   token_pct: number
+  /** End of the current period (RFC 3339); spend starts from zero after it. */
+  resets_at: string
 }

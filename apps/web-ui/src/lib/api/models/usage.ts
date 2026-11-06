@@ -1,4 +1,4 @@
-export type UsageRange = 'today' | '24h' | '7d' | '30d'
+export type UsageRange = 'today' | '24h' | '7d' | '30d' | '90d'
 
 /** One model's share of an activity day, busiest first. */
 export type UsageActivityModel = {
@@ -48,6 +48,11 @@ export type UsageProviderAccountingRow = {
   usageEst: number
   legacy: number
   backfilled: number
+  /** Health over the window, from the same attempts. */
+  status: 'healthy' | 'degraded' | 'down'
+  p95Ms: number
+  /** Provider page id ("prov-<slug>" or a custom uuid); "" when it no longer exists. */
+  detailId: string
 }
 
 export type UsageModelAccountingRow = {
@@ -97,6 +102,15 @@ export type UsageTerminalRequestRow = {
   latencyMs: number
   upstreamMs: number
   time: string
+  /** Request time, RFC 3339 (UTC). */
+  createdAt: string
+  client: string
+  /** Provider display name and API key name ("" when unknown). */
+  providerName: string
+  keyName: string
+  /** Upstream failure class (auth, rate_limit, upstream, …); failed rows only. */
+  errorKind?: string
+  errorStatus?: number
 }
 
 export type UsageTelemetryOverview = {
@@ -111,6 +125,8 @@ export type UsageTelemetryOverview = {
   performance: {
     successRate: number
     avgLatencyMs: number
+    p50Ms: number
+    p95Ms: number
     ttftMs: number
     tokensPerRequest: number
   }
@@ -123,11 +139,30 @@ export type UsageTelemetryOverview = {
     /** Provider/model pairs in the window with no pricing override */
     unpricedModels: number
   }
+  /** The same-length window just before this one, for the card deltas. */
+  previous: {
+    requests: number
+    successRate: number
+    p50Ms: number
+    costMicros: number
+    tokens: number
+  }
   optimization: {
     savedLabel: string
+    /** Estimated at ~4 bytes per token removed by input compression. */
     tokensSaved: number
+    /** Requests input compression shrank. */
     optimizedRequests: number
     promptReducedBytes: number
+    /** Requests that carried an output-shaping directive. */
+    shapedRequests: number
+    /** promptReducedBytes split by stage. */
+    headroomBytes: number
+    rtkBytes: number
+    /** Bytes removed per compression rule ("headroom" or an RTK rule), most first. */
+    rules: { rule: string; bytes: number }[]
+    /** Requests per output-shaping directive (caveman, terse, ponytail). */
+    directives: Record<string, number>
   }
   tokenComposition: {
     regularInput: number
@@ -137,7 +172,16 @@ export type UsageTelemetryOverview = {
     reasoning: number
     requestCacheHits: number
   }
-  trend: { day: string; requests: number; tokens: number; costMicros: number; failures: number }[]
+  /** One point per day (per hour for today/24h); quiet buckets are zero. */
+  trend: {
+    day: string
+    requests: number
+    tokens: number
+    costMicros: number
+    failures: number
+    /** Average latency of the bucket's successful requests. */
+    latencyMs: number
+  }[]
   trendBusiest: string
   distribution: {
     provider: string

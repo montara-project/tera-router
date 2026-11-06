@@ -45,7 +45,7 @@ func (h *ipBlocksHandler) Store(c fiber.Ctx) error {
 	if err := h.app.IPBlocks.Reload(c.Context()); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "ip_block.create", id, map[string]string{"cidr": prefix.String()})
+	auditRecord(c, actorFrom(c), "ip_block.create", id, map[string]string{"cidr": prefix.String()})
 	return dtos.Item(c, fiber.StatusCreated, fiber.Map{"id": id, "cidr": prefix.String()}, "Address blocked")
 }
 
@@ -58,6 +58,6 @@ func (h *ipBlocksHandler) Delete(c fiber.Ctx) error {
 	if err := h.app.IPBlocks.Reload(c.Context()); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "ip_block.delete", id, nil)
+	auditRecord(c, actorFrom(c), "ip_block.delete", id, nil)
 	return dtos.Message(c, fiber.StatusOK, "Block removed")
 }

@@ -6,7 +6,13 @@ const SIZE_CLASSES = {
 } as const
 
 interface SegmentedControlProps<T extends string> {
-  options: readonly { value: T; label: string }[]
+  /** `count` renders a muted tally after the label, e.g. a filter's matches. */
+  options: readonly {
+    value: T
+    label: string
+    count?: number
+    icon?: React.ElementType
+  }[]
   value: T
   onChange: (value: T) => void
   size?: keyof typeof SIZE_CLASSES
@@ -42,14 +48,18 @@ export default function SegmentedControl<T extends string>({
             aria-pressed={active}
             onClick={() => onChange(option.value)}
             className={cn(
-              'cursor-pointer rounded-md transition-colors',
+              'inline-flex cursor-pointer items-center gap-1.5 rounded-md whitespace-nowrap transition-colors',
               SIZE_CLASSES[size],
               active
                 ? 'bg-accent font-medium text-foreground'
                 : 'text-muted-foreground hover:text-foreground'
             )}
           >
+            {option.icon && <option.icon className="size-3.5 shrink-0" aria-hidden />}
             {option.label}
+            {option.count !== undefined && (
+              <span className="text-muted-foreground tabular-nums">{option.count}</span>
+            )}
           </button>
         )
       })}

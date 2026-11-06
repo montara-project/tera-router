@@ -30,18 +30,28 @@ type requestMeta struct {
 	// Chain is the routing chain the request resolved through ("" for direct
 	// alias or provider/model calls).
 	Chain string
+	// Saving is what the token-saving stages did to the request.
+	Saving tokenSaving
+	// trace is the request's Console entry (nil outside the trace middleware).
+	trace *requestTrace
 }
 
 // metaFrom extracts the request metadata from the Fiber context and the
 // authenticated key.
 func metaFrom(c fiber.Ctx, key models.APIKey, dialect core.Dialect) requestMeta {
+	t := traceFrom(c)
+	requestID := t.requestID()
+	if requestID == "" {
+		requestID = uuid.NewString()
+	}
 	return requestMeta{
+		trace:     t,
 		KeyName:   key.Name,
 		APIKeyID:  key.ID,
 		Client:    detectClient(c),
 		ClientIP:  c.IP(),
 		Dialect:   dialect,
-		RequestID: uuid.NewString(),
+		RequestID: requestID,
 	}
 }
 
@@ -143,6 +153,7 @@ func (s *Server) handleChat(c fiber.Ctx, dialect core.Dialect) error {
 	// upstream sees the literal suffix.
 	applyModelSuffix(req)
 	req.Metadata = meta.coreMetadata()
+	meta.trace.received(req.Model, len(req.Messages), req.Stream, len(body))
 
 	// Routing, access control, and planning are bounded database work, so they
 	// share a short deadline regardless of the request's streaming mode.
@@ -259,7 +270,7 @@ func (s *Server) handleChat(c fiber.Ctx, dialect core.Dialect) error {
 
 	// Token saving runs after the guardrail screen so Headroom only ever sees
 	// redacted text, and before dispatch so every attempt sends the slim body.
-	s.applyTokenSaving(routeCtx, req)
+	meta.Saving = s.applyTokenSaving(routeCtx, req)
 
 	attempts := s.plan(routeCtx, resolved.Targets, session)
 	routeCancel()
@@ -269,6 +280,8 @@ func (s *Server) handleChat(c fiber.Ctx, dialect core.Dialect) error {
 		return s.fail(c, dialect, http.StatusServiceUnavailable,
 			"no available account for model "+req.Model)
 	}
+	first := attempts[0].Target
+	meta.trace.routedTo(first.Provider+"/"+first.Model, len(attempts)-1)
 
 	if req.Stream {
 		// A streaming request outlives the handler: the stream writer runs

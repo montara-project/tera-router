@@ -22,21 +22,49 @@ import (
 const recentRequestLimit = 50
 
 // Telemetry returns the full Usage page payload for the requested range.
+// Short ranges (today, 24h) chart hourly buckets; longer ones daily.
 func (h *usageHandler) Telemetry(c fiber.Ctx) error {
-	telemetry, err := h.buildTelemetry(c.Context(), rangeStart(c.Query("range", "30d")))
+	rng := c.Query("range", "30d")
+	hourly := rng == "today" || rng == "24h"
+	telemetry, err := h.buildTelemetry(c.Context(), rangeStart(rng), time.Now(), hourly)
 	if err != nil {
 		return err
 	}
 	return dtos.OK(c, telemetry)
 }
 
-// buildTelemetry assembles the page payload from the usage aggregates.
-func (h *usageHandler) buildTelemetry(ctx context.Context, from time.Time) (dtos.UsageTelemetry, error) {
-	traffic, err := h.app.Repos.Usage.Traffic(ctx, from)
+// buildTelemetry assembles the page payload from the usage aggregates over
+// [from, now), plus the same-length window before it for comparison.
+func (h *usageHandler) buildTelemetry(ctx context.Context, from, now time.Time, hourly bool) (dtos.UsageTelemetry, error) {
+	// Rows written during this call land just after `now`; read up to a
+	// minute ahead so the totals match the other (open-ended) aggregates.
+	until := now.Add(time.Minute)
+	traffic, err := h.app.Repos.Usage.Traffic(ctx, from, until)
 	if err != nil {
 		return dtos.UsageTelemetry{}, err
 	}
 	performance, err := h.app.Repos.Usage.Performance(ctx, from)
+	if err != nil {
+		return dtos.UsageTelemetry{}, err
+	}
+	latencies, err := h.app.Repos.Usage.Latencies(ctx, from, until)
+	if err != nil {
+		return dtos.UsageTelemetry{}, err
+	}
+	healthRows, err := h.app.Repos.Usage.HealthRows(ctx, from)
+	if err != nil {
+		return dtos.UsageTelemetry{}, err
+	}
+	saving, err := h.app.Repos.Usage.SavingBreakdown(ctx, from, until)
+	if err != nil {
+		return dtos.UsageTelemetry{}, err
+	}
+	prevFrom := from.Add(-now.Sub(from))
+	prevTraffic, err := h.app.Repos.Usage.Traffic(ctx, prevFrom, from)
+	if err != nil {
+		return dtos.UsageTelemetry{}, err
+	}
+	prevLatencies, err := h.app.Repos.Usage.Latencies(ctx, prevFrom, from)
 	if err != nil {
 		return dtos.UsageTelemetry{}, err
 	}
@@ -48,11 +76,11 @@ func (h *usageHandler) buildTelemetry(ctx context.Context, from time.Time) (dtos
 	if err != nil {
 		return dtos.UsageTelemetry{}, err
 	}
-	daily, err := h.app.Repos.Usage.DailyWithFailures(ctx, from)
+	daily, err := h.app.Repos.Usage.DailyWithFailures(ctx, from, hourly)
 	if err != nil {
 		return dtos.UsageTelemetry{}, err
 	}
-	recent, err := h.app.Repos.Usage.Recent(ctx, recentRequestLimit)
+	recent, err := h.app.Repos.Usage.Recent(ctx, from, recentRequestLimit)
 	if err != nil {
 		return dtos.UsageTelemetry{}, err
 	}
@@ -60,7 +88,7 @@ func (h *usageHandler) buildTelemetry(ctx context.Context, from time.Time) (dtos
 	if err != nil {
 		return dtos.UsageTelemetry{}, err
 	}
-	names, kinds, err := h.providerMeta(ctx)
+	names, kinds, detailIDs, err := h.providerMeta(ctx)
 	if err != nil {
 		return dtos.UsageTelemetry{}, err
 	}
@@ -123,6 +151,8 @@ func (h *usageHandler) buildTelemetry(ctx context.Context, from time.Time) (dtos
 		Performance: dtos.UsageTelemetryPerformance{
 			SuccessRate:      percent(success, traffic.Requests),
 			AvgLatencyMs:     performance.AvgMS,
+			P50Ms:            int64(percentile(latencies, 0.5)),
+			P95Ms:            int64(percentile(latencies, 0.95)),
 			TTFTMs:           performance.TTFTMS,
 			TokensPerRequest: divide(totalTokens, traffic.Requests),
 		},
@@ -133,9 +163,20 @@ func (h *usageHandler) buildTelemetry(ctx context.Context, from time.Time) (dtos
 			UnpricedRequests: traffic.Requests - pricedRequests,
 			UnpricedModels:   unpricedModels,
 		},
-		// No token-saving or compression layer is enabled in this deployment,
-		// so there is nothing to attribute as saved.
-		Optimization: dtos.UsageTelemetryOptimization{SavedLabel: "$0.00"},
+		Previous: previousWindow(prevTraffic, prevLatencies),
+		// Removed bytes are not priced, so no dollar value is attributed:
+		// TokensSaved is an estimate at ~4 bytes per token.
+		Optimization: dtos.UsageTelemetryOptimization{
+			SavedLabel:         "$0.00",
+			TokensSaved:        traffic.PromptReducedBytes / 4,
+			OptimizedRequests:  traffic.CompressedRequests,
+			PromptReducedBytes: traffic.PromptReducedBytes,
+			ShapedRequests:     traffic.ShapedRequests,
+			HeadroomBytes:      saving.RuleBytes[savingHeadroomRule],
+			RTKBytes:           sumRTK(saving.RuleBytes),
+			Rules:              savingRules(saving.RuleBytes),
+			Directives:         saving.DirectiveCount,
+		},
 		TokenComposition: dtos.UsageTelemetryTokens{
 			RegularInput:     standardInput,
 			CacheRead:        traffic.CachedTokens,
@@ -146,14 +187,62 @@ func (h *usageHandler) buildTelemetry(ctx context.Context, from time.Time) (dtos
 		},
 		DistributionTot:  traffic.Requests,
 		DistributionProv: len(byProvider),
-		Trend:            trendPoints(daily),
-		TrendBusiest:     busiestDay(daily),
+		Trend:            trendPoints(daily, from, now, hourly),
+		TrendBusiest:     busiestDay(daily, hourly),
 		Distribution:     distribution(byProvider, traffic.Requests, totalTokens, kinds),
-		ProviderRows:     providerRows(byProvider, derivedByProvider, pricedByProvider, names, kinds),
-		ModelRows:        modelRows(byModel, rates, kinds),
-		RecentRequests:   requestRows(recent, rates, time.Now(), kinds),
+		ProviderRows: withHealth(
+			providerRows(byProvider, derivedByProvider, pricedByProvider, names, kinds),
+			buildHealthOverview(healthRows, nil, from, now).Providers,
+			detailIDs,
+		),
+		ModelRows:      modelRows(byModel, rates, kinds),
+		RecentRequests: requestRows(recent, rates, time.Now(), kinds, names),
 	}
 	return out, nil
+}
+
+// savingHeadroomRule is the saving_rules key the gateway uses for bytes the
+// Headroom proxy removed; every other key is an RTK rule.
+const savingHeadroomRule = "headroom"
+
+// sumRTK totals the bytes removed by RTK rules (everything but Headroom).
+func sumRTK(rules map[string]int64) int64 {
+	var total int64
+	for rule, n := range rules {
+		if rule != savingHeadroomRule {
+			total += n
+		}
+	}
+	return total
+}
+
+// savingRules lists the rules by bytes removed, most first.
+func savingRules(rules map[string]int64) []dtos.UsageTelemetrySavingRule {
+	out := make([]dtos.UsageTelemetrySavingRule, 0, len(rules))
+	for rule, n := range rules {
+		if n > 0 {
+			out = append(out, dtos.UsageTelemetrySavingRule{Rule: rule, Bytes: n})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Bytes != out[j].Bytes {
+			return out[i].Bytes > out[j].Bytes
+		}
+		return out[i].Rule < out[j].Rule
+	})
+	return out
+}
+
+// previousWindow summarizes the comparison window. Spend is the recorded
+// figure: re-deriving it from current rates is only done for the live window.
+func previousWindow(t repositories.UsageTraffic, latencies []int) dtos.UsageTelemetryPrevious {
+	return dtos.UsageTelemetryPrevious{
+		Requests:    t.Requests,
+		SuccessRate: percent(t.Requests-t.Failed, t.Requests),
+		P50Ms:       int64(percentile(latencies, 0.5)),
+		CostMicros:  t.CostMicros,
+		Tokens:      t.PromptTokens + t.CompletionTokens,
+	}
 }
 
 // totalCost sums the displayed cost across the provider aggregation, so the
@@ -230,27 +319,51 @@ func groupCost(g repositories.UsageGroup, o models.PricingOverride) int64 {
 	}, g.PromptTokens, g.CachedTokens, g.CacheWriteTokens, g.CompletionTokens, g.ReasoningTokens)
 }
 
-// providerMeta maps a provider slug to the display name and api kind the
-// dashboard uses: catalog metadata for built-in providers, the
-// operator-supplied fields for custom ones, and nothing when the provider is
-// unknown (a deleted or renamed registration whose historical rows remain).
-func (h *usageHandler) providerMeta(ctx context.Context) (names, kinds map[string]string, err error) {
+// providerMeta maps a provider slug to the display name, api kind and
+// detail-page id the dashboard uses: catalog metadata for built-in providers
+// ("prov-<slug>"), the operator-supplied fields for custom ones (their uuid),
+// and nothing when the provider is unknown (a deleted or renamed registration
+// whose historical rows remain).
+func (h *usageHandler) providerMeta(ctx context.Context) (names, kinds, detailIDs map[string]string, err error) {
 	names = map[string]string{}
 	kinds = map[string]string{}
+	detailIDs = map[string]string{}
 	for _, spec := range catalog.All() {
 		names[spec.Slug] = spec.Name
 		kinds[spec.Slug] = spec.Dialect
+		detailIDs[spec.Slug] = "prov-" + spec.Slug
 	}
 
 	custom, err := h.app.Repos.Providers.List(ctx)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	for _, p := range custom {
 		names[p.Slug] = p.Name
 		kinds[p.Slug] = p.APIKind
+		detailIDs[p.Slug] = p.ID
 	}
-	return names, kinds, nil
+	return names, kinds, detailIDs, nil
+}
+
+// withHealth adds each provider's health status, p95 latency and detail-page
+// id to its accounting row. Health comes from the same window's attempts, so
+// a provider whose every attempt failed reads "down".
+func withHealth(rows []dtos.UsageTelemetryProviderRow, health []healthEntry, detailIDs map[string]string) []dtos.UsageTelemetryProviderRow {
+	bySlug := make(map[string]healthEntry, len(health))
+	for _, e := range health {
+		bySlug[e.ID] = e
+	}
+	for i := range rows {
+		e := bySlug[rows[i].Slug]
+		rows[i].Status = e.Status
+		if rows[i].Status == "" {
+			rows[i].Status = "healthy"
+		}
+		rows[i].P95Ms = int64(e.P95Ms)
+		rows[i].DetailID = detailIDs[rows[i].Slug]
+	}
+	return rows
 }
 
 // providerRows builds the provider accounting table. A provider group spans
@@ -363,28 +476,44 @@ func distribution(groups []repositories.UsageGroup, totalRequests, totalTokens i
 	return out
 }
 
-// trendPoints converts the daily aggregates into the chart series, formatting
-// each day as the axis label the chart expects ("Sep 07").
-func trendPoints(daily []repositories.UsageDailyWithFailures) []dtos.UsageTelemetryTrendPoint {
-	out := make([]dtos.UsageTelemetryTrendPoint, 0, len(daily))
-	for _, d := range daily {
+// trendPoints converts the bucket aggregates into the chart series, one point
+// per day (or hour) from `from` to `now` in UTC, so quiet buckets show as
+// zero instead of vanishing from the axis.
+func trendPoints(buckets []repositories.UsageDailyWithFailures, from, now time.Time, hourly bool) []dtos.UsageTelemetryTrendPoint {
+	byKey := make(map[string]repositories.UsageDailyWithFailures, len(buckets))
+	for _, b := range buckets {
+		byKey[b.Day] = b
+	}
+
+	step, layout := 24*time.Hour, time.DateOnly
+	start := from.UTC().Truncate(24 * time.Hour)
+	if hourly {
+		step, layout = time.Hour, "2006-01-02 15:00"
+		start = from.UTC().Truncate(time.Hour)
+	}
+
+	out := []dtos.UsageTelemetryTrendPoint{}
+	for t := start; !t.After(now.UTC()); t = t.Add(step) {
+		key := t.Format(layout)
+		b := byKey[key]
 		out = append(out, dtos.UsageTelemetryTrendPoint{
-			Day:        dayLabel(d.Day),
-			Requests:   d.Requests,
-			Tokens:     d.Tokens,
-			CostMicros: d.CostMicros,
-			Failures:   d.Failed,
+			Day:        bucketLabel(key, hourly),
+			Requests:   b.Requests,
+			Tokens:     b.Tokens,
+			CostMicros: b.CostMicros,
+			Failures:   b.Failed,
+			LatencyMs:  b.LatencyMS,
 		})
 	}
 	return out
 }
 
-// busiestDay names the day with the most requests, or "" when the window is
-// empty.
-func busiestDay(daily []repositories.UsageDailyWithFailures) string {
+// busiestDay names the bucket with the most requests, or "" when the window
+// is empty.
+func busiestDay(buckets []repositories.UsageDailyWithFailures, hourly bool) string {
 	best := ""
 	var bestRequests int64 = -1
-	for _, d := range daily {
+	for _, d := range buckets {
 		if d.Requests > bestRequests {
 			best, bestRequests = d.Day, d.Requests
 		}
@@ -392,14 +521,22 @@ func busiestDay(daily []repositories.UsageDailyWithFailures) string {
 	if best == "" {
 		return ""
 	}
-	return dayLabel(best)
+	return bucketLabel(best, hourly)
 }
 
-// dayLabel reformats a "2006-01-02" bucket as "Jan 02" for display.
-func dayLabel(day string) string {
-	parsed, err := time.Parse("2006-01-02", day)
+// bucketLabel reformats a bucket key for display: "2006-01-02" as "Jan 02",
+// "2006-01-02 15:00" as "15:00".
+func bucketLabel(key string, hourly bool) string {
+	if hourly {
+		parsed, err := time.Parse("2006-01-02 15:00", key)
+		if err != nil {
+			return key
+		}
+		return parsed.Format("15:04")
+	}
+	parsed, err := time.Parse(time.DateOnly, key)
 	if err != nil {
-		return day
+		return key
 	}
 	return parsed.Format("Jan 02")
 }
@@ -408,7 +545,7 @@ func dayLabel(day string) string {
 // attempt produced no tokens and therefore no billable usage, so its cost is
 // reported as null with an explanatory note rather than as a free request; the
 // same applies to a successful request on a model with no pricing override.
-func requestRows(records []models.UsageRecord, rates map[string]models.PricingOverride, now time.Time, kinds map[string]string) []dtos.UsageTelemetryRequestRow {
+func requestRows(records []models.UsageRecord, rates map[string]models.PricingOverride, now time.Time, kinds, names map[string]string) []dtos.UsageTelemetryRequestRow {
 	out := make([]dtos.UsageTelemetryRequestRow, 0, len(records))
 	for _, u := range records {
 		row := dtos.UsageTelemetryRequestRow{
@@ -425,9 +562,15 @@ func requestRows(records []models.UsageRecord, rates map[string]models.PricingOv
 			ReasoningTokens: int64(u.ReasoningTokens),
 			// Only the total latency is recorded; upstream time is not split
 			// out, so the row reports the same figure for both.
-			LatencyMs:  int64(u.LatencyMS),
-			UpstreamMs: int64(u.LatencyMS),
-			Time:       relativeTime(u.CreatedAt, now),
+			LatencyMs:    int64(u.LatencyMS),
+			UpstreamMs:   int64(u.LatencyMS),
+			Time:         relativeTime(u.CreatedAt, now),
+			CreatedAt:    u.CreatedAt.UTC().Format(time.RFC3339),
+			Client:       u.Client,
+			ProviderName: providerDisplayName(names, u.Provider),
+			KeyName:      u.KeyName,
+			ErrorKind:    u.ErrorKind,
+			ErrorStatus:  u.ErrorStatus,
 		}
 		if u.Failed {
 			row.Status = "failed"

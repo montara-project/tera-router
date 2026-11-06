@@ -1,3 +1,4 @@
+import { IconPhoto, IconPlugConnected, IconPlus, IconSearch } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
@@ -5,59 +6,36 @@ import { useMemo, useState } from 'react'
 import type { MediaCategory } from '@/lib/api/models/media'
 import type { Provider } from '@/lib/api/models/provider'
 
-import IconBadge from '@/components/block/common/icon-badge'
-import SectionCard from '@/components/block/common/section-card'
-import MediaProviderGrid from '@/components/block/media/media-provider-grid'
+import PageHeader from '@/components/block/common/page-header'
+import MediaProviderGrid, { MediaSectionHeader } from '@/components/block/media/media-provider-grid'
 import MediaTabs, { MEDIA_CATEGORIES } from '@/components/block/media/media-tabs'
-import { Badge } from '@/components/ui/badge'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardHeading,
-  CardTitle,
-  CardToolbar,
-} from '@/components/ui/card'
+import { Input, InputWrapper } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { mediaQueries } from '@/lib/api/queries/media'
 import { providerQueries } from '@/lib/api/queries/provider'
 
+const CATEGORY_VALUES = MEDIA_CATEGORIES.map((c) => c.value)
+
 export const Route = createFileRoute('/(protected)/(connection)/media/')({
+  validateSearch: (search: Record<string, unknown>): { category?: MediaCategory } => ({
+    category: CATEGORY_VALUES.includes(search.category as MediaCategory)
+      ? (search.category as MediaCategory)
+      : undefined,
+  }),
   component: RouteComponent,
 })
 
-function RouteSkeleton() {
-  return (
-    <div className="bg-sidebar border border-sidebar-accent p-2 rounded-2xl">
-      <div className="rounded-lg border border-border bg-background p-4">
-        <div className="flex gap-2">
-          {Array.from({ length: 6 }).map((_, index) => (
-            <Skeleton key={index} className="h-8 w-24 rounded-lg" />
-          ))}
-        </div>
+const TEAL_TILE = 'border-transparent bg-teal-500/10 text-teal-600 dark:text-teal-400'
 
-        <div className="mt-4 flex items-center gap-3.5 rounded-xl border border-border p-4">
-          <Skeleton className="h-10 w-10 rounded-lg" />
-          <div className="min-w-0 flex-1 space-y-2">
-            <Skeleton className="h-4 w-48 rounded-lg" />
-            <Skeleton className="h-3 w-72 rounded-lg" />
-          </div>
-          <Skeleton className="h-5 w-8 rounded-sm" />
-        </div>
-
-        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {Array.from({ length: 6 }).map((_, index) => (
-            <Skeleton key={index} className="h-[76px] rounded-xl" />
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
+const categoryToCapability = (category: MediaCategory) =>
+  category === 'embeddings' ? 'embed' : category
 
 function RouteComponent() {
-  const [category, setCategory] = useState<MediaCategory>('embeddings')
+  const navigate = Route.useNavigate()
+  const category = Route.useSearch().category ?? 'embeddings'
+  const setCategory = (next: MediaCategory) =>
+    void navigate({ search: { category: next === 'embeddings' ? undefined : next }, replace: true })
+  const [search, setSearch] = useState('')
 
   const { data } = useQuery(mediaQueries.list())
   const { data: providerData } = useQuery(providerQueries.list())
@@ -65,83 +43,103 @@ function RouteComponent() {
   const connections = useMemo(() => {
     const overview = providerData?.data
     const map: Record<string, Provider> = {}
-
     for (const provider of [...(overview?.connected ?? []), ...(overview?.available ?? [])]) {
       map[provider.slug] = provider
     }
-
     return map
   }, [providerData])
 
-  const counts = useMemo(() => {
-    const providers = data?.data.providers ?? []
-    const map = {} as Record<MediaCategory, number>
-
-    for (const item of MEDIA_CATEGORIES) {
-      const capability = categoryToCapability(item.value)
-      map[item.value] = providers.filter((provider) =>
-        provider.capabilities.includes(capability)
-      ).length
-    }
-
-    return map
-  }, [data])
-
-  const filtered = useMemo(
-    () =>
-      (data?.data.providers ?? []).filter((provider) =>
-        provider.capabilities.includes(categoryToCapability(category))
-      ),
-    [data, category]
+  const active = MEDIA_CATEGORIES.find((item) => item.value === category) ?? MEDIA_CATEGORIES[0]
+  const query = search.trim().toLowerCase()
+  const providers = (data?.data.providers ?? []).filter(
+    (p) =>
+      p.capabilities.includes(categoryToCapability(category)) &&
+      (!query || p.name.toLowerCase().includes(query) || p.slug.includes(query))
   )
-
-  if (!data) {
-    return <RouteSkeleton />
-  }
-
-  const active = MEDIA_CATEGORIES.find((item) => item.value === category)
+  const connected = providers.filter((p) => connections[p.slug]?.connected)
+  const available = providers.filter((p) => !connections[p.slug]?.connected)
+  const noun = active.label.toLowerCase()
 
   return (
-    <SectionCard
-      title="Media Providers"
-      description="Connect providers for embeddings, image generation, speech, and web access."
-    >
-      <div className="space-y-4">
-        <MediaTabs value={category} onChange={setCategory} counts={counts} />
+    <div className="flex flex-col gap-5">
+      <PageHeader
+        icon={IconPhoto}
+        iconClassName={TEAL_TILE}
+        title="Media providers"
+        description="Embeddings, image, speech and web providers."
+      />
 
-        <Card className="bg-background">
-          <CardHeader className="py-4">
-            <div className="flex items-center gap-3.5">
-              <IconBadge
-                icon={active?.icon ?? MEDIA_CATEGORIES[0].icon}
-                variant="soft"
-                className="h-10 w-10 shrink-0"
-                iconClassName="h-5 w-5"
-              />
-              <CardHeading>
-                <CardTitle>{active?.label} providers</CardTitle>
-                <CardDescription>{active?.description}</CardDescription>
-              </CardHeading>
-            </div>
-            <CardToolbar>
-              <Badge variant="secondary" size="sm" className="tabular-nums">
-                {filtered.length}
-              </Badge>
-            </CardToolbar>
-          </CardHeader>
-          <CardContent className="p-0">
-            <MediaProviderGrid
-              providers={filtered}
-              connections={connections}
-              emptyIcon={active?.icon}
-            />
-          </CardContent>
-        </Card>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <MediaTabs value={category} onChange={setCategory} />
+        <InputWrapper variant="md" className="w-full rounded-md sm:w-64">
+          <IconSearch className="size-4" />
+          <Input
+            aria-label={`Search ${noun} providers`}
+            placeholder={`Search ${noun} providers`}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </InputWrapper>
       </div>
-    </SectionCard>
-  )
-}
 
-function categoryToCapability(category: MediaCategory) {
-  return category === 'embeddings' ? 'embed' : category
+      {!data ? (
+        <div className="flex flex-col gap-6">
+          <Skeleton className="h-40 rounded-lg" />
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {Array.from({ length: 8 }, (_, i) => (
+              <Skeleton key={i} className="h-[59px] rounded-lg" />
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-6">
+          <section className="flex flex-col gap-3">
+            <MediaSectionHeader
+              icon={IconPlugConnected}
+              title="Connected"
+              detail={connected.length}
+            />
+            {connected.length > 0 ? (
+              <MediaProviderGrid
+                providers={connected}
+                connections={connections}
+                category={category}
+              />
+            ) : (
+              <div className="flex flex-col items-center rounded-lg border border-border bg-card px-6 py-9 text-center">
+                <span className="flex size-10 items-center justify-center rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400">
+                  <active.icon className="size-5" aria-hidden />
+                </span>
+                <p className="mt-2.5 text-[13px] font-semibold">
+                  {query
+                    ? `No connected ${noun} provider matches`
+                    : `No ${noun} provider connected`}
+                </p>
+                <p className="mt-1 text-[12.5px] text-muted-foreground">
+                  {query ? 'Try a different search.' : 'Pick one below and add an account.'}
+                </p>
+              </div>
+            )}
+          </section>
+
+          <section className="flex flex-col gap-3">
+            <MediaSectionHeader icon={IconPlus} title="Add a provider" detail={available.length} />
+            {available.length > 0 ? (
+              <MediaProviderGrid
+                providers={available}
+                connections={connections}
+                category={category}
+              />
+            ) : (
+              <p className="text-[12.5px] text-muted-foreground">
+                {query
+                  ? 'No provider matches this search.'
+                  : `Every ${noun} provider is connected.`}
+              </p>
+            )}
+          </section>
+        </div>
+      )}
+    </div>
+  )
 }

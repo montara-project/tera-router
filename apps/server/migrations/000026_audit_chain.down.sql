@@ -1,0 +1,13 @@
+DROP INDEX idx_audit_entries_seq;
+ALTER TABLE audit_entries DROP COLUMN hash;
+ALTER TABLE audit_entries DROP COLUMN prev_hash;
+ALTER TABLE audit_entries DROP COLUMN seq;
+ALTER TABLE audit_entries DROP COLUMN request_id;
+ALTER TABLE audit_entries DROP COLUMN user_agent;
+ALTER TABLE audit_entries DROP COLUMN forwarded_for;
+ALTER TABLE audit_entries DROP COLUMN client_ip;
+ALTER TABLE audit_entries DROP COLUMN status;
+ALTER TABLE audit_entries DROP COLUMN route;
+ALTER TABLE audit_entries DROP COLUMN method;
+ALTER TABLE audit_entries DROP COLUMN session_id;
+ALTER TABLE audit_entries DROP COLUMN outcome;

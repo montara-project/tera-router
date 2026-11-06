@@ -39,7 +39,7 @@ export default function DatePickerInput({
             variant="outline"
             mode="input"
             placeholder={!date}
-            className="w-full"
+            className="w-full bg-card"
           >
             <IconCalendar />
             {date ? format(date, 'dd MMM yyyy') : <span>{placeholder || 'Pick a date'}</span>}

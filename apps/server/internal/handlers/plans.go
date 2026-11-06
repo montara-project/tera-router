@@ -205,7 +205,7 @@ func (h *plansHandler) Store(c fiber.Ctx) error {
 	if err := h.app.Repos.Plans.Insert(c.Context(), plan); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "plan.create", plan.ID, map[string]string{"name": plan.Name})
+	auditRecord(c, actorFrom(c), "plan.create", plan.ID, map[string]string{"name": plan.Name})
 	return dtos.Created(c, planView(plan, 0, []planKeyUsage{}), "Plan created")
 }
 
@@ -228,7 +228,7 @@ func (h *plansHandler) Update(c fiber.Ctx) error {
 	if err := h.app.Repos.Plans.Update(c.Context(), plan); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "plan.update", plan.ID, nil)
+	auditRecord(c, actorFrom(c), "plan.update", plan.ID, nil)
 
 	updated, err := h.app.Repos.Plans.Get(c.Context(), plan.ID)
 	if err != nil {
@@ -246,6 +246,6 @@ func (h *plansHandler) Delete(c fiber.Ctx) error {
 	if err := h.app.Repos.Plans.Delete(c.Context(), id.String()); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "plan.delete", id.String(), nil)
+	auditRecord(c, actorFrom(c), "plan.delete", id.String(), nil)
 	return dtos.Deleted(c, "Plan deleted")
 }

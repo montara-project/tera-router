@@ -9,6 +9,12 @@ type ProxyPool struct {
 	URL   string `json:"url"`
 	Mode  string `json:"mode"`
 	Label string `json:"label"`
+	// Bypass is a comma separated host list that skips the proxy.
+	Bypass string `json:"bypass"`
+	// Enabled and Strict are optional; omitted keeps the stored value
+	// (enabled, not strict for a new pool).
+	Enabled *bool `json:"enabled"`
+	Strict  *bool `json:"strict"`
 }
 
 func (d *ProxyPool) Validate(v *validator.MapValidator) {

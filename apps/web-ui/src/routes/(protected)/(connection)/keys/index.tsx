@@ -4,118 +4,67 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
 
 import type { KeysFilters } from '@/components/block/keys/filter-keys'
+import type { Models } from '@/lib/api/models'
 
-import IconBadge from '@/components/block/common/icon-badge'
-import ReactTable from '@/components/block/common/react-table'
-import SectionCard from '@/components/block/common/section-card'
-import { KeysColumn } from '@/components/block/keys/column'
-import FilterKeys, {
-  applyKeysFilters,
-  DEFAULT_KEYS_FILTERS,
-} from '@/components/block/keys/filter-keys'
+import PageHeader from '@/components/block/common/page-header'
+import { applyKeysFilters, DEFAULT_KEYS_FILTERS } from '@/components/block/keys/filter-keys'
 import { AddKeyForm } from '@/components/block/keys/form'
-import KeysStatsStrip from '@/components/block/keys/keys-stats-strip'
+import KeySecretDialog from '@/components/block/keys/key-secret-dialog'
+import KeysTable from '@/components/block/keys/keys-table'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardHeading,
-  CardTitle,
-} from '@/components/ui/card'
-import { Skeleton } from '@/components/ui/skeleton'
-import { usePaginationQuery } from '@/hooks/use-pagination-query'
 import { keyQueries } from '@/lib/api/queries/key'
-import { getTotal } from '@/lib/constants/paginate'
 
 export const Route = createFileRoute('/(protected)/(connection)/keys/')({
   component: RouteComponent,
 })
 
-function RouteSkeleton() {
-  return (
-    <div className="bg-sidebar border border-sidebar-accent p-2 rounded-2xl">
-      <div className="space-y-4 rounded-lg border border-border bg-background p-4">
-        <Skeleton className="h-24 w-full rounded-lg" />
-        <Skeleton className="h-96 w-full rounded-lg" />
-      </div>
-    </div>
-  )
-}
-
 function RouteComponent() {
   const [filters, setFilters] = useState<KeysFilters>(DEFAULT_KEYS_FILTERS)
-
   const [openDialog, setOpenDialog] = useState(false)
-  const { offset, limit, pageIndex } = usePaginationQuery()
+  // The one-time secret dialog payload; set from the create response, which is
+  // the only moment the API returns the plaintext key.
+  const [createdKey, setCreatedKey] = useState<Models.ApiKey | null>(null)
 
-  const { data, isFetching, isLoading } = useQuery(keyQueries.list({ offset, limit }))
-
-  const loading = isFetching || isLoading
-  const total = getTotal(data)
-  const keysData = data?.data ?? []
-  const columns = KeysColumn({ loading })
-
-  const keys = useMemo(() => applyKeysFilters(data?.data ?? [], filters), [data, filters])
-
-  if (!data) {
-    return <RouteSkeleton />
-  }
-
-  const handleFilterChange = (patch: Partial<KeysFilters>) =>
-    setFilters((previous) => ({ ...previous, ...patch }))
+  // ponytail: one page of 100 keys, filtered client-side; page server-side past that.
+  const { data, isLoading } = useQuery(keyQueries.list({ offset: 0, limit: 100 }))
+  const keys = useMemo(() => data?.data ?? [], [data])
+  const rows = useMemo(() => applyKeysFilters(keys, filters), [keys, filters])
 
   return (
-    <SectionCard
-      title="API Keys"
-      description="Manage authentication keys, owner portal links, model access, and spend controls."
-      toolbar={
-        <Button
-          className="bg-amber-600 text-white hover:bg-amber-500 dark:bg-amber-800 dark:text-amber-200 dark:hover:bg-amber-700"
-          onClick={() => setOpenDialog(true)}
-        >
-          <IconPlus />
-          <span>New key</span>
-        </Button>
-      }
-    >
-      <div className="space-y-4">
-        <KeysStatsStrip keys={keysData} />
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        icon={IconKey}
+        iconClassName="border-transparent bg-orange-500/10 text-orange-600 dark:text-orange-400"
+        title="API keys"
+        description="Keys your tools and teammates use to call Tera Router."
+        actions={
+          <Button onClick={() => setOpenDialog(true)}>
+            <IconPlus />
+            <span>New key</span>
+          </Button>
+        }
+      />
 
-        <Card className="bg-background">
-          <CardHeader className="py-4">
-            <div className="flex items-center gap-3.5">
-              <IconBadge
-                icon={IconKey}
-                variant="soft"
-                className="h-10 w-10 shrink-0"
-                iconClassName="h-5 w-5"
-              />
-              <CardHeading>
-                <CardTitle>Key inventory</CardTitle>
-                <CardDescription>
-                  Copy identifiers, share owner portals, and control access from one place.
-                </CardDescription>
-              </CardHeading>
-            </div>
-          </CardHeader>
+      <KeysTable
+        keys={keys}
+        rows={rows}
+        loading={isLoading}
+        filters={filters}
+        onFiltersChange={(patch) => setFilters((prev) => ({ ...prev, ...patch }))}
+        onCreate={() => setOpenDialog(true)}
+      />
 
-          <CardContent className="space-y-4">
-            <FilterKeys count={keys.length} filters={filters} onChange={handleFilterChange} />
-
-            <ReactTable
-              total={total}
-              data={keys}
-              pageIndex={pageIndex}
-              pageSize={limit}
-              columns={columns}
-            />
-          </CardContent>
-        </Card>
-      </div>
-
-      <AddKeyForm open={openDialog} onOpenChange={setOpenDialog} />
-    </SectionCard>
+      <AddKeyForm onCreated={setCreatedKey} open={openDialog} onOpenChange={setOpenDialog} />
+      <KeySecretDialog
+        fullKey={createdKey?.full_key ?? ''}
+        mode="created"
+        name={createdKey?.name ?? ''}
+        onOpenChange={(open) => {
+          if (!open) setCreatedKey(null)
+        }}
+        open={!!createdKey}
+        planLabel={createdKey?.plan_label}
+      />
+    </div>
   )
 }

@@ -36,6 +36,26 @@ const get = (id: string) =>
     },
   })
 
+/** Requests, tokens and spend for one key over the last 30 days. */
+const usage = (id: string) =>
+  queryOptions({
+    queryKey: [...GET_KEY_QUERY_KEY(id), 'usage'],
+    queryFn: async () => {
+      const res = await services.keys.usage(id)
+      return res.data.data
+    },
+  })
+
+/** Guardrail decisions on one key's traffic over the last 7 days. */
+const guardrailStats = (id: string) =>
+  queryOptions({
+    queryKey: [...GET_KEY_QUERY_KEY(id), 'guardrails'],
+    queryFn: async () => {
+      const res = await services.keys.guardrailStats(id)
+      return res.data.data
+    },
+  })
+
 const create = () => {
   const qc = getQueryClient()
 
@@ -114,13 +134,41 @@ const rotate = () => {
   })
 }
 
+/** Issues (or replaces) the key's usage-portal token; resolves with it. */
+const issuePortal = () => {
+  const qc = getQueryClient()
+
+  return mutationOptions({
+    mutationFn: async (id: string) => {
+      const res = await services.keys.issuePortal(id)
+      return res.data.data.portal_token
+    },
+    onSuccess: (_token, id) => qc.invalidateQueries({ queryKey: GET_KEY_QUERY_KEY(id) }),
+  })
+}
+
+const revokePortal = () => {
+  const qc = getQueryClient()
+
+  return mutationOptions({
+    mutationFn: async (id: string) => {
+      await services.keys.revokePortal(id)
+    },
+    onSuccess: (_res, id) => qc.invalidateQueries({ queryKey: GET_KEY_QUERY_KEY(id) }),
+  })
+}
+
 export const keyQueries = {
   list,
   get,
+  usage,
+  guardrailStats,
   create,
   update,
   delete: del,
   toggleStatus,
   reveal,
   rotate,
+  issuePortal,
+  revokePortal,
 } as const

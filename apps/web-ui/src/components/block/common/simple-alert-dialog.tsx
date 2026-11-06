@@ -1,5 +1,7 @@
 'use client'
 
+import { IconAlertTriangle } from '@tabler/icons-react'
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -7,7 +9,6 @@ import {
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
-  AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 
@@ -23,6 +24,7 @@ interface SimpleAlertDialogProps {
   variant?: 'primary' | 'destructive'
 }
 
+/** Confirmation dialog. The destructive variant leads with a warning icon. */
 export default function SimpleAlertDialog({
   title,
   description,
@@ -34,18 +36,29 @@ export default function SimpleAlertDialog({
   confirmText = 'Proceed',
   variant = 'destructive',
 }: SimpleAlertDialogProps) {
+  const destructive = variant === 'destructive'
+
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>{title}</AlertDialogTitle>
-          {description && <AlertDialogDescription>{description}</AlertDialogDescription>}
-        </AlertDialogHeader>
+      <AlertDialogContent className="max-w-md gap-5 p-5">
+        <div className="flex items-start gap-3">
+          {destructive && (
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-destructive/10 text-destructive">
+              <IconAlertTriangle className="size-4" aria-hidden />
+            </span>
+          )}
+          <div className="min-w-0 space-y-1.5 pt-1">
+            <AlertDialogTitle className="text-[15px]">{title}</AlertDialogTitle>
+            {description && (
+              <AlertDialogDescription className="text-[13px]">{description}</AlertDialogDescription>
+            )}
+          </div>
+        </div>
         <AlertDialogFooter>
           <AlertDialogCancel onClick={onCancel}>{cancelText}</AlertDialogCancel>
           <AlertDialogAction
             variant={variant}
-            className={variant === 'destructive' ? 'text-white' : ''}
+            className={destructive ? 'text-white' : ''}
             onClick={onConfirm}
           >
             {confirmText}

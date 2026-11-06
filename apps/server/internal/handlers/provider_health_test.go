@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"testing"
+	"time"
 
 	"tera-router/server/internal/repositories"
 )
@@ -40,16 +41,16 @@ func TestBuildHealthOverview(t *testing.T) {
 		{RequestID: "r1", Chain: "combo", Provider: "anthropic", Model: "claude-sonnet-4", Failed: false, LatencyMS: 300},
 		// Request r2: glm-cn failed twice and the request never succeeded ->
 		// two final failures.
-		{RequestID: "r2", Chain: "glm-free", Provider: "glm-cn", Model: "glm-4-flash", Failed: true, LatencyMS: 100},
-		{RequestID: "r2", Chain: "glm-free", Provider: "glm-cn", Model: "glm-4-flash", Failed: true, LatencyMS: 100},
+		{RequestID: "r2", Chain: "glm-free", Provider: "glm-cn", Model: "glm-4-flash", Failed: true, LatencyMS: 100, ErrorKind: "auth"},
+		{RequestID: "r2", Chain: "glm-free", Provider: "glm-cn", Model: "glm-4-flash", Failed: true, LatencyMS: 100, ErrorKind: "auth"},
 		// Request r3: clean direct call with no chain.
 		{RequestID: "r3", Chain: "", Provider: "openai", Model: "gpt-4o", Failed: false, LatencyMS: 500},
 	}
 
-	got := buildHealthOverview(rows, []string{"combo", "glm-free", "idle-chain"})
+	got := buildHealthOverview(rows, []string{"combo", "glm-free", "idle-chain"}, time.Time{}, time.Time{})
 
-	if got.Fallbacks != 1 {
-		t.Fatalf("fallbacks = %d, want 1", got.Fallbacks)
+	if got.Fallbacks != 1 || got.Requests != 3 {
+		t.Fatalf("fallbacks = %d, requests = %d, want 1 and 3", got.Fallbacks, got.Requests)
 	}
 
 	if len(got.Providers) != 3 {
@@ -75,17 +76,20 @@ func TestBuildHealthOverview(t *testing.T) {
 	if anthropic.Requests != 1 || anthropic.Status != "healthy" || anthropic.Affected != nil {
 		t.Fatalf("anthropic = %+v, want 1 healthy req with no affected chains", anthropic)
 	}
-	if glmcn.Status != "down" || glmcn.FinalFailures != 2 || glmcn.FallbackRate != 0 {
-		t.Fatalf("glm-cn = %+v, want down with 2 final failures", glmcn)
+	if glmcn.Status != "down" || glmcn.FinalFailures != 2 || glmcn.FallbackRate != 0 || glmcn.MainIssue != "auth" {
+		t.Fatalf("glm-cn = %+v, want down with 2 auth final failures", glmcn)
+	}
+	if openai.Fallbacks != 1 || openai.MainIssue != "" {
+		t.Fatalf("openai = %+v, want 1 fallback and no classified issue", openai)
 	}
 
-	// Models aggregate the same way, keyed by upstream id.
+	// Models aggregate the same way, keyed by provider/model.
 	var gpt4o, glm4 healthEntry
 	for _, m := range got.Models {
 		switch m.Name {
-		case "gpt-4o":
+		case "openai/gpt-4o":
 			gpt4o = m
-		case "glm-4-flash":
+		case "glm-cn/glm-4-flash":
 			glm4 = m
 		}
 	}
@@ -95,11 +99,14 @@ func TestBuildHealthOverview(t *testing.T) {
 
 	// Chains include configured ones with no traffic; only failing chains are
 	// named as affected.
-	var idle healthEntry
+	var idle, glmFree healthEntry
 	affectedSeen := 0
 	for _, ch := range got.Chains {
-		if ch.Name == "idle-chain" {
+		switch ch.Name {
+		case "idle-chain":
 			idle = ch
+		case "glm-free":
+			glmFree = ch
 		}
 		if ch.Affected != nil {
 			affectedSeen++
@@ -107,6 +114,9 @@ func TestBuildHealthOverview(t *testing.T) {
 	}
 	if idle.Name != "idle-chain" || idle.Requests != 0 || idle.Status != "healthy" {
 		t.Fatalf("idle-chain = %+v, want a zero-traffic healthy row", idle)
+	}
+	if glmFree.MostAffected != "glm-cn/glm-4-flash" || idle.MostAffected != "" {
+		t.Fatalf("most affected: glm-free = %q, idle = %q", glmFree.MostAffected, idle.MostAffected)
 	}
 	if affectedSeen != 0 {
 		t.Fatalf("chains.affected must stay nil (only providers/models carry it), got %d", affectedSeen)
@@ -120,7 +130,7 @@ func TestBuildHealthOverviewLegacyRows(t *testing.T) {
 		{Provider: "openai", Model: "gpt-4o", Failed: true, LatencyMS: 120},
 		{Provider: "openai", Model: "gpt-4o", Failed: false, LatencyMS: 340},
 	}
-	got := buildHealthOverview(rows, nil)
+	got := buildHealthOverview(rows, nil, time.Time{}, time.Time{})
 	if got.Fallbacks != 0 {
 		t.Fatalf("fallbacks = %d, want 0 for legacy rows", got.Fallbacks)
 	}
@@ -128,5 +138,31 @@ func TestBuildHealthOverviewLegacyRows(t *testing.T) {
 		if p.Name == "openai" && (p.FinalFailures != 1 || p.Status != "degraded") {
 			t.Fatalf("openai legacy = %+v, want 1 final failure, degraded", p)
 		}
+	}
+}
+
+func TestBuildHealthOverviewBucketsLatencyAndServed(t *testing.T) {
+	from := time.Date(2026, 11, 4, 0, 0, 0, 0, time.UTC)
+	to := from.Add(24 * time.Hour)
+	rows := []repositories.UsageHealthRow{
+		{RequestID: "a", Chain: "c", Provider: "p", Model: "m1", Failed: true, CreatedAt: from.Add(30 * time.Minute)},
+		{RequestID: "a", Chain: "c", Provider: "p", Model: "m2", LatencyMS: 100, CreatedAt: from.Add(31 * time.Minute)},
+		{RequestID: "b", Chain: "c", Provider: "p", Model: "m2", LatencyMS: 300, CreatedAt: to.Add(-time.Minute)},
+	}
+	got := buildHealthOverview(rows, nil, from, to)
+
+	p := got.Providers[0]
+	if len(p.Buckets) != healthBuckets || p.Buckets[0] != (healthBucket{Requests: 2, Failed: 1}) || p.Buckets[23].Requests != 1 {
+		t.Fatalf("buckets = %+v", p.Buckets)
+	}
+	if p.SuccessRate != 66.7 || p.P95Ms != 100 {
+		t.Errorf("provider = %+v, want 66.7%% success and p95 100 (nearest-rank of [100 300])", p)
+	}
+	ch := got.Chains[0]
+	if len(ch.Served) != 1 || ch.Served[0] != (servedModel{Model: "m2", Requests: 2}) {
+		t.Errorf("served = %+v, want m2 x2", ch.Served)
+	}
+	if got.Providers[0].Served != nil {
+		t.Errorf("providers must not carry served")
 	}
 }

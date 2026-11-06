@@ -1,34 +1,25 @@
+import { IconTarget, IconWallet } from '@tabler/icons-react'
+import { useSelector } from '@tanstack/react-form'
 import { useMutation } from '@tanstack/react-query'
+import { useId } from 'react'
 import { toast } from 'sonner'
-import z from 'zod'
 
 import type { Models } from '@/lib/api/models'
 import type { BudgetScopeKind } from '@/lib/api/models/budget'
 import type { Option } from '@/types/select'
 
-import SimpleAlertScrollableDialogForm from '@/components/block/common/simple-alert-scrollable-dialog-form'
+import { Section } from '@/components/block/plans/form'
 import { Switch } from '@/components/ui/switch'
 import { useAppForm } from '@/hooks/form'
 import { toastAxiosError } from '@/lib/api/axios-error'
+import {
+  type BudgetDto,
+  BudgetFormSchema,
+  type BudgetFormValues,
+} from '@/lib/api/dtos/budget/schema'
 import { queries } from '@/lib/api/queries'
 
-const PERIODS = ['daily', 'weekly', 'monthly'] as const
-const SCOPES = ['tenant', 'api_key', 'account'] as const
-
-const BudgetFormSchema = z
-  .object({
-    scope_kind: z.enum(SCOPES),
-    scope_id: z.string(),
-    period: z.enum(PERIODS),
-    budget_spend: z.string(),
-    limit_tokens: z.string(),
-    alert_pct: z.string(),
-    hard_cutoff: z.boolean(),
-  })
-  .refine((value) => value.scope_kind === 'tenant' || value.scope_id !== '', {
-    message: 'Pick the key or account this budget applies to.',
-    path: ['scope_id'],
-  })
+import SimpleAlertScrollableDialogForm from '../common/simple-alert-scrollable-dialog-form'
 
 export const SCOPE_LABELS: Record<BudgetScopeKind, string> = {
   tenant: 'Whole instance',
@@ -36,70 +27,89 @@ export const SCOPE_LABELS: Record<BudgetScopeKind, string> = {
   account: 'Provider account',
 }
 
-const SCOPE_OPTIONS: Option<BudgetScopeKind>[] = SCOPES.map((scope) => ({
-  value: scope,
-  label: SCOPE_LABELS[scope],
+/** Label of the second "Applies to" field, and what the cutoff stops. */
+const SCOPE_TARGET: Record<BudgetScopeKind, { field: string; noun: string }> = {
+  tenant: { field: '', noun: 'the instance' },
+  api_key: { field: 'Key', noun: 'the key' },
+  account: { field: 'Account', noun: 'the account' },
+}
+
+const SCOPE_OPTIONS = (Object.keys(SCOPE_LABELS) as BudgetScopeKind[]).map((kind) => ({
+  value: kind,
+  label: SCOPE_LABELS[kind],
 }))
 
-const PERIOD_OPTIONS: Option<(typeof PERIODS)[number]>[] = PERIODS.map((period) => ({
-  value: period,
-  label: period.charAt(0).toUpperCase() + period.slice(1),
-}))
+const PERIOD_OPTIONS = [
+  { value: 'daily', label: 'Daily' },
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'monthly', label: 'Monthly' },
+]
 
-interface BudgetFormDialogProps {
+/** Empty input means "no limit"; the server stores 0 as unlimited. */
+function parseLimit(raw: string): number {
+  const value = Number(raw.trim())
+  return Number.isFinite(value) && value > 0 ? value : 0
+}
+
+function valuesFrom(budget?: Models.Budget | null): BudgetFormValues {
+  return {
+    scope_kind: budget?.scope_kind ?? 'api_key',
+    scope_id: budget?.scope_id ?? '',
+    period: budget?.period ?? 'monthly',
+    // A stored 0 means "no limit"; show the placeholder instead.
+    spend: budget?.limit_micros ? String(budget.limit_micros / 1_000_000) : '',
+    tokens: budget?.limit_tokens ? String(budget.limit_tokens) : '',
+    alert_pct: String(budget?.alert_pct ?? 80),
+    hard_cutoff: budget?.hard_cutoff ?? true,
+  }
+}
+
+function toPayload(value: BudgetFormValues): BudgetDto {
+  return {
+    scope_kind: value.scope_kind,
+    scope_id: value.scope_kind === 'tenant' ? undefined : value.scope_id,
+    period: value.period,
+    // A cleared limit is sent as 0 (= unlimited): PATCH keeps omitted fields.
+    budget_spend: parseLimit(value.spend),
+    limit_tokens: Math.round(parseLimit(value.tokens)),
+    alert_pct: Number(value.alert_pct),
+    hard_cutoff: value.hard_cutoff,
+  }
+}
+
+type ScopeOptions = Record<'api_key' | 'account', Option<unknown>[]>
+
+type AbstractFormProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
-  /** Budget to edit; omit for create mode. */
-  budget?: Models.Budget | null
-  /** Options for the api_key and account scopes. */
-  scopeOptions: Record<'api_key' | 'account', Option<unknown>[]>
+  defaultValues: BudgetFormValues
+  scopeOptions: ScopeOptions
+  mutation: {
+    mutateAsync: (value: BudgetDto) => Promise<unknown>
+    isPending: boolean
+  }
+  isEdit?: boolean
 }
 
-/** Create/edit dialog for one budget, keyed so every open starts fresh. */
-export default function BudgetFormDialog(props: BudgetFormDialogProps) {
-  return <BudgetForm key={`${props.budget?.id ?? 'new'}-${props.open}`} {...props} />
-}
-
-function BudgetForm({ open, onOpenChange, budget, scopeOptions }: BudgetFormDialogProps) {
-  const editing = Boolean(budget?.id)
-
-  const createMutation = useMutation(queries.budgets.create())
-  const updateMutation = useMutation(queries.budgets.update(budget?.id ?? ''))
-
+function AbstractForm({
+  open,
+  onOpenChange,
+  defaultValues,
+  scopeOptions,
+  mutation,
+  isEdit,
+}: AbstractFormProps) {
+  const id = useId()
   const form = useAppForm({
-    defaultValues: {
-      scope_kind: budget?.scope_kind ?? ('tenant' as BudgetScopeKind),
-      scope_id: budget?.scope_id ?? '',
-      period: budget?.period ?? ('monthly' as (typeof PERIODS)[number]),
-      // A stored 0 means "no limit"; show the placeholder instead.
-      budget_spend: budget?.limit_micros ? String(budget.limit_micros / 1_000_000) : '',
-      limit_tokens: budget?.limit_tokens ? String(budget.limit_tokens) : '',
-      alert_pct: String(budget?.alert_pct ?? 80),
-      hard_cutoff: budget?.hard_cutoff ?? false,
-    },
+    defaultValues,
     validators: {
       onSubmit: BudgetFormSchema,
+      onChange: BudgetFormSchema,
     },
     onSubmit: async ({ value }) => {
-      const payload = {
-        scope_kind: value.scope_kind,
-        scope_id: value.scope_kind === 'tenant' ? undefined : value.scope_id,
-        period: value.period,
-        // A cleared limit is sent as 0 (= unlimited): PATCH keeps omitted fields.
-        budget_spend: parseLimit(value.budget_spend),
-        limit_tokens: Math.round(parseLimit(value.limit_tokens)),
-        alert_pct: Math.round(parseLimit(value.alert_pct)),
-        hard_cutoff: value.hard_cutoff,
-      }
-
       try {
-        if (editing) {
-          await updateMutation.mutateAsync(payload)
-          toast.success('Budget updated')
-        } else {
-          await createMutation.mutateAsync(payload)
-          toast.success('Budget created')
-        }
+        await mutation.mutateAsync(toPayload(value))
+        toast.success(isEdit ? 'Budget updated' : 'Budget created')
         onOpenChange(false)
       } catch (error) {
         toastAxiosError(error)
@@ -107,94 +117,140 @@ function BudgetForm({ open, onOpenChange, budget, scopeOptions }: BudgetFormDial
     },
   })
 
+  const scopeKind = useSelector(form.store, (state) => state.values.scope_kind)
+  const scopeId = useSelector(form.store, (state) => state.values.scope_id)
+  const target = SCOPE_TARGET[scopeKind]
+  const options = scopeKind === 'tenant' ? [] : scopeOptions[scopeKind]
+
   return (
     <SimpleAlertScrollableDialogForm
+      onSubmit={(e) => {
+        e.preventDefault()
+        void form.handleSubmit()
+      }}
       open={open}
       onOpenChange={onOpenChange}
-      title={editing ? 'Edit Budget' : 'Create Budget'}
-      description="Cap spend or tokens per period for the whole instance, one API key, or one provider account."
-      onSubmit={(event) => {
-        event.preventDefault()
-        form.handleSubmit()
-      }}
-      confirmText={editing ? 'Save changes' : 'Create budget'}
-      loading={createMutation.isPending || updateMutation.isPending}
+      title={isEdit ? 'Edit budget' : 'New budget'}
+      description="Cap spend or tokens per period for the whole instance, one API key or one provider account."
+      confirmText={isEdit ? 'Save changes' : 'Create budget'}
+      loading={mutation.isPending}
       size="lg"
     >
-      <div className="space-y-5">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <form.AppField name="scope_kind">
-            {(field) => <field.SelectField label="Applies to" options={SCOPE_OPTIONS} />}
-          </form.AppField>
-
-          <form.Subscribe selector={(s) => s.values.scope_kind}>
-            {(scope) =>
-              scope === 'tenant' ? null : (
-                <form.AppField name="scope_id">
-                  {(field) => (
-                    <field.SelectField
-                      label={SCOPE_LABELS[scope]}
-                      options={scopeOptions[scope]}
-                      asterisk
-                    />
-                  )}
-                </form.AppField>
-              )
-            }
-          </form.Subscribe>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <form.AppField name="period">
-            {(field) => <field.SelectField label="Period" options={PERIOD_OPTIONS} />}
-          </form.AppField>
-
-          <form.AppField name="alert_pct">
-            {(field) => (
-              <field.NumberField label="Alert at (%)" placeholder="e.g. 80" decimalScale={0} />
+      <Section icon={IconTarget} title="Applies to">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <form.AppField
+            name="scope_kind"
+            // A target picked for one scope means nothing for another.
+            listeners={{ onChange: () => form.setFieldValue('scope_id', '') }}
+            children={(field) => (
+              <field.SelectField label="Scope" className="w-full" options={SCOPE_OPTIONS} />
             )}
-          </form.AppField>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <form.AppField name="budget_spend">
-            {(field) => (
-              <field.NumberField label="Spend (USD)" placeholder="Unlimited" decimalScale={2} />
-            )}
-          </form.AppField>
-
-          <form.AppField name="limit_tokens">
-            {(field) => (
-              <field.NumberField label="Tokens" placeholder="Unlimited" decimalScale={0} />
-            )}
-          </form.AppField>
-        </div>
-
-        <form.AppField name="hard_cutoff">
-          {(field) => (
-            <div className="flex items-center justify-between gap-4 rounded-lg border px-3.5 py-3">
-              <div>
-                <p className="text-sm font-medium">Hard cutoff</p>
-                <p className="text-muted-foreground text-xs">
-                  Block requests once the budget is exhausted instead of only alerting.
-                </p>
-              </div>
-              <Switch
-                checked={field.state.value}
-                onCheckedChange={(checked) => field.handleChange(checked)}
-                onBlur={field.handleBlur}
-                aria-label="Enable hard cutoff"
-              />
-            </div>
+          />
+          {scopeKind === 'tenant' ? (
+            <p className="self-end pb-2 text-xs text-muted-foreground">
+              Counts every request through this instance.
+            </p>
+          ) : (
+            <form.AppField
+              name="scope_id"
+              children={(field) => (
+                <field.SelectField
+                  label={target.field}
+                  asterisk
+                  placeholder={`Select ${target.field.toLowerCase()}…`}
+                  className="w-full"
+                  options={[
+                    // The stored key or account may be gone; keep its id selectable.
+                    ...(scopeId && !options.some((o) => String(o.value) === scopeId)
+                      ? [{ value: scopeId, label: `${scopeId} (not found)` }]
+                      : []),
+                    ...options.map((o) => ({ value: String(o.value), label: String(o.label) })),
+                  ]}
+                />
+              )}
+            />
           )}
-        </form.AppField>
-      </div>
+        </div>
+      </Section>
+
+      <Section icon={IconWallet} title="Limit">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <form.AppField
+            name="spend"
+            children={(field) => (
+              <field.NumberField label="Spend limit (USD)" currency placeholder="Unlimited" />
+            )}
+          />
+          <form.AppField
+            name="tokens"
+            children={(field) => <field.NumberField label="Token limit" placeholder="Unlimited" />}
+          />
+          <form.AppField
+            name="period"
+            children={(field) => (
+              <field.SelectField label="Period" className="w-full" options={PERIOD_OPTIONS} />
+            )}
+          />
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <form.AppField
+            name="alert_pct"
+            children={(field) => <field.NumberField label="Alert at (%)" max={100} />}
+          />
+          <form.AppField
+            name="hard_cutoff"
+            children={(field) => (
+              <div className="flex items-center justify-between gap-4 self-start rounded-md border border-border px-[13px] py-[11px] sm:col-span-2 sm:mt-7">
+                <div className="min-w-0">
+                  <label htmlFor={`${id}-cutoff`} className="block text-[12.5px] font-medium">
+                    Hard cutoff
+                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    Reject requests once {target.noun} reaches the limit.
+                  </p>
+                </div>
+                <Switch
+                  id={`${id}-cutoff`}
+                  checked={field.state.value}
+                  onCheckedChange={field.handleChange}
+                />
+              </div>
+            )}
+          />
+        </div>
+      </Section>
     </SimpleAlertScrollableDialogForm>
   )
 }
 
-/** Empty/invalid input means "no limit"; the server stores 0 as unlimited. */
-function parseLimit(raw: string): number {
-  const value = Number(raw.trim())
-  return Number.isFinite(value) && value > 0 ? value : 0
+interface BudgetFormDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  /** Budget to edit; omit for create mode. */
+  budget?: Models.Budget | null
+  /** Options for the api_key and account scopes. */
+  scopeOptions: ScopeOptions
+}
+
+/** Create/edit dialog for one budget, keyed so every open starts fresh. */
+export default function BudgetFormDialog({ budget, ...props }: BudgetFormDialogProps) {
+  return budget?.id ? (
+    <EditBudgetForm key={`${budget.id}-${props.open}`} budget={budget} {...props} />
+  ) : (
+    <AddBudgetForm key={`new-${props.open}`} {...props} />
+  )
+}
+
+function AddBudgetForm(props: Omit<BudgetFormDialogProps, 'budget'>) {
+  const mutation = useMutation(queries.budgets.create())
+  return <AbstractForm {...props} defaultValues={valuesFrom()} mutation={mutation} />
+}
+
+function EditBudgetForm({
+  budget,
+  ...props
+}: Omit<BudgetFormDialogProps, 'budget'> & { budget: Models.Budget }) {
+  const mutation = useMutation(queries.budgets.update(budget.id))
+  return <AbstractForm {...props} defaultValues={valuesFrom(budget)} mutation={mutation} isEdit />
 }

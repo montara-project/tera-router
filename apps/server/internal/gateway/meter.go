@@ -98,12 +98,20 @@ type usageRecord struct {
 	ErrorKind    string
 	ErrorStatus  int
 	ErrorMessage string
+
+	// Saving is copied from the request meta onto every attempt row.
+	Saving tokenSaving
+	// trace receives the attempt's outcome for the Console timeline.
+	trace *requestTrace
 }
 
 // recordUsage persists a metering row asynchronously. The write runs on a
 // background context with its own timeout so a client disconnecting mid-stream
 // cannot cancel the accounting for work the upstream already performed.
 func (s *Server) recordUsage(rec usageRecord) {
+	if !rec.Failed {
+		rec.trace.served(rec.Provider+"/"+rec.Model, rec.AccountID, rec.Usage.PromptTokens+rec.Usage.CompletionTokens)
+	}
 	model := models.UsageRecord{
 		APIKeyID:             optionalID(rec.APIKeyID),
 		AccountID:            optionalID(rec.AccountID),
@@ -126,6 +134,10 @@ func (s *Server) recordUsage(rec usageRecord) {
 		ErrorKind:            rec.ErrorKind,
 		ErrorStatus:          rec.ErrorStatus,
 		ErrorMessage:         sanitizeErrorMessage(rec.ErrorMessage),
+		PromptReducedBytes:   rec.Saving.PromptReducedBytes,
+		OutputShaped:         rec.Saving.OutputShaped,
+		SavingRules:          rec.Saving.Rules,
+		OutputDirectives:     rec.Saving.Directives,
 		CreatedAt:            time.Now(),
 	}
 
@@ -145,6 +157,7 @@ func (s *Server) recordUsage(rec usageRecord) {
 // feed shows the real cause instead of a silent gap. Tokens and cost are zero:
 // no usage was produced.
 func (s *Server) recordFailure(meta requestMeta, at attempt, pe *core.ProviderError, latency time.Duration) {
+	meta.trace.attemptFailed(at.Target.Provider+"/"+at.Target.Model, pe)
 	s.recordUsage(usageRecord{
 		APIKeyID:     meta.APIKeyID,
 		AccountID:    at.AccountID,
@@ -159,6 +172,8 @@ func (s *Server) recordFailure(meta requestMeta, at attempt, pe *core.ProviderEr
 		ErrorKind:    string(pe.Kind),
 		ErrorStatus:  pe.StatusCode,
 		ErrorMessage: pe.Message,
+		Saving:       meta.Saving,
+		trace:        meta.trace,
 	})
 }
 

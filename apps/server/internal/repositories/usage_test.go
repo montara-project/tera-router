@@ -60,7 +60,7 @@ func TestUsageTrafficSplitsFailuresAndTokenClasses(t *testing.T) {
 		Provider: "openai", Model: "gpt-x", PromptTokens: 999, CreatedAt: from.Add(-time.Hour),
 	})
 
-	traffic, err := repo.Traffic(context.Background(), from)
+	traffic, err := repo.Traffic(context.Background(), from, time.Now().Add(time.Minute))
 	if err != nil {
 		t.Fatalf("traffic: %v", err)
 	}
@@ -135,7 +135,7 @@ func TestUsageRecentReturnsNewestFirstAndHonoursLimit(t *testing.T) {
 		})
 	}
 
-	rows, err := repo.Recent(context.Background(), 3)
+	rows, err := repo.Recent(context.Background(), time.Time{}, 3)
 	if err != nil {
 		t.Fatalf("recent: %v", err)
 	}
@@ -166,7 +166,7 @@ func TestUsageDailyWithFailuresBucketsByDay(t *testing.T) {
 		Provider: "openai", Model: "m", PromptTokens: 1, CreatedAt: now.Add(-25 * time.Hour),
 	})
 
-	days, err := repo.DailyWithFailures(context.Background(), from)
+	days, err := repo.DailyWithFailures(context.Background(), from, false)
 	if err != nil {
 		t.Fatalf("daily: %v", err)
 	}
@@ -199,5 +199,114 @@ func TestUsageByModelGroupedSeparatesModels(t *testing.T) {
 	}
 	if groups[0].Model != "a" || groups[0].Requests != 2 || groups[0].AvgLatencyMS != 200 {
 		t.Errorf("first group = %+v, want a/2/200", groups[0])
+	}
+}
+
+func TestUsageTrafficWindowAndTokenSaving(t *testing.T) {
+	repo := newUsageRepo(t)
+	now := time.Now()
+	from, to := now.Add(-time.Hour), now.Add(time.Minute)
+
+	insert(t, repo, models.UsageRecord{Provider: "p", Model: "m", PromptReducedBytes: 40, OutputShaped: true, CostMicros: 5})
+	insert(t, repo, models.UsageRecord{Provider: "p", Model: "m", OutputShaped: true})
+	// A failed attempt carries the same saving but must not be counted twice.
+	insert(t, repo, models.UsageRecord{Provider: "p", Model: "m", PromptReducedBytes: 40, OutputShaped: true, Failed: true})
+	// At or after `to`: outside the window.
+	insert(t, repo, models.UsageRecord{Provider: "p", Model: "m", PromptReducedBytes: 99, CreatedAt: to})
+
+	traffic, err := repo.Traffic(context.Background(), from, to)
+	if err != nil {
+		t.Fatalf("traffic: %v", err)
+	}
+	if traffic.Requests != 3 || traffic.CostMicros != 5 {
+		t.Errorf("requests/cost = %d/%d, want 3/5", traffic.Requests, traffic.CostMicros)
+	}
+	if traffic.PromptReducedBytes != 40 || traffic.CompressedRequests != 1 || traffic.ShapedRequests != 2 {
+		t.Errorf("saving = %d bytes / %d compressed / %d shaped, want 40/1/2",
+			traffic.PromptReducedBytes, traffic.CompressedRequests, traffic.ShapedRequests)
+	}
+}
+
+func TestUsageLatenciesSortedSuccessOnly(t *testing.T) {
+	repo := newUsageRepo(t)
+	now := time.Now()
+
+	insert(t, repo, models.UsageRecord{Provider: "p", Model: "m", LatencyMS: 300})
+	insert(t, repo, models.UsageRecord{Provider: "p", Model: "m", LatencyMS: 100})
+	insert(t, repo, models.UsageRecord{Provider: "p", Model: "m", LatencyMS: 9000, Failed: true})
+
+	got, err := repo.Latencies(context.Background(), now.Add(-time.Hour), now.Add(time.Minute))
+	if err != nil {
+		t.Fatalf("latencies: %v", err)
+	}
+	if len(got) != 2 || got[0] != 100 || got[1] != 300 {
+		t.Errorf("latencies = %v, want [100 300]", got)
+	}
+}
+
+func TestUsageDailyWithFailuresHourlyBuckets(t *testing.T) {
+	repo := newUsageRepo(t)
+	now := time.Now().UTC().Truncate(time.Hour).Add(30 * time.Minute)
+
+	insert(t, repo, models.UsageRecord{Provider: "p", Model: "m", LatencyMS: 100, CreatedAt: now})
+	insert(t, repo, models.UsageRecord{Provider: "p", Model: "m", LatencyMS: 300, CreatedAt: now})
+	insert(t, repo, models.UsageRecord{Provider: "p", Model: "m", LatencyMS: 5000, Failed: true, CreatedAt: now})
+	insert(t, repo, models.UsageRecord{Provider: "p", Model: "m", CreatedAt: now.Add(-time.Hour)})
+
+	buckets, err := repo.DailyWithFailures(context.Background(), now.Add(-3*time.Hour), true)
+	if err != nil {
+		t.Fatalf("hourly: %v", err)
+	}
+	if len(buckets) != 2 {
+		t.Fatalf("buckets = %d, want 2", len(buckets))
+	}
+	last := buckets[1]
+	if last.Day != now.Format("2006-01-02 15:00") {
+		t.Errorf("bucket = %q, want %q", last.Day, now.Format("2006-01-02 15:00"))
+	}
+	// Failed attempts are left out of the latency average.
+	if last.Requests != 3 || last.Failed != 1 || last.LatencyMS != 200 {
+		t.Errorf("last = %+v, want 3 requests / 1 failed / 200 ms", last)
+	}
+}
+
+func TestUsageSavingBreakdown(t *testing.T) {
+	repo := newUsageRepo(t)
+	now := time.Now()
+
+	insert(t, repo, models.UsageRecord{Provider: "p", Model: "m",
+		SavingRules: map[string]int{"headroom": 100, "repeated_lines": 20}, OutputDirectives: []string{"caveman", "ponytail"}})
+	insert(t, repo, models.UsageRecord{Provider: "p", Model: "m",
+		SavingRules: map[string]int{"repeated_lines": 5}, OutputDirectives: []string{"caveman"}})
+	// Failed attempts are not counted (the request is credited once).
+	insert(t, repo, models.UsageRecord{Provider: "p", Model: "m", Failed: true,
+		SavingRules: map[string]int{"headroom": 999}, OutputDirectives: []string{"terse"}})
+	// No saving at all stores the empty defaults.
+	insert(t, repo, models.UsageRecord{Provider: "p", Model: "m"})
+
+	got, err := repo.SavingBreakdown(context.Background(), now.Add(-time.Hour), now.Add(time.Minute))
+	if err != nil {
+		t.Fatalf("breakdown: %v", err)
+	}
+	if got.RuleBytes["headroom"] != 100 || got.RuleBytes["repeated_lines"] != 25 || len(got.RuleBytes) != 2 {
+		t.Errorf("rule bytes = %v", got.RuleBytes)
+	}
+	if got.DirectiveCount["caveman"] != 2 || got.DirectiveCount["ponytail"] != 1 || got.DirectiveCount["terse"] != 0 {
+		t.Errorf("directives = %v", got.DirectiveCount)
+	}
+}
+
+func TestUsageRecentOnlyWithinWindow(t *testing.T) {
+	repo := newUsageRepo(t)
+	now := time.Now()
+	insert(t, repo, models.UsageRecord{Provider: "p", Model: "new", CreatedAt: now})
+	insert(t, repo, models.UsageRecord{Provider: "p", Model: "old", CreatedAt: now.Add(-48 * time.Hour)})
+
+	rows, err := repo.Recent(context.Background(), now.Add(-24*time.Hour), 10)
+	if err != nil {
+		t.Fatalf("recent: %v", err)
+	}
+	if len(rows) != 1 || rows[0].Model != "new" {
+		t.Errorf("rows = %+v, want only the in-window request", rows)
 	}
 }

@@ -28,13 +28,16 @@ type Claims struct {
 }
 
 // SignAccess mints an HS256 access token, returning the token and expiry.
-func SignAccess(secret, subject, email, role string, now time.Time, ttl time.Duration) (string, time.Time, error) {
+// sessionID (the refresh token row) travels as jti so revoking that one
+// session refuses its access tokens too.
+func SignAccess(secret, subject, sessionID, email, role string, now time.Time, ttl time.Duration) (string, time.Time, error) {
 	expiresAt := now.Add(ttl)
 	claims := Claims{
 		Email: email,
 		Role:  role,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   subject,
+			ID:        sessionID,
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
 			Issuer:    "tera-router",

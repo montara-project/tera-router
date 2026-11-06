@@ -1,20 +1,24 @@
 import { IconPlus, IconStack2 } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
 import { useQueryState } from 'nuqs'
-import { useEffect, useMemo, useState } from 'react'
-import { toast } from 'sonner'
-
-import type { Models } from '@/lib/api/models'
+import { useMemo, useState } from 'react'
 
 import EmptyState from '@/components/block/common/empty-state'
+import PageHeader from '@/components/block/common/page-header'
 import ReactTable from '@/components/block/common/react-table'
-import SectionCard from '@/components/block/common/section-card'
-import ChainFormDialog from '@/components/block/traffic/chains/chain-form-dialog'
-import { ChainColumn } from '@/components/block/traffic/chains/column'
-import FilterChain from '@/components/block/traffic/chains/filter'
+import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
+import { ChainsColumn } from '@/components/block/traffic/chains/column'
+import FilterChain, {
+  type ChainFilters,
+  type ChainRow,
+  DEFAULT_CHAIN_FILTERS,
+  filterChains,
+} from '@/components/block/traffic/chains/filter'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { usePaginationQuery } from '@/hooks/use-pagination-query'
+import { axiosErrorMessage } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
 
 export const Route = createFileRoute('/(protected)/(traffic)/chains/')({
@@ -22,134 +26,116 @@ export const Route = createFileRoute('/(protected)/(traffic)/chains/')({
 })
 
 function RouteComponent() {
+  const [filters, setFilters] = useState<ChainFilters>(DEFAULT_CHAIN_FILTERS)
+  // The list arrives whole, so filtering and paging run here; the pager keeps
+  // its page in ?page like the server-paged tables.
   const { offset, limit, pageIndex } = usePaginationQuery()
-  // The pager writes ?page=<n> directly; clearing it returns to page 1.
   const [, setPageParam] = useQueryState('page')
 
-  const [search, setSearch] = useState('')
-  const [strategy, setStrategy] = useState('all')
-  const [status, setStatus] = useState('all')
-  const [createOpen, setCreateOpen] = useState(false)
-  const [editing, setEditing] = useState<Models.Chain | null>(null)
+  // The chains endpoint returns every chain; offset/limit are not applied
+  // server-side.
+  const chainsQuery = useQuery(queries.chains.list({ offset: 0, limit: 100 }))
+  const healthQuery = useQuery(queries.providerHealth.overview('24h'))
+  const providersQuery = useQuery(queries.providers.list())
 
-  // A filter change shrinks the filtered set, so a page kept from the old
-  // results could be past the new last page and render empty.
-  const resetPage = () => void setPageParam(null)
-  const handleSearchChange = (value: string) => {
-    setSearch(value)
-    resetPage()
-  }
-  const handleStrategyChange = (value: string) => {
-    setStrategy(value)
-    resetPage()
-  }
-  const handleStatusChange = (value: string) => {
-    setStatus(value)
-    resetPage()
-  }
+  const rows = useMemo<ChainRow[]>(() => {
+    const health = new Map((healthQuery.data?.chains ?? []).map((h) => [h.name, h]))
+    return (chainsQuery.data?.data ?? []).map((chain) => ({
+      ...chain,
+      health: health.get(chain.name),
+    }))
+  }, [chainsQuery.data, healthQuery.data])
 
-  const {
-    data: chainData,
-    isFetching,
-    isLoading,
-    isError,
-    error,
-  } = useQuery(queries.chains.list({ offset, limit }))
-  const loading = isFetching || isLoading
-
-  useEffect(() => {
-    if (isError) {
-      toast.error(error?.message || 'Failed to load chains')
-    }
-  }, [isError, error])
-
-  const allChains = useMemo(() => chainData?.data ?? [], [chainData])
-
-  const filteredChains = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    return allChains.filter((chain) => {
-      if (q && !chain.name.toLowerCase().includes(q)) {
-        return false
-      }
-      if (strategy !== 'all' && chain.strategy !== strategy) {
-        return false
-      }
-      if (status === 'active' && !chain.enabled) {
-        return false
-      }
-      if (status === 'inactive' && chain.enabled) {
-        return false
-      }
-      return true
-    })
-  }, [allChains, search, strategy, status])
-
-  const total = filteredChains.length
-  // The chains endpoint returns the full list (offset/limit are not applied
-  // server-side yet), so search/status filtering and page slicing run here.
-  const pageChains = useMemo(
-    () => filteredChains.slice(offset, offset + limit),
-    [filteredChains, offset, limit]
+  const apiKinds = useMemo(
+    () =>
+      new Map((providersQuery.data?.data?.connected ?? []).map((p) => [p.slug, p.api_kind ?? ''])),
+    [providersQuery.data]
   )
 
-  const columns = ChainColumn({ loading, onEdit: setEditing })
+  const columns = ChainsColumn({ apiKinds })
+  const filtered = useMemo(() => filterChains(rows, filters), [rows, filters])
 
   return (
-    <SectionCard
-      title="Chains"
-      description="Build named routing paths that keep requests moving when a model or provider cannot serve them."
-      toolbar={
-        <Button onClick={() => setCreateOpen(true)}>
-          <IconPlus />
-          <span>Create Chain</span>
-        </Button>
-      }
-    >
-      <div className="space-y-4">
-        <FilterChain
-          search={search}
-          onSearchChange={handleSearchChange}
-          onStrategyChange={handleStrategyChange}
-          onStatusChange={handleStatusChange}
-        />
-
-        <ReactTable
-          total={total}
-          data={pageChains}
-          pageIndex={pageIndex}
-          pageSize={limit}
-          columns={columns}
-          emptyMessage={
-            allChains.length === 0 ? (
-              <EmptyState
-                icon={IconStack2}
-                title="No chains yet"
-                description="Create a chain to route a model name through fallback providers."
-                className="py-8"
-              />
-            ) : (
-              <EmptyState
-                icon={IconStack2}
-                title="No chains match"
-                description="Try a different search, strategy, or status."
-                className="py-8"
-              />
-            )
-          }
-        />
-      </div>
-
-      <ChainFormDialog open={createOpen} onOpenChange={setCreateOpen} />
-
-      <ChainFormDialog
-        open={Boolean(editing)}
-        onOpenChange={(open) => {
-          if (!open) {
-            setEditing(null)
-          }
-        }}
-        chain={editing}
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        icon={IconStack2}
+        iconClassName="text-primary border-transparent bg-primary/10"
+        title="Chains"
+        description={
+          <>
+            Fallback routes you call as{' '}
+            <code className="font-mono text-xs">chain:&lt;name&gt;</code>.
+          </>
+        }
+        actions={
+          <Button asChild>
+            <Link to="/chains/new">
+              <IconPlus />
+              <span>New chain</span>
+            </Link>
+          </Button>
+        }
       />
-    </SectionCard>
+
+      <DashboardPanel
+        icon={IconStack2}
+        title={
+          <>
+            All chains
+            <span className="font-normal text-muted-foreground tabular-nums">{rows.length}</span>
+          </>
+        }
+        toolbar={
+          <FilterChain
+            rows={rows}
+            filters={filters}
+            onChange={(patch) => {
+              setFilters((prev) => ({ ...prev, ...patch }))
+              void setPageParam(null)
+            }}
+          />
+        }
+      >
+        {chainsQuery.isError ? (
+          <EmptyState
+            icon={IconStack2}
+            title="Couldn't load chains"
+            description={axiosErrorMessage(chainsQuery.error)}
+            action={
+              <Button variant="outline" onClick={() => void chainsQuery.refetch()}>
+                Try again
+              </Button>
+            }
+            className="py-10"
+          />
+        ) : chainsQuery.isLoading ? (
+          <div className="flex flex-col gap-2 p-4" aria-busy>
+            {Array.from({ length: 3 }, (_, i) => (
+              <Skeleton key={i} className="h-9 w-full" />
+            ))}
+          </div>
+        ) : (
+          <ReactTable
+            total={filtered.length}
+            data={filtered.slice(offset, offset + limit)}
+            pageIndex={pageIndex}
+            pageSize={limit}
+            columns={columns}
+            emptyMessage={
+              <EmptyState
+                icon={IconStack2}
+                title={rows.length === 0 ? 'No chains yet' : 'No chains match'}
+                description={
+                  rows.length === 0
+                    ? 'Create a chain to route one model name through fallback models.'
+                    : 'Try a different search, strategy or health filter.'
+                }
+                className="py-10"
+              />
+            }
+          />
+        )}
+      </DashboardPanel>
+    </div>
   )
 }

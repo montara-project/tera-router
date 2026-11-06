@@ -30,7 +30,7 @@ func (h *tunnelsHandler) CloudflareEnable(c fiber.Ctx) error {
 	if err := h.app.Repos.Settings.Upsert(c.Context(), repositories.CloudflareTunnelSettingsKey, "true"); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "tunnel.enable", "cloudflare", map[string]string{
+	auditRecord(c, actorFrom(c), "tunnel.enable", "cloudflare", map[string]string{
 		"url": status.URL,
 	})
 	return dtos.Item(c, fiber.StatusOK, status, "Cloudflare Tunnel enabled")
@@ -42,7 +42,7 @@ func (h *tunnelsHandler) CloudflareDisable(c fiber.Ctx) error {
 	if err := h.app.Repos.Settings.Upsert(c.Context(), repositories.CloudflareTunnelSettingsKey, "false"); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "tunnel.disable", "cloudflare", nil)
+	auditRecord(c, actorFrom(c), "tunnel.disable", "cloudflare", nil)
 	return dtos.Item(c, fiber.StatusOK, h.app.Services.Tunnel.Status(), "Cloudflare Tunnel disabled")
 }
 
@@ -60,7 +60,7 @@ func (h *tunnelsHandler) TailscaleEnable(c fiber.Ctx) error {
 	if err != nil {
 		return apperr.New(apperr.KindUnprocessable, "%s", err.Error())
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "tunnel.enable", "tailscale", map[string]string{
+	auditRecord(c, actorFrom(c), "tunnel.enable", "tailscale", map[string]string{
 		"url": status.URL,
 	})
 	return dtos.Item(c, fiber.StatusOK, status, "Tailscale enabled")
@@ -72,6 +72,6 @@ func (h *tunnelsHandler) TailscaleDisable(c fiber.Ctx) error {
 	if err != nil {
 		return apperr.New(apperr.KindUnprocessable, "%s", err.Error())
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "tunnel.disable", "tailscale", nil)
+	auditRecord(c, actorFrom(c), "tunnel.disable", "tailscale", nil)
 	return dtos.Item(c, fiber.StatusOK, status, "Tailscale disabled")
 }

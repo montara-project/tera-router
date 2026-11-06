@@ -1,4 +1,4 @@
-import { IconEye, IconReplace } from '@tabler/icons-react'
+import { IconReplace } from '@tabler/icons-react'
 import { useMutation } from '@tanstack/react-query'
 import pluralize from 'pluralize'
 import React, { useState } from 'react'
@@ -10,7 +10,6 @@ import RowColumnAction from '@/components/block/common/row-column-action'
 import SimpleAlertDialog from '@/components/block/common/simple-alert-dialog'
 import ChainGroup from '@/components/block/traffic/chains/chain-group'
 import { Badge, BadgeDot } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { toastAxiosError } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
 
@@ -64,20 +63,11 @@ export default function AliasRow({ alias, onShow, onEdit }: AliasRowProps) {
         </Badge>
 
         <RowColumnAction
+          noun="alias"
+          name={alias.name}
+          onShow={() => onShow(alias)}
           onEdit={() => onEdit(alias)}
           onDelete={() => setOpenDelete(true)}
-          actions={[
-            <Button
-              key="show"
-              mode="link"
-              underline="solid"
-              className="dark:text-neutral-300"
-              onClick={() => onShow(alias)}
-            >
-              <IconEye className="text-primary size-4 dark:text-neutral-300" />
-              <span>Show</span>
-            </Button>,
-          ]}
         />
       </div>
 

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en" class="h-full">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>KeiRouter</title>
+    <link rel="icon" type="image/png" href="/keirouter-favicon.png" />
+    <meta name="color-scheme" content="light dark" />
+    <!-- Apply the saved theme before first paint so dark mode never flashes
+         white while the app bundle downloads. Mirrors ThemeProvider. -->
+    <script>
+      try {
+        var t = localStorage.getItem("keirouter-theme");
+        if (t === "dark" || (t === "system" && matchMedia("(prefers-color-scheme: dark)").matches))
+          document.documentElement.classList.add("dark");
+      } catch (e) {}
+    </script>
+    <script type="module" crossorigin src="/assets/index-NWmwuUcJ.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/rolldown-runtime-hePW80VL.js">
+    <link rel="modulepreload" crossorigin href="/assets/query-DMo383wY.js">
+    <link rel="modulepreload" crossorigin href="/assets/radix-Enobam-J.js">
+    <link rel="modulepreload" crossorigin href="/assets/react-BfaZ9TWb.js">
+    <link rel="modulepreload" crossorigin href="/assets/createLucideIcon-Bm8Sw3-8.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-CSU68q3O.css">
+  </head>
+  <body class="h-full">
+    <div id="root" class="h-full"></div>
+  </body>
+</html>

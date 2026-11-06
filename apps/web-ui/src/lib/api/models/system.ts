@@ -62,6 +62,16 @@ export interface SystemStats {
   history: SystemHistory
 }
 
+/** GET /v1/system/status: the sidebar's gateway status card. */
+export interface SystemStatus {
+  status: string
+  version: string
+  /** Seconds this gateway process has been running */
+  uptime_seconds: number
+  listen_addr: string
+  database: string
+}
+
 export interface SystemHealth {
   machine_id: number
   status: string

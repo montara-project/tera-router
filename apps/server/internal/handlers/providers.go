@@ -248,7 +248,7 @@ func (h *providersHandler) CustomStore(c fiber.Ctx) error {
 	if err := h.app.Repos.Providers.Insert(c.Context(), provider); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "custom_provider.create", provider.ID, map[string]string{"slug": provider.Slug})
+	auditRecord(c, actorFrom(c), "custom_provider.create", provider.ID, map[string]string{"slug": provider.Slug})
 	return dtos.Created(c, provider, "Provider created")
 }
 
@@ -271,7 +271,7 @@ func (h *providersHandler) CustomUpdate(c fiber.Ctx) error {
 	if err := h.app.Repos.Providers.Update(c.Context(), provider); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "custom_provider.update", provider.ID, nil)
+	auditRecord(c, actorFrom(c), "custom_provider.update", provider.ID, nil)
 
 	updated, err := h.app.Repos.Providers.Get(c.Context(), provider.ID)
 	if err != nil {
@@ -293,7 +293,7 @@ func (h *providersHandler) CustomDelete(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "custom_provider.delete", id.String(),
+	auditRecord(c, actorFrom(c), "custom_provider.delete", id.String(),
 		map[string]any{"slug": result.Slug, "accounts_deleted": result.Accounts})
 
 	message := "Provider deleted"
@@ -338,7 +338,7 @@ func (h *providersHandler) CustomBulkDelete(c fiber.Ctx) error {
 		return err
 	}
 	for _, id := range deleted {
-		auditRecord(c.Context(), h.app, actorFrom(c), "custom_provider.delete", id,
+		auditRecord(c, actorFrom(c), "custom_provider.delete", id,
 			map[string]any{"bulk": true, "accounts_deleted": 0})
 	}
 
@@ -512,7 +512,7 @@ func (h *providersHandler) CustomModelsSync(c fiber.Ctx) error {
 		return err
 	}
 	if priced > 0 {
-		auditRecord(c.Context(), h.app, actorFrom(c), "pricing.import_upstream", provider.Slug, map[string]string{"count": strconv.Itoa(priced)})
+		auditRecord(c, actorFrom(c), "pricing.import_upstream", provider.Slug, map[string]string{"count": strconv.Itoa(priced)})
 	}
 	return dtos.OK(c, fiber.Map{"models": cat.Models, "fetched_at": cat.FetchedAt, "priced": priced})
 }
@@ -719,9 +719,9 @@ func (h *providersHandler) ModelsSync(c fiber.Ctx) error {
 		return err
 	}
 	if priced > 0 {
-		auditRecord(c.Context(), h.app, actorFrom(c), "pricing.import_upstream", slug, map[string]string{"count": strconv.Itoa(priced)})
+		auditRecord(c, actorFrom(c), "pricing.import_upstream", slug, map[string]string{"count": strconv.Itoa(priced)})
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "provider.models_sync", slug, map[string]int{"count": len(ids)})
+	auditRecord(c, actorFrom(c), "provider.models_sync", slug, map[string]int{"count": len(ids)})
 
 	return dtos.OK(c, fiber.Map{"models": cat.Models, "fetched_at": cat.FetchedAt, "priced": priced})
 }
@@ -1035,6 +1035,6 @@ func (h *providersHandler) RoutingUpdate(c fiber.Ctx) error {
 	if err := h.app.Repos.Settings.SetProviderRouting(c.Context(), slug, routing); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "provider.routing_update", slug, routing)
+	auditRecord(c, actorFrom(c), "provider.routing_update", slug, routing)
 	return dtos.OK(c, routing)
 }

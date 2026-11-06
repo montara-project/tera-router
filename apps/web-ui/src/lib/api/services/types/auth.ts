@@ -1,7 +1,14 @@
 import type { AxiosItemResponse } from '@/types/api'
 
 import type { RefreshDto, SignInDto } from '../../dtos/auth/schema'
-import type { RefreshTokenResponse, SignInResponse, TotpSetupResponse } from '../../dtos/auth/types'
+import type { ReauthDto } from '../../dtos/auth/schema'
+import type {
+  PasskeyCeremony,
+  PasskeyFinishDto,
+  RefreshTokenResponse,
+  SignInResponse,
+  TotpSetupResponse,
+} from '../../dtos/auth/types'
 import type { Models } from '../../models'
 
 export type AuthResources = {
@@ -13,4 +20,20 @@ export type AuthResources = {
   totpSetup: () => Promise<AxiosItemResponse<TotpSetupResponse>>
   totpEnable: (reqBody: { secret: string; code: string }) => Promise<AxiosItemResponse<void>>
   totpDisable: (reqBody: { code: string }) => Promise<AxiosItemResponse<void>>
+  sessions: () => Promise<AxiosItemResponse<Models.Session[]>>
+  revokeSession: (id: string) => Promise<AxiosItemResponse<void>>
+  passkeys: () => Promise<AxiosItemResponse<Models.Passkey[]>>
+  passkeyRegisterBegin: (
+    reqBody: ReauthDto
+  ) => Promise<
+    AxiosItemResponse<
+      PasskeyCeremony<PublicKeyCredentialCreationOptionsJSON> | { totp_required: true }
+    >
+  >
+  passkeyRegisterFinish: (reqBody: PasskeyFinishDto) => Promise<AxiosItemResponse<Models.Passkey>>
+  deletePasskey: (id: string) => Promise<AxiosItemResponse<void>>
+  passkeySignInBegin: () => Promise<
+    AxiosItemResponse<PasskeyCeremony<PublicKeyCredentialRequestOptionsJSON>>
+  >
+  passkeySignInFinish: (reqBody: PasskeyFinishDto) => Promise<AxiosItemResponse<SignInResponse>>
 }

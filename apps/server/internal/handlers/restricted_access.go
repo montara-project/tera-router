@@ -45,6 +45,6 @@ func (h *restrictedAccessHandler) Update(c fiber.Ctx) error {
 	if err := h.app.IPBlocks.Reload(c.Context()); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "restricted_access.update", "restricted_access", stored)
+	auditRecord(c, actorFrom(c), "restricted_access.update", "restricted_access", stored)
 	return dtos.Item(c, fiber.StatusOK, stored, "Restricted access updated")
 }

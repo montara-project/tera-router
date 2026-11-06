@@ -44,8 +44,8 @@ export default function IPBlockCard() {
   }
 
   return (
-    <Card className="bg-background">
-      <CardHeader className="py-4">
+    <Card className="rounded-lg bg-card">
+      <CardHeader className="px-4 py-3">
         <div className="flex min-w-0 items-center gap-3.5">
           <IconBadge
             icon={IconBan}
@@ -54,8 +54,8 @@ export default function IPBlockCard() {
             iconClassName="h-5 w-5"
           />
           <CardHeading>
-            <CardTitle>Blocked IPs</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-sm font-semibold">Blocked IPs</CardTitle>
+            <CardDescription className="text-xs">
               Requests from these addresses get 403. An address with 10 failed sign-ins in 15
               minutes is blocked for 15 minutes automatically.
             </CardDescription>
@@ -66,7 +66,7 @@ export default function IPBlockCard() {
       <CardContent className="p-0">
         <form
           onSubmit={add}
-          className="flex flex-wrap items-center gap-3 border-t border-border px-5 py-4"
+          className="flex flex-wrap items-center gap-3 border-t border-border px-4 py-4"
         >
           <Input
             value={cidr}
@@ -88,15 +88,17 @@ export default function IPBlockCard() {
         </form>
 
         {isLoading ? null : blocks.length === 0 ? (
-          <p className="text-muted-foreground border-t border-border px-5 py-4 text-sm">
+          <p className="text-muted-foreground border-t border-border px-4 py-4 text-sm">
             No blocked addresses.
           </p>
         ) : (
           <ul className="divide-y divide-border border-t border-border">
             {blocks.map((block) => (
-              <li key={block.id} className="flex items-center justify-between gap-4 px-5 py-3">
+              <li key={block.id} className="flex items-center justify-between gap-4 px-4 py-3">
                 <div className="min-w-0">
-                  <p className="text-foreground font-mono text-sm">{block.cidr}</p>
+                  <p className="font-mono text-[12.5px] font-medium text-foreground">
+                    {block.cidr}
+                  </p>
                   <p className="text-muted-foreground mt-0.5 truncate text-xs">
                     {block.expires_at
                       ? `Lifts ${formatDistanceToNow(new Date(block.expires_at), { addSuffix: true })}`

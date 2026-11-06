@@ -39,14 +39,21 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 
 	// Versioned dashboard API. Auth endpoints are public; everything else
 	// requires the Bearer JWT issued by /v1/auth/sign-in.
-	v1 := r.Group("/v1")
+	// AuditTrail writes the audit entries a request queued, with its status.
+	v1 := r.Group("/v1", handlers.AuditTrail(app))
 
 	publicAuth := v1.Group("/auth")
 	publicAuth.Post("/sign-in", h.Auth.SignIn)
 	publicAuth.Post("/refresh", h.Auth.Refresh)
+	publicAuth.Post("/passkey/begin", h.Passkeys.SignInBegin)
+	publicAuth.Post("/passkey/finish", h.Passkeys.SignInFinish)
 	publicAuth.Get("/google/redirect", h.Auth.GoogleRedirect)
 
 	v1.Get("/branding", h.Settings.Branding)
+
+	// Usage portal: a key's own usage, read with the portal token from the
+	// shared link instead of a dashboard session.
+	v1.Get("/portal/:token", h.Portal.Show)
 
 	protected := v1.Group("/", middlewares.RequireAuth(app))
 
@@ -54,6 +61,12 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	auth := protected.Group("/auth")
 	auth.Get("/me", h.Auth.Me)
 	auth.Post("/sign-out", h.Auth.SignOut)
+	auth.Get("/sessions", h.Auth.Sessions)
+	auth.Delete("/sessions/:id", h.Auth.RevokeSession)
+	auth.Get("/passkeys", h.Passkeys.List)
+	auth.Post("/passkeys/register/begin", h.Passkeys.RegisterBegin)
+	auth.Post("/passkeys/register/finish", h.Passkeys.RegisterFinish)
+	auth.Delete("/passkeys/:id", h.Passkeys.Delete)
 	auth.Post("/totp/setup", h.Auth.TOTPSetup)
 	auth.Post("/totp/enable", h.Auth.TOTPEnable)
 	auth.Post("/totp/disable", h.Auth.TOTPDisable)
@@ -74,6 +87,10 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	keys.Get("", h.Keys.Index)
 	keys.Post("", h.Keys.Store)
 	keys.Get("/:id", h.Keys.Get)
+	keys.Get("/:id/usage", h.Keys.Usage)
+	keys.Get("/:id/guardrails", h.Keys.GuardrailStats)
+	keys.Post("/:id/portal", h.Keys.IssuePortal)
+	keys.Delete("/:id/portal", h.Keys.RevokePortal)
 	keys.Patch("/:id", h.Keys.Update)
 	keys.Post("/:id/reveal", h.Keys.Reveal)
 	keys.Post("/:id/rotate", h.Keys.Rotate)
@@ -134,6 +151,7 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	accounts := protected.Group("/accounts")
 	accounts.Get("", h.Accounts.Index)
 	accounts.Post("", h.Accounts.Store)
+	accounts.Post("/test", h.Accounts.TestKey)
 	accounts.Get("/:id", h.Accounts.Get)
 	accounts.Patch("/:id", h.Accounts.Update)
 	accounts.Delete("/:id", h.Accounts.Delete)
@@ -199,6 +217,7 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	// model → chain → key; most specific wins)
 	guardrails := protected.Group("/guardrails")
 	guardrails.Get("", h.Guardrails.Overview)
+	guardrails.Get("/metrics", h.Guardrails.Metrics)
 	guardrails.Post("", h.Guardrails.Store)
 	guardrails.Put("/settings", h.Guardrails.UpdateSettings)
 	guardrails.Post("/evaluate", h.Guardrails.Evaluate)
@@ -226,17 +245,28 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	skills.Patch("/:id", h.Skills.Update)
 	skills.Delete("/:id", h.Skills.Delete)
 
+	audit := protected.Group("/audit")
+	audit.Get("", h.Audit.Index)
+	audit.Get("/stats", h.Audit.Stats)
+	audit.Get("/export", h.Audit.Export)
+	audit.Post("/verify", h.Audit.Verify)
+
 	console := protected.Group("/console")
 	console.Get("", h.Console.Index)
 	console.Delete("", h.Console.Clear)
 
-	protected.Get("/system/stats", h.System.Stats)
+	system := protected.Group("/system")
+	system.Get("/stats", h.System.Stats)
+	system.Get("/status", h.System.Status)
 
 	protected.Get("/media", h.Media.Index)
 
-	claudeCode := protected.Group("/cli-tools/claude-code")
-	claudeCode.Get("", h.CliTools.ClaudeCode)
-	claudeCode.Post("/apply", h.CliTools.ClaudeCodeApply)
+	// Endpoints page: base URL and the route reference the apps call
+	protected.Get("/endpoints", h.Endpoints.Catalog)
+
+	protected.Get("/cli-tools", h.CliTools.List)
+	protected.Get("/cli-tools/:id", h.CliTools.Show)
+	protected.Post("/cli-tools/:id/apply", h.CliTools.Apply)
 
 	// Tunnels (cloudflared quick tunnel exposing this server publicly)
 	tunnels := protected.Group("/tunnels")

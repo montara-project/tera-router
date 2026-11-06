@@ -1,192 +1,79 @@
 import {
-  IconActivityHeartbeat,
-  IconBinaryTree2,
-  IconChartHistogram,
-  IconClockHour4,
+  IconActivity,
+  IconArrowsShuffle,
+  IconBook,
+  IconBrandGithub,
+  IconChartBar,
   IconCoin,
-  IconCloud,
-  IconHeartbeat,
+  IconCpu,
+  IconGauge,
+  IconHistory,
   IconKey,
-  IconLayoutDashboard,
+  IconLayoutGrid,
   IconMessageChatbot,
+  IconMessageReport,
   IconPackages,
   IconPhoto,
   IconPigMoney,
-  IconPolygon,
-  IconReplace,
+  IconPlug,
+  IconReceipt,
+  IconSchool,
+  IconScript,
   IconSettings,
-  IconShieldChevron,
-  IconSparkles,
+  IconShield,
   IconStack2,
   IconTerminal2,
-  IconWallet,
+  IconTopologyRing,
 } from '@tabler/icons-react'
 
-import type { NavMainItem, SidebarMenuData } from '@/types/menu'
+import type { NavMainItem, NavSecondaryItem, SidebarMenuData } from '@/types/menu'
 
 // ── Share sidebar menus ───────────────────────────────────────────
 
-const NAV_DASHBOARD: NavMainItem = {
-  title: 'Dashboard',
-  url: '/dashboard',
-  icon: IconLayoutDashboard,
-  isActive: true,
-  items: [],
+function nav(
+  title: string,
+  url: string,
+  icon: NavMainItem['icon'],
+  extra?: Partial<NavMainItem>
+): NavMainItem {
+  return { title, url, icon, isActive: false, items: [], ...extra }
 }
 
-const NAV_TRAFFIC_LOGIC: NavMainItem[] = [
-  {
-    title: 'Endpoints',
-    url: '/endpoints',
-    icon: IconBinaryTree2,
-    isActive: false,
-    items: [],
-  },
-  {
-    title: 'Chains',
-    url: '/chains',
-    icon: IconStack2,
-    isActive: false,
-    items: [],
-  },
-  {
-    title: 'Skills',
-    url: '/skills',
-    icon: IconSparkles,
-    isActive: false,
-    items: [],
-  },
-  {
-    title: 'Model Alias',
-    url: '/model-alias',
-    icon: IconReplace,
-    isActive: false,
-    items: [],
-  },
-  {
-    title: 'Pricing',
-    url: '/pricing',
-    icon: IconCoin,
-    isActive: false,
-    items: [],
-  },
+const NAV_OVERVIEW: NavMainItem[] = [
+  nav('Overview', '/dashboard', IconLayoutGrid, { isActive: true }),
+  nav('Usage', '/usage', IconChartBar),
+  nav('Console', '/console', IconScript, { live: true }),
 ]
 
-const NAV_CONNECTIONS: NavMainItem[] = [
-  {
-    title: 'API Keys',
-    url: '/keys',
-    icon: IconKey,
-    isActive: false,
-    items: [],
-  },
-  {
-    title: 'Providers',
-    url: '/providers',
-    icon: IconPackages,
-    isActive: false,
-    items: [],
-  },
-  {
-    title: 'Media',
-    url: '/media',
-    icon: IconPhoto,
-    isActive: false,
-    items: [],
-  },
-  {
-    title: 'Proxy Pools',
-    url: '/proxy-pools',
-    icon: IconPolygon,
-    isActive: false,
-    items: [],
-  },
+const NAV_ROUTING: NavMainItem[] = [
+  nav('Endpoints', '/endpoints', IconPlug),
+  nav('Chains', '/chains', IconStack2),
+  nav('Model Alias', '/model-alias', IconArrowsShuffle),
+  nav('Skills', '/skills', IconSchool),
+  nav('Pricing', '/pricing', IconCoin),
 ]
 
-const NAV_SAFETY: NavMainItem[] = [
-  {
-    title: 'Guardrails',
-    url: '/guardrails',
-    icon: IconShieldChevron,
-    isActive: false,
-    items: [],
-  },
-  {
-    title: 'Provider Health',
-    url: '/provider-health',
-    icon: IconHeartbeat,
-    isActive: false,
-    items: [],
-  },
+const NAV_PROVIDERS: NavMainItem[] = [
+  nav('Providers', '/providers', IconPackages),
+  nav('Media', '/media', IconPhoto),
+  nav('Health', '/provider-health', IconActivity),
+  nav('Quota', '/quota', IconGauge),
+  nav('Proxy pools', '/proxy-pools', IconTopologyRing),
 ]
 
-const NAV_COST_ANALYTICS: NavMainItem[] = [
-  {
-    title: 'Usage',
-    url: '/usage',
-    icon: IconChartHistogram,
-    isActive: false,
-    items: [],
-  },
-  {
-    title: 'Plans',
-    url: '/plans',
-    icon: IconWallet,
-    isActive: false,
-    items: [],
-  },
-  {
-    title: 'Budgets',
-    url: '/budgets',
-    icon: IconPigMoney,
-    isActive: false,
-    items: [],
-  },
-  {
-    title: 'Quota Tracker',
-    url: '/quota',
-    icon: IconClockHour4,
-    isActive: false,
-    items: [],
-  },
-  {
-    title: 'System',
-    url: '/system',
-    icon: IconActivityHeartbeat,
-    isActive: false,
-    items: [],
-  },
-  {
-    title: 'Settings',
-    url: '/settings',
-    icon: IconSettings,
-    isActive: false,
-    items: [],
-  },
+const NAV_ACCESS: NavMainItem[] = [
+  nav('API keys', '/keys', IconKey),
+  nav('Plans & budgets', '/plans', IconReceipt, { activeOn: ['/budgets'] }),
+  nav('Budgets', '/budgets', IconPigMoney, { hidden: true }),
+  nav('Guardrails', '/guardrails', IconShield),
+  nav('Audit log', '/audit-log', IconHistory),
 ]
 
-const NAV_DEVELOPER: NavMainItem[] = [
-  {
-    title: 'Playground',
-    url: '/playground',
-    icon: IconMessageChatbot,
-    isActive: false,
-    items: [],
-  },
-  {
-    title: 'Console Log',
-    url: '/console',
-    icon: IconTerminal2,
-    isActive: false,
-    items: [],
-  },
-  {
-    title: 'CLI Tools',
-    url: '/cli-tools',
-    icon: IconCloud,
-    isActive: false,
-    items: [],
-  },
+const NAV_WORKSPACE: NavMainItem[] = [
+  nav('Playground', '/playground', IconMessageChatbot, { hidden: true }),
+  nav('CLI tools', '/cli-tools', IconTerminal2),
+  nav('System', '/system', IconCpu),
+  nav('Settings', '/settings', IconSettings),
 ]
 
 // const NAV_USERS: NavMainItem = {
@@ -205,6 +92,14 @@ const NAV_DEVELOPER: NavMainItem[] = [
 //   ],
 // }
 
+const REPO_URL = 'https://github.com/montara-project/tera-router'
+
+const NAV_SECONDARY: NavSecondaryItem[] = [
+  { title: 'Documentation', url: 'https://docs.terarouter.xyz/docs', icon: IconBook },
+  { title: 'GitHub', url: REPO_URL, icon: IconBrandGithub },
+  { title: 'Feedback', url: `${REPO_URL}/issues`, icon: IconMessageReport },
+]
+
 const SIDEBAR_MENU_ADMIN: SidebarMenuData = {
   user: {
     name: 'Admin',
@@ -212,15 +107,28 @@ const SIDEBAR_MENU_ADMIN: SidebarMenuData = {
     avatar: '/avatars/admin.jpg',
   },
   navMenu: {
-    overview: [NAV_DASHBOARD],
-    traffic: NAV_TRAFFIC_LOGIC,
-    connections: NAV_CONNECTIONS,
-    safety: NAV_SAFETY,
-    analytics: NAV_COST_ANALYTICS,
-    developer: NAV_DEVELOPER,
+    overview: NAV_OVERVIEW,
+    routing: NAV_ROUTING,
+    providers: NAV_PROVIDERS,
+    access: NAV_ACCESS,
+    workspace: NAV_WORKSPACE,
   },
   navSetting: [],
+  navSecondary: NAV_SECONDARY,
 }
+
+/** Sidebar group order and labels; also drives the ⌘K search sections. */
+export const SIDEBAR_GROUPS = [
+  { key: 'overview', title: 'Overview', hideLabel: true },
+  { key: 'routing', title: 'Routing' },
+  { key: 'providers', title: 'Providers' },
+  { key: 'access', title: 'Access' },
+  { key: 'workspace', title: 'Workspace' },
+] as const satisfies readonly {
+  key: keyof SidebarMenuData['navMenu']
+  title: string
+  hideLabel?: boolean
+}[]
 
 // ── Lookup ─────────────────────────────────────────────────────────────
 

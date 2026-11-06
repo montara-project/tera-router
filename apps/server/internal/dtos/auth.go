@@ -1,6 +1,7 @@
 package dtos
 
 import (
+	"encoding/json"
 	"time"
 
 	"tera-router/server/internal/lib/validator"
@@ -54,6 +55,21 @@ func (d *Reauth) Validate(v *validator.MapValidator) {
 	v.Field("password").Required().String()
 }
 
+// PasskeyFinish completes a passkey ceremony: the id the begin step returned
+// and the browser's PublicKeyCredential.toJSON() output. Name labels a new
+// passkey and is ignored on sign-in.
+type PasskeyFinish struct {
+	CeremonyID string          `json:"ceremony_id"`
+	Name       string          `json:"name"`
+	Credential json.RawMessage `json:"credential"`
+}
+
+func (d *PasskeyFinish) Validate(v *validator.MapValidator) {
+	v.Field("ceremony_id").Required().String()
+	v.Field("name").String()
+	v.Field("credential").Required()
+}
+
 // Refresh is the token rotation request body (POST /v1/auth/refresh).
 type Refresh struct {
 	RefreshToken string `json:"refresh_token"`
@@ -69,6 +85,8 @@ func (d *Refresh) Validate(v *validator.MapValidator) {
 type Session struct {
 	User   models.User `json:"-"`
 	Tokens TokenPair   `json:"-"`
+	// SessionID is the session's refresh token row id (the access token jti).
+	SessionID string `json:"-"`
 }
 
 // TokenPair carries the three tokens the web client stores.

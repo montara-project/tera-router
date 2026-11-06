@@ -1,7 +1,8 @@
 import type { AxiosDeleteResponse, AxiosItemResponse } from '@/types/api'
 
 import type { EvaluateDto, GuardrailsSettingsDto, PolicyDto } from '../../dtos/guardrails/schema'
-import type { GuardrailPolicy, GuardrailsOverview } from '../../models/guardrails'
+import type { GuardrailMetrics, GuardrailPolicy, GuardrailsOverview } from '../../models/guardrails'
+import type { UsageRange } from '../../models/usage'
 
 /** One detector hit rendered in the dashboard test panel. */
 export type GuardrailsDetectorMatch = {
@@ -32,8 +33,10 @@ export type GuardrailsEvaluateResult = {
 }
 
 export type GuardrailsResources = {
-  /** settings toggle + policies + recent guardrail audit trail */
+  /** settings toggle + policies + the newest decisions */
   overview: () => Promise<AxiosItemResponse<GuardrailsOverview>>
+  /** decision counts, actions series and breakdowns for one range */
+  metrics: (range: UsageRange) => Promise<AxiosItemResponse<GuardrailMetrics>>
   store: (payload: PolicyDto) => Promise<AxiosItemResponse<GuardrailPolicy>>
   update: (id: string, payload: PolicyDto) => Promise<AxiosItemResponse<GuardrailPolicy>>
   remove: (id: string) => Promise<AxiosDeleteResponse>

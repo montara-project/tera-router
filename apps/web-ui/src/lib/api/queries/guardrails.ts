@@ -3,6 +3,7 @@ import { mutationOptions, queryOptions } from '@tanstack/react-query'
 import { getQueryClient } from '@/lib/providers/react-query'
 
 import type { EvaluateDto, GuardrailsSettingsDto, PolicyDto } from '../dtos/guardrails/schema'
+import type { UsageRange } from '../models/usage'
 
 import { services } from '../services'
 
@@ -17,6 +18,16 @@ const overview = () =>
     queryKey: OVERVIEW_GUARDRAILS_QUERY_KEY(),
     queryFn: async () => {
       const res = await services.guardrails.overview()
+      return res.data
+    },
+  })
+
+/** Decision counts, the actions series and every breakdown for one range. */
+const metrics = (range: UsageRange) =>
+  queryOptions({
+    queryKey: [GUARDRAILS_QUERY_KEY, 'metrics', range],
+    queryFn: async () => {
+      const res = await services.guardrails.metrics(range)
       return res.data
     },
   })
@@ -105,6 +116,7 @@ const evaluate = () =>
 
 export const guardrailsQueries = {
   overview,
+  metrics,
   create,
   update,
   delete: del,

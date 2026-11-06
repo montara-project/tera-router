@@ -6,6 +6,7 @@ import type { GuardrailsResources } from './types/guardrails'
 import { ClientFetchApi } from '../client-fetch'
 import { EvaluateSchema, PolicySchema, SettingsSchema } from '../dtos/guardrails/schema'
 import { parseDto } from '../dtos/parse'
+import { GuardrailsMetricsQuerySchema } from '../dtos/query/schema'
 
 const path = '/v1/guardrails'
 
@@ -16,10 +17,15 @@ const api = new ClientFetchApi({
 
 const resources = (): GuardrailsResources => {
   return {
-    /** settings toggle + policies + recent guardrail audit trail */
+    /** settings toggle + policies + recent decisions */
     overview: () => {
       const url = path
       return api.get(url)
+    },
+    /** decision counts, actions series and breakdowns for one range */
+    metrics: (range) => {
+      const url = `${path}/metrics`
+      return api.get(url, { params: parseDto(GuardrailsMetricsQuerySchema, { range }) })
     },
     store: (payload) => {
       const url = path

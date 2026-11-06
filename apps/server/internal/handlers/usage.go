@@ -14,7 +14,7 @@ type usageHandler struct {
 }
 
 // rangeStart resolves the window start for a named range
-// (today, 24h, 7d, 30d). Unknown ranges mean the last 30 days.
+// (today, 24h, 7d, 30d, 90d). Unknown ranges mean the last 30 days.
 func rangeStart(rng string) time.Time {
 	now := time.Now()
 	switch rng {
@@ -24,6 +24,8 @@ func rangeStart(rng string) time.Time {
 		return now.Add(-7 * 24 * time.Hour)
 	case "24h":
 		return now.Add(-24 * time.Hour)
+	case "90d":
+		return now.Add(-90 * 24 * time.Hour)
 	default:
 		return now.Add(-30 * 24 * time.Hour)
 	}
@@ -45,7 +47,7 @@ func (h *usageHandler) Activity(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	names, _, err := h.providerMeta(ctx)
+	names, _, _, err := h.providerMeta(ctx)
 	if err != nil {
 		return err
 	}

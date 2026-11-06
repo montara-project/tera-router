@@ -2,69 +2,52 @@ import { type TablerIcon } from '@tabler/icons-react'
 
 import type { SystemPoint } from '@/lib/api/models/system'
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardHeading,
-  CardTitle,
-} from '@/components/ui/card'
+import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
 
-import SystemIconBadge, { type SystemTone } from './system-icon-badge'
 import SystemLineChart from './system-line-chart'
 
 interface SystemMetricChartCardProps {
   icon: TablerIcon
-  tone: SystemTone
   title: string
   description: string
   points: SystemPoint[]
   color: string
+  /** Formats the latest point for the header, e.g. "42.1%". */
+  format: (value: number) => string
   min?: number
   max?: number
   threshold?: number
-  area?: boolean
 }
 
 export default function SystemMetricChartCard({
   icon,
-  tone,
   title,
   description,
   points,
   color,
+  format,
   min,
   max,
   threshold,
-  area = true,
 }: SystemMetricChartCardProps) {
+  const latest = points.at(-1)?.value
+
   return (
-    <Card className="bg-background">
-      <CardHeader className="py-4">
-        <div className="flex items-center gap-3.5">
-          <SystemIconBadge
-            icon={icon}
-            tone={tone}
-            className="h-10 w-10 shrink-0"
-            iconClassName="h-5 w-5"
-          />
-          <CardHeading>
-            <CardTitle>{title}</CardTitle>
-            <CardDescription>{description}</CardDescription>
-          </CardHeading>
-        </div>
-      </CardHeader>
-      <CardContent className="px-4 pb-4">
-        <SystemLineChart
-          area={area}
-          color={color}
-          max={max}
-          min={min}
-          points={points}
-          threshold={threshold}
-        />
-      </CardContent>
-    </Card>
+    <DashboardPanel
+      icon={icon}
+      title={title}
+      description={description}
+      toolbar={
+        latest === undefined ? null : (
+          <span className="font-mono text-[15px] font-semibold text-foreground tabular-nums">
+            {format(latest)}
+          </span>
+        )
+      }
+    >
+      <div className="px-3 pt-3 pb-2">
+        <SystemLineChart color={color} max={max} min={min} points={points} threshold={threshold} />
+      </div>
+    </DashboardPanel>
   )
 }

@@ -1,30 +1,38 @@
-import { IconArrowRight, IconCpu } from '@tabler/icons-react'
+import { IconCpu, IconSearch } from '@tabler/icons-react'
 import { useMutation, useQuery } from '@tanstack/react-query'
+import { useQueryState } from 'nuqs'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
 import type { ApiKeyDetail } from '@/lib/api/models/key'
 
-import SimpleAlertScrollableDialogForm from '@/components/block/common/simple-alert-scrollable-dialog-form'
-import { Badge } from '@/components/ui/badge'
+import ReactTable from '@/components/block/common/react-table'
+import SelectInput from '@/components/block/common/select-input'
+import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
+import KeyModelsEditor, {
+  MODEL_COLUMNS,
+  MODEL_PAGE_SIZES,
+  useClampedPage,
+  useModelRows,
+} from '@/components/block/keys/key-models-editor'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardHeading,
-  CardTitle,
-  CardToolbar,
-} from '@/components/ui/card'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
+import { Input, InputWrapper } from '@/components/ui/input'
+import { Skeleton } from '@/components/ui/skeleton'
 import { toastAxiosError } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
+import { formatCount } from '@/lib/format'
+import { cn } from '@/lib/utils'
 
 export default function KeyModelsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
-  const [open, setOpen] = useState(false)
-  const [draft, setDraft] = useState('')
+  const [editing, setEditingState] = useState(false)
+  // The list and the editor page on their own, so a page from the other view is dropped.
+  const [, setPage] = useQueryState('page')
+  const [, setPageSize] = useQueryState('pageSize')
+  const setEditing = (value: boolean) => {
+    setEditingState(value)
+    void setPage(null)
+    void setPageSize(null)
+  }
 
   const plansQuery = useQuery(queries.plans.list())
   const plan = plansQuery.data?.data.find((item) => item.id === apiKey.plan_id) ?? null
@@ -34,11 +42,6 @@ export default function KeyModelsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
   const allowedModels = apiKey.allowed_models ?? []
   const restricted = allowedModels.length > 0
 
-  const openDialog = () => {
-    setDraft(allowedModels.join('\n'))
-    setOpen(true)
-  }
-
   const saveMutation = useMutation(queries.keys.update(apiKey.id))
 
   const handleSave = (patterns: string[]) => {
@@ -46,19 +49,17 @@ export default function KeyModelsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
       { allowed_models: patterns },
       {
         onSuccess: () => {
-          setOpen(false)
-          toast.success(
-            patterns.length === 0 ? 'Model restriction cleared' : 'Model allowlist saved'
-          )
+          setEditing(false)
+          toast.success('Model access updated', {
+            description:
+              patterns.length === 0
+                ? 'Every routable model works with this key.'
+                : `${patterns.length} ${patterns.length === 1 ? 'model' : 'models'} allowed.`,
+          })
         },
         onError: toastAxiosError,
       }
     )
-  }
-
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    handleSave(parsePatterns(draft))
   }
 
   const renderPlanAccess = () => {
@@ -75,7 +76,7 @@ export default function KeyModelsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
           ) : (
             <span className="text-foreground">every model</span>
           )}
-          . A key allowlist can only narrow that set, never widen it.
+          . The key can only narrow that set.
         </>
       )
     }
@@ -83,114 +84,143 @@ export default function KeyModelsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
     return 'This key is not bound to a plan, so only the key allowlist applies.'
   }
 
+  if (editing) {
+    return (
+      <KeyModelsEditor
+        initial={allowedModels}
+        saving={saveMutation.isPending}
+        note={renderPlanAccess()}
+        onDiscard={() => setEditing(false)}
+        onSave={handleSave}
+        onAllowAll={restricted ? () => handleSave([]) : undefined}
+      />
+    )
+  }
+
   return (
-    <>
-      <Card className="bg-background">
-        <CardHeader className="py-4">
-          <CardHeading>
-            <CardTitle>Model access</CardTitle>
-            <CardDescription>
-              Choose whether this key follows its plan or uses a narrower model allowlist.
-            </CardDescription>
-          </CardHeading>
-          <CardToolbar>
-            <Button variant="outline" onClick={openDialog}>
-              Restrict models
-              <IconArrowRight />
-            </Button>
-          </CardToolbar>
-        </CardHeader>
-
-        <CardContent className="space-y-3 p-4 sm:p-5">
-          <div className="bg-background flex items-start gap-4 rounded-lg border border-border p-4">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-amber-950 text-amber-400">
-              <IconCpu className="h-5 w-5" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="text-sm font-semibold">
-                  {restricted ? 'Restricted allowlist' : 'All available models'}
-                </p>
-                <Badge variant={restricted ? 'warning' : 'secondary'} appearance="light" size="sm">
-                  {restricted
-                    ? `${allowedModels.length} ${allowedModels.length === 1 ? 'pattern' : 'patterns'}`
-                    : 'No restriction'}
-                </Badge>
-              </div>
-              <p className="text-muted-foreground mt-1 text-sm">
-                {restricted
-                  ? 'Only models matching the patterns below are reachable through this key.'
-                  : 'This key can use every model available through its assigned plan.'}
-              </p>
-
-              {restricted ? (
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {allowedModels.map((pattern) => (
-                    <span
-                      key={pattern}
-                      className="bg-muted text-muted-foreground inline-flex items-center rounded-md px-2 py-0.5 font-mono text-xs"
-                    >
-                      {pattern}
-                    </span>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="text-muted-foreground text-xs">{renderPlanAccess()}</div>
-        </CardContent>
-      </Card>
-
-      <SimpleAlertScrollableDialogForm
-        confirmText="Save allowlist"
-        description={`Restrict ${apiKey.name} to a narrower set of models than its plan allows. Leave empty to follow the plan.`}
-        disabled={saveMutation.isPending}
-        loading={saveMutation.isPending}
-        open={open}
-        size="md"
-        title="Restrict models"
-        onOpenChange={setOpen}
-        onSubmit={handleSubmit}
-      >
-        <div className="space-y-1.5">
-          <Label htmlFor="key-allowed-models">Allowed model patterns</Label>
-          <Textarea
-            id="key-allowed-models"
-            className="font-mono text-xs"
-            placeholder={'gpt-4o\nopenai/gpt-4o-mini\nclaude-*\nchain:fast-cheap'}
-            rows={7}
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-          />
-          <p className="text-muted-foreground text-xs">
-            One pattern per line. Match a bare model id, <code>provider/model</code>,{' '}
-            <code>chain:name</code>, or a trailing <code>*</code> wildcard.
+    <DashboardPanel
+      icon={IconCpu}
+      title={
+        <>
+          {restricted
+            ? `${allowedModels.length} ${allowedModels.length === 1 ? 'model' : 'models'} allowed`
+            : 'All models allowed'}
+          <span
+            className={cn(
+              'rounded-sm px-1.5 py-0.5 text-[11.5px] font-medium',
+              restricted
+                ? 'bg-amber-500/10 text-amber-800 ring-1 ring-amber-500/25 ring-inset dark:text-amber-400'
+                : 'border border-border bg-muted/40 text-muted-foreground'
+            )}
+          >
+            {restricted ? 'Key override' : 'No restriction'}
+          </span>
+        </>
+      }
+      toolbar={
+        <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
+          {restricted ? 'Edit access' : 'Restrict models'}
+        </Button>
+      }
+    >
+      {restricted ? (
+        <AllowedModelsList allowed={allowedModels} />
+      ) : (
+        <div className="flex flex-col items-center px-6 py-10 text-center">
+          <span className="flex size-10 items-center justify-center rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400">
+            <IconCpu className="size-5" aria-hidden />
+          </span>
+          <p className="mt-3 text-[13px] font-semibold">No model restriction</p>
+          <p className="mt-1 text-[12.5px] text-muted-foreground">
+            Every routable model works with this key.
           </p>
         </div>
+      )}
+    </DashboardPanel>
+  )
+}
 
-        {allowedModels.length > 0 ? (
-          <Button
-            className="text-destructive hover:text-destructive"
-            type="button"
-            variant="outline"
-            onClick={() => handleSave([])}
-          >
-            Clear restriction
-          </Button>
-        ) : null}
-      </SimpleAlertScrollableDialogForm>
+/** The key's allowlist as a table: listed models by name, other entries as patterns. */
+function AllowedModelsList({ allowed }: { allowed: string[] }) {
+  const { rows, loading } = useModelRows()
+  const [search, setSearchValue] = useState('')
+  const [provider, setProviderValue] = useState('')
+
+  const byId = new Map(rows.map((r) => [r.id, r]))
+  const entries = allowed.map((id) => byId.get(id) ?? { id })
+  const providers = [
+    ...new Map(entries.flatMap((e) => ('slug' in e ? [[e.slug, e.provider]] : []))),
+  ] as [string, string][]
+
+  const query = search.trim().toLowerCase()
+  const filtered = entries.filter(
+    (e) =>
+      (!provider || ('slug' in e ? e.slug === provider : provider === PATTERNS)) &&
+      (!query || e.id.toLowerCase().includes(query))
+  )
+  const hasPatterns = entries.some((e) => !('slug' in e))
+  const { pageIndex, limit, start, resetPage } = useClampedPage(filtered.length)
+  // A filter change re-pages the list, so drop a stale page index.
+  const setSearch = (value: string) => {
+    setSearchValue(value)
+    resetPage()
+  }
+  const setProvider = (value: string) => {
+    setProviderValue(value)
+    resetPage()
+  }
+
+  return (
+    <>
+      <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2.5">
+        <InputWrapper className="w-full sm:w-64">
+          <IconSearch aria-hidden />
+          <Input
+            type="search"
+            aria-label="Filter models"
+            placeholder="Filter models"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </InputWrapper>
+        <SelectInput
+          aria-label="Provider"
+          value={provider}
+          onSelect={setProvider}
+          className="w-full sm:w-44"
+          options={[
+            { value: '', label: 'All providers' },
+            ...providers.map(([slug, name]) => ({ value: slug, label: name })),
+            ...(hasPatterns ? [{ value: PATTERNS, label: 'Patterns' }] : []),
+          ]}
+        />
+        <span className="ml-auto text-[12.5px] text-muted-foreground tabular-nums">
+          {formatCount(filtered.length)} shown
+        </span>
+      </div>
+      {loading ? (
+        <div className="p-4">
+          <Skeleton className="h-8 w-full" />
+        </div>
+      ) : (
+        <ReactTable
+          total={filtered.length}
+          data={filtered.slice(start, start + limit)}
+          pageIndex={pageIndex}
+          pageSize={limit}
+          pageSizes={MODEL_PAGE_SIZES}
+          columns={MODEL_COLUMNS}
+          tableClassName="min-w-[32rem]"
+          emptyMessage={
+            <p className="px-4 py-8 text-center text-muted-foreground">
+              No allowed model matches. Try another filter.
+            </p>
+          }
+        />
+      )}
     </>
   )
 }
 
-function parsePatterns(value: string) {
-  return [
-    ...new Set(
-      value
-        .split('\n')
-        .map((line) => line.trim())
-        .filter(Boolean)
-    ),
-  ]
-}
+/** Provider filter value for allowlist entries that are not a listed model. */
+const PATTERNS = '__patterns'

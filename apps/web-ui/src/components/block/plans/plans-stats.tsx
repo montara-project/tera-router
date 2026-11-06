@@ -1,77 +1,36 @@
-import { IconKey, IconShieldCheck, IconWallet } from '@tabler/icons-react'
+import { IconKey, IconShieldCheck, IconTemplate } from '@tabler/icons-react'
 
 import type { Models } from '@/lib/api/models'
 
-import { Card } from '@/components/ui/card'
+import { Stat } from '@/components/block/provider-detail/provider-stat-strip'
 import { cn } from '@/lib/utils'
 
-interface PlansStatsProps {
-  plans: Models.Plan[]
-}
+const TILE = 'bg-orange-500/10 text-orange-600 dark:text-orange-400'
 
-const tileTones = {
-  amber:
-    'bg-amber-50 text-amber-600 ring-amber-200/70 dark:bg-amber-950/30 dark:text-amber-300 dark:ring-amber-900/60',
-  emerald:
-    'bg-emerald-50 text-emerald-600 ring-emerald-200/70 dark:bg-emerald-950/30 dark:text-emerald-300 dark:ring-emerald-900/60',
-}
-
-export default function PlansStats({ plans }: PlansStatsProps) {
+export default function PlansStats({ plans }: { plans: Models.Plan[] }) {
   const keysAssigned = plans.reduce((total, plan) => total + plan.keys_assigned, 0)
   const hardCutoff = plans.filter((plan) => plan.hard_cutoff).length
-  const advisory = plans.length - hardCutoff
-
-  const stats = [
-    {
-      label: 'Total plans',
-      value: plans.length,
-      suffix: plans.length === 1 ? 'template' : 'templates',
-      icon: IconWallet,
-      tone: 'amber' as const,
-    },
-    {
-      label: 'Keys assigned',
-      value: keysAssigned,
-      suffix: `across ${plans.length} ${plans.length === 1 ? 'plan' : 'plans'}`,
-      icon: IconKey,
-      tone: 'emerald' as const,
-    },
-    {
-      label: 'Hard cutoff',
-      value: hardCutoff,
-      suffix: `${advisory} advisory`,
-      icon: IconShieldCheck,
-      tone: 'amber' as const,
-    },
-  ]
+  const unused = plans.filter((plan) => plan.keys_assigned === 0).length
+  const figure = (value: number, muted = false) => (
+    <span className={cn('text-xl font-semibold tabular-nums', muted && 'text-muted-foreground')}>
+      {value}
+    </span>
+  )
+  const note = (text: string) => <span className="block text-xs text-muted-foreground">{text}</span>
 
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
-      {stats.map((stat) => (
-        <Card key={stat.label} className="p-5 bg-background">
-          <div className="flex items-center gap-4">
-            <span
-              className={cn(
-                'flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ring-1',
-                tileTones[stat.tone]
-              )}
-            >
-              <stat.icon className="h-5 w-5" />
-            </span>
-            <div>
-              <p className="text-muted-foreground text-xs font-medium tracking-[0.14em] uppercase">
-                {stat.label}
-              </p>
-              <p className="mt-1 flex items-baseline gap-2">
-                <span className="text-3xl font-semibold tracking-tight tabular-nums">
-                  {stat.value}
-                </span>
-                <span className="text-muted-foreground text-sm">{stat.suffix}</span>
-              </p>
-            </div>
-          </div>
-        </Card>
-      ))}
-    </div>
+    <dl className="grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-3">
+      <Stat icon={IconKey} label="Keys assigned" iconClassName={TILE}>
+        {figure(keysAssigned)}
+      </Stat>
+      <Stat icon={IconShieldCheck} label="Hard cutoff" iconClassName={TILE}>
+        {figure(hardCutoff)}
+        {note(`of ${plans.length} ${plans.length === 1 ? 'plan' : 'plans'}`)}
+      </Stat>
+      <Stat icon={IconTemplate} label="Unused plans" iconClassName={TILE}>
+        {figure(unused, unused === 0)}
+        {note(`of ${plans.length}`)}
+      </Stat>
+    </dl>
   )
 }

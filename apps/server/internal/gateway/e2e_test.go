@@ -961,6 +961,11 @@ func TestStreamPassthroughForSameDialect(t *testing.T) {
 
 	// Usage must still be extracted from the captured stream.
 	assertUsageTokens(t, a, "myclaude", "glm-4", 7, 3)
+
+	// The Console entry records the stream: mode and the four events sent.
+	if r := lastRequest(t).Request; r.Mode != "streaming" || r.Chunks != 4 || r.Outcome != "completed" {
+		t.Errorf("console entry = mode %q chunks %d outcome %q", r.Mode, r.Chunks, r.Outcome)
+	}
 }
 
 func TestStreamPassthroughAnthropicErrorShape(t *testing.T) {

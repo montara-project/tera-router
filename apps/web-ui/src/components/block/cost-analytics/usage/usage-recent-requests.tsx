@@ -1,187 +1,261 @@
-import { IconActivity, IconInfoCircle } from '@tabler/icons-react'
-import { useState } from 'react'
+import type { ColumnDef } from '@tanstack/react-table'
+
+import { IconBolt, IconSearch } from '@tabler/icons-react'
+import { useQueryState } from 'nuqs'
+import { useMemo, useState } from 'react'
 
 import type { UsageTerminalRequestRow } from '@/lib/api/models/usage'
 
+import EmptyState from '@/components/block/common/empty-state'
+import ReactTable, { features } from '@/components/block/common/react-table'
+import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
 import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { usePaginationQuery } from '@/hooks/use-pagination-query'
 import { formatMicrosUsd } from '@/lib/currency'
-import { formatCompact, formatDecimal, formatLatency } from '@/lib/format'
+import { formatDateTime } from '@/lib/date'
+import { formatCount, formatMs } from '@/lib/format'
+import { cn } from '@/lib/utils'
 
-import { RequestStatusBadge, RequestUsageBadge } from './request-badges'
+import { Figure, FIGURE } from './figure'
 import RequestDetailDialog from './request-detail-dialog'
 
-const COLUMNS = 'grid grid-cols-[1.1fr_1.6fr_1fr_1fr_1.1fr_1.1fr_0.7fr_0.7fr] items-center gap-4'
-const PAGE_SIZE = 10
+type Row = UsageTerminalRequestRow
 
-interface RecentRequestsProps {
-  rows: UsageTerminalRequestRow[]
+const STATUS: Record<Row['status'], { label: string; tone: string }> = {
+  success: {
+    label: 'Success',
+    tone: 'bg-emerald-500/10 text-emerald-700 ring-emerald-500/25 dark:text-emerald-400',
+  },
+  failed: {
+    label: 'Failed',
+    tone: 'bg-destructive/10 text-red-700 ring-destructive/25 dark:text-red-400',
+  },
+  cancelled: { label: 'Cancelled', tone: 'text-muted-foreground ring-border' },
 }
 
-export default function UsageRecentRequests({ rows }: RecentRequestsProps) {
-  const [page, setPage] = useState(1)
-  const [selected, setSelected] = useState<UsageTerminalRequestRow | null>(null)
+const USAGE: Record<Row['usage'], string> = {
+  provider: 'Provider usage',
+  estimate: 'Usage estimate',
+  none: 'No usage reported',
+}
 
-  const pageCount = Math.max(Math.ceil(rows.length / PAGE_SIZE), 1)
-  const safePage = Math.min(page, pageCount)
-  const visible = rows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
+const Chip = ({ label, tone }: { label: string; tone: string }) => (
+  <span
+    className={cn(
+      'inline-flex h-5 items-center rounded-sm px-1.5 text-[11.5px] font-medium whitespace-nowrap ring-1 ring-inset',
+      tone
+    )}
+  >
+    {label}
+  </span>
+)
+
+type ColumnType = ColumnDef<typeof features, Row, unknown>
+
+const PAGE_SIZES = [25, 50, 100]
+
+function requestColumns(onOpen: (row: Row) => void): ColumnType[] {
+  return [
+    {
+      accessorKey: 'time',
+      header: 'Time',
+      meta: { headerClassName: 'w-px', cellClassName: 'align-top' },
+      cell: ({ row: { original: row } }) => (
+        <button
+          type="button"
+          onClick={() => onOpen(row)}
+          title={formatDateTime(row.createdAt)}
+          aria-label={`Open request #${row.id} from ${row.time}`}
+          className="text-muted-foreground hover:text-foreground h-6 rounded-sm font-mono text-xs whitespace-nowrap underline-offset-2 hover:underline"
+        >
+          {row.time}
+        </button>
+      ),
+    },
+    {
+      accessorKey: 'status',
+      header: 'Status',
+      meta: { headerClassName: 'w-px', cellClassName: 'align-top' },
+      cell: ({ row: { original: row } }) => (
+        <div className="flex gap-1.5">
+          <Chip {...STATUS[row.status]} />
+          <Chip
+            label={USAGE[row.usage]}
+            tone="text-muted-foreground ring-border dark:bg-muted/40"
+          />
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'model',
+      header: 'Model',
+      meta: { headerClassName: 'w-[34%]', cellClassName: 'max-w-0' },
+      cell: ({ row: { original: row } }) => (
+        <div className="flex min-w-0 items-center gap-2.5">
+          <ProviderAvatar
+            slug={row.provider}
+            apiKind={row.api_kind}
+            size="xs"
+            className="size-5 rounded-[4px]"
+          />
+          <div className="min-w-0">
+            <p className="truncate font-mono text-[12.5px]" title={row.model}>
+              {row.model}
+            </p>
+            <p className="text-muted-foreground truncate text-[11.5px]">
+              {row.providerName || row.provider}
+              {row.keyName && ` · ${row.keyName}`}
+            </p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: 'tokens',
+      header: 'Tokens in → out',
+      meta: FIGURE,
+      cell: ({ row: { original: row } }) => {
+        const tokensIn = row.inputTokens + row.inputCacheRead + row.inputCacheWrite
+        return <Figure value={`${formatCount(tokensIn)} → ${formatCount(row.outputTokens)}`} />
+      },
+    },
+    {
+      accessorKey: 'costMicros',
+      header: 'Cost',
+      meta: FIGURE,
+      cell: ({ row: { original: row } }) => (
+        <Figure
+          value={
+            row.costMicros === null
+              ? row.costNote
+                ? '$0.00'
+                : '—'
+              : formatMicrosUsd(row.costMicros)
+          }
+          detail={row.costNote ?? (row.costMicros === null ? 'Unpriced' : undefined)}
+        />
+      ),
+    },
+    {
+      accessorKey: 'latencyMs',
+      header: 'Latency',
+      meta: FIGURE,
+      cell: ({ row: { original: row } }) => (
+        <Figure
+          value={row.latencyMs > 0 ? formatMs(row.latencyMs) : '—'}
+          // Only worth a line when upstream time was measured apart from the total.
+          detail={
+            row.upstreamMs > 0 && row.upstreamMs !== row.latencyMs
+              ? `upstream ${formatMs(row.upstreamMs)}`
+              : undefined
+          }
+        />
+      ),
+    },
+  ]
+}
+
+export default function UsageRecentRequests({ rows }: { rows: Row[] }) {
+  const [search, setSearch] = useState('')
+  const [failedOnly, setFailedOnly] = useState(false)
+  const [selected, setSelected] = useState<Row | null>(null)
+  const failedCount = rows.filter((r) => r.status === 'failed').length
+  // The list arrives whole, so filtering and paging run here.
+  const { offset, limit, pageIndex } = usePaginationQuery({ defaultLimit: PAGE_SIZES[0] })
+  const [, setPageParam] = useQueryState('page')
+  const columns = useMemo(() => requestColumns(setSelected), [])
+
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return rows.filter(
+      (r) =>
+        (!failedOnly || r.status === 'failed') &&
+        (!q ||
+          [r.model, r.keyName, r.client, r.id, r.provider, r.providerName].some((v) =>
+            v?.toLowerCase().includes(q)
+          ))
+    )
+  }, [rows, search, failedOnly])
+
+  const filters = [
+    { label: 'All', count: rows.length, active: !failedOnly, failed: false },
+    { label: 'Failed', count: failedCount, active: failedOnly, failed: true },
+  ]
 
   return (
     <>
-      <Card className="bg-background">
-        <CardContent className="p-5">
-          <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
-            <IconActivity className="h-4 w-4 text-muted-foreground" />
-            Recent terminal requests
-          </p>
-          <p className="text-muted-foreground mt-0.5 text-xs">
-            Open a request to audit tokens, cost, pricing, and latency.
-          </p>
-
-          <div className="mt-4 overflow-x-auto">
-            <div className="min-w-225">
-              <div className={`${COLUMNS} border-b border-border pb-3`}>
-                {[
-                  'Status',
-                  'Provider / Model',
-                  'Input',
-                  'Output',
-                  'Cost',
-                  'Latency',
-                  'Time',
-                  'Detail',
-                ].map((label) => (
-                  <p
-                    key={label}
-                    className="text-muted-foreground text-[10px] font-semibold uppercase tracking-[0.12em]"
-                  >
-                    {label}
-                  </p>
-                ))}
-              </div>
-
-              <div className="divide-y divide-border/60">
-                {visible.map((row) => (
-                  <div key={row.id} className={`${COLUMNS} gap-4 py-3.5`}>
-                    <div className="flex flex-col items-start gap-1">
-                      <RequestStatusBadge status={row.status} />
-                      <RequestUsageBadge usage={row.usage} />
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <ProviderAvatar slug={row.provider} apiKind={row.api_kind} size="sm" />
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-foreground">
-                          {row.model}
-                        </p>
-                        <p className="text-muted-foreground truncate font-mono text-[10px] uppercase">
-                          {row.provider}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div>
-                      <p className="text-sm tabular-nums text-foreground">
-                        {formatCompact(row.inputTokens)}
-                      </p>
-                      <p className="text-muted-foreground truncate text-xs">
-                        {formatCompact(row.inputCacheRead)} read ·{' '}
-                        {formatCompact(row.inputCacheWrite)} write
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-sm tabular-nums text-foreground">
-                        {formatCompact(row.outputTokens)}
-                      </p>
-                      <p className="text-muted-foreground truncate text-xs">
-                        {formatCompact(row.reasoningTokens)} reasoning
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-sm font-semibold tabular-nums text-foreground">
-                        {row.costMicros === null ? 'Unpriced' : formatMicrosUsd(row.costMicros)}
-                      </p>
-                      {row.costNote && (
-                        <p className="text-muted-foreground text-xs">{row.costNote}</p>
-                      )}
-                      {!row.costNote && row.costMicros === null && (
-                        <Badge variant="destructive" appearance="light" size="sm">
-                          Missing price
-                        </Badge>
-                      )}
-                      {row.tokenConsumptionRate !== undefined &&
-                      row.tokenConsumptionRate !== null &&
-                      row.tokenConsumptionRate !== 1 ? (
-                        <p className="text-muted-foreground text-xs">
-                          {row.tokenConsumptionRate === 0
-                            ? 'free token budget'
-                            : `×${formatDecimal(row.tokenConsumptionRate)} token budget`}
-                        </p>
-                      ) : null}
-                    </div>
-
-                    <div>
-                      <p className="text-sm tabular-nums text-foreground">
-                        {formatLatency(row.latencyMs)}
-                      </p>
-                      <p className="text-muted-foreground truncate text-xs">
-                        upstream {formatLatency(row.upstreamMs)}
-                      </p>
-                    </div>
-
-                    <p className="text-muted-foreground text-xs">{row.time}</p>
-
-                    <Button
-                      variant="outline"
-                      size="xs"
-                      onClick={() => setSelected(row)}
-                      aria-label={`Details for ${row.model} on ${row.provider}`}
-                    >
-                      <IconInfoCircle className="h-3.5 w-3.5" />
-                      Details
-                    </Button>
-                  </div>
-                ))}
-              </div>
+      <DashboardPanel
+        title="Recent requests"
+        icon={IconBolt}
+        toolbar={
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+            <div className="relative min-w-0 flex-1 sm:w-56 sm:flex-none">
+              <IconSearch
+                className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
+                stroke={1.75}
+                aria-hidden
+              />
+              <Input
+                value={search}
+                placeholder="Model, key, client or ID"
+                aria-label="Filter by model, key, client or ID"
+                className="h-8 pl-8 text-[13px]"
+                onChange={(e) => {
+                  setSearch(e.target.value)
+                  void setPageParam(null)
+                }}
+              />
+            </div>
+            <div role="group" aria-label="Request status" className="flex gap-1">
+              {filters.map((f) => (
+                <button
+                  key={f.label}
+                  type="button"
+                  aria-pressed={f.active}
+                  onClick={() => {
+                    setFailedOnly(f.failed)
+                    void setPageParam(null)
+                  }}
+                  className={cn(
+                    'inline-flex h-8 items-center gap-1.5 rounded-sm border px-2.5 text-xs font-medium transition-colors',
+                    f.active
+                      ? 'border-primary/30 bg-primary/10 text-primary'
+                      : 'text-muted-foreground border-border hover:text-foreground'
+                  )}
+                >
+                  {f.label}
+                  <span className="tabular-nums">{f.count}</span>
+                </button>
+              ))}
             </div>
           </div>
+        }
+      >
+        <ReactTable
+          data={visible.slice(offset, offset + limit)}
+          total={visible.length}
+          pageIndex={pageIndex}
+          pageSize={limit}
+          pageSizes={PAGE_SIZES}
+          columns={columns}
+          tableClassName="min-w-[58rem]"
+          emptyMessage={
+            <EmptyState
+              icon={IconBolt}
+              title={rows.length === 0 ? 'No requests' : 'No requests match'}
+              description={
+                rows.length === 0
+                  ? 'No requests in this period.'
+                  : 'Try a different search or status filter.'
+              }
+              className="py-8"
+            />
+          }
+        />
+      </DashboardPanel>
 
-          <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
-            <p className="text-muted-foreground text-xs">{rows.length} total</p>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={safePage <= 1}
-                onClick={() => setPage((current) => Math.max(current - 1, 1))}
-              >
-                Previous
-              </Button>
-              <span className="text-muted-foreground text-xs tabular-nums">
-                {safePage} / {pageCount}
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={safePage >= pageCount}
-                onClick={() => setPage((current) => Math.min(current + 1, pageCount))}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <RequestDetailDialog
-        open={selected !== null}
-        onClose={() => setSelected(null)}
-        row={selected}
-      />
+      {selected && <RequestDetailDialog open onClose={() => setSelected(null)} row={selected} />}
     </>
   )
 }

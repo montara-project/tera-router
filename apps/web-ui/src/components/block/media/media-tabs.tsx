@@ -9,7 +9,6 @@ import {
 
 import type { MediaCategory } from '@/lib/api/models/media'
 
-import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 export const MEDIA_CATEGORIES: {
@@ -44,13 +43,13 @@ export const MEDIA_CATEGORIES: {
   },
   {
     value: 'search',
-    label: 'Web Search',
+    label: 'Web search',
     icon: IconSearch,
     description: 'Web search providers for grounding answers',
   },
   {
     value: 'fetch',
-    label: 'Web Fetch',
+    label: 'Web fetch',
     icon: IconWorld,
     description: 'Web fetch providers for page retrieval',
   },
@@ -59,35 +58,30 @@ export const MEDIA_CATEGORIES: {
 interface MediaTabsProps {
   value: MediaCategory
   onChange: (value: MediaCategory) => void
-  counts?: Record<MediaCategory, number>
 }
 
-export default function MediaTabs({ value, onChange, counts }: MediaTabsProps) {
+/** Category chips: one capability at a time, as in the quota filters. */
+export default function MediaTabs({ value, onChange }: MediaTabsProps) {
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div role="group" aria-label="Capability" className="flex flex-wrap items-center gap-1.5">
       {MEDIA_CATEGORIES.map((category) => {
         const active = category.value === value
-
         return (
-          <Button
+          <button
             key={category.value}
-            variant={active ? 'primary' : 'outline'}
-            size="sm"
-            className={cn(
-              'rounded-lg',
-              active &&
-                'bg-emerald-600 text-white hover:bg-emerald-600/90 dark:bg-emerald-600 dark:hover:bg-emerald-600/90'
-            )}
+            type="button"
+            aria-pressed={active}
             onClick={() => onChange(category.value)}
+            className={cn(
+              'inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border px-2.5 text-[12.5px] font-medium transition-colors',
+              active
+                ? 'border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                : 'border-border bg-card text-muted-foreground hover:text-foreground'
+            )}
           >
-            <category.icon className="h-3.5 w-3.5" />
-            <span>{category.label}</span>
-            {counts ? (
-              <span className="text-[10px] leading-none font-medium tabular-nums opacity-60">
-                {counts[category.value] ?? 0}
-              </span>
-            ) : null}
-          </Button>
+            <category.icon className="size-4" aria-hidden />
+            {category.label}
+          </button>
         )
       })}
     </div>

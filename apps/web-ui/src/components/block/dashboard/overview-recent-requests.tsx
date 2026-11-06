@@ -1,180 +1,158 @@
-import { IconArrowUpRight, IconClock } from '@tabler/icons-react'
-import { Link } from '@tanstack/react-router'
-import { useState } from 'react'
+import type { ColumnDef } from '@tanstack/react-table'
+
+import { IconBolt } from '@tabler/icons-react'
 
 import type { UsageTerminalRequestRow } from '@/lib/api/models/usage'
 
 import EmptyState from '@/components/block/common/empty-state'
-import { RequestStatusBadge } from '@/components/block/cost-analytics/usage/request-badges'
+import ReactTable, { features } from '@/components/block/common/react-table'
+import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
 import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { formatMicrosUsd } from '@/lib/currency'
-import { formatCompact, formatCount, formatLatency } from '@/lib/format'
+import { formatClock, formatDate } from '@/lib/date'
+import { formatCount, formatMs } from '@/lib/format'
+import { cn } from '@/lib/utils'
 
-const COLUMNS = 'grid grid-cols-[0.9fr_1.8fr_1fr_0.9fr_0.9fr_0.7fr] items-center gap-4'
-const PAGE_SIZE = 10
+const LIMIT = 8
 
-interface OverviewRecentRequestsProps {
-  rows: UsageTerminalRequestRow[]
+/** Upstream failure classes (server core.ErrorKind) as short badge labels. */
+const ERROR_LABELS: Record<string, string> = {
+  auth: 'Auth error',
+  rate_limit: 'Rate limit',
+  quota_exhausted: 'Quota exhausted',
+  account_suspended: 'Account suspended',
+  upstream: 'Upstream error',
+  upstream_blocked: 'Upstream blocked',
+  timeout: 'Timeout',
+  bad_request: 'Bad request',
+  context_too_large: 'Context too large',
+  capability: 'Model unavailable',
+  budget_blocked: 'Budget blocked',
 }
 
-/** Secondary token line: reasoning wins over cache reads; neither shows nothing. */
-function describeTokenDetail(row: UsageTerminalRequestRow): string | null {
-  if (row.reasoningTokens > 0) return `${formatCount(row.reasoningTokens)} reasoning`
-  if (row.inputCacheRead > 0) return `${formatCompact(row.inputCacheRead)} cached`
-  return null
+function statusLabel(row: UsageTerminalRequestRow) {
+  if (row.status === 'success') return 'Success'
+  if (row.status === 'cancelled') return 'Cancelled'
+  return ERROR_LABELS[row.errorKind ?? ''] ?? 'Failed'
 }
 
-export default function OverviewRecentRequests({ rows }: OverviewRecentRequestsProps) {
-  const [page, setPage] = useState(1)
+/** Today's requests show the clock time; older ones the date too. */
+function requestTime(iso: string) {
+  const at = new Date(iso)
+  return at.toDateString() === new Date().toDateString()
+    ? formatClock(at)
+    : formatDate(at, 'MMM d, HH:mm')
+}
 
-  const pageCount = Math.max(Math.ceil(rows.length / PAGE_SIZE), 1)
-  const safePage = Math.min(page, pageCount)
-  const visible = rows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
+type ColumnType = ColumnDef<typeof features, UsageTerminalRequestRow, unknown>
+
+const RIGHT = {
+  headerClassName: 'text-right whitespace-nowrap',
+  cellClassName: 'text-right whitespace-nowrap tabular-nums',
+}
+const RIGHT_MUTED = { ...RIGHT, cellClassName: `${RIGHT.cellClassName} text-muted-foreground` }
+
+const COLUMNS: ColumnType[] = [
+  {
+    accessorKey: 'createdAt',
+    header: 'Time',
+    meta: {
+      cellClassName: 'text-muted-foreground font-mono text-xs whitespace-nowrap tabular-nums',
+    },
+    cell: ({ row }) => (
+      <time dateTime={row.original.createdAt}>{requestTime(row.original.createdAt)}</time>
+    ),
+  },
+  {
+    accessorKey: 'status',
+    header: 'Status',
+    cell: ({ row }) => {
+      const ok = row.original.status === 'success'
+      return (
+        <span
+          className={cn(
+            'inline-flex rounded-sm px-1.5 py-0.5 text-xs font-medium whitespace-nowrap ring-1 ring-inset',
+            ok
+              ? 'bg-emerald-500/10 text-emerald-700 ring-emerald-500/25 dark:text-emerald-400'
+              : 'bg-destructive/10 text-red-700 ring-destructive/25 dark:text-red-400'
+          )}
+          title={row.original.errorStatus ? `HTTP ${row.original.errorStatus}` : undefined}
+        >
+          {statusLabel(row.original)}
+        </span>
+      )
+    },
+  },
+  {
+    accessorKey: 'model',
+    header: 'Model',
+    meta: { headerClassName: 'w-2/5', cellClassName: 'max-w-0' },
+    cell: ({ row }) => (
+      <div className="flex min-w-0 items-center gap-2.5">
+        <ProviderAvatar slug={row.original.provider} apiKind={row.original.api_kind} size="xs" />
+        <div className="min-w-0 font-mono">
+          <p className="truncate" title={row.original.model}>
+            {row.original.model}
+          </p>
+          <p className="text-muted-foreground truncate text-xs">
+            {row.original.provider} · {row.original.client || 'unknown'}
+          </p>
+        </div>
+      </div>
+    ),
+  },
+  {
+    accessorKey: 'latencyMs',
+    header: 'Latency',
+    meta: RIGHT,
+    cell: ({ row }) => (row.original.latencyMs > 0 ? formatMs(row.original.latencyMs) : '—'),
+  },
+  {
+    id: 'tokens',
+    header: 'Tokens in → out',
+    meta: RIGHT_MUTED,
+    cell: ({ row }) => {
+      const r = row.original
+      const tokensIn = r.inputTokens + r.inputCacheRead + r.inputCacheWrite
+      return tokensIn + r.outputTokens > 0
+        ? `${formatCount(tokensIn)} → ${formatCount(r.outputTokens)}`
+        : '—'
+    },
+  },
+  {
+    accessorKey: 'costMicros',
+    header: 'Cost',
+    meta: RIGHT_MUTED,
+    cell: ({ row }) =>
+      row.original.costMicros === null ? '—' : formatMicrosUsd(row.original.costMicros),
+  },
+]
+
+export default function OverviewRecentRequests({ rows }: { rows: UsageTerminalRequestRow[] }) {
+  const visible = rows.slice(0, LIMIT)
 
   return (
-    <Card className="bg-background">
-      <CardContent className="p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="flex items-start gap-2.5">
-            <IconClock className="mt-0.5 h-4 w-4 text-muted-foreground" />
-            <div>
-              <p className="text-sm font-semibold text-foreground">Recent requests</p>
-              <p className="text-muted-foreground text-xs">
-                Terminal request outcomes from the selected period.
-              </p>
-            </div>
-          </div>
-
-          <Link
-            to="/usage"
-            className="inline-flex items-center gap-1 text-xs font-medium text-emerald-500 transition-colors hover:text-emerald-400"
-          >
-            Full accounting
-            <IconArrowUpRight className="h-3.5 w-3.5" />
-          </Link>
-        </div>
-
-        {rows.length === 0 ? (
+    <DashboardPanel
+      title="Recent requests"
+      icon={IconBolt}
+      action={{ label: 'All requests', to: '/usage' }}
+    >
+      <ReactTable
+        data={visible}
+        total={visible.length}
+        pageSize={LIMIT}
+        columns={COLUMNS}
+        pagination={false}
+        tableClassName="min-w-[44rem]"
+        emptyMessage={
           <EmptyState
-            icon={IconClock}
-            title="No requests in this period"
-            description="Gateway requests show up here as they finish."
-            className="py-10"
+            icon={IconBolt}
+            title="No requests yet"
+            description="Requests through the gateway show up here."
+            className="py-8"
           />
-        ) : (
-          <>
-            {/* Phones get a stacked list; the six-column table needs ~760px. */}
-            <ul className="mt-4 divide-y divide-border/60 border-t border-border sm:hidden">
-              {visible.map((row) => (
-                <li key={row.id} className="flex items-center gap-3 py-3">
-                  <ProviderAvatar slug={row.provider} apiKind={row.api_kind} size="sm" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-foreground">{row.model}</p>
-                    <p className="text-muted-foreground truncate text-xs">
-                      {row.provider} · {formatCount(row.inputTokens + row.outputTokens)} tokens ·{' '}
-                      {formatLatency(row.latencyMs)}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 flex-col items-end gap-1">
-                    <RequestStatusBadge status={row.status} />
-                    <p className="text-muted-foreground text-xs">{row.time}</p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-
-            <div className="mt-4 hidden overflow-x-auto sm:block">
-              <div className="min-w-190">
-                <div className={`${COLUMNS} border-b border-border pb-3`}>
-                  {['Status', 'Provider / Model', 'Tokens', 'Cost', 'Latency', 'Time'].map(
-                    (label) => (
-                      <p
-                        key={label}
-                        className="text-muted-foreground text-[10px] font-semibold uppercase tracking-[0.12em]"
-                      >
-                        {label}
-                      </p>
-                    )
-                  )}
-                </div>
-
-                <div className="divide-y divide-border/60">
-                  {visible.map((row) => {
-                    const totalTokens = row.inputTokens + row.outputTokens
-                    const tokenDetail = describeTokenDetail(row)
-
-                    return (
-                      <div key={row.id} className={`${COLUMNS} gap-4 py-3.5`}>
-                        <div>
-                          <RequestStatusBadge status={row.status} />
-                        </div>
-
-                        <div className="flex items-center gap-3">
-                          <ProviderAvatar slug={row.provider} apiKind={row.api_kind} size="sm" />
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-foreground">
-                              {row.model}
-                            </p>
-                            <p className="text-muted-foreground truncate text-xs">{row.provider}</p>
-                          </div>
-                        </div>
-
-                        <div>
-                          <p className="text-sm font-semibold tabular-nums text-foreground">
-                            {formatCount(totalTokens)}
-                          </p>
-                          {tokenDetail && (
-                            <p className="text-muted-foreground truncate text-xs">{tokenDetail}</p>
-                          )}
-                        </div>
-
-                        <p className="text-sm tabular-nums text-foreground">
-                          {row.costMicros === null ? 'Unpriced' : formatMicrosUsd(row.costMicros)}
-                        </p>
-
-                        <p className="text-sm tabular-nums text-foreground">
-                          {formatLatency(row.latencyMs)}
-                        </p>
-
-                        <p className="text-muted-foreground text-xs">{row.time}</p>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-
-        <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
-          <p className="text-muted-foreground text-xs">{rows.length} total</p>
-          {pageCount > 1 && (
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={safePage <= 1}
-                onClick={() => setPage((current) => Math.max(current - 1, 1))}
-              >
-                Previous
-              </Button>
-              <span className="text-muted-foreground text-xs tabular-nums">
-                {safePage} / {pageCount}
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={safePage >= pageCount}
-                onClick={() => setPage((current) => Math.min(current + 1, pageCount))}
-              >
-                Next
-              </Button>
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+        }
+      />
+    </DashboardPanel>
   )
 }

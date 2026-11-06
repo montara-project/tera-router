@@ -7,8 +7,20 @@ import type { UsageRange } from '../../models/usage'
 import { enumValues } from '../enum'
 import { PaginateSchema } from '../paginate'
 
-const QUOTA_RANGES = enumValues<QuotaRange>({ today: true, '7d': true, '30d': true })
-const USAGE_RANGES = enumValues<UsageRange>({ today: true, '24h': true, '7d': true, '30d': true })
+const QUOTA_RANGES = enumValues<QuotaRange>({
+  today: true,
+  '24h': true,
+  '7d': true,
+  '30d': true,
+  '90d': true,
+})
+const USAGE_RANGES = enumValues<UsageRange>({
+  today: true,
+  '24h': true,
+  '7d': true,
+  '30d': true,
+  '90d': true,
+})
 const HEALTH_WINDOWS = enumValues<HealthWindow>({
   '5m': true,
   '15m': true,
@@ -16,6 +28,8 @@ const HEALTH_WINDOWS = enumValues<HealthWindow>({
   '6h': true,
   '24h': true,
   '7d': true,
+  '30d': true,
+  '90d': true,
 })
 
 export const QuotaRangeSchema = z.enum(QUOTA_RANGES, { error: 'The selected range is invalid.' })
@@ -37,6 +51,11 @@ export const UsageQuerySchema = z.object({
   range: UsageRangeSchema.optional(),
 })
 
+/** Guardrails metrics window (GET /v1/guardrails/metrics). */
+export const GuardrailsMetricsQuerySchema = z.object({
+  range: UsageRangeSchema.optional(),
+})
+
 export const HealthWindowSchema = z.enum(HEALTH_WINDOWS, {
   error: 'The selected window is invalid.',
 })
@@ -49,4 +68,5 @@ export const ProviderHealthQuerySchema = z.object({
 export type QuotaListDto = z.infer<typeof QuotaListSchema>
 export type QuotaOverviewDto = z.infer<typeof QuotaOverviewSchema>
 export type UsageQueryDto = z.infer<typeof UsageQuerySchema>
+export type GuardrailsMetricsQueryDto = z.infer<typeof GuardrailsMetricsQuerySchema>
 export type ProviderHealthQueryDto = z.infer<typeof ProviderHealthQuerySchema>

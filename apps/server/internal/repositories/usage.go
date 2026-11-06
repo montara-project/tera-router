@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"time"
 
 	"tera-router/server/internal/models"
@@ -18,19 +19,43 @@ type UsageRepository struct {
 
 // Insert appends one usage record.
 func (r *UsageRepository) Insert(ctx context.Context, u models.UsageRecord) error {
-	_, err := r.execContext(ctx, r.DB, `
+	rules, err := json.Marshal(nonNilMap(u.SavingRules))
+	if err != nil {
+		return errtrace.Wrap(err)
+	}
+	directives, err := json.Marshal(nonNilSlice(u.OutputDirectives))
+	if err != nil {
+		return errtrace.Wrap(err)
+	}
+	_, err = r.execContext(ctx, r.DB, `
 		INSERT INTO usage_records (api_key_id, account_id, provider, model, client, client_ip,
 			request_id, chain,
 			prompt_tokens, completion_tokens, cached_tokens, cache_write_tokens, reasoning_tokens,
-			cost_micros, token_consumption_rate, cache_hit, latency_ms, ttft_ms, failed, error_kind, error_status, error_message, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)`,
+			cost_micros, token_consumption_rate, cache_hit, latency_ms, ttft_ms, failed, error_kind, error_status, error_message, created_at,
+			prompt_reduced_bytes, output_shaped, saving_rules, output_directives)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27)`,
 		u.APIKeyID, u.AccountID, u.Provider, u.Model, u.Client, u.ClientIP,
 		u.RequestID, u.Chain,
 		u.PromptTokens, u.CompletionTokens, u.CachedTokens, u.CacheWriteTokens, u.ReasoningTokens,
 		u.CostMicros, u.TokenConsumptionRate, u.CacheHit, u.LatencyMS, u.TTFTMS, u.Failed, u.ErrorKind, u.ErrorStatus,
 		u.ErrorMessage, u.CreatedAt,
+		u.PromptReducedBytes, u.OutputShaped, string(rules), string(directives),
 	)
 	return err
+}
+
+func nonNilMap(m map[string]int) map[string]int {
+	if m == nil {
+		return map[string]int{}
+	}
+	return m
+}
+
+func nonNilSlice(s []string) []string {
+	if s == nil {
+		return []string{}
+	}
+	return s
 }
 
 // UsageSpend totals spend and tokens over a window, narrowed to one budget
@@ -77,6 +102,31 @@ type UsageSummary struct {
 	CompletionTokens int64 `json:"completion_tokens"`
 	CostMicros       int64 `json:"cost_micros"`
 	AvgLatencyMS     int64 `json:"avg_latency_ms"`
+}
+
+// CountSince counts the client requests the gateway served since from.
+// Requests are deduplicated by request_id so fallback re-attempts count once,
+// matching SummaryForKey.
+func (r *UsageRepository) CountSince(ctx context.Context, from time.Time) (int64, error) {
+	var n int64
+	err := r.queryRowContext(ctx, r.DB, `
+		SELECT COUNT(DISTINCT CASE WHEN request_id <> '' THEN request_id ELSE 'row-' || id END)
+		FROM usage_records WHERE created_at >= $1`, from.UTC()).Scan(&n)
+	return n, errtrace.Wrap(err)
+}
+
+// SummaryForKey totals one API key's traffic since from. Requests counts
+// client requests, not attempts: fallback re-attempts share a request_id.
+func (r *UsageRepository) SummaryForKey(ctx context.Context, keyID string, from time.Time) (UsageSummary, error) {
+	row := r.queryRowContext(ctx, r.DB, `
+		SELECT COUNT(DISTINCT CASE WHEN request_id <> '' THEN request_id ELSE 'row-' || id END),
+		       COALESCE(SUM(prompt_tokens), 0), COALESCE(SUM(completion_tokens), 0),
+		       COALESCE(SUM(cost_micros), 0), CAST(COALESCE(AVG(latency_ms), 0) AS INTEGER)
+		FROM usage_records WHERE api_key_id = $1 AND created_at >= $2`, keyID, from)
+
+	var s UsageSummary
+	err := row.Scan(&s.Requests, &s.PromptTokens, &s.CompletionTokens, &s.CostMicros, &s.AvgLatencyMS)
+	return s, errtrace.Wrap(err)
 }
 
 // Summary totals spend and tokens over a window.
@@ -235,21 +285,101 @@ type UsageTraffic struct {
 	CacheWriteTokens int64 `json:"cache_write_tokens"`
 	ReasoningTokens  int64 `json:"reasoning_tokens"`
 	CacheHits        int64 `json:"cache_hits"`
+	// CostMicros is the recorded spend (prices set later are not re-derived).
+	CostMicros int64 `json:"cost_micros"`
+	// The token-saving counters cover successful attempts only, so a request
+	// that fell back is not counted once per attempt.
+	PromptReducedBytes int64 `json:"prompt_reduced_bytes"`
+	CompressedRequests int64 `json:"compressed_requests"`
+	ShapedRequests     int64 `json:"shaped_requests"`
 }
 
-// Traffic totals requests, failures and the token classes over a window.
-func (r *UsageRepository) Traffic(ctx context.Context, from time.Time) (UsageTraffic, error) {
+// Traffic totals requests, failures, the token classes and the token-saving
+// counters over [from, to).
+func (r *UsageRepository) Traffic(ctx context.Context, from, to time.Time) (UsageTraffic, error) {
 	row := r.queryRowContext(ctx, r.DB, `
 		SELECT count(*), COALESCE(SUM(failed), 0),
 		       COALESCE(SUM(prompt_tokens), 0), COALESCE(SUM(completion_tokens), 0),
 		       COALESCE(SUM(cached_tokens), 0), COALESCE(SUM(cache_write_tokens), 0),
-		       COALESCE(SUM(reasoning_tokens), 0), COALESCE(SUM(cache_hit), 0)
-		FROM usage_records WHERE created_at >= $1`, from)
+		       COALESCE(SUM(reasoning_tokens), 0), COALESCE(SUM(cache_hit), 0),
+		       COALESCE(SUM(cost_micros), 0),
+		       COALESCE(SUM(CASE WHEN failed = 0 THEN prompt_reduced_bytes ELSE 0 END), 0),
+		       COALESCE(SUM(CASE WHEN failed = 0 AND prompt_reduced_bytes > 0 THEN 1 ELSE 0 END), 0),
+		       COALESCE(SUM(CASE WHEN failed = 0 AND output_shaped = 1 THEN 1 ELSE 0 END), 0)
+		FROM usage_records WHERE created_at >= $1 AND created_at < $2`, from, to)
 
 	var t UsageTraffic
 	err := row.Scan(&t.Requests, &t.Failed, &t.PromptTokens, &t.CompletionTokens,
-		&t.CachedTokens, &t.CacheWriteTokens, &t.ReasoningTokens, &t.CacheHits)
+		&t.CachedTokens, &t.CacheWriteTokens, &t.ReasoningTokens, &t.CacheHits,
+		&t.CostMicros, &t.PromptReducedBytes, &t.CompressedRequests, &t.ShapedRequests)
 	return t, errtrace.Wrap(err)
+}
+
+// UsageSavingBreakdown splits the window's token savings: bytes removed per
+// compression rule and requests per output-shaping directive. Like the
+// Traffic counters it covers successful attempts only.
+type UsageSavingBreakdown struct {
+	RuleBytes      map[string]int64
+	DirectiveCount map[string]int64
+}
+
+// SavingBreakdown aggregates saving_rules and output_directives over [from, to).
+func (r *UsageRepository) SavingBreakdown(ctx context.Context, from, to time.Time) (UsageSavingBreakdown, error) {
+	out := UsageSavingBreakdown{RuleBytes: map[string]int64{}, DirectiveCount: map[string]int64{}}
+	for _, q := range []struct {
+		sql  string
+		into map[string]int64
+	}{
+		{`SELECT j.key, SUM(j.value) FROM usage_records, json_each(usage_records.saving_rules) AS j
+		  WHERE created_at >= $1 AND created_at < $2 AND failed = 0 GROUP BY j.key`, out.RuleBytes},
+		{`SELECT j.value, count(*) FROM usage_records, json_each(usage_records.output_directives) AS j
+		  WHERE created_at >= $1 AND created_at < $2 AND failed = 0 GROUP BY j.value`, out.DirectiveCount},
+	} {
+		rows, err := r.queryContext(ctx, r.DB, q.sql, from, to)
+		if err != nil {
+			return out, errtrace.Wrap(err)
+		}
+		for rows.Next() {
+			var key string
+			var n int64
+			if err := rows.Scan(&key, &n); err != nil {
+				rows.Close()
+				return out, errtrace.Wrap(err)
+			}
+			q.into[key] = n
+		}
+		err = rows.Err()
+		rows.Close()
+		if err != nil {
+			return out, errtrace.Wrap(err)
+		}
+	}
+	return out, nil
+}
+
+// Latencies returns the latency of every successful attempt in [from, to),
+// sorted ascending, for percentile math.
+// ponytail: loads the whole window into memory; switch to a SQL percentile
+// (or sampling) if a window ever holds millions of rows.
+func (r *UsageRepository) Latencies(ctx context.Context, from, to time.Time) ([]int, error) {
+	rows, err := r.queryContext(ctx, r.DB, `
+		SELECT latency_ms FROM usage_records
+		WHERE created_at >= $1 AND created_at < $2 AND failed = 0
+		ORDER BY latency_ms`, from, to)
+	if err != nil {
+		return nil, errtrace.Wrap(err)
+	}
+	defer rows.Close()
+
+	out := []int{}
+	for rows.Next() {
+		var ms int
+		if err := rows.Scan(&ms); err != nil {
+			return nil, errtrace.Wrap(err)
+		}
+		out = append(out, ms)
+	}
+	return out, errtrace.Wrap(rows.Err())
 }
 
 // UsagePerformance averages latency and TTFT over successful requests.
@@ -332,18 +462,25 @@ func (r *UsageRepository) groupExec(ctx context.Context, from time.Time, groupBy
 	return out, errtrace.Wrap(rows.Err())
 }
 
-// DailyWithFailures aggregates per-day requests, tokens, spend and failures.
-func (r *UsageRepository) DailyWithFailures(ctx context.Context, from time.Time) ([]UsageDailyWithFailures, error) {
+// DailyWithFailures aggregates requests, tokens, spend, failures and the
+// average successful latency per bucket: one bucket per day, or per hour when
+// hourly is set (short windows).
+func (r *UsageRepository) DailyWithFailures(ctx context.Context, from time.Time, hourly bool) ([]UsageDailyWithFailures, error) {
+	format := "%Y-%m-%d"
+	if hourly {
+		format = "%Y-%m-%d %H:00"
+	}
 	rows, err := r.queryContext(ctx, r.DB, `
-		SELECT strftime('%Y-%m-%d', created_at) AS day,
+		SELECT strftime($2, created_at) AS day,
 		       count(*),
 		       COALESCE(SUM(cost_micros), 0),
 		       COALESCE(SUM(prompt_tokens + completion_tokens), 0),
-		       COALESCE(SUM(failed), 0)
+		       COALESCE(SUM(failed), 0),
+		       CAST(COALESCE(AVG(CASE WHEN failed = 0 THEN latency_ms END), 0) AS INTEGER)
 		FROM usage_records
 		WHERE created_at >= $1
 		GROUP BY 1
-		ORDER BY 1`, from)
+		ORDER BY 1`, from, format)
 	if err != nil {
 		return nil, err
 	}
@@ -352,7 +489,7 @@ func (r *UsageRepository) DailyWithFailures(ctx context.Context, from time.Time)
 	out := []UsageDailyWithFailures{}
 	for rows.Next() {
 		var d UsageDailyWithFailures
-		if err := rows.Scan(&d.Day, &d.Requests, &d.CostMicros, &d.Tokens, &d.Failed); err != nil {
+		if err := rows.Scan(&d.Day, &d.Requests, &d.CostMicros, &d.Tokens, &d.Failed, &d.LatencyMS); err != nil {
 			return nil, errtrace.Wrap(err)
 		}
 		out = append(out, d)
@@ -360,13 +497,15 @@ func (r *UsageRepository) DailyWithFailures(ctx context.Context, from time.Time)
 	return out, errtrace.Wrap(rows.Err())
 }
 
-// UsageDailyWithFailures is one day of the trend series.
+// UsageDailyWithFailures is one bucket of the trend series. Day is
+// "2006-01-02", or "2006-01-02 15:00" for hourly buckets.
 type UsageDailyWithFailures struct {
 	Day        string `json:"day"`
 	Requests   int64  `json:"requests"`
 	CostMicros int64  `json:"cost_micros"`
 	Tokens     int64  `json:"tokens"`
 	Failed     int64  `json:"failed"`
+	LatencyMS  int64  `json:"latency_ms"`
 }
 
 // UsageActivityRow is one day × model cell of the activity calendar.
@@ -404,14 +543,16 @@ func (r *UsageRepository) Activity(ctx context.Context, from time.Time) ([]Usage
 	return out, errtrace.Wrap(rows.Err())
 }
 
-// Recent returns the newest usage rows for the request log.
-func (r *UsageRepository) Recent(ctx context.Context, limit int) ([]models.UsageRecord, error) {
+// Recent returns the newest usage rows created at or after from, for the
+// request log of the selected period, with the API key's name filled in.
+func (r *UsageRepository) Recent(ctx context.Context, from time.Time, limit int) ([]models.UsageRecord, error) {
 	rows, err := r.queryContext(ctx, r.DB, `
-		SELECT id, api_key_id, account_id, provider, model, client, client_ip,
-		       prompt_tokens, completion_tokens, cached_tokens, cache_write_tokens, reasoning_tokens,
-		       cost_micros, token_consumption_rate, cache_hit, latency_ms, ttft_ms, failed, error_kind, error_status,
-		       error_message, created_at
-		FROM usage_records ORDER BY created_at DESC, id DESC LIMIT $1`, limit)
+		SELECT u.id, u.api_key_id, u.account_id, u.provider, u.model, u.client, u.client_ip,
+		       u.prompt_tokens, u.completion_tokens, u.cached_tokens, u.cache_write_tokens, u.reasoning_tokens,
+		       u.cost_micros, u.token_consumption_rate, u.cache_hit, u.latency_ms, u.ttft_ms, u.failed, u.error_kind, u.error_status,
+		       u.error_message, u.created_at, COALESCE(k.name, '')
+		FROM usage_records u LEFT JOIN api_keys k ON k.id = u.api_key_id
+		WHERE u.created_at >= $1 ORDER BY u.created_at DESC, u.id DESC LIMIT $2`, from, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -424,7 +565,7 @@ func (r *UsageRepository) Recent(ctx context.Context, limit int) ([]models.Usage
 		if err := rows.Scan(&u.ID, &u.APIKeyID, &u.AccountID, &u.Provider, &u.Model, &u.Client, &u.ClientIP,
 			&u.PromptTokens, &u.CompletionTokens, &u.CachedTokens, &u.CacheWriteTokens, &u.ReasoningTokens,
 			&u.CostMicros, &rate, &u.CacheHit, &u.LatencyMS, &u.TTFTMS, &u.Failed, &u.ErrorKind, &u.ErrorStatus,
-			&u.ErrorMessage, &u.CreatedAt); err != nil {
+			&u.ErrorMessage, &u.CreatedAt, &u.KeyName); err != nil {
 			return nil, errtrace.Wrap(err)
 		}
 		if rate.Valid {
@@ -445,13 +586,16 @@ type UsageHealthRow struct {
 	Model     string
 	Failed    bool
 	LatencyMS int
+	CreatedAt time.Time
+	// ErrorKind is the gateway's failure class (auth, rate_limit, …); empty on success.
+	ErrorKind string
 }
 
 // HealthRows streams the outcome-relevant columns of every usage record in the
 // window, oldest first so request grouping sees the final attempt last.
 func (r *UsageRepository) HealthRows(ctx context.Context, from time.Time) ([]UsageHealthRow, error) {
 	rows, err := r.queryContext(ctx, r.DB, `
-		SELECT request_id, chain, provider, model, failed, latency_ms
+		SELECT request_id, chain, provider, model, failed, latency_ms, created_at, error_kind
 		FROM usage_records WHERE created_at >= $1 ORDER BY created_at`, from)
 	if err != nil {
 		return nil, errtrace.Wrap(err)
@@ -461,7 +605,7 @@ func (r *UsageRepository) HealthRows(ctx context.Context, from time.Time) ([]Usa
 	out := make([]UsageHealthRow, 0, 64)
 	for rows.Next() {
 		var u UsageHealthRow
-		if err := rows.Scan(&u.RequestID, &u.Chain, &u.Provider, &u.Model, &u.Failed, &u.LatencyMS); err != nil {
+		if err := rows.Scan(&u.RequestID, &u.Chain, &u.Provider, &u.Model, &u.Failed, &u.LatencyMS, &u.CreatedAt, &u.ErrorKind); err != nil {
 			return nil, errtrace.Wrap(err)
 		}
 		out = append(out, u)

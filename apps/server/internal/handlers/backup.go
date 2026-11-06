@@ -140,7 +140,7 @@ func (h *backupHandler) ConfigExport(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	auditRecord(ctx, h.app, actorFrom(c), "backup.config.export", configBackupFormat, map[string]bool{"portable": doc.Portable != nil})
+	auditRecord(c, actorFrom(c), "backup.config.export", configBackupFormat, map[string]bool{"portable": doc.Portable != nil})
 
 	c.Attachment(fmt.Sprintf("tera-router-config-%s.json", time.Now().UTC().Format("20060102-150405")))
 	c.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSONCharsetUTF8)
@@ -227,7 +227,7 @@ func (h *backupHandler) ConfigImport(c fiber.Ctx) error {
 		return err
 	}
 	h.app.KeysChanged()
-	auditRecord(ctx, h.app, actorFrom(c), "backup.config.import", configBackupFormat, map[string]any{"tables": counts, "portable": doc.Portable != nil})
+	auditRecord(c, actorFrom(c), "backup.config.import", configBackupFormat, map[string]any{"tables": counts, "portable": doc.Portable != nil})
 	return dtos.Item(c, fiber.StatusOK, fiber.Map{"tables": counts, "safety_copy": safety}, "Configuration imported")
 }
 
@@ -341,7 +341,7 @@ func (h *backupHandler) DatabaseDownload(c fiber.Ctx) error {
 		_ = f.Close()
 		return err
 	}
-	auditRecord(ctx, h.app, actorFrom(c), "backup.database.download", filepath.Base(h.app.Config.Database.Path), map[string]int64{"size_bytes": st.Size()})
+	auditRecord(c, actorFrom(c), "backup.database.download", filepath.Base(h.app.Config.Database.Path), map[string]int64{"size_bytes": st.Size()})
 
 	c.Attachment(fmt.Sprintf("terarouter-%s.db", time.Now().UTC().Format("20060102-150405")))
 	c.Set(fiber.HeaderContentType, "application/vnd.sqlite3")
@@ -402,7 +402,7 @@ func (h *backupHandler) DatabaseRestore(c fiber.Ctx) error {
 		}
 	}
 
-	auditRecord(ctx, h.app, actorFrom(c), "backup.database.restore", fh.Filename, map[string]any{"from_schema": version, "safety_copy": safety})
+	auditRecord(c, actorFrom(c), "backup.database.restore", fh.Filename, map[string]any{"from_schema": version, "safety_copy": safety})
 	return dtos.Item(c, fiber.StatusOK, fiber.Map{"schema_version": live, "restored_schema_version": version, "safety_copy": safety}, "Database restored")
 }
 

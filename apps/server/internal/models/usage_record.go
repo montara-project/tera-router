@@ -27,13 +27,24 @@ type UsageRecord struct {
 	// TokenConsumptionRate snapshots the model's budget-drain multiplier at
 	// request time (nil = no override, 1:1). Cost is never scaled; token
 	// budgets sum prompt+completion times this rate.
-	TokenConsumptionRate *float64  `json:"token_consumption_rate,omitempty"`
-	CacheHit             bool      `json:"cache_hit"`
-	LatencyMS            int       `json:"latency_ms"`
-	TTFTMS               int       `json:"ttft_ms"`
-	Failed               bool      `json:"failed"`
-	ErrorKind            string    `json:"error_kind"`
-	ErrorStatus          int       `json:"error_status"`
-	ErrorMessage         string    `json:"error_message"`
-	CreatedAt            time.Time `json:"created_at"`
+	TokenConsumptionRate *float64 `json:"token_consumption_rate,omitempty"`
+	CacheHit             bool     `json:"cache_hit"`
+	// PromptReducedBytes is how much input compression shrank the request;
+	// OutputShaped marks a request that carried an output-shaping directive.
+	PromptReducedBytes int  `json:"prompt_reduced_bytes"`
+	OutputShaped       bool `json:"output_shaped"`
+	// SavingRules maps each compression rule to the bytes it removed;
+	// OutputDirectives lists the output-shaping directives appended.
+	SavingRules      map[string]int `json:"saving_rules,omitempty"`
+	OutputDirectives []string       `json:"output_directives,omitempty"`
+	LatencyMS        int            `json:"latency_ms"`
+	TTFTMS           int            `json:"ttft_ms"`
+	Failed           bool           `json:"failed"`
+	ErrorKind        string         `json:"error_kind"`
+	ErrorStatus      int            `json:"error_status"`
+	ErrorMessage     string         `json:"error_message"`
+	CreatedAt        time.Time      `json:"created_at"`
+	// KeyName is not a column: UsageRepository.Recent joins it from api_keys
+	// for the request log ("" when the key is gone or the row has none).
+	KeyName string `json:"key_name,omitempty"`
 }

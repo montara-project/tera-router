@@ -2,7 +2,7 @@ export type QuotaAccountStatus = 'active' | 'paused'
 
 export type QuotaVisibility = 'quota-capable' | 'usage-only' | 'not-reported'
 
-export type QuotaRange = 'today' | '7d' | '30d'
+export type QuotaRange = 'today' | '24h' | '7d' | '30d' | '90d'
 
 export interface QuotaAccount {
   id: string

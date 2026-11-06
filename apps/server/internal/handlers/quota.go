@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"cmp"
 	"context"
 	"strings"
 
@@ -9,6 +8,7 @@ import (
 	"tera-router/server/internal/dtos"
 	"tera-router/server/internal/lib"
 	"tera-router/server/internal/lib/apperr"
+	"tera-router/server/internal/models"
 	"tera-router/server/internal/repositories"
 
 	"github.com/gofiber/fiber/v3"
@@ -24,6 +24,11 @@ func (h *quotaHandler) quotaRows(ctx context.Context, rng string) ([]dtos.QuotaA
 		return nil, err
 	}
 	usage, err := h.app.Repos.Usage.ByAccount(ctx, rangeStart(rng))
+	if err != nil {
+		return nil, err
+	}
+
+	names, _, _, err := (&usageHandler{app: h.app}).providerMeta(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +49,7 @@ func (h *quotaHandler) quotaRows(ctx context.Context, rng string) ([]dtos.QuotaA
 			ID:              a.ID,
 			Name:            a.Label,
 			Provider:        a.Provider,
-			AuthLabel:       a.Provider + " · " + cmp.Or(string(a.AuthKind), "api_key"),
+			AuthLabel:       providerDisplayName(names, a.Provider) + " · " + authKindLabel(a.AuthKind),
 			Initials:        initialsOf(a.Label, a.Provider),
 			Status:          status,
 			Priority:        a.Priority,
@@ -57,6 +62,18 @@ func (h *quotaHandler) quotaRows(ctx context.Context, rng string) ([]dtos.QuotaA
 		})
 	}
 	return out, nil
+}
+
+// authKindLabel is the readable name of how an account signs in upstream.
+func authKindLabel(kind models.AuthKind) string {
+	switch kind {
+	case models.AuthOAuth:
+		return "OAuth"
+	case models.AuthNone:
+		return "No auth"
+	default:
+		return "API key"
+	}
 }
 
 // Index lists every account as a quota row.
@@ -123,7 +140,7 @@ func (h *quotaHandler) Delete(c fiber.Ctx) error {
 	if err := h.app.Repos.Accounts.Delete(c.Context(), id.String()); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "account.delete", id.String(), nil)
+	auditRecord(c, actorFrom(c), "account.delete", id.String(), nil)
 	return dtos.OK(c, fiber.Map{"id": id.String()})
 }
 

@@ -19,6 +19,7 @@ import (
 
 // writeError renders an OpenAI-style error envelope.
 func writeError(c fiber.Ctx, status int, message string) error {
+	traceFrom(c).reject(message)
 	return c.Status(status).JSON(fiber.Map{
 		"error": fiber.Map{
 			"message": message,
@@ -29,6 +30,7 @@ func writeError(c fiber.Ctx, status int, message string) error {
 
 // writeAnthropicError renders an Anthropic-style error envelope.
 func writeAnthropicError(c fiber.Ctx, status int, message string) error {
+	traceFrom(c).reject(message)
 	return c.Status(status).JSON(fiber.Map{
 		"type": "error",
 		"error": fiber.Map{

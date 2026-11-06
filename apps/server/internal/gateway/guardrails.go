@@ -24,6 +24,14 @@ type guardrailVerdict struct {
 	Decision string
 	// Triggered lists the detector keys whose action fed the decision.
 	Triggered []string
+	// Entities lists the PII entity names the screen masked or blocked.
+	Entities []string
+	// Reasons lists the entity each triggered detector matched, e.g. a PII
+	// entity, an injection pattern, a denied topic or a scoring category.
+	Reasons []string
+	// OverheadMS is how long the screen took, recorded on the audit row so
+	// the dashboard can report guardrail latency.
+	OverheadMS int64
 }
 
 // screen runs the content-safety policies covering this request over its
@@ -54,20 +62,50 @@ func (s *Server) screen(ctx context.Context, req *core.ChatRequest, resolved res
 
 	// No external detector engine is wired into the gateway, so every
 	// detector runs natively.
+	started := time.Now()
 	result := guardrails.Evaluate(cfg, false, text)
-	verdict := guardrailVerdict{Decision: result.Decision}
+	verdict := guardrailVerdict{
+		Decision:   result.Decision,
+		OverheadMS: time.Since(started).Milliseconds(),
+	}
 	for _, d := range result.Detectors {
 		if !d.Triggered {
 			continue
 		}
 		verdict.Triggered = append(verdict.Triggered, d.Key)
+		for _, m := range d.Matches {
+			if m.Entity != "" {
+				verdict.Reasons = appendUnique(verdict.Reasons, m.Entity)
+			}
+		}
+		for _, m := range d.Matches {
+			if m.Entity != "" {
+				verdict.Reasons = appendUnique(verdict.Reasons, m.Entity)
+			}
+		}
 		// PII masking applies whenever PII is found, even when a stronger
 		// action (warn) outranks it in the decision.
-		if d.Key == "pii" && verdict.Decision != "block" {
-			redactUserText(req, cfg.Pii)
+		if d.Key == "pii" {
+			for _, m := range d.Matches {
+				verdict.Entities = appendUnique(verdict.Entities, m.Entity)
+			}
+			if verdict.Decision != "block" {
+				redactUserText(req, cfg.Pii)
+			}
 		}
 	}
 	return verdict, nil
+}
+
+// appendUnique appends value to list only when absent, keeping the recorded
+// entity list short (one name per entity kind).
+func appendUnique(list []string, value string) []string {
+	for _, item := range list {
+		if item == value {
+			return list
+		}
+	}
+	return append(list, value)
 }
 
 // guardrailSubject collects the identifiers a request touches: its key, its
@@ -125,12 +163,23 @@ func redactUserText(req *core.ChatRequest, cfg guardrails.PiiConfig) {
 // The write runs in the background, tracked with the metering writes so a
 // shutdown drains it too.
 func (s *Server) recordGuardrail(meta requestMeta, model string, verdict guardrailVerdict) {
+	entities := verdict.Entities
+	if entities == nil {
+		entities = []string{}
+	}
+	reasons := verdict.Reasons
+	if reasons == nil {
+		reasons = []string{}
+	}
 	detail, _ := json.Marshal(map[string]any{
-		"decision":   verdict.Decision,
-		"detectors":  verdict.Triggered,
-		"key_id":     meta.APIKeyID,
-		"chain":      meta.Chain,
-		"request_id": meta.RequestID,
+		"decision":    verdict.Decision,
+		"detectors":   verdict.Triggered,
+		"reasons":     reasons,
+		"entities":    entities,
+		"overhead_ms": verdict.OverheadMS,
+		"key_id":      meta.APIKeyID,
+		"chain":       meta.Chain,
+		"request_id":  meta.RequestID,
 	})
 	entry := models.AuditEntry{
 		ID:     uuid.NewString(),

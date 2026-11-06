@@ -4,7 +4,7 @@ import { AUTH_STORAGE_KEYS } from '@/lib/constants/auth'
 import type { CliToolResources } from './types/cli-tool'
 
 import { ClientFetchApi } from '../client-fetch'
-import { ApplyClaudeCodeSchema } from '../dtos/cli-tool/schema'
+import { ApplyCliToolSchema } from '../dtos/cli-tool/schema'
 import { parseDto } from '../dtos/parse'
 
 const path = '/v1/cli-tools'
@@ -16,14 +16,16 @@ const api = new ClientFetchApi({
 
 const resources = (): CliToolResources => {
   return {
-    claudeCode: () => {
-      const url = `${path}/claude-code`
-      return api.get(url)
+    /** which supported tools are installed on the server host */
+    list: () => api.get(path),
+    get: (id, params) => {
+      const url = `${path}/${id}`
+      return api.get(url, { params })
     },
-    /** writes ~/.claude/settings.json on the server host (audit-logged) */
-    applyClaudeCode: (payload) => {
-      const url = `${path}/claude-code/apply`
-      return api.post(url, parseDto(ApplyClaudeCodeSchema, payload))
+    /** writes the tool's config files on the server host (audit-logged) */
+    apply: (id, payload) => {
+      const url = `${path}/${id}/apply`
+      return api.post(url, parseDto(ApplyCliToolSchema, payload))
     },
   }
 }

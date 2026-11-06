@@ -210,7 +210,7 @@ func (h *oauthHandler) persistAccount(ctx context.Context, actor, provider strin
 	if err := h.app.Repos.Accounts.Insert(ctx, acc); err != nil {
 		return "", "", err
 	}
-	auditRecord(ctx, h.app, actor, "oauth.account.create", acc.ID, map[string]string{"provider": provider, "label": acc.Label})
+	auditRecordNow(ctx, h.app, actor, "oauth.account.create", acc.ID, map[string]string{"provider": provider, "label": acc.Label})
 	return acc.ID, tokens.Email, nil
 }
 

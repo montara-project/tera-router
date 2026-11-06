@@ -1,25 +1,16 @@
 'use client'
 
-import { IconEye, IconInbox, IconPuzzle, IconTrash } from '@tabler/icons-react'
+import { IconArrowDown, IconEye, IconPlus, IconPuzzle, IconTrash } from '@tabler/icons-react'
 import { useState } from 'react'
 
 import type { Models } from '@/lib/api/models'
 
-import EmptyState from '@/components/block/common/empty-state'
-import IconBadge from '@/components/block/common/icon-badge'
+import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
 import CopySkillButton from '@/components/block/traffic/skills/copy-skill-button'
 import SkillDetailDialog, {
   type SkillDetailTarget,
 } from '@/components/block/traffic/skills/skill-detail-dialog'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardHeading,
-  CardTitle,
-} from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { skillUrl } from '@/lib/constants/skill'
@@ -31,6 +22,9 @@ interface CustomSkillsCardProps {
   togglingId?: string | null
   onToggle: (skill: Models.Skill, enabled: boolean) => void
   onDelete: (skill: Models.Skill) => void
+  onCreate: () => void
+  /** in-page anchor of the templates section */
+  templatesHref: string
 }
 
 function CustomSkillsLoading() {
@@ -59,10 +53,10 @@ function CustomSkillRow({
 }) {
   return (
     // Controls drop under the text on narrow cards instead of squeezing it.
-    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-5 py-4">
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3">
       <div className="min-w-0 flex-1 basis-64 space-y-1">
-        <p className="text-sm font-medium text-foreground">{skill.name}</p>
-        {skill.description && <p className="text-sm text-muted-foreground">{skill.description}</p>}
+        <p className="text-[13px] font-medium text-foreground">{skill.name}</p>
+        {skill.description && <p className="text-xs text-muted-foreground">{skill.description}</p>}
       </div>
       <div className="flex shrink-0 items-center gap-1.5">
         <Switch
@@ -107,6 +101,8 @@ export default function CustomSkillsCard({
   togglingId = null,
   onToggle,
   onDelete,
+  onCreate,
+  templatesHref,
 }: CustomSkillsCardProps) {
   const isEmpty = skills.length === 0
   const [viewing, setViewing] = useState<SkillDetailTarget | null>(null)
@@ -122,11 +118,29 @@ export default function CustomSkillsCard({
 
     if (isEmpty) {
       return (
-        <EmptyState
-          icon={IconInbox}
-          title="No custom skills yet"
-          description="Create a skill, then switch it on to add its prompt to every request."
-        />
+        <div className="flex flex-col items-center px-6 py-12 text-center">
+          <span className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <IconPuzzle className="size-5" aria-hidden />
+          </span>
+          <p className="mt-3.5 text-sm font-semibold">No custom skills yet</p>
+          <p className="mt-1 max-w-xl text-[13px] text-pretty text-muted-foreground">
+            Write an instruction once — house style, review rules, a persona — and switch it on to
+            add it to every request routed through Tera Router, or pick it per API key on that key's
+            Skills tab.
+          </p>
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
+            <Button type="button" onClick={onCreate}>
+              <IconPlus />
+              Create skill
+            </Button>
+            <Button asChild variant="outline">
+              <a href={templatesHref}>
+                Or start from a template
+                <IconArrowDown />
+              </a>
+            </Button>
+          </div>
+        </div>
       )
     }
 
@@ -148,26 +162,21 @@ export default function CustomSkillsCard({
   }
 
   return (
-    <Card className="bg-background">
-      <CardHeader className="py-4">
-        <div className="flex items-center gap-3.5">
-          <IconBadge
-            icon={IconPuzzle}
-            variant="soft"
-            className="h-10 w-10 shrink-0"
-            iconClassName="h-5 w-5"
-          />
-          <CardHeading>
-            <CardTitle>Custom skills</CardTitle>
-            <CardDescription>
-              Switch a skill on to append its prompt to every gateway request, pick it per API key
-              on that key's Skills tab, or copy its URL for an agent to read.
-            </CardDescription>
-          </CardHeading>
-        </div>
-      </CardHeader>
-      <CardContent className="p-0">{renderSkills()}</CardContent>
+    <DashboardPanel
+      icon={IconPuzzle}
+      title="Custom skills"
+      description="Switched-on skills are added to the system prompt of gateway chat requests — no client changes needed"
+      toolbar={
+        isEmpty ? undefined : (
+          <Button type="button" size="sm" onClick={onCreate}>
+            <IconPlus />
+            Create skill
+          </Button>
+        )
+      }
+    >
+      {renderSkills()}
       <SkillDetailDialog skill={viewing} onClose={() => setViewing(null)} />
-    </Card>
+    </DashboardPanel>
   )
 }

@@ -32,3 +32,33 @@ export const PlanSchema = z.object({
 }) satisfies z.ZodType<PlanPayload>
 
 export type PlanDto = z.infer<typeof PlanSchema>
+
+const optionalWhole = (label: string) =>
+  z
+    .string()
+    .refine((v) => v.trim() === '' || /^\d+$/.test(v.trim()), `${label} must be a whole number.`)
+
+/**
+ * Values of the plan dialog. Limits are typed as text: empty means unlimited
+ * and is sent as 0, which the server stores as "no limit".
+ */
+export const PlanFormSchema = z.object({
+  name: z.string().trim().nonempty('Name is required.'),
+  description: z.string(),
+  period: z.enum(['daily', 'weekly', 'monthly']),
+  spend: z
+    .string()
+    .refine((v) => v.trim() === '' || Number(v) > 0, 'Spend limit must be more than 0.'),
+  tokens: optionalWhole('Token limit'),
+  rpm: optionalWhole('Requests / min'),
+  tpm: optionalWhole('Tokens / min'),
+  concurrent: optionalWhole('Concurrent requests'),
+  alert_pct: z.string().refine((v) => {
+    const n = Number(v)
+    return Number.isInteger(n) && n >= 1 && n <= 100
+  }, 'Alert at must be between 1 and 100.'),
+  hard_cutoff: z.boolean(),
+  models: z.array(z.string()),
+})
+
+export type PlanFormValues = z.infer<typeof PlanFormSchema>

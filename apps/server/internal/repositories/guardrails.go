@@ -2,19 +2,29 @@ package repositories
 
 import (
 	"context"
+	"time"
 
 	"tera-router/server/internal/models"
 
 	"braces.dev/errtrace"
 )
 
-// GuardrailRepository manages content-safety policies and reads their audit
-// trail.
+// GuardrailRepository manages content-safety policies and reads the audit
+// rows their gateway decisions leave behind.
 type GuardrailRepository struct {
 	BaseRepository
 }
 
 const guardrailColumns = `id, name, scope, target, protections, config, enabled, created_at, updated_at`
+
+// guardrailDecisionActions selects the enforcement decisions. Policy edits
+// share the "guardrail." action prefix but are not decisions.
+const guardrailDecisionActions = `action IN ('guardrail.block', 'guardrail.redact',
+	'guardrail.mask', 'guardrail.hash', 'guardrail.warn', 'guardrail.log')`
+
+// guardrailMaskedActions covers every PII masking strategy; the audit row
+// keeps the strategy while the dashboard folds them into "masked".
+const guardrailMaskedActions = `action IN ('guardrail.redact', 'guardrail.mask', 'guardrail.hash')`
 
 func scanGuardrailPolicy(row rowScanner) (models.GuardrailPolicy, error) {
 	var p models.GuardrailPolicy
@@ -97,24 +107,78 @@ func (r *GuardrailRepository) Delete(ctx context.Context, id string) error {
 	return requireAffected(res, "guardrail policy")
 }
 
-// AuditEntries returns recent guardrail audit rows, newest first.
-func (r *GuardrailRepository) AuditEntries(ctx context.Context, limit int) ([]models.AuditEntry, error) {
-	rows, err := r.queryContext(ctx, r.DB, `
+// GuardrailDecisionRow is one decision the gateway recorded. Action is
+// "guardrail.<decision>", Target the model the request named, and Detail the
+// JSON the gateway wrote: the detectors that fired, the PII entities, the
+// screen duration and the request's key, chain and id.
+type GuardrailDecisionRow struct {
+	ID        string    `json:"id"`
+	Actor     string    `json:"actor"`
+	Action    string    `json:"action"`
+	Target    string    `json:"target"`
+	Detail    string    `json:"detail"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// AuditRows returns the newest guardrail decisions, newest first.
+func (r *GuardrailRepository) AuditRows(ctx context.Context, limit int) ([]GuardrailDecisionRow, error) {
+	return r.decisionRows(ctx, `
 		SELECT id, actor, action, target, detail, created_at
-		FROM audit_entries WHERE action LIKE 'guardrail.%'
-		ORDER BY created_at DESC LIMIT $1`, limit)
+		FROM audit_entries WHERE `+guardrailDecisionActions+`
+		ORDER BY created_at DESC, seq DESC LIMIT $1`, limit)
+}
+
+// DecisionRows returns every guardrail decision taken in [from, to), newest
+// first. The dashboard overview aggregates these rows in one pass.
+func (r *GuardrailRepository) DecisionRows(ctx context.Context, from, to time.Time) ([]GuardrailDecisionRow, error) {
+	return r.decisionRows(ctx, `
+		SELECT id, actor, action, target, detail, created_at
+		FROM audit_entries WHERE `+guardrailDecisionActions+`
+		  AND created_at >= $1 AND created_at < $2
+		ORDER BY created_at DESC, seq DESC`, from.UTC(), to.UTC())
+}
+
+func (r *GuardrailRepository) decisionRows(ctx context.Context, query string, args ...any) ([]GuardrailDecisionRow, error) {
+	rows, err := r.queryContext(ctx, r.DB, query, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	entries := []models.AuditEntry{}
+	out := []GuardrailDecisionRow{}
 	for rows.Next() {
-		var e models.AuditEntry
-		if err := rows.Scan(&e.ID, &e.Actor, &e.Action, &e.Target, &e.Detail, &e.CreatedAt); err != nil {
+		var d GuardrailDecisionRow
+		if err := rows.Scan(&d.ID, &d.Actor, &d.Action, &d.Target, &d.Detail, &d.CreatedAt); err != nil {
 			return nil, errtrace.Wrap(err)
 		}
-		entries = append(entries, e)
+		out = append(out, d)
 	}
-	return entries, errtrace.Wrap(rows.Err())
+	return out, errtrace.Wrap(rows.Err())
+}
+
+// GuardrailDecisions counts the non-allow guardrail decisions taken on one
+// key's requests. Masked covers every PII masking strategy.
+type GuardrailDecisions struct {
+	Blocked int64 `json:"blocked"`
+	Masked  int64 `json:"masked"`
+	Warned  int64 `json:"warned"`
+	Logged  int64 `json:"logged"`
+}
+
+// DecisionsForKey totals the gateway's guardrail audit rows for one key since
+// from. Allowed requests write no row, so they are not counted here.
+func (r *GuardrailRepository) DecisionsForKey(ctx context.Context, keyID string, from time.Time) (GuardrailDecisions, error) {
+	row := r.queryRowContext(ctx, r.DB, `
+		SELECT COALESCE(SUM(action = 'guardrail.block'), 0),
+		       COALESCE(SUM(`+guardrailMaskedActions+`), 0),
+		       COALESCE(SUM(action = 'guardrail.warn'), 0),
+		       COALESCE(SUM(action = 'guardrail.log'), 0)
+		FROM audit_entries
+		WHERE `+guardrailDecisionActions+`
+		  AND json_extract(detail, '$.key_id') = $1
+		  AND created_at >= $2`, keyID, from.UTC())
+
+	var d GuardrailDecisions
+	err := row.Scan(&d.Blocked, &d.Masked, &d.Warned, &d.Logged)
+	return d, errtrace.Wrap(err)
 }

@@ -1,5 +1,15 @@
-import { IconChevronDown, IconShieldCheck, IconTrash } from '@tabler/icons-react'
+import {
+  IconAlertTriangle,
+  IconBan,
+  IconChartBar,
+  IconChevronDown,
+  IconEyeOff,
+  IconShield,
+  IconShieldCheck,
+  IconTrash,
+} from '@tabler/icons-react'
 import { useMutation, useQuery } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
@@ -7,26 +17,17 @@ import type { GuardrailPolicy, GuardrailsScope } from '@/lib/api/models/guardrai
 import type { ApiKeyDetail } from '@/lib/api/models/key'
 
 import SimpleAlertDialog from '@/components/block/common/simple-alert-dialog'
+import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
 import EditPolicyDialog from '@/components/block/guardrails/edit-policy-dialog'
-import { Badge } from '@/components/ui/badge'
+import { Stat } from '@/components/block/provider-detail/provider-stat-strip'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardHeading,
-  CardTitle,
-  CardToolbar,
-} from '@/components/ui/card'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { toastAxiosError } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
-
-const PRIMARY_BUTTON_CLASS =
-  'bg-emerald-600 text-white hover:bg-emerald-600/90 dark:bg-emerald-600 dark:hover:bg-emerald-600/90'
+import { formatCount } from '@/lib/format'
+import { cn } from '@/lib/utils'
 
 const UPSTREAM_SCOPES: GuardrailsScope[] = ['global', 'provider', 'model', 'chain']
 
@@ -59,6 +60,7 @@ export default function KeyGuardrailsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
   const [mergedOpen, setMergedOpen] = useState(false)
 
   const overviewQuery = useQuery(queries.guardrails.overview())
+  const statsQuery = useQuery(queries.keys.guardrailStats(apiKey.id))
   const policies = useMemo(() => overviewQuery.data?.data.policies ?? [], [overviewQuery.data])
 
   // Key-scoped policies target the key id, which is unambiguous; a name could
@@ -142,73 +144,102 @@ export default function KeyGuardrailsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
 
   if (overviewQuery.isLoading) {
     return (
-      <div className="space-y-4">
-        <Skeleton className="h-40 w-full rounded-xl" />
-        <Skeleton className="h-52 w-full rounded-xl" />
+      <div className="flex flex-col gap-4">
+        <Skeleton className="h-36 w-full rounded-lg" />
+        <Skeleton className="h-32 w-full rounded-lg" />
+        <Skeleton className="h-32 w-full rounded-lg" />
       </div>
     )
   }
 
-  return (
-    <div className="space-y-4">
-      <Card className="bg-background">
-        <CardHeader className="py-4">
-          <CardHeading>
-            <CardTitle>Per-key guardrails</CardTitle>
-            <CardDescription>
-              Add a key-specific layer only when this key needs different protection from upstream
-              policies.
-            </CardDescription>
-          </CardHeading>
-          <CardToolbar>
-            <Button
-              variant="outline"
-              onClick={() => setDialog({ policy: draftPolicy, mode: 'create' })}
-            >
-              Create override
-            </Button>
-          </CardToolbar>
-        </CardHeader>
+  const stats = statsQuery.data
+  const figure = (value: number) => (
+    <span className="text-xl font-semibold tabular-nums">{stats ? formatCount(value) : '—'}</span>
+  )
+  const share = (value: number) =>
+    stats && stats.requests > 0 ? `${Math.round((value / stats.requests) * 100)}%` : '0%'
+  const note = (text: string) => (
+    <span className="block text-xs text-muted-foreground tabular-nums">{stats ? text : ' '}</span>
+  )
 
-        <CardContent className="space-y-3 p-4 sm:p-5">
-          <div className="bg-background flex items-start gap-4 rounded-lg border border-border p-4">
-            <span className="bg-muted mt-1.5 size-2 shrink-0 rounded-full" />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold">Inherited policy</p>
-              <p className="text-muted-foreground mt-1 text-sm">
-                Global, provider, model, and chain policies continue to apply.
+  return (
+    <div className="flex flex-col gap-4">
+      <section aria-labelledby="key-guardrails-window" className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <IconChartBar className="text-primary size-4" aria-hidden />
+            <div>
+              <h2 id="key-guardrails-window" className="text-[13px] font-semibold">
+                Last {stats?.days ?? 7} days
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                What the guardrails did to this key&apos;s traffic
               </p>
-              {upstreamPolicies.length > 0 ? (
-                <p className="text-muted-foreground mt-2 text-xs">
-                  Currently inherited:{' '}
-                  <span className="text-foreground">
-                    {upstreamPolicies
-                      .map((policy) => `${policy.name} (${policy.scope})`)
-                      .join(', ')}
-                  </span>
-                </p>
-              ) : null}
             </div>
+          </div>
+          <Link
+            to="/guardrails"
+            className="text-primary rounded-sm text-[12.5px] font-medium hover:underline"
+          >
+            Open guardrails
+          </Link>
+        </div>
+        <dl className="grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-3">
+          <Stat icon={IconBan} label="Blocked">
+            {figure(stats?.blocked ?? 0)}
+            {note(`${share(stats?.blocked ?? 0)} of ${formatCount(stats?.requests ?? 0)} requests`)}
+          </Stat>
+          <Stat icon={IconEyeOff} label="Masked">
+            {figure(stats?.masked ?? 0)}
+            {note(share(stats?.masked ?? 0))}
+          </Stat>
+          <Stat icon={IconAlertTriangle} label="Warned">
+            {figure(stats?.warned ?? 0)}
+            {note(`${formatCount(stats?.logged ?? 0)} log only`)}
+          </Stat>
+        </dl>
+      </section>
+
+      <DashboardPanel
+        icon={IconShieldCheck}
+        title="Per-key override"
+        toolbar={
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setDialog({ policy: draftPolicy, mode: 'create' })}
+          >
+            Create override
+          </Button>
+        }
+      >
+        <div className="divide-y divide-border">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+            <div>
+              <p className="text-[13px] font-medium">Status</p>
+              <p className="text-xs text-muted-foreground">
+                {keyPolicies.length > 0
+                  ? 'This key adds its own layer on top of global, provider, model and chain policies'
+                  : 'Global, provider, model and chain policies apply'}
+              </p>
+            </div>
+            <Pill tone={keyPolicies.length > 0 ? 'active' : 'muted'}>
+              {keyPolicies.length > 0 ? 'Override' : 'Inherited'}
+            </Pill>
           </div>
 
           {keyPolicies.map((policy) => (
-            <div
-              key={policy.id}
-              className="bg-background flex flex-wrap items-center gap-4 rounded-lg border border-border p-4"
-            >
-              <IconShieldCheck className="text-muted-foreground h-5 w-5 shrink-0" />
+            <div key={policy.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <p className="truncate text-sm font-semibold">{policy.name}</p>
-                  <Badge
-                    variant={policy.enabled ? 'success' : 'secondary'}
-                    appearance="light"
-                    size="sm"
-                  >
+                  <p className="truncate text-[13px] font-medium" title={policy.name}>
+                    {policy.name}
+                  </p>
+                  <Pill tone={policy.enabled ? 'active' : 'muted'}>
                     {policy.enabled ? 'Active' : 'Disabled'}
-                  </Badge>
+                  </Pill>
                 </div>
-                <p className="text-muted-foreground mt-1 truncate text-xs">
+                <p className="truncate text-xs text-muted-foreground">
                   {policy.protections.length > 0
                     ? policy.protections.join(' · ')
                     : 'No detectors enabled'}
@@ -221,8 +252,8 @@ export default function KeyGuardrailsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
                 onCheckedChange={() => handleToggle(policy)}
               />
               <Button
-                className={PRIMARY_BUTTON_CLASS}
                 size="sm"
+                variant="outline"
                 onClick={() => setDialog({ policy, mode: 'edit' })}
               >
                 Edit
@@ -230,88 +261,71 @@ export default function KeyGuardrailsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
               <Button
                 aria-label={`Delete ${policy.name}`}
                 size="icon"
-                variant="secondary"
+                variant="ghost"
+                className="size-8"
                 onClick={() => setDeleteId(policy.id)}
               >
-                <IconTrash className="h-4 w-4" />
+                <IconTrash className="size-4" />
               </Button>
             </div>
           ))}
-        </CardContent>
-      </Card>
+        </div>
+      </DashboardPanel>
 
-      <Card className="bg-background">
-        <CardHeader className="py-4">
-          <CardHeading>
-            <CardTitle>Effective protection</CardTitle>
-            <CardDescription>
-              The final policy after all applicable guardrail layers are merged.
-            </CardDescription>
-          </CardHeading>
-        </CardHeader>
-
-        <CardContent className="space-y-4 p-4 sm:p-5">
+      <DashboardPanel icon={IconShield} title="Effective protection">
+        <div className="px-4 py-3">
           {activeDetectors.length === 0 ? (
-            <p className="text-muted-foreground text-sm">
-              No detector is enabled for this key. Requests pass through unmodified.
-            </p>
+            <Pill tone="muted">No detectors active</Pill>
           ) : (
-            <div className="flex flex-wrap items-center gap-2">
+            <ul className="flex flex-wrap items-center gap-1.5">
               {activeDetectors.map((detector) => (
-                <Badge key={detector.key} variant="success" appearance="light" size="md">
-                  {detector.label}
-                </Badge>
+                <li key={detector.key}>
+                  <Pill tone="active">{detector.label}</Pill>
+                </li>
               ))}
-              <span className="text-muted-foreground ml-1 text-xs">
-                {activeDetectors.length} active{' '}
-                {activeDetectors.length === 1 ? 'detector' : 'detectors'}
-              </span>
-            </div>
+            </ul>
           )}
+        </div>
 
-          <Collapsible open={mergedOpen} onOpenChange={setMergedOpen}>
-            <CollapsibleTrigger asChild>
-              <button
-                type="button"
-                className="bg-background hover:bg-accent/40 flex w-full cursor-pointer items-center justify-between rounded-lg border border-border px-4 py-3 text-left text-sm font-medium transition-colors"
-              >
-                View merged configuration
-                <IconChevronDown
-                  className={`h-4 w-4 transition-transform ${mergedOpen ? 'rotate-180' : ''}`}
-                />
-              </button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="pt-3">
-              <div className="divide-border divide-y rounded-lg border border-border">
-                {effective.map((detector) => (
-                  <div key={detector.key} className="space-y-1.5 p-4">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium">{detector.label}</p>
-                      <Badge
-                        variant={detector.enabled ? 'success' : 'secondary'}
-                        appearance="light"
-                        size="xs"
-                      >
-                        {detector.enabled ? 'Enabled' : 'Off'}
-                      </Badge>
-                      <span className="text-muted-foreground text-xs">
-                        {detector.source === 'key'
-                          ? 'key override'
-                          : detector.source === 'inherited'
-                            ? 'inherited'
-                            : 'not configured'}
-                      </span>
-                    </div>
-                    <p className="text-muted-foreground font-mono text-xs">
-                      {describeConfig(detector.config)}
-                    </p>
+        <Collapsible open={mergedOpen} onOpenChange={setMergedOpen}>
+          <CollapsibleTrigger asChild>
+            <button
+              type="button"
+              className="flex w-full cursor-pointer items-center justify-between border-t border-border px-4 py-2.5 text-left text-[12.5px] font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+            >
+              Merged configuration
+              <IconChevronDown
+                className={cn('size-4 transition-transform', mergedOpen && 'rotate-180')}
+                aria-hidden
+              />
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <ul className="divide-y divide-border border-t border-border">
+              {effective.map((detector) => (
+                <li key={detector.key} className="flex flex-col gap-1 px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <p className="text-[13px] font-medium">{detector.label}</p>
+                    <Pill tone={detector.enabled ? 'active' : 'muted'}>
+                      {detector.enabled ? 'Enabled' : 'Off'}
+                    </Pill>
+                    <span className="text-xs text-muted-foreground">
+                      {detector.source === 'key'
+                        ? 'key override'
+                        : detector.source === 'inherited'
+                          ? 'inherited'
+                          : 'not configured'}
+                    </span>
                   </div>
-                ))}
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-        </CardContent>
-      </Card>
+                  <p className="font-mono text-xs text-muted-foreground">
+                    {describeConfig(detector.config)}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </CollapsibleContent>
+        </Collapsible>
+      </DashboardPanel>
 
       <EditPolicyDialog
         mode={dialog?.mode ?? 'create'}
@@ -331,6 +345,25 @@ export default function KeyGuardrailsTab({ apiKey }: { apiKey: ApiKeyDetail }) {
         onOpenChange={(open) => !open && setDeleteId(null)}
       />
     </div>
+  )
+}
+
+const PILL_TONE = {
+  active:
+    'bg-emerald-500/10 text-emerald-700 ring-1 ring-emerald-500/25 ring-inset dark:text-emerald-400',
+  muted: 'border border-border bg-muted/40 text-muted-foreground',
+}
+
+function Pill({ tone, children }: { tone: keyof typeof PILL_TONE; children: React.ReactNode }) {
+  return (
+    <span
+      className={cn(
+        'inline-flex rounded-sm px-1.5 py-0.5 text-[11.5px] font-medium',
+        PILL_TONE[tone]
+      )}
+    >
+      {children}
+    </span>
   )
 }
 

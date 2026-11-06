@@ -7,7 +7,14 @@ export type ProxyPool = {
   status: ProxyPoolStatus
   label?: string
   mode?: string
-  tested_at: string
+  /** null until the first probe */
+  tested_at: string | null
+  /** comma separated hosts that connect directly */
+  bypass: string
+  /** off: bound accounts connect directly */
+  enabled: boolean
+  /** unreachable pool fails the account instead of connecting directly */
+  strict: boolean
 }
 
 export type RelayKind = 'cloudflare' | 'local'

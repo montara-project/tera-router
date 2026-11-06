@@ -41,6 +41,11 @@ const resources = (): AccountResources => {
       const url = `${path}/${id}/test`
       return api.post(url)
     },
+    /** probes a key that is not saved yet (POST /v1/accounts/test) */
+    testKey: (payload) => {
+      const url = `${path}/test`
+      return api.post(url, parseDto(AccountSchema, payload))
+    },
     /** usage-based quota snapshot for one account */
     quota: (id) => {
       const url = `${path}/${id}/quota`

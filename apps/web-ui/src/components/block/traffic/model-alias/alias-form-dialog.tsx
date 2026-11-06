@@ -1,4 +1,4 @@
-import { IconChevronDown, IconChevronUp, IconPlus, IconX } from '@tabler/icons-react'
+import { IconChevronDown, IconChevronUp, IconPlus, IconTrash } from '@tabler/icons-react'
 import { useSelector } from '@tanstack/react-form'
 import { useMutation, useQueries, useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -198,12 +198,21 @@ function AliasForm({ open, alias, onOpenChange }: AliasFormProps) {
       confirmText={submitLabel}
       loading={saving}
       disabled={hasIncompleteTarget}
+      size="lg"
     >
       <div className="space-y-5">
         <form.AppField name="name">
           {(field) => (
             <div className="space-y-1.5">
-              <field.TextField label="Name" asterisk placeholder="alias-name" />
+              <field.TextField
+                label="Alias name"
+                asterisk
+                placeholder="alias-name"
+                // Keeps the browser's saved-name autofill off this field.
+                autoComplete="off"
+                autoCapitalize="none"
+                spellCheck={false}
+              />
               {editing && field.state.value.trim() !== alias?.name ? (
                 <p className="text-xs text-amber-600 dark:text-amber-400">
                   Clients, keys, and plans still using “{alias?.name}” will stop resolving.
@@ -216,16 +225,19 @@ function AliasForm({ open, alias, onOpenChange }: AliasFormProps) {
         <form.AppField name="group">
           {(field) => (
             <div className="space-y-1.5">
-              <field.TextField label="Group" placeholder="coding" list="alias-group-options" />
-              <datalist id="alias-group-options">
-                {groups.map((group) => (
-                  <option key={group} value={group}>
-                    {group}
-                  </option>
-                ))}
-              </datalist>
+              <field.ComboboxField
+                label="Group"
+                placeholder="Ungrouped"
+                // A just-created group is listed too, so it can be picked again to clear it.
+                options={[...new Set([...groups, field.state.value].filter(Boolean))].map(
+                  (group) => ({ value: group, label: group })
+                )}
+                defaultValues={field.state.value ? [field.state.value] : []}
+                creatable
+              />
               <p className="text-muted-foreground text-xs">
-                Groups only organise the alias list; leave empty for Ungrouped.
+                Groups only organise the alias list. Type a name to create one; pick the selected
+                group again to clear it.
               </p>
             </div>
           )}
@@ -375,7 +387,7 @@ function AliasForm({ open, alias, onOpenChange }: AliasFormProps) {
                             aria-label={`Remove target ${i + 1}`}
                             onClick={() => field.removeValue(i)}
                           >
-                            <IconX className="size-3.5" />
+                            <IconTrash className="size-3.5" />
                           </Button>
                         </span>
                       </div>
@@ -399,7 +411,6 @@ function AliasForm({ open, alias, onOpenChange }: AliasFormProps) {
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="border-dashed"
                   onClick={() =>
                     form.pushFieldValue('targets', { provider: '', model: '', active: true })
                   }

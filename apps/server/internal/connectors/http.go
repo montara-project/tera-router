@@ -64,32 +64,36 @@ var sharedClient = &http.Client{Transport: defaultTransportConfig()}
 // not allocate a fresh connection pool (and its goroutines) per request.
 var proxyClientCache sync.Map // proxyURL -> *http.Client
 
-// clientFor returns an HTTP client honouring creds.ProxyURL, falling back to
-// the shared client when no proxy is configured.
+// clientFor returns an HTTP client honouring creds.ProxyURL (and its bypass
+// list), falling back to the shared client when no proxy is configured.
 func clientFor(creds core.Credentials) *http.Client {
 	if creds.ProxyURL == "" {
 		return sharedClient
 	}
-	if v, ok := proxyClientCache.Load(creds.ProxyURL); ok {
+	key := creds.ProxyURL + "\x00" + creds.ProxyBypass
+	if v, ok := proxyClientCache.Load(key); ok {
 		return v.(*http.Client)
 	}
 	t := defaultTransportConfig()
+	var rt http.RoundTripper = t
 	if IsRelayURL(creds.ProxyURL) {
-		if rt, err := NewRelayTransport(creds.ProxyURL, t); err == nil {
-			actual, _ := proxyClientCache.LoadOrStore(creds.ProxyURL, &http.Client{Transport: rt})
-			return actual.(*http.Client)
+		relay, err := NewRelayTransport(creds.ProxyURL, t)
+		if err != nil {
+			// A malformed relay URL falls back to a direct connection,
+			// matching a missing pool in the gateway.
+			return sharedClient
 		}
-		// A malformed relay URL falls back to a direct connection, matching a
-		// missing pool in the gateway.
-		return sharedClient
-	}
-	if u, err := url.Parse(creds.ProxyURL); err == nil {
+		rt = relay
+	} else if u, err := url.Parse(creds.ProxyURL); err == nil {
 		t.Proxy = http.ProxyURL(u)
 		// Many HTTP proxies cannot speak HTTP/2 to the origin; skip the
 		// upgrade attempt rather than paying for a failed negotiation.
 		t.ForceAttemptHTTP2 = false
 	}
-	actual, _ := proxyClientCache.LoadOrStore(creds.ProxyURL, &http.Client{Transport: t})
+	if hosts := splitBypass(creds.ProxyBypass); len(hosts) > 0 {
+		rt = bypassTransport{hosts: hosts, proxied: rt, direct: sharedClient.Transport}
+	}
+	actual, _ := proxyClientCache.LoadOrStore(key, &http.Client{Transport: rt})
 	return actual.(*http.Client)
 }
 

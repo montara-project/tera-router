@@ -106,6 +106,15 @@ const test = () => {
   })
 }
 
+/** Checks an unsaved key against its provider; nothing is stored. */
+const testKey = () =>
+  mutationOptions({
+    mutationFn: async (payload: AccountDto) => {
+      const res = await services.accounts.testKey(payload)
+      return res.data
+    },
+  })
+
 export const accountQueries = {
   list,
   get,
@@ -113,5 +122,6 @@ export const accountQueries = {
   update,
   delete: del,
   test,
+  testKey,
   quota,
 } as const

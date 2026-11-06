@@ -42,7 +42,7 @@ func TestRequireAuthRefusesRevokedSessions(t *testing.T) {
 	f.Get("/me", RequireAuth(a), func(c fiber.Ctx) error { return c.SendString("ok") })
 
 	tokenAt := func(at time.Time) string {
-		tok, _, err := token.SignAccess(cfg.App.Secret, adminID, "admin@tera.local", "admin", at, time.Hour)
+		tok, _, err := token.SignAccess(cfg.App.Secret, adminID, "", "admin@tera.local", "admin", at, time.Hour)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -214,7 +214,7 @@ func (h *accountsHandler) Store(c fiber.Ctx) error {
 	if err := h.app.Repos.Accounts.Insert(c.Context(), account); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "account.create", account.ID, map[string]string{"provider": account.Provider, "label": account.Label})
+	auditRecord(c, actorFrom(c), "account.create", account.ID, map[string]string{"provider": account.Provider, "label": account.Label})
 	return dtos.Created(c, accountView(account), "Account created")
 }
 
@@ -292,7 +292,7 @@ func (h *accountsHandler) Update(c fiber.Ctx) error {
 	if err := h.app.Repos.Accounts.Update(c.Context(), account); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "account.update", id.String(), nil)
+	auditRecord(c, actorFrom(c), "account.update", id.String(), nil)
 	return dtos.OK(c, accountView(account))
 }
 
@@ -305,7 +305,7 @@ func (h *accountsHandler) Delete(c fiber.Ctx) error {
 	if err := h.app.Repos.Accounts.Delete(c.Context(), id.String()); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "account.delete", id.String(), nil)
+	auditRecord(c, actorFrom(c), "account.delete", id.String(), nil)
 	return dtos.Deleted(c, "Account deleted")
 }
 
@@ -345,6 +345,26 @@ func (h *accountsHandler) Test(c fiber.Ctx) error {
 	return dtos.OK(c, result)
 }
 
+// TestKey checks a credential against its provider before it is saved
+// (POST /v1/accounts/test). Nothing is stored; the probe is the same one Test
+// runs for a saved account.
+func (h *accountsHandler) TestKey(c fiber.Ctx) error {
+	var req dtos.Account
+	if err := lib.ValidateRequestBody(c, &req); err != nil {
+		return err
+	}
+	in := accountInputFrom(req)
+	apiKey := strings.TrimSpace(in.APIKey)
+	if in.Provider == "" || apiKey == "" {
+		return apperr.New(apperr.KindBadRequest, "provider and api_key are required")
+	}
+	result, err := h.probe(c.Context(), in.Provider, in.Metadata, apiKey, false)
+	if err != nil {
+		return err
+	}
+	return dtos.OK(c, result)
+}
+
 // probe resolves the endpoint from the provider catalog (overridable via
 // account metadata) and asks the upstream service to verify the credential.
 // Providers with a dedicated integration flow (ported from IDRouter's
@@ -353,7 +373,23 @@ func (h *accountsHandler) Test(c fiber.Ctx) error {
 func (h *accountsHandler) probe(ctx context.Context, providerSlug, metadataRaw, apiKey string, oauth bool) (dtos.TestResult, error) {
 	spec, ok := catalog.Lookup(providerSlug)
 	if !ok {
-		return dtos.TestResult{OK: true, Detail: "no probe available for provider"}, nil
+		// Custom providers live in custom_providers; probe their /models with
+		// the dialect their api_kind speaks.
+		custom, err := h.app.Repos.Providers.GetBySlug(ctx, providerSlug)
+		if err != nil {
+			return dtos.TestResult{OK: true, Detail: "no probe available for provider"}, nil
+		}
+		dialect := "openai"
+		if custom.APIKind == "anthropic" {
+			dialect = "anthropic"
+		}
+		spec = dtos.CatalogProvider{
+			Slug:         custom.Slug,
+			Capabilities: []string{"chat"},
+			BaseURL:      custom.BaseURL,
+			Dialect:      dialect,
+			AuthKind:     string(models.AuthAPIKey),
+		}
 	}
 
 	if !slices.Contains(spec.Capabilities, "chat") {

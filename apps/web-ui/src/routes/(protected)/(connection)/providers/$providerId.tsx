@@ -1,6 +1,15 @@
-import { IconArrowLeft, IconPlus, IconSettings, IconTrash } from '@tabler/icons-react'
+import {
+  IconArrowLeft,
+  IconDots,
+  IconPackages,
+  IconPlayerPause,
+  IconPlayerPlay,
+  IconPlus,
+  IconTrash,
+} from '@tabler/icons-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate, useParams } from '@tanstack/react-router'
+import { useQueryState } from 'nuqs'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
@@ -10,13 +19,18 @@ import AccountStrategyCard from '@/components/block/provider-detail/account-stra
 import AccountsPanel from '@/components/block/provider-detail/accounts-panel'
 import DetailSkeleton from '@/components/block/provider-detail/detail-skeleton'
 import ModelsPanel from '@/components/block/provider-detail/models-panel'
+import ProviderStatStrip from '@/components/block/provider-detail/provider-stat-strip'
 import QuotaPanel from '@/components/block/provider-detail/quota-panel'
 import RoutingPanel from '@/components/block/provider-detail/routing-panel'
-import SummaryTile from '@/components/block/provider-detail/summary-tile'
 import { AddCustomProviderApiKeyForm } from '@/components/block/providers/form-provider-api-key'
 import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
-import { Badge, BadgeDot } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toastAxiosError } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
@@ -33,14 +47,19 @@ export const Route = createFileRoute('/(protected)/(connection)/providers/$provi
   component: CustomProviderDetailRoute,
 })
 
-const AMBER_BUTTON_CLASS =
-  'bg-amber-600 text-white hover:bg-amber-500/90 dark:bg-amber-600 dark:hover:bg-amber-500/90'
-
 function CustomProviderDetailRoute() {
   const { providerId } = useParams({ from: '/(protected)/(connection)/providers/$providerId' })
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [tab, setTab] = useState('overview')
+  // Each tab's table pages on its own, so a page from another tab is dropped.
+  const [, setPage] = useQueryState('page')
+  const [, setPageSize] = useQueryState('pageSize')
+  const changeTab = (value: string) => {
+    setTab(value)
+    void setPage(null)
+    void setPageSize(null)
+  }
   const [accountOpen, setAccountOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
 
@@ -74,6 +93,7 @@ function CustomProviderDetailRoute() {
   const accountQuery = useQuery(queries.accounts.list({ offset: 0, limit: 100 }))
   const chainsQuery = useQuery(queries.chains.list({ offset: 0, limit: 100 }))
   const usageQuery = useQuery(queries.usage.telemetry('30d'))
+  const healthQuery = useQuery(queries.providerHealth.overview('24h'))
 
   const deleteProviderMutation = useMutation(queries.providers.customDelete())
   const toggleProviderMutation = useMutation(queries.providers.customUpdate(providerId))
@@ -189,153 +209,172 @@ function CustomProviderDetailRoute() {
   }
 
   const accountCount = accounts.length
-  const activeAccounts = accounts.filter(
-    (account) => !account.disabled && account.status === 'active'
-  ).length
+  const health = healthQuery.data?.providers.find((entry) => entry.id === slug)
+  const authLabel = accounts.some((a) => a.auth_kind === 'oauth') ? 'OAuth' : 'API key'
+  const meta = [
+    slug,
+    authLabel,
+    dialectLabel,
+    !isCatalogProvider ? provider?.base_url : undefined,
+  ].filter(Boolean)
+
+  const countChip = (n: number) => (
+    <span className="rounded-sm bg-muted px-1.5 text-[11.5px] text-muted-foreground tabular-nums">
+      {n}
+    </span>
+  )
 
   return (
-    <div className="space-y-4">
-      <SectionCard
-        title={providerName ?? ''}
-        description={`${slug} · ${dialectLabel}`}
-        toolbar={
-          <Button asChild variant="outline" size="sm">
-            <Link to="/providers">
-              <IconArrowLeft />
-              Back
+    <div className="flex flex-col gap-5">
+      <nav aria-label="Breadcrumb">
+        <ol className="flex items-center gap-1.5 text-[13px]">
+          <li>
+            <Link
+              to="/providers"
+              className="inline-flex items-center gap-1.5 rounded-sm text-muted-foreground hover:text-foreground"
+            >
+              <IconPackages className="size-3.5" aria-hidden />
+              Providers
             </Link>
-          </Button>
-        }
-      >
-        <div className="space-y-5">
-          <div className="flex flex-wrap items-center gap-4">
-            <ProviderAvatar slug={slug ?? ''} apiKind={apiKind} size="lg" />
+          </li>
+          <li aria-hidden className="text-muted-foreground/70">
+            /
+          </li>
+          <li aria-current="page" className="truncate">
+            {providerName}
+          </li>
+        </ol>
+      </nav>
+
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <ProviderAvatar slug={slug ?? ''} apiKind={apiKind} size="md" />
+          <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              {isCatalogProvider ? (
-                <Badge variant="outline" size="sm">
-                  Catalog
-                </Badge>
-              ) : (
-                <>
-                  <Badge
-                    variant={provider?.enabled ? 'success' : 'secondary'}
-                    appearance="light"
-                    size="sm"
-                  >
-                    <BadgeDot />
-                    {provider?.enabled ? 'Enabled' : 'Disabled'}
-                  </Badge>
-                  <Badge variant="outline" size="sm">
-                    Custom
-                  </Badge>
-                </>
-              )}
-              <span className="text-xs text-muted-foreground">
-                {accountCount} {accountCount === 1 ? 'account' : 'accounts'} · {models.length}{' '}
-                observed models
+              <h1 className="truncate text-xl font-semibold tracking-tight">{providerName}</h1>
+              <span className="rounded-sm border border-border bg-muted/40 px-1.5 text-[11.5px] font-medium text-muted-foreground">
+                {isCatalogProvider ? 'Catalog' : 'Custom'}
               </span>
-            </div>
-            <div className="ml-auto flex flex-wrap items-center gap-2">
-              <Button className={AMBER_BUTTON_CLASS} onClick={() => setAccountOpen(true)}>
-                <IconPlus /> Add API key
-              </Button>
-              {!isCatalogProvider && provider ? (
-                <>
-                  <Button
-                    variant="outline"
-                    onClick={() => handleToggleProvider(!provider.enabled)}
-                    disabled={toggleProviderMutation.isPending}
-                  >
-                    <IconSettings />
-                    {provider.enabled ? 'Disable' : 'Enable'}
-                  </Button>
-                  <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
-                    <IconTrash /> Delete
-                  </Button>
-                </>
+              {!isCatalogProvider && provider && !provider.enabled ? (
+                <span className="rounded-sm border border-border bg-muted/40 px-1.5 text-[11.5px] font-medium text-muted-foreground">
+                  Disabled
+                </span>
               ) : null}
             </div>
+            <p className="text-[13px] break-all text-muted-foreground">
+              {meta.map((item, i) => (
+                <span key={item}>
+                  {i > 0 && <span className="mx-1.5 text-muted-foreground/60">·</span>}
+                  <span className={item === provider?.base_url ? 'font-mono text-xs' : undefined}>
+                    {item}
+                  </span>
+                </span>
+              ))}
+            </p>
           </div>
-
-          <div className="grid gap-3 md:grid-cols-3">
-            {isCatalogProvider ? (
-              <>
-                <SummaryTile label="Dialect" value={dialectLabel} />
-                <SummaryTile label="Auth" value="API key" />
-                <SummaryTile
-                  label="Accounts"
-                  value={`${activeAccounts} active · ${accounts.length - activeAccounts} disabled`}
-                />
-              </>
-            ) : (
-              <>
-                <SummaryTile label="Base URL" value={provider?.base_url ?? ''} mono />
-                <SummaryTile label="Dialect" value={dialectLabel} />
-                <SummaryTile
-                  label="Accounts"
-                  value={`${activeAccounts} active · ${accounts.length - activeAccounts} disabled`}
-                />
-              </>
-            )}
-          </div>
-
-          <Tabs value={tab} onValueChange={setTab}>
-            <TabsList className="w-full justify-start overflow-x-auto">
-              <TabsTrigger value="overview">Accounts ({accounts.length})</TabsTrigger>
-              <TabsTrigger value="routing">Routing ({chains.length})</TabsTrigger>
-              <TabsTrigger value="models">Models ({models.length})</TabsTrigger>
-              {quotaAccounts.length > 0 ? (
-                <TabsTrigger value="quota">Quota ({quotaAccounts.length})</TabsTrigger>
-              ) : null}
-            </TabsList>
-
-            <TabsContent value="overview" className="mt-4 space-y-4">
-              <AccountsPanel
-                accounts={accounts}
-                loading={accountQuery.isLoading}
-                canManageKeys
-                onAddKey={() => setAccountOpen(true)}
-                onChanged={invalidate}
-              />
-            </TabsContent>
-
-            <TabsContent value="models" className="mt-4">
-              <ModelsPanel
-                variant={isCatalogProvider ? 'catalog' : 'custom'}
-                providerId={providerId}
-                providerSlug={slug ?? ''}
-                observed={models}
-                observedLoading={usageQuery.isLoading}
-                syncing={
-                  isCatalogProvider ? catalogSyncMutation.isPending : syncModelsMutation.isPending
-                }
-                onSync={syncCatalog}
-                onUpdate={
-                  isCatalogProvider
-                    ? catalogUpdateMutation.mutateAsync
-                    : updateModelsMutation.mutateAsync
-                }
-              />
-            </TabsContent>
-
-            <TabsContent value="routing" className="mt-4 space-y-4">
-              {slug ? <AccountStrategyCard slug={slug} /> : null}
-              <RoutingPanel chains={chains} loading={chainsQuery.isLoading} slug={slug ?? ''} />
-            </TabsContent>
-
-            {quotaAccounts.length > 0 ? (
-              <TabsContent value="quota" className="mt-4">
-                <QuotaPanel accounts={quotaAccounts} />
-              </TabsContent>
-            ) : null}
-          </Tabs>
         </div>
-      </SectionCard>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button onClick={() => setAccountOpen(true)}>
+            <IconPlus /> Add API key
+          </Button>
+          {!isCatalogProvider && provider ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" aria-label="More provider actions">
+                  <IconDots />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-40">
+                <DropdownMenuItem
+                  disabled={toggleProviderMutation.isPending}
+                  onClick={() => handleToggleProvider(!provider.enabled)}
+                >
+                  {provider.enabled ? <IconPlayerPause /> : <IconPlayerPlay />}
+                  {provider.enabled ? 'Disable provider' : 'Enable provider'}
+                </DropdownMenuItem>
+                <DropdownMenuItem variant="destructive" onClick={() => setDeleteOpen(true)}>
+                  <IconTrash />
+                  Delete provider
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
+        </div>
+      </header>
+
+      <ProviderStatStrip health={health} />
+
+      <Tabs value={tab} onValueChange={changeTab}>
+        <TabsList variant="line" size="md" className="w-full justify-start gap-1 overflow-x-auto">
+          <TabsTrigger
+            value="overview"
+            className="gap-1.5 px-3 data-[state=active]:text-foreground"
+          >
+            Accounts {countChip(accounts.length)}
+          </TabsTrigger>
+          <TabsTrigger value="models" className="gap-1.5 px-3 data-[state=active]:text-foreground">
+            Models {countChip(models.length)}
+          </TabsTrigger>
+          <TabsTrigger value="routing" className="gap-1.5 px-3 data-[state=active]:text-foreground">
+            Routing {countChip(chains.length)}
+          </TabsTrigger>
+          {quotaAccounts.length > 0 ? (
+            <TabsTrigger value="quota" className="gap-1.5 px-3 data-[state=active]:text-foreground">
+              Quota {countChip(quotaAccounts.length)}
+            </TabsTrigger>
+          ) : null}
+        </TabsList>
+
+        <TabsContent value="overview" className="mt-5 space-y-4">
+          <AccountsPanel
+            accounts={accounts}
+            loading={accountQuery.isLoading}
+            canManageKeys
+            onAddKey={() => setAccountOpen(true)}
+            onChanged={invalidate}
+          />
+        </TabsContent>
+
+        <TabsContent value="models" className="mt-5">
+          <ModelsPanel
+            variant={isCatalogProvider ? 'catalog' : 'custom'}
+            providerId={providerId}
+            providerSlug={slug ?? ''}
+            observed={models}
+            observedLoading={usageQuery.isLoading}
+            syncing={
+              isCatalogProvider ? catalogSyncMutation.isPending : syncModelsMutation.isPending
+            }
+            onSync={syncCatalog}
+            onUpdate={
+              isCatalogProvider
+                ? catalogUpdateMutation.mutateAsync
+                : updateModelsMutation.mutateAsync
+            }
+          />
+        </TabsContent>
+
+        <TabsContent value="routing" className="mt-5 space-y-4">
+          {slug ? <AccountStrategyCard slug={slug} /> : null}
+          <RoutingPanel chains={chains} loading={chainsQuery.isLoading} slug={slug ?? ''} />
+        </TabsContent>
+
+        {quotaAccounts.length > 0 ? (
+          <TabsContent value="quota" className="mt-5">
+            <QuotaPanel accounts={quotaAccounts} />
+          </TabsContent>
+        ) : null}
+      </Tabs>
 
       <AddCustomProviderApiKeyForm
         open={accountOpen}
         onOpenChange={setAccountOpen}
-        provider={{ slug: slug ?? '', name: providerName ?? '' }}
+        provider={{
+          slug: slug ?? '',
+          name: providerName ?? '',
+          baseUrl: provider?.base_url,
+          apiKind,
+        }}
       />
 
       {!isCatalogProvider ? (

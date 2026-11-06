@@ -1,51 +1,36 @@
-import {
-  IconApps,
-  IconMessageCircle,
-  IconMicrophone,
-  IconPhoto,
-  IconPlugConnected,
-  IconPlus,
-  IconSearch,
-  IconTrash,
-  IconWorld,
-} from '@tabler/icons-react'
+import { IconPackages, IconPlugConnected, IconPlus, IconTrash } from '@tabler/icons-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
+import { useQueryState } from 'nuqs'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
 import type { Models } from '@/lib/api/models'
 
-import IconBadge from '@/components/block/common/icon-badge'
-import SectionCard from '@/components/block/common/section-card'
+import EmptyState from '@/components/block/common/empty-state'
+import PageHeader from '@/components/block/common/page-header'
+import ReactTable from '@/components/block/common/react-table'
 import SimpleAlertDialog from '@/components/block/common/simple-alert-dialog'
+import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
 import {
   API_KEY_PROVIDERS,
   CUSTOM_CONNECT_PRESETS,
   KEY_ONLY_PROVIDERS,
   OAUTH_FLOW_FOR,
 } from '@/components/block/providers/catalog-connect'
+import { ProvidersColumn } from '@/components/block/providers/column'
 import ConnectModeDialog from '@/components/block/providers/connect-mode-dialog'
+import ConnectProviderDialog from '@/components/block/providers/connect-provider-dialog'
+import FilterProviders from '@/components/block/providers/filter'
 import { AddCustomProviderForm } from '@/components/block/providers/form'
 import { AddCustomProviderApiKeyForm } from '@/components/block/providers/form-provider-api-key'
 import OAuthPasteCodeDialog from '@/components/block/providers/oauth-paste-code-dialog'
-import ProviderGrid from '@/components/block/providers/provider-grid'
 import { useOAuthConnect } from '@/components/block/providers/use-oauth-connect'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardHeading,
-  CardTitle,
-  CardToolbar,
-} from '@/components/ui/card'
-import { Input, InputWrapper } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { usePaginationQuery } from '@/hooks/use-pagination-query'
 import { toastAxiosError } from '@/lib/api/axios-error'
+import { queries } from '@/lib/api/queries'
 import { ACCOUNT_QUERY_KEY } from '@/lib/api/queries/account'
 import { PROVIDER_QUERY_KEY, providerQueries } from '@/lib/api/queries/provider'
 import { services } from '@/lib/api/services'
@@ -53,42 +38,6 @@ import { services } from '@/lib/api/services'
 export const Route = createFileRoute('/(protected)/(connection)/providers/')({
   component: RouteComponent,
 })
-
-/**
- * Provider categories, one tab each. A provider belongs to every category
- * whose capabilities it lists, so OpenAI shows under Model, Voice and Image.
- */
-const CATEGORIES = [
-  {
-    value: 'model',
-    label: 'AI Model Providers',
-    icon: IconMessageCircle,
-    capabilities: ['chat', 'embeddings'],
-  },
-  {
-    value: 'search',
-    label: 'AI Search Providers',
-    icon: IconWorld,
-    capabilities: ['search', 'fetch'],
-  },
-  {
-    value: 'voice',
-    label: 'AI Voice Providers',
-    icon: IconMicrophone,
-    capabilities: ['tts', 'stt'],
-  },
-  { value: 'image', label: 'AI Image Generation', icon: IconPhoto, capabilities: ['image'] },
-] as const satisfies {
-  value: string
-  label: string
-  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>
-  capabilities: Models.ProviderCapability[]
-}[]
-
-type Category = (typeof CATEGORIES)[number]
-
-const inCategory = (provider: Models.Provider, category: Category) =>
-  category.capabilities.some((capability) => provider.capabilities.includes(capability))
 
 /**
  * A connected provider with no account (no API key or OAuth login) is just a
@@ -106,116 +55,21 @@ const listNames = (names: string[]) =>
 
 function RouteSkeleton() {
   return (
-    <div className="bg-sidebar border border-sidebar-accent p-2 rounded-2xl">
-      <div className="rounded-lg border border-border bg-background p-4">
-        <div className="flex items-center justify-between gap-4">
-          <div className="min-w-0 space-y-2">
-            <Skeleton className="h-5 w-40 rounded-lg" />
-            <Skeleton className="h-4 w-72 rounded-lg" />
-          </div>
-          <Skeleton className="h-9 w-44 shrink-0 rounded-lg" />
-        </div>
-
-        <Skeleton className="mt-4 h-10 w-full rounded-lg" />
-
-        <div className="mt-4 flex gap-2">
-          {Array.from({ length: 8 }).map((_, index) => (
-            <Skeleton key={index} className="h-8 w-20 rounded-lg" />
-          ))}
-        </div>
-
-        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: 8 }).map((_, index) => (
-            <Skeleton key={index} className="h-40 rounded-xl" />
-          ))}
-        </div>
-      </div>
+    <div className="flex flex-col gap-6">
+      <Skeleton className="h-12 w-72 rounded-lg" />
+      <Skeleton className="h-96 w-full rounded-lg" />
     </div>
   )
 }
 
-function ProvidersCard({
-  count,
-  description,
-  icon,
-  providers,
-  title,
-  variant,
-  onConnect,
-  onSync,
-  syncingSlug,
-  detailBasePath,
-  actions,
-  selectableIds,
-  selectedIds,
-  onToggleSelect,
-}: {
-  count: number
-  description: string
-  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>
-  providers: Models.Provider[]
-  title: string
-  variant: 'connected' | 'available'
-  onConnect?: (provider: Models.Provider) => void
-  onSync?: (provider: Models.Provider) => void
-  syncingSlug?: string | null
-  detailBasePath?: string
-  actions?: React.ReactNode
-  selectableIds?: Set<string>
-  selectedIds?: Set<string>
-  onToggleSelect?: (id: string) => void
-}) {
-  return (
-    <Card className="bg-background">
-      <CardHeader className="py-4">
-        <div className="flex items-center gap-3.5">
-          <IconBadge
-            icon={icon}
-            variant="soft"
-            className="h-10 w-10 shrink-0"
-            iconClassName="h-5 w-5"
-          />
-          <CardHeading>
-            <CardTitle>{title}</CardTitle>
-            <CardDescription>{description}</CardDescription>
-          </CardHeading>
-        </div>
-        <CardToolbar>
-          {actions}
-          <Badge variant="secondary" size="sm" className="tabular-nums">
-            {count}
-          </Badge>
-        </CardToolbar>
-      </CardHeader>
-      <CardContent className="p-0">
-        <ProviderGrid
-          providers={providers}
-          variant={variant}
-          onConnect={onConnect}
-          onSync={onSync}
-          syncingSlug={syncingSlug}
-          detailBasePath={detailBasePath}
-          selectableIds={selectableIds}
-          selectedIds={selectedIds}
-          onToggleSelect={onToggleSelect}
-        />
-      </CardContent>
-    </Card>
-  )
-}
-
 function RouteComponent() {
-  const [search, setSearch] = useState('')
-  const [categoryValue, setCategoryValue] = useState<string>(CATEGORIES[0].value)
-  const category = CATEGORIES.find((c) => c.value === categoryValue) ?? CATEGORIES[0]
+  const [connectOpen, setConnectOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [createPreset, setCreatePreset] = useState<{ slug: string; api_kind: string } | undefined>(
     undefined
   )
   const [keyProvider, setKeyProvider] = useState<{ slug: string; name: string } | null>(null)
   const [modeProvider, setModeProvider] = useState<{ slug: string; name: string } | null>(null)
-  const [syncingSlug, setSyncingSlug] = useState<string | null>(null)
-  const [selected, setSelected] = useState<Set<string>>(() => new Set())
   // Providers awaiting delete confirmation; null while the dialog is closed.
   const [pendingDelete, setPendingDelete] = useState<Models.Provider[] | null>(null)
   const bulkDelete = useMutation(providerQueries.customBulkDelete())
@@ -232,42 +86,30 @@ function RouteComponent() {
   const { data } = useQuery(providerQueries.list())
   const overview = data?.data
 
-  const counts = useMemo(() => {
-    const all = [...(overview?.connected ?? []), ...(overview?.available ?? [])]
-    return Object.fromEntries(
-      CATEGORIES.map((c) => [c.value, all.filter((provider) => inCategory(provider, c)).length])
-    )
-  }, [overview])
+  const healthQuery = useQuery(queries.providerHealth.overview('24h'))
+  const health = useMemo(
+    () => new Map((healthQuery.data?.providers ?? []).map((h) => [h.id, h])),
+    [healthQuery.data]
+  )
 
-  const filtered = useMemo(() => {
-    const query = search.trim().toLowerCase()
-    const matches = (provider: Models.Provider) =>
-      inCategory(provider, category) &&
-      (!query || `${provider.name} ${provider.slug}`.toLowerCase().includes(query))
+  const emptyProviders = (overview?.connected ?? []).filter(isEmptyProvider)
+  const columns = ProvidersColumn({ health })
 
-    return {
-      connected: (overview?.connected ?? []).filter(matches),
-      available: (overview?.available ?? []).filter(matches),
-    }
-  }, [overview, search, category])
-
-  // Only empty providers in the current view can be selected, so a hidden or
-  // since-connected provider never rides along in a bulk delete.
-  const emptyProviders = filtered.connected.filter(isEmptyProvider)
-  const emptyIds = new Set(emptyProviders.map((provider) => provider.id))
-  const selectedEmpty = emptyProviders.filter((provider) => selected.has(provider.id))
+  // The list arrives whole, so search, capability and paging run here; the
+  // pager keeps its page in ?page like the server-paged tables.
+  const { offset, limit, pageIndex } = usePaginationQuery()
+  const [, setPageParam] = useQueryState('page')
+  const [search, setSearch] = useState('')
+  const [capability, setCapability] = useState('all')
+  const q = search.trim().toLowerCase()
+  const rows = (overview?.connected ?? []).filter(
+    (p) =>
+      (capability === 'all' || p.capabilities.includes(capability as Models.ProviderCapability)) &&
+      (!q || `${p.name} ${p.slug}`.toLowerCase().includes(q))
+  )
 
   if (!overview) {
     return <RouteSkeleton />
-  }
-
-  const toggleSelect = (id: string) => {
-    setSelected((current) => {
-      const next = new Set(current)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
   }
 
   const confirmDelete = () => {
@@ -279,7 +121,6 @@ function RouteComponent() {
       {
         onSuccess: (res) => {
           toast.success(res.message ?? 'Providers deleted')
-          setSelected(new Set())
         },
         onError: toastAxiosError,
       }
@@ -336,7 +177,6 @@ function RouteComponent() {
     }
   }
   const syncModels = async (slug: string) => {
-    setSyncingSlug(slug)
     try {
       const result = await services.providers.modelsSync(slug)
       const payload = result.data.data
@@ -346,113 +186,97 @@ function RouteComponent() {
       )
     } catch (error) {
       toastAxiosError(error)
-    } finally {
-      setSyncingSlug(null)
     }
   }
 
   return (
     <>
-      <SectionCard
-        title="Providers"
-        description="Connect and manage AI providers to power your routing."
-        toolbar={
-          <Button
-            className="bg-amber-600 text-white hover:bg-amber-500 dark:bg-amber-800 dark:text-amber-200 dark:hover:bg-amber-700"
-            onClick={handleNewProvider}
-          >
-            <IconPlus />
-            <span>New custom provider</span>
-          </Button>
-        }
-      >
-        <div className="space-y-4">
-          <InputWrapper variant="lg" className="rounded-lg">
-            <IconSearch />
-            <Input
-              aria-label="Search providers"
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search providers..."
-              value={search}
-            />
-          </InputWrapper>
+      <div className="flex flex-col gap-6">
+        <PageHeader
+          icon={IconPackages}
+          iconClassName="border-transparent bg-teal-500/10 text-teal-700 dark:text-teal-400"
+          title="Providers"
+          description={`${overview.connected.length} connected · ${overview.available.length} available`}
+          actions={
+            <Button onClick={() => setConnectOpen(true)}>
+              <IconPlus />
+              <span>Connect provider</span>
+            </Button>
+          }
+        />
 
-          <Tabs value={category.value} onValueChange={setCategoryValue}>
-            <TabsList className="w-full justify-start overflow-x-auto">
-              {CATEGORIES.map((c) => (
-                <TabsTrigger key={c.value} value={c.value}>
-                  <c.icon />
-                  {c.label}
-                  <span className="text-[10px] leading-none font-medium tabular-nums opacity-60">
-                    {counts[c.value] ?? 0}
-                  </span>
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
-
-          <ProvidersCard
-            count={filtered.connected.length}
-            description="These providers have accounts and are ready to use."
-            icon={IconPlugConnected}
-            providers={filtered.connected}
-            title="Connected providers"
-            variant="connected"
-            detailBasePath="/providers"
-            selectableIds={emptyIds}
-            selectedIds={selected}
-            onToggleSelect={toggleSelect}
-            actions={
-              emptyProviders.length > 0 ? (
-                <>
-                  {selectedEmpty.length > 0 ? (
-                    <>
-                      <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
-                        Clear
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        className="text-white"
-                        disabled={bulkDelete.isPending}
-                        onClick={() => setPendingDelete(selectedEmpty)}
-                      >
-                        <IconTrash />
-                        Delete selected ({selectedEmpty.length})
-                      </Button>
-                    </>
-                  ) : null}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={bulkDelete.isPending}
-                    onClick={() => setPendingDelete(emptyProviders)}
-                  >
-                    <IconTrash />
-                    Delete empty ({emptyProviders.length})
-                  </Button>
-                </>
-              ) : null
+        <DashboardPanel
+          icon={IconPlugConnected}
+          title={
+            <>
+              Connected
+              <span className="font-normal text-muted-foreground tabular-nums">
+                {overview.connected.length}
+              </span>
+            </>
+          }
+          toolbar={
+            <div className="flex flex-wrap items-center gap-2">
+              {emptyProviders.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={bulkDelete.isPending}
+                  onClick={() => setPendingDelete(emptyProviders)}
+                >
+                  <IconTrash />
+                  Delete empty ({emptyProviders.length})
+                </Button>
+              )}
+              <FilterProviders
+                search={search}
+                onSearchChange={(value) => {
+                  setSearch(value)
+                  void setPageParam(null)
+                }}
+                capability={capability}
+                onCapabilityChange={(value) => {
+                  setCapability(value)
+                  void setPageParam(null)
+                }}
+              />
+            </div>
+          }
+        >
+          <ReactTable
+            total={rows.length}
+            data={rows.slice(offset, offset + limit)}
+            pageIndex={pageIndex}
+            pageSize={limit}
+            columns={columns}
+            emptyMessage={
+              <EmptyState
+                icon={IconPlugConnected}
+                title={
+                  overview.connected.length === 0
+                    ? 'No providers connected yet'
+                    : 'No providers match'
+                }
+                description={
+                  overview.connected.length === 0
+                    ? 'Connect a provider to start routing requests through it.'
+                    : 'Try a different search or capability.'
+                }
+                className="py-10"
+              />
             }
-            onSync={(provider) => {
-              if (API_KEY_PROVIDERS[provider.slug]) {
-                void syncModels(provider.slug)
-              }
-            }}
-            syncingSlug={syncingSlug}
           />
+        </DashboardPanel>
+      </div>
 
-          <ProvidersCard
-            count={filtered.available.length}
-            description="Add new providers to expand your routing options."
-            icon={IconApps}
-            providers={filtered.available}
-            title="Available providers"
-            variant="available"
-            onConnect={handleConnect}
-          />
-        </div>
-      </SectionCard>
+      <ConnectProviderDialog
+        open={connectOpen}
+        onOpenChange={setConnectOpen}
+        connected={overview.connected}
+        available={overview.available}
+        onConnect={handleConnect}
+        onNewCustom={handleNewProvider}
+      />
 
       <AddCustomProviderForm open={createOpen} onOpenChange={setCreateOpen} preset={createPreset} />
 

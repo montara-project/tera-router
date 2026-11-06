@@ -1,4 +1,4 @@
-import { IconRefresh } from '@tabler/icons-react'
+import { IconChartBar, IconRefresh } from '@tabler/icons-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
@@ -6,10 +6,8 @@ import { toast } from 'sonner'
 
 import type { UsageRange } from '@/lib/api/models/usage'
 
-import SectionCard from '@/components/block/common/section-card'
-import SimpleButtonGroup, {
-  type SimpleButtonGroupItem,
-} from '@/components/block/common/simple-button-group'
+import PageHeader from '@/components/block/common/page-header'
+import SegmentedControl from '@/components/block/common/segmented-control'
 import UsageSection from '@/components/block/cost-analytics/usage/usage-section'
 import { Button } from '@/components/ui/button'
 import { USAGE_QUERY_KEY } from '@/lib/api/queries/usage'
@@ -18,45 +16,49 @@ export const Route = createFileRoute('/(protected)/(analytics)/usage/')({
   component: RouteComponent,
 })
 
-const OVERVIEW_TIME_RANGE: SimpleButtonGroupItem[] = [
+const RANGES = [
   { value: 'today', label: 'Today' },
   { value: '24h', label: '24h' },
-  { value: '7d', label: '7D' },
-  { value: '30d', label: '30D' },
-]
+  { value: '7d', label: '7d' },
+  { value: '30d', label: '30d' },
+  { value: '90d', label: '90d' },
+] as const satisfies readonly { value: UsageRange; label: string }[]
 
 function RouteComponent() {
   const queryClient = useQueryClient()
-  const [range, setRange] = useState<UsageRange>('30d')
+  const [range, setRange] = useState<UsageRange>('today')
 
   const handleRefresh = () => {
-    queryClient.invalidateQueries({ queryKey: [USAGE_QUERY_KEY] })
+    void queryClient.invalidateQueries({ queryKey: [USAGE_QUERY_KEY] })
     toast.success('Usage data refreshed')
   }
 
   return (
-    <SectionCard
-      title="Usage"
-      description="Requests, spend, optimization, and provider performance."
-      toolbar={
-        <>
-          <SimpleButtonGroup
-            items={OVERVIEW_TIME_RANGE}
-            defaultValue={range}
-            onValueChange={(value) => setRange(value as UsageRange)}
-          />
-          <Button
-            variant="outline"
-            size="icon"
-            aria-label="Refresh usage data"
-            onClick={handleRefresh}
-          >
-            <IconRefresh />
-          </Button>
-        </>
-      }
-    >
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        icon={IconChartBar}
+        title="Usage"
+        description="Cost, speed and routing for every request"
+        actions={
+          <>
+            <SegmentedControl
+              aria-label="Time range"
+              options={RANGES}
+              value={range}
+              onChange={setRange}
+            />
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label="Refresh usage data"
+              onClick={handleRefresh}
+            >
+              <IconRefresh />
+            </Button>
+          </>
+        }
+      />
       <UsageSection range={range} />
-    </SectionCard>
+    </div>
   )
 }

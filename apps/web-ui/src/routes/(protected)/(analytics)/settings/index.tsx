@@ -1,26 +1,20 @@
-import {
-  IconBolt,
-  IconDatabase,
-  IconGauge,
-  IconNetwork,
-  IconPalette,
-  IconRoute,
-  IconShieldLock,
-} from '@tabler/icons-react'
+import { IconSettings } from '@tabler/icons-react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { toast } from 'sonner'
 
 import type { AppSettings } from '@/lib/api/models/settings'
 
-import SectionCard from '@/components/block/common/section-card'
+import PageHeader from '@/components/block/common/page-header'
 import BrandingTab from '@/components/block/settings/branding-tab'
 import ImportExportTab from '@/components/block/settings/import-export-tab'
 import IPBlockCard from '@/components/block/settings/ip-block-card'
 import NetworkTab from '@/components/block/settings/network-tab'
+import PasskeysCard from '@/components/block/settings/passkeys-card'
 import RestrictedAccessCard from '@/components/block/settings/restricted-access-card'
 import RoutingTab from '@/components/block/settings/routing-tab'
 import SecurityTab from '@/components/block/settings/security-tab'
+import SessionsCard from '@/components/block/settings/sessions-card'
 import SystemTab from '@/components/block/settings/system-tab'
 import TokenSavingTab from '@/components/block/settings/token-saving-tab'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -32,17 +26,16 @@ export const Route = createFileRoute('/(protected)/(analytics)/settings/')({
 })
 
 const TABS = [
-  { value: 'token-saving', label: 'Token Saving', icon: IconBolt },
-  { value: 'routing', label: 'Routing', icon: IconRoute },
-  { value: 'network', label: 'Network', icon: IconNetwork },
-  { value: 'branding', label: 'Branding', icon: IconPalette },
-  { value: 'security', label: 'Security', icon: IconShieldLock },
-  { value: 'import-export', label: 'Import / Export', icon: IconDatabase },
-  { value: 'system', label: 'System', icon: IconGauge },
+  { value: 'token-saving', label: 'Token saving' },
+  { value: 'routing', label: 'Routing' },
+  { value: 'network', label: 'Network' },
+  { value: 'branding', label: 'Branding' },
+  { value: 'security', label: 'Security' },
+  { value: 'import-export', label: 'Import & export' },
+  { value: 'system', label: 'System' },
 ]
 
-const ACTIVE_TAB_CLASS =
-  'data-[state=active]:border-emerald-500! data-[state=active]:text-emerald-400! data-[state=active]:[&_svg]:text-emerald-400!'
+const TAB_CLASS = 'px-3 text-[13px] data-[state=active]:text-foreground!'
 
 function RouteSkeleton() {
   return (
@@ -73,49 +66,59 @@ function RouteComponent() {
   }
 
   return (
-    <SectionCard title="Settings" description="Configure token saving, routing, network, and more.">
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        icon={IconSettings}
+        iconClassName="border-transparent bg-primary/10 text-primary"
+        title="Settings"
+        description="Gateway behaviour, branding, backups and updates."
+        actions={
+          <span className="text-[12.5px] text-muted-foreground">Changes save automatically</span>
+        }
+      />
       <Tabs defaultValue="token-saving">
-        <TabsList variant="line" size="lg" className="w-full justify-start">
+        <TabsList variant="line" size="md" className="w-full justify-start gap-1 overflow-x-auto">
           {TABS.map((tab) => (
-            <TabsTrigger key={tab.value} value={tab.value} className={ACTIVE_TAB_CLASS}>
-              <tab.icon className="h-4 w-4" />
-              <span>{tab.label}</span>
+            <TabsTrigger key={tab.value} value={tab.value} className={TAB_CLASS}>
+              {tab.label}
             </TabsTrigger>
           ))}
         </TabsList>
 
-        <TabsContent value="token-saving">
+        <TabsContent value="token-saving" className="mt-5 max-w-[56rem]">
           <TokenSavingTab settings={settings} onUpdate={handleUpdate} />
         </TabsContent>
 
-        <TabsContent value="routing">
+        <TabsContent value="routing" className="mt-5 max-w-[56rem]">
           <RoutingTab settings={settings} onUpdate={handleUpdate} />
         </TabsContent>
 
-        <TabsContent value="network">
+        <TabsContent value="network" className="mt-5 max-w-[56rem]">
           <NetworkTab settings={settings} onUpdate={handleUpdate} />
         </TabsContent>
 
-        <TabsContent value="branding">
+        <TabsContent value="branding" className="mt-5 max-w-[56rem]">
           <BrandingTab settings={settings} onUpdate={handleUpdate} />
         </TabsContent>
 
-        <TabsContent value="security">
+        <TabsContent value="security" className="mt-5 max-w-[56rem]">
           <div className="flex flex-col gap-4">
             <SecurityTab />
+            <PasskeysCard />
+            <SessionsCard />
             <RestrictedAccessCard />
             <IPBlockCard />
           </div>
         </TabsContent>
 
-        <TabsContent value="import-export">
+        <TabsContent value="import-export" className="mt-5 max-w-[56rem]">
           <ImportExportTab />
         </TabsContent>
 
-        <TabsContent value="system">
+        <TabsContent value="system" className="mt-5 max-w-[56rem]">
           <SystemTab version={health?.version} />
         </TabsContent>
       </Tabs>
-    </SectionCard>
+    </div>
   )
 }

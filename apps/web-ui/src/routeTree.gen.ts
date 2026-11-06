@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as protectedRouteRouteImport } from './routes/(protected)/route'
+import { Route as PortalRouteImport } from './routes/portal'
 import { Route as authloginIndexRouteImport } from './routes/(auth)/(login)/index'
 import { Route as protectedDashboardIndexRouteImport } from './routes/(protected)/dashboard/index'
 import { Route as protectedanalyticsBudgetsIndexRouteImport } from './routes/(protected)/(analytics)/budgets/index'
@@ -21,17 +22,20 @@ import { Route as protectedanalyticsUsageIndexRouteImport } from './routes/(prot
 import { Route as protectedconnectionKeysIndexRouteImport } from './routes/(protected)/(connection)/keys/index'
 import { Route as protectedconnectionKeysKeyIdRouteImport } from './routes/(protected)/(connection)/keys/$keyId'
 import { Route as protectedconnectionMediaIndexRouteImport } from './routes/(protected)/(connection)/media/index'
+import { Route as protectedconnectionMediaSlugRouteImport } from './routes/(protected)/(connection)/media/$slug'
 import { Route as protectedconnectionProvidersIndexRouteImport } from './routes/(protected)/(connection)/providers/index'
 import { Route as protectedconnectionProvidersProviderIdRouteImport } from './routes/(protected)/(connection)/providers/$providerId'
 import { Route as protectedconnectionProxyPoolsIndexRouteImport } from './routes/(protected)/(connection)/proxy-pools/index'
 import { Route as protecteddeveloperCliToolsIndexRouteImport } from './routes/(protected)/(developer)/cli-tools/index'
 import { Route as protecteddeveloperCliToolsToolIdRouteImport } from './routes/(protected)/(developer)/cli-tools/$toolId'
-import { Route as protecteddeveloperCliToolsClaudeCodeRouteImport } from './routes/(protected)/(developer)/cli-tools/claude-code'
 import { Route as protecteddeveloperConsoleIndexRouteImport } from './routes/(protected)/(developer)/console/index'
 import { Route as protecteddeveloperPlaygroundIndexRouteImport } from './routes/(protected)/(developer)/playground/index'
+import { Route as protectedsafetyAuditLogIndexRouteImport } from './routes/(protected)/(safety)/audit-log/index'
 import { Route as protectedsafetyGuardrailsIndexRouteImport } from './routes/(protected)/(safety)/guardrails/index'
 import { Route as protectedsafetyProviderHealthIndexRouteImport } from './routes/(protected)/(safety)/provider-health/index'
 import { Route as protectedtrafficChainsIndexRouteImport } from './routes/(protected)/(traffic)/chains/index'
+import { Route as protectedtrafficChainsChainIdRouteImport } from './routes/(protected)/(traffic)/chains/$chainId'
+import { Route as protectedtrafficChainsNewRouteImport } from './routes/(protected)/(traffic)/chains/new'
 import { Route as protectedtrafficEndpointsIndexRouteImport } from './routes/(protected)/(traffic)/endpoints/index'
 import { Route as protectedtrafficModelAliasIndexRouteImport } from './routes/(protected)/(traffic)/model-alias/index'
 import { Route as protectedtrafficPricingIndexRouteImport } from './routes/(protected)/(traffic)/pricing/index'
@@ -39,6 +43,11 @@ import { Route as protectedtrafficSkillsIndexRouteImport } from './routes/(prote
 
 const protectedRouteRoute = protectedRouteRouteImport.update({
   id: '/(protected)',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PortalRoute = PortalRouteImport.update({
+  id: '/portal',
+  path: '/portal',
   getParentRoute: () => rootRouteImport,
 } as any)
 const authloginIndexRoute = authloginIndexRouteImport.update({
@@ -105,6 +114,12 @@ const protectedconnectionMediaIndexRoute =
     path: '/media/',
     getParentRoute: () => protectedRouteRoute,
   } as any)
+const protectedconnectionMediaSlugRoute =
+  protectedconnectionMediaSlugRouteImport.update({
+    id: '/(connection)/media/$slug',
+    path: '/media/$slug',
+    getParentRoute: () => protectedRouteRoute,
+  } as any)
 const protectedconnectionProvidersIndexRoute =
   protectedconnectionProvidersIndexRouteImport.update({
     id: '/(connection)/providers/',
@@ -135,12 +150,6 @@ const protecteddeveloperCliToolsToolIdRoute =
     path: '/cli-tools/$toolId',
     getParentRoute: () => protectedRouteRoute,
   } as any)
-const protecteddeveloperCliToolsClaudeCodeRoute =
-  protecteddeveloperCliToolsClaudeCodeRouteImport.update({
-    id: '/(developer)/cli-tools/claude-code',
-    path: '/cli-tools/claude-code',
-    getParentRoute: () => protectedRouteRoute,
-  } as any)
 const protecteddeveloperConsoleIndexRoute =
   protecteddeveloperConsoleIndexRouteImport.update({
     id: '/(developer)/console/',
@@ -151,6 +160,12 @@ const protecteddeveloperPlaygroundIndexRoute =
   protecteddeveloperPlaygroundIndexRouteImport.update({
     id: '/(developer)/playground/',
     path: '/playground/',
+    getParentRoute: () => protectedRouteRoute,
+  } as any)
+const protectedsafetyAuditLogIndexRoute =
+  protectedsafetyAuditLogIndexRouteImport.update({
+    id: '/(safety)/audit-log/',
+    path: '/audit-log/',
     getParentRoute: () => protectedRouteRoute,
   } as any)
 const protectedsafetyGuardrailsIndexRoute =
@@ -169,6 +184,18 @@ const protectedtrafficChainsIndexRoute =
   protectedtrafficChainsIndexRouteImport.update({
     id: '/(traffic)/chains/',
     path: '/chains/',
+    getParentRoute: () => protectedRouteRoute,
+  } as any)
+const protectedtrafficChainsChainIdRoute =
+  protectedtrafficChainsChainIdRouteImport.update({
+    id: '/(traffic)/chains/$chainId',
+    path: '/chains/$chainId',
+    getParentRoute: () => protectedRouteRoute,
+  } as any)
+const protectedtrafficChainsNewRoute =
+  protectedtrafficChainsNewRouteImport.update({
+    id: '/(traffic)/chains/new',
+    path: '/chains/new',
     getParentRoute: () => protectedRouteRoute,
   } as any)
 const protectedtrafficEndpointsIndexRoute =
@@ -197,12 +224,15 @@ const protectedtrafficSkillsIndexRoute =
   } as any)
 
 export interface FileRoutesByFullPath {
+  '/portal': typeof PortalRoute
   '/': typeof authloginIndexRoute
   '/dashboard/': typeof protectedDashboardIndexRoute
   '/keys/$keyId': typeof protectedconnectionKeysKeyIdRoute
+  '/media/$slug': typeof protectedconnectionMediaSlugRoute
   '/providers/$providerId': typeof protectedconnectionProvidersProviderIdRoute
   '/cli-tools/$toolId': typeof protecteddeveloperCliToolsToolIdRoute
-  '/cli-tools/claude-code': typeof protecteddeveloperCliToolsClaudeCodeRoute
+  '/chains/$chainId': typeof protectedtrafficChainsChainIdRoute
+  '/chains/new': typeof protectedtrafficChainsNewRoute
   '/budgets/': typeof protectedanalyticsBudgetsIndexRoute
   '/plans/': typeof protectedanalyticsPlansIndexRoute
   '/quota/': typeof protectedanalyticsQuotaIndexRoute
@@ -216,6 +246,7 @@ export interface FileRoutesByFullPath {
   '/cli-tools/': typeof protecteddeveloperCliToolsIndexRoute
   '/console/': typeof protecteddeveloperConsoleIndexRoute
   '/playground/': typeof protecteddeveloperPlaygroundIndexRoute
+  '/audit-log/': typeof protectedsafetyAuditLogIndexRoute
   '/guardrails/': typeof protectedsafetyGuardrailsIndexRoute
   '/provider-health/': typeof protectedsafetyProviderHealthIndexRoute
   '/chains/': typeof protectedtrafficChainsIndexRoute
@@ -225,12 +256,15 @@ export interface FileRoutesByFullPath {
   '/skills/': typeof protectedtrafficSkillsIndexRoute
 }
 export interface FileRoutesByTo {
+  '/portal': typeof PortalRoute
   '/': typeof authloginIndexRoute
   '/dashboard': typeof protectedDashboardIndexRoute
   '/keys/$keyId': typeof protectedconnectionKeysKeyIdRoute
+  '/media/$slug': typeof protectedconnectionMediaSlugRoute
   '/providers/$providerId': typeof protectedconnectionProvidersProviderIdRoute
   '/cli-tools/$toolId': typeof protecteddeveloperCliToolsToolIdRoute
-  '/cli-tools/claude-code': typeof protecteddeveloperCliToolsClaudeCodeRoute
+  '/chains/$chainId': typeof protectedtrafficChainsChainIdRoute
+  '/chains/new': typeof protectedtrafficChainsNewRoute
   '/budgets': typeof protectedanalyticsBudgetsIndexRoute
   '/plans': typeof protectedanalyticsPlansIndexRoute
   '/quota': typeof protectedanalyticsQuotaIndexRoute
@@ -244,6 +278,7 @@ export interface FileRoutesByTo {
   '/cli-tools': typeof protecteddeveloperCliToolsIndexRoute
   '/console': typeof protecteddeveloperConsoleIndexRoute
   '/playground': typeof protecteddeveloperPlaygroundIndexRoute
+  '/audit-log': typeof protectedsafetyAuditLogIndexRoute
   '/guardrails': typeof protectedsafetyGuardrailsIndexRoute
   '/provider-health': typeof protectedsafetyProviderHealthIndexRoute
   '/chains': typeof protectedtrafficChainsIndexRoute
@@ -255,12 +290,15 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/(protected)': typeof protectedRouteRouteWithChildren
+  '/portal': typeof PortalRoute
   '/(auth)/(login)/': typeof authloginIndexRoute
   '/(protected)/dashboard/': typeof protectedDashboardIndexRoute
   '/(protected)/(connection)/keys/$keyId': typeof protectedconnectionKeysKeyIdRoute
+  '/(protected)/(connection)/media/$slug': typeof protectedconnectionMediaSlugRoute
   '/(protected)/(connection)/providers/$providerId': typeof protectedconnectionProvidersProviderIdRoute
   '/(protected)/(developer)/cli-tools/$toolId': typeof protecteddeveloperCliToolsToolIdRoute
-  '/(protected)/(developer)/cli-tools/claude-code': typeof protecteddeveloperCliToolsClaudeCodeRoute
+  '/(protected)/(traffic)/chains/$chainId': typeof protectedtrafficChainsChainIdRoute
+  '/(protected)/(traffic)/chains/new': typeof protectedtrafficChainsNewRoute
   '/(protected)/(analytics)/budgets/': typeof protectedanalyticsBudgetsIndexRoute
   '/(protected)/(analytics)/plans/': typeof protectedanalyticsPlansIndexRoute
   '/(protected)/(analytics)/quota/': typeof protectedanalyticsQuotaIndexRoute
@@ -274,6 +312,7 @@ export interface FileRoutesById {
   '/(protected)/(developer)/cli-tools/': typeof protecteddeveloperCliToolsIndexRoute
   '/(protected)/(developer)/console/': typeof protecteddeveloperConsoleIndexRoute
   '/(protected)/(developer)/playground/': typeof protecteddeveloperPlaygroundIndexRoute
+  '/(protected)/(safety)/audit-log/': typeof protectedsafetyAuditLogIndexRoute
   '/(protected)/(safety)/guardrails/': typeof protectedsafetyGuardrailsIndexRoute
   '/(protected)/(safety)/provider-health/': typeof protectedsafetyProviderHealthIndexRoute
   '/(protected)/(traffic)/chains/': typeof protectedtrafficChainsIndexRoute
@@ -285,12 +324,15 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
+    | '/portal'
     | '/'
     | '/dashboard/'
     | '/keys/$keyId'
+    | '/media/$slug'
     | '/providers/$providerId'
     | '/cli-tools/$toolId'
-    | '/cli-tools/claude-code'
+    | '/chains/$chainId'
+    | '/chains/new'
     | '/budgets/'
     | '/plans/'
     | '/quota/'
@@ -304,6 +346,7 @@ export interface FileRouteTypes {
     | '/cli-tools/'
     | '/console/'
     | '/playground/'
+    | '/audit-log/'
     | '/guardrails/'
     | '/provider-health/'
     | '/chains/'
@@ -313,12 +356,15 @@ export interface FileRouteTypes {
     | '/skills/'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/portal'
     | '/'
     | '/dashboard'
     | '/keys/$keyId'
+    | '/media/$slug'
     | '/providers/$providerId'
     | '/cli-tools/$toolId'
-    | '/cli-tools/claude-code'
+    | '/chains/$chainId'
+    | '/chains/new'
     | '/budgets'
     | '/plans'
     | '/quota'
@@ -332,6 +378,7 @@ export interface FileRouteTypes {
     | '/cli-tools'
     | '/console'
     | '/playground'
+    | '/audit-log'
     | '/guardrails'
     | '/provider-health'
     | '/chains'
@@ -342,12 +389,15 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/(protected)'
+    | '/portal'
     | '/(auth)/(login)/'
     | '/(protected)/dashboard/'
     | '/(protected)/(connection)/keys/$keyId'
+    | '/(protected)/(connection)/media/$slug'
     | '/(protected)/(connection)/providers/$providerId'
     | '/(protected)/(developer)/cli-tools/$toolId'
-    | '/(protected)/(developer)/cli-tools/claude-code'
+    | '/(protected)/(traffic)/chains/$chainId'
+    | '/(protected)/(traffic)/chains/new'
     | '/(protected)/(analytics)/budgets/'
     | '/(protected)/(analytics)/plans/'
     | '/(protected)/(analytics)/quota/'
@@ -361,6 +411,7 @@ export interface FileRouteTypes {
     | '/(protected)/(developer)/cli-tools/'
     | '/(protected)/(developer)/console/'
     | '/(protected)/(developer)/playground/'
+    | '/(protected)/(safety)/audit-log/'
     | '/(protected)/(safety)/guardrails/'
     | '/(protected)/(safety)/provider-health/'
     | '/(protected)/(traffic)/chains/'
@@ -372,6 +423,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   protectedRouteRoute: typeof protectedRouteRouteWithChildren
+  PortalRoute: typeof PortalRoute
   authloginIndexRoute: typeof authloginIndexRoute
 }
 
@@ -382,6 +434,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: ''
       preLoaderRoute: typeof protectedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/portal': {
+      id: '/portal'
+      path: '/portal'
+      fullPath: '/portal'
+      preLoaderRoute: typeof PortalRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/(auth)/(login)/': {
@@ -461,6 +520,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof protectedconnectionMediaIndexRouteImport
       parentRoute: typeof protectedRouteRoute
     }
+    '/(protected)/(connection)/media/$slug': {
+      id: '/(protected)/(connection)/media/$slug'
+      path: '/media/$slug'
+      fullPath: '/media/$slug'
+      preLoaderRoute: typeof protectedconnectionMediaSlugRouteImport
+      parentRoute: typeof protectedRouteRoute
+    }
     '/(protected)/(connection)/providers/': {
       id: '/(protected)/(connection)/providers/'
       path: '/providers'
@@ -496,13 +562,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof protecteddeveloperCliToolsToolIdRouteImport
       parentRoute: typeof protectedRouteRoute
     }
-    '/(protected)/(developer)/cli-tools/claude-code': {
-      id: '/(protected)/(developer)/cli-tools/claude-code'
-      path: '/cli-tools/claude-code'
-      fullPath: '/cli-tools/claude-code'
-      preLoaderRoute: typeof protecteddeveloperCliToolsClaudeCodeRouteImport
-      parentRoute: typeof protectedRouteRoute
-    }
     '/(protected)/(developer)/console/': {
       id: '/(protected)/(developer)/console/'
       path: '/console'
@@ -515,6 +574,13 @@ declare module '@tanstack/react-router' {
       path: '/playground'
       fullPath: '/playground/'
       preLoaderRoute: typeof protecteddeveloperPlaygroundIndexRouteImport
+      parentRoute: typeof protectedRouteRoute
+    }
+    '/(protected)/(safety)/audit-log/': {
+      id: '/(protected)/(safety)/audit-log/'
+      path: '/audit-log'
+      fullPath: '/audit-log/'
+      preLoaderRoute: typeof protectedsafetyAuditLogIndexRouteImport
       parentRoute: typeof protectedRouteRoute
     }
     '/(protected)/(safety)/guardrails/': {
@@ -536,6 +602,20 @@ declare module '@tanstack/react-router' {
       path: '/chains'
       fullPath: '/chains/'
       preLoaderRoute: typeof protectedtrafficChainsIndexRouteImport
+      parentRoute: typeof protectedRouteRoute
+    }
+    '/(protected)/(traffic)/chains/$chainId': {
+      id: '/(protected)/(traffic)/chains/$chainId'
+      path: '/chains/$chainId'
+      fullPath: '/chains/$chainId'
+      preLoaderRoute: typeof protectedtrafficChainsChainIdRouteImport
+      parentRoute: typeof protectedRouteRoute
+    }
+    '/(protected)/(traffic)/chains/new': {
+      id: '/(protected)/(traffic)/chains/new'
+      path: '/chains/new'
+      fullPath: '/chains/new'
+      preLoaderRoute: typeof protectedtrafficChainsNewRouteImport
       parentRoute: typeof protectedRouteRoute
     }
     '/(protected)/(traffic)/endpoints/': {
@@ -572,9 +652,11 @@ declare module '@tanstack/react-router' {
 interface protectedRouteRouteChildren {
   protectedDashboardIndexRoute: typeof protectedDashboardIndexRoute
   protectedconnectionKeysKeyIdRoute: typeof protectedconnectionKeysKeyIdRoute
+  protectedconnectionMediaSlugRoute: typeof protectedconnectionMediaSlugRoute
   protectedconnectionProvidersProviderIdRoute: typeof protectedconnectionProvidersProviderIdRoute
   protecteddeveloperCliToolsToolIdRoute: typeof protecteddeveloperCliToolsToolIdRoute
-  protecteddeveloperCliToolsClaudeCodeRoute: typeof protecteddeveloperCliToolsClaudeCodeRoute
+  protectedtrafficChainsChainIdRoute: typeof protectedtrafficChainsChainIdRoute
+  protectedtrafficChainsNewRoute: typeof protectedtrafficChainsNewRoute
   protectedanalyticsBudgetsIndexRoute: typeof protectedanalyticsBudgetsIndexRoute
   protectedanalyticsPlansIndexRoute: typeof protectedanalyticsPlansIndexRoute
   protectedanalyticsQuotaIndexRoute: typeof protectedanalyticsQuotaIndexRoute
@@ -588,6 +670,7 @@ interface protectedRouteRouteChildren {
   protecteddeveloperCliToolsIndexRoute: typeof protecteddeveloperCliToolsIndexRoute
   protecteddeveloperConsoleIndexRoute: typeof protecteddeveloperConsoleIndexRoute
   protecteddeveloperPlaygroundIndexRoute: typeof protecteddeveloperPlaygroundIndexRoute
+  protectedsafetyAuditLogIndexRoute: typeof protectedsafetyAuditLogIndexRoute
   protectedsafetyGuardrailsIndexRoute: typeof protectedsafetyGuardrailsIndexRoute
   protectedsafetyProviderHealthIndexRoute: typeof protectedsafetyProviderHealthIndexRoute
   protectedtrafficChainsIndexRoute: typeof protectedtrafficChainsIndexRoute
@@ -600,11 +683,12 @@ interface protectedRouteRouteChildren {
 const protectedRouteRouteChildren: protectedRouteRouteChildren = {
   protectedDashboardIndexRoute: protectedDashboardIndexRoute,
   protectedconnectionKeysKeyIdRoute: protectedconnectionKeysKeyIdRoute,
+  protectedconnectionMediaSlugRoute: protectedconnectionMediaSlugRoute,
   protectedconnectionProvidersProviderIdRoute:
     protectedconnectionProvidersProviderIdRoute,
   protecteddeveloperCliToolsToolIdRoute: protecteddeveloperCliToolsToolIdRoute,
-  protecteddeveloperCliToolsClaudeCodeRoute:
-    protecteddeveloperCliToolsClaudeCodeRoute,
+  protectedtrafficChainsChainIdRoute: protectedtrafficChainsChainIdRoute,
+  protectedtrafficChainsNewRoute: protectedtrafficChainsNewRoute,
   protectedanalyticsBudgetsIndexRoute: protectedanalyticsBudgetsIndexRoute,
   protectedanalyticsPlansIndexRoute: protectedanalyticsPlansIndexRoute,
   protectedanalyticsQuotaIndexRoute: protectedanalyticsQuotaIndexRoute,
@@ -621,6 +705,7 @@ const protectedRouteRouteChildren: protectedRouteRouteChildren = {
   protecteddeveloperConsoleIndexRoute: protecteddeveloperConsoleIndexRoute,
   protecteddeveloperPlaygroundIndexRoute:
     protecteddeveloperPlaygroundIndexRoute,
+  protectedsafetyAuditLogIndexRoute: protectedsafetyAuditLogIndexRoute,
   protectedsafetyGuardrailsIndexRoute: protectedsafetyGuardrailsIndexRoute,
   protectedsafetyProviderHealthIndexRoute:
     protectedsafetyProviderHealthIndexRoute,
@@ -637,6 +722,7 @@ const protectedRouteRouteWithChildren = protectedRouteRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   protectedRouteRoute: protectedRouteRouteWithChildren,
+  PortalRoute: PortalRoute,
   authloginIndexRoute: authloginIndexRoute,
 }
 export const routeTree = rootRouteImport

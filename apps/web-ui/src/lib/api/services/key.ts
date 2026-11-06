@@ -21,6 +21,14 @@ const resources = (): KeyResources => {
       const url = path
       return api.get(url, { params })
     },
+    usage: (id) => {
+      const url = `${path}/${id}/usage`
+      return api.get(url)
+    },
+    guardrailStats: (id) => {
+      const url = `${path}/${id}/guardrails`
+      return api.get(url)
+    },
     get: (id) => {
       const url = `${path}/${id}`
       return api.get(url)
@@ -38,6 +46,15 @@ const resources = (): KeyResources => {
     toggleStatus: (id, disabled) => {
       const url = `${path}/${id}`
       return api.patch(url, parseDto(UpdateKeySchema, { disabled }))
+    },
+    /** new usage-portal link; any previous link stops working */
+    issuePortal: (id) => {
+      const url = `${path}/${id}/portal`
+      return api.post(url)
+    },
+    revokePortal: (id) => {
+      const url = `${path}/${id}/portal`
+      return api.delete(url)
     },
     remove: (id) => {
       const url = `${path}/${id}`

@@ -1,11 +1,13 @@
 import { accountQueries } from './account'
 import { aliasQueries } from './alias'
+import { auditQueries } from './audit'
 import { authQueries } from './auth'
 import { backupQueries } from './backup'
 import { budgetQueries } from './budget'
 import { chainQueries } from './chain'
 import { cliToolQueries } from './cli-tool'
 import { consoleQueries } from './console'
+import { endpointQueries } from './endpoint'
 import { guardrailsQueries } from './guardrails'
 import { ipBlockQueries } from './ip-block'
 import { keyQueries } from './key'
@@ -13,6 +15,7 @@ import { mediaQueries } from './media'
 import { overrideQueries } from './override'
 import { planQueries } from './plan'
 import { playgroundQueries } from './playground'
+import { portalQueries } from './portal'
 import { providerQueries } from './provider'
 import { providerHealthQueries } from './provider-health'
 import { proxyPoolQueries } from './proxy-pool'
@@ -27,11 +30,13 @@ import { usageQueries } from './usage'
 export const queries = {
   accounts: accountQueries,
   aliases: aliasQueries,
+  audit: auditQueries,
   auth: authQueries,
   backup: backupQueries,
   budgets: budgetQueries,
   chains: chainQueries,
   cliTools: cliToolQueries,
+  endpoints: endpointQueries,
   console: consoleQueries,
   guardrails: guardrailsQueries,
   ipBlocks: ipBlockQueries,
@@ -41,6 +46,7 @@ export const queries = {
   overrides: overrideQueries,
   plans: planQueries,
   playground: playgroundQueries,
+  portal: portalQueries,
   providerHealth: providerHealthQueries,
   providers: providerQueries,
   proxyPools: proxyPoolQueries,

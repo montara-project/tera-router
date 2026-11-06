@@ -58,8 +58,8 @@ export default function OverviewUsageActivity() {
   }
 
   return (
-    <Card className="bg-background">
-      <CardContent className="space-y-4 p-5">{renderActivity()}</CardContent>
+    <Card className="rounded-lg shadow-none">
+      <CardContent className="space-y-4 p-4">{renderActivity()}</CardContent>
     </Card>
   )
 }
@@ -112,12 +112,10 @@ function ActivityCalendar({ activity }: { activity: UsageActivity }) {
   return (
     <>
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
-            <IconCalendar className="h-4 w-4 text-muted-foreground" aria-hidden />
-          </span>
+        <div className="flex items-start gap-2.5">
+          <IconCalendar className="text-primary mt-0.5 size-4 shrink-0" stroke={1.75} aria-hidden />
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-foreground">Usage activity</p>
+            <p className="text-[13px] font-semibold text-foreground">Usage activity</p>
             <p className="text-foreground mt-1">
               <span className="text-2xl font-semibold">
                 {formatCompact(activity.total_requests)}

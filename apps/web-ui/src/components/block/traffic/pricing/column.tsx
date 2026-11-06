@@ -73,7 +73,9 @@ export function PricingColumn({ loading, onEdit }: PricingColumnProps) {
           }
 
           return (
-            <span className="text-sm tabular-nums text-foreground">
+            <span
+              className={row.original.input_micros === 0 ? 'text-muted-foreground' : 'tabular-nums'}
+            >
               {formatRate(row.original.input_micros)}
             </span>
           )
@@ -89,7 +91,11 @@ export function PricingColumn({ loading, onEdit }: PricingColumnProps) {
           }
 
           return (
-            <span className="text-sm tabular-nums text-foreground">
+            <span
+              className={
+                row.original.output_micros === 0 ? 'text-muted-foreground' : 'tabular-nums'
+              }
+            >
               {formatRate(row.original.output_micros)}
             </span>
           )
@@ -97,16 +103,17 @@ export function PricingColumn({ loading, onEdit }: PricingColumnProps) {
         size: 80,
       },
       {
-        accessorKey: 'actions',
-        header: 'Actions',
+        // Same as the /chains table: a narrow last column, the menu flush right.
+        id: 'actions',
+        header: () => <span className="sr-only">Actions</span>,
+        meta: { headerClassName: 'w-12', cellClassName: 'text-right' },
         cell: ({ row }) => {
           return loading ? (
-            <Skeleton className="h-5 w-full" />
+            <Skeleton className="ms-auto h-5 w-8" />
           ) : (
             <ActionCell record={row.original} onEdit={onEdit} />
           )
         },
-        size: 50,
       },
     ]
   }, [loading, onEdit])
@@ -137,6 +144,8 @@ function ActionCell({ record, onEdit }: ActionCellProps) {
   return (
     <React.Fragment>
       <RowColumnAction
+        noun="override"
+        name={`${record.provider} / ${describeModel(record.model)}`}
         onEdit={onEdit ? () => onEdit(record) : undefined}
         onDelete={() => setOpenDelete(true)}
       />

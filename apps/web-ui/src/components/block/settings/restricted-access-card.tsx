@@ -34,8 +34,8 @@ export default function RestrictedAccessCard() {
   if (isLoading) statusLabel = '…'
 
   return (
-    <Card className="bg-background">
-      <CardHeader className="py-4">
+    <Card className="rounded-lg bg-card">
+      <CardHeader className="px-4 py-3">
         <div className="flex w-full items-center justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3.5">
             <IconBadge
@@ -45,8 +45,8 @@ export default function RestrictedAccessCard() {
               iconClassName="h-5 w-5"
             />
             <CardHeading>
-              <CardTitle>Restricted Access</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-sm font-semibold">Restricted Access</CardTitle>
+              <CardDescription className="text-xs">
                 During this period only the listed addresses can reach the server; everyone else
                 gets 403. /health stays open.
               </CardDescription>
@@ -54,7 +54,7 @@ export default function RestrictedAccessCard() {
           </div>
           <span
             className={cn(
-              'inline-flex shrink-0 items-center rounded-md px-2.5 py-1.5 text-xs font-semibold',
+              'inline-flex shrink-0 items-center rounded-md px-2.5 py-1.5 text-[11.5px] font-medium',
               stored?.enabled ? 'bg-emerald-950 text-emerald-400' : 'bg-muted text-muted-foreground'
             )}
           >
@@ -80,7 +80,7 @@ const fromDate = (d: Date | undefined) => (d ? format(d, DATE_FORMAT) : '')
 function PeriodRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="grid gap-1.5 sm:grid-cols-[7.5rem_1fr] sm:items-center sm:gap-4">
-      <p className="text-sm font-medium text-foreground">{label}</p>
+      <p className="text-[12.5px] font-medium text-foreground">{label}</p>
       <div className="flex flex-wrap items-center gap-2">{children}</div>
     </div>
   )
@@ -135,9 +135,9 @@ function RestrictedAccessForm({ stored }: { stored: RestrictedAccess }) {
         )}
       </form.AppField>
 
-      <div className="flex flex-col gap-4 px-5 py-4">
+      <div className="flex flex-col gap-4 px-4 py-3">
         <div>
-          <p className="text-sm font-medium text-foreground">Period</p>
+          <p className="text-[12.5px] font-medium text-foreground">Period</p>
           <p className="text-muted-foreground mt-0.5 text-xs">
             Leave dates or times empty to not limit that side. Daily hours may run past midnight.
           </p>
@@ -211,9 +211,9 @@ function RestrictedAccessForm({ stored }: { stored: RestrictedAccess }) {
 
       <form.AppField name="allowed_ips" mode="array">
         {(field) => (
-          <div className="flex flex-col gap-3 px-5 py-4">
+          <div className="flex flex-col gap-3 px-4 py-3">
             <div>
-              <p className="text-sm font-medium text-foreground">Allowed IPs</p>
+              <p className="text-[12.5px] font-medium text-foreground">Allowed IPs</p>
               <p className="text-muted-foreground mt-0.5 text-xs">
                 An address or CIDR range per field. Your own address must be on the list to enable.
               </p>
@@ -246,12 +246,7 @@ function RestrictedAccessForm({ stored }: { stored: RestrictedAccess }) {
                   </Button>
                 </div>
               ))}
-              <Button
-                type="button"
-                variant="outline"
-                className="border-dashed"
-                onClick={() => field.pushValue('')}
-              >
+              <Button type="button" variant="outline" onClick={() => field.pushValue('')}>
                 <IconPlus /> Add IP
               </Button>
             </div>
@@ -259,7 +254,7 @@ function RestrictedAccessForm({ stored }: { stored: RestrictedAccess }) {
         )}
       </form.AppField>
 
-      <div className="flex justify-end px-5 py-4">
+      <div className="flex justify-end px-4 py-3">
         <Button type="submit" disabled={updateMutation.isPending}>
           Save changes
         </Button>

@@ -66,6 +66,12 @@ interface ReactTableProps<T extends RowData> {
   globalFilterFn?: FilterFnOption<typeof features, T>
   getRowId?: (row: T) => string
   emptyMessage?: React.ReactNode
+  /** Choices in the pager's "Rows per page" select. */
+  pageSizes?: number[]
+  /** Show the pager footer; summary tables of a fixed top-N turn it off. */
+  pagination?: boolean
+  /** Extra classes on the <table>, e.g. a min width before it scrolls. */
+  tableClassName?: string
 }
 
 export default function ReactTable<T extends RowData>({
@@ -80,6 +86,9 @@ export default function ReactTable<T extends RowData>({
   emptyMessage,
   onPageChange,
   onPageSizeChange,
+  pageSizes,
+  pagination: showPagination = true,
+  tableClassName,
 }: ReactTableProps<T>) {
   const [sorting, setSorting] = useState<SortingState>(columnSort)
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
@@ -124,41 +133,39 @@ export default function ReactTable<T extends RowData>({
     onPaginationChange: setPagination,
   })
 
+  // Styled after the /providers table: it sits flush inside a panel
+  // (DashboardPanel), so it draws no border of its own, and the pager is the
+  // panel's footer.
   return (
     <DataGrid
       table={table as unknown as ReactTable<any, any>}
       recordCount={total}
       emptyMessage={emptyMessage}
-      tableLayout={{
-        columnsVisibility: true,
-        columnsResizable: true,
-        columnsPinnable: true,
-        columnsMovable: true,
-      }}
-      tableClassNames={{
-        edgeCell: 'px-5',
-      }}
+      tableLayout={{ width: 'auto' }}
+      tableClassNames={{ base: tableClassName }}
     >
-      <div className="w-full space-y-2.5">
-        {/* A custom empty message renders outside the scrolling table so it
-            stays centred on phones instead of on the table's min-width. */}
+      <div className="w-full">
         {emptyMessage && data.length === 0 ? (
-          <div className="rounded-lg border border-border">{emptyMessage}</div>
+          emptyMessage
         ) : (
-          <DataGridContainer>
+          <DataGridContainer border={false}>
             <ScrollArea>
               <DataGridTable />
               <ScrollBar orientation="horizontal" />
             </ScrollArea>
           </DataGridContainer>
         )}
-        <DataGridPagination
-          total={total}
-          pageSize={pagination.pageSize}
-          pageIndex={pagination.pageIndex}
-          onPageChange={onPageChange}
-          onPageSizeChange={onPageSizeChange}
-        />
+        {showPagination && total > 0 && (
+          <DataGridPagination
+            className="border-t border-border px-4 py-2.5 sm:py-2.5"
+            total={total}
+            pageSize={pagination.pageSize}
+            pageIndex={pagination.pageIndex}
+            onPageChange={onPageChange}
+            onPageSizeChange={onPageSizeChange}
+            {...(pageSizes ? { sizes: pageSizes } : {})}
+          />
+        )}
       </div>
     </DataGrid>
   )

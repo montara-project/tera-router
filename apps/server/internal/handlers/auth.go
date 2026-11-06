@@ -47,23 +47,26 @@ func (h *authHandler) SignIn(c fiber.Ctx) error {
 		return err
 	}
 
-	session, err := h.signIn(c.Context(), req.Email, req.Password, req.OTP)
+	session, err := h.signIn(c.Context(), req.Email, req.Password, req.OTP, clientOf(c))
 	if errors.Is(err, errTOTPRequired) {
 		// Password checked out; the client asks for the code and resubmits.
 		return dtos.OK(c, fiber.Map{"totp_required": true})
 	}
 	if err != nil {
+		// A refused sign-in is recorded too; its status marks it failed.
+		auditRecord(c, "", "auth.sign_in", req.Email, nil)
 		return err
 	}
 
 	consoleInfof("sign-in · %s", session.User.Email)
-	auditRecord(c.Context(), h.app, session.User.ID, "auth.sign_in", session.User.ID, nil)
+	lib.ContextSetSID(c, session.SessionID)
+	auditRecord(c, session.User.ID, "auth.sign_in", session.User.ID, nil)
 	return dtos.OK(c, sessionView(session))
 }
 
 // signIn verifies the credentials, and the TOTP code when the user enabled
-// it, then issues a new token pair.
-func (h *authHandler) signIn(ctx context.Context, email, plainPassword, otp string) (dtos.Session, error) {
+// it, then opens a new session from cl.
+func (h *authHandler) signIn(ctx context.Context, email, plainPassword, otp string, cl client) (dtos.Session, error) {
 	user, err := h.app.Repos.Users.GetByEmail(ctx, email)
 	if err != nil {
 		if errors.Is(err, apperr.ErrNotFound) {
@@ -78,7 +81,7 @@ func (h *authHandler) signIn(ctx context.Context, email, plainPassword, otp stri
 	if err := h.verifyFactors(ctx, user, plainPassword, otp); err != nil {
 		return dtos.Session{}, err
 	}
-	return h.issueSession(ctx, user)
+	return h.openSession(ctx, user, cl)
 }
 
 // verifyFactors checks the password, and the TOTP code when the user enabled
@@ -97,8 +100,8 @@ func (h *authHandler) verifyFactors(ctx context.Context, user models.User, plain
 	return h.checkTOTP(ctx, user, otp)
 }
 
-// Refresh rotates the presented refresh token: the presented token is
-// revoked and a new pair is issued for its owner.
+// Refresh rotates the presented refresh token: its session gets a new token
+// in place (same session id) and a new pair is issued for its owner.
 func (h *authHandler) Refresh(c fiber.Ctx) error {
 	var req dtos.Refresh
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
@@ -122,11 +125,19 @@ func (h *authHandler) Refresh(c fiber.Ctx) error {
 		return apperr.ErrUnauthorized
 	}
 
-	if err := h.app.Repos.Refresh.Revoke(ctx, stored.ID); err != nil {
+	refreshRaw, refreshHash, err := token.NewRefresh()
+	if err != nil {
+		return err
+	}
+	err = h.app.Repos.Refresh.Rotate(ctx, stored.ID, stored.TokenHash, refreshHash, time.Now().Add(refreshTTL))
+	if errors.Is(err, apperr.ErrNotFound) {
+		return apperr.ErrUnauthorized
+	}
+	if err != nil {
 		return err
 	}
 
-	session, err := h.issueSession(ctx, user)
+	session, err := h.sessionFor(user, stored.ID, refreshRaw)
 	if err != nil {
 		return err
 	}
@@ -166,19 +177,70 @@ func (h *authHandler) SignOut(c fiber.Ctx) error {
 	return dtos.Message(c, fiber.StatusOK, "Signed out")
 }
 
+// sessionItem is one row of GET /v1/auth/sessions.
+type sessionItem struct {
+	models.RefreshToken
+	Current bool `json:"current"`
+}
+
+// Sessions lists the signed-in user's active sessions; the one making the
+// request is marked current.
+func (h *authHandler) Sessions(c fiber.Ctx) error {
+	uid, err := lib.ContextGetUID(c)
+	if err != nil {
+		return err
+	}
+
+	rows, err := h.app.Repos.Refresh.ListActive(c.Context(), uid.String())
+	if err != nil {
+		return err
+	}
+	sid := lib.ContextSID(c)
+	items := make([]sessionItem, len(rows))
+	for i, r := range rows {
+		items[i] = sessionItem{RefreshToken: r, Current: r.ID == sid}
+	}
+	return dtos.OK(c, items)
+}
+
+// RevokeSession ends one of the user's sessions (DELETE
+// /v1/auth/sessions/:id): its refresh token stops working and RequireAuth
+// refuses its access tokens at once.
+func (h *authHandler) RevokeSession(c fiber.Ctx) error {
+	uid, err := lib.ContextGetUID(c)
+	if err != nil {
+		return err
+	}
+
+	id := c.Params("id")
+	if err := h.app.Repos.Refresh.RevokeForUser(c.Context(), id, uid.String()); err != nil {
+		return err
+	}
+	auditRecord(c, uid.String(), "auth.session_revoke", id, nil)
+	return dtos.Message(c, fiber.StatusOK, "Session revoked")
+}
+
 // GoogleRedirect is a placeholder for the Google OAuth dashboard login flow.
 func (h *authHandler) GoogleRedirect(c fiber.Ctx) error {
 	return dtos.Message(c, fiber.StatusNotImplemented, "Google sign-in is not configured yet")
 }
 
-func (h *authHandler) issueSession(ctx context.Context, user models.User) (dtos.Session, error) {
-	now := time.Now()
+// client is where a sign-in came from, kept on its session for the list.
+type client struct {
+	userAgent string
+	ip        string
+}
 
-	access, expiresAt, err := token.SignAccess(h.app.Config.App.Secret, user.ID, user.Email, user.Role.Name, now, accessTTL)
-	if err != nil {
-		return dtos.Session{}, err
+func clientOf(c fiber.Ctx) client {
+	ip := c.IP()
+	if addr := lib.ContextClientIP(c); addr.IsValid() {
+		ip = addr.String()
 	}
+	return client{userAgent: c.Get(fiber.HeaderUserAgent), ip: ip}
+}
 
+// openSession stores a new session for user and signs its first token pair.
+func (h *authHandler) openSession(ctx context.Context, user models.User, cl client) (dtos.Session, error) {
 	refreshRaw, refreshHash, err := token.NewRefresh()
 	if err != nil {
 		return dtos.Session{}, err
@@ -187,14 +249,27 @@ func (h *authHandler) issueSession(ctx context.Context, user models.User) (dtos.
 		ID:        uuid.NewString(),
 		UserID:    user.ID,
 		TokenHash: refreshHash,
-		ExpiresAt: now.Add(refreshTTL),
+		UserAgent: cl.userAgent,
+		IPAddress: cl.ip,
+		ExpiresAt: time.Now().Add(refreshTTL),
 	}
 	if err := h.app.Repos.Refresh.Insert(ctx, rt); err != nil {
 		return dtos.Session{}, err
 	}
+	return h.sessionFor(user, rt.ID, refreshRaw)
+}
+
+// sessionFor signs an access token for session sid and pairs it with the
+// session's raw refresh token.
+func (h *authHandler) sessionFor(user models.User, sid, refreshRaw string) (dtos.Session, error) {
+	access, expiresAt, err := token.SignAccess(h.app.Config.App.Secret, user.ID, sid, user.Email, user.Role.Name, time.Now(), accessTTL)
+	if err != nil {
+		return dtos.Session{}, err
+	}
 
 	return dtos.Session{
-		User: user,
+		User:      user,
+		SessionID: sid,
 		Tokens: dtos.TokenPair{
 			AccessToken:  access,
 			RefreshToken: refreshRaw,

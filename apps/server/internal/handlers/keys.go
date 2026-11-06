@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"time"
 
 	"tera-router/server/internal/app"
 	"tera-router/server/internal/dtos"
@@ -119,7 +120,7 @@ func (h *keysHandler) Store(c fiber.Ctx) error {
 		return err
 	}
 
-	auditRecord(c.Context(), h.app, actorFrom(c), "key.create", key.ID, map[string]string{"name": req.Name})
+	auditRecord(c, actorFrom(c), "key.create", key.ID, map[string]string{"name": req.Name})
 	return dtos.Created(c, fiber.Map{
 		"id":          key.ID,
 		"name":        key.Name,
@@ -145,10 +146,107 @@ func (h *keysHandler) Get(c fiber.Ctx) error {
 		return err
 	}
 
+	portalToken, err := h.app.Repos.Portal.ForKey(c.Context(), key.ID)
+	if err != nil {
+		return err
+	}
+
 	view := keyView(key)
 	view["scopes"] = key.Scopes
 	view["updated_at"] = key.UpdatedAt
+	view["portal_token"] = portalToken
 	return dtos.OK(c, view)
+}
+
+// IssuePortal gives the key a new usage-portal token (POST /v1/keys/:id/portal).
+// Any previous link stops working.
+func (h *keysHandler) IssuePortal(c fiber.Ctx) error {
+	id, err := lib.ContextParamUUID(c, "id")
+	if err != nil {
+		return apperr.ErrBadRequest
+	}
+	if _, err := h.app.Repos.APIKeys.Get(c.Context(), id.String()); err != nil {
+		return err
+	}
+	token, err := h.app.Repos.Portal.Issue(c.Context(), id.String())
+	if err != nil {
+		return err
+	}
+	auditRecord(c, actorFrom(c), "key.portal.issue", id.String(), nil)
+	return dtos.OK(c, fiber.Map{"portal_token": token})
+}
+
+// RevokePortal removes the key's usage-portal link (DELETE /v1/keys/:id/portal).
+func (h *keysHandler) RevokePortal(c fiber.Ctx) error {
+	id, err := lib.ContextParamUUID(c, "id")
+	if err != nil {
+		return apperr.ErrBadRequest
+	}
+	if err := h.app.Repos.Portal.Revoke(c.Context(), id.String()); err != nil {
+		return err
+	}
+	auditRecord(c, actorFrom(c), "key.portal.revoke", id.String(), nil)
+	return dtos.OK(c, fiber.Map{"portal_token": ""})
+}
+
+// keyUsageDays is the window GET /v1/keys/:id/usage reports on.
+const keyUsageDays = 30
+
+// keyGuardrailDays is the window of the key guardrails tab.
+const keyGuardrailDays = 7
+
+// Usage reports one key's requests, tokens and spend over the last 30 days
+// (GET /v1/keys/:id/usage).
+func (h *keysHandler) Usage(c fiber.Ctx) error {
+	id, err := lib.ContextParamUUID(c, "id")
+	if err != nil {
+		return apperr.ErrBadRequest
+	}
+	if _, err := h.app.Repos.APIKeys.GetWithPlan(c.Context(), id.String()); err != nil {
+		return err
+	}
+	from := time.Now().AddDate(0, 0, -keyUsageDays)
+	summary, err := h.app.Repos.Usage.SummaryForKey(c.Context(), id.String(), from)
+	if err != nil {
+		return err
+	}
+	return dtos.OK(c, fiber.Map{
+		"days":              keyUsageDays,
+		"requests":          summary.Requests,
+		"prompt_tokens":     summary.PromptTokens,
+		"completion_tokens": summary.CompletionTokens,
+		"cost_micros":       summary.CostMicros,
+	})
+}
+
+// GuardrailStats reports what the guardrails did to one key's traffic over
+// the last 7 days (GET /v1/keys/:id/guardrails). Requests counts served plus
+// blocked requests: a blocked request never reaches usage records.
+func (h *keysHandler) GuardrailStats(c fiber.Ctx) error {
+	id, err := lib.ContextParamUUID(c, "id")
+	if err != nil {
+		return apperr.ErrBadRequest
+	}
+	if _, err := h.app.Repos.APIKeys.GetWithPlan(c.Context(), id.String()); err != nil {
+		return err
+	}
+	from := time.Now().AddDate(0, 0, -keyGuardrailDays)
+	usage, err := h.app.Repos.Usage.SummaryForKey(c.Context(), id.String(), from)
+	if err != nil {
+		return err
+	}
+	decisions, err := h.app.Repos.Guardrails.DecisionsForKey(c.Context(), id.String(), from)
+	if err != nil {
+		return err
+	}
+	return dtos.OK(c, fiber.Map{
+		"days":     keyGuardrailDays,
+		"requests": usage.Requests + decisions.Blocked,
+		"blocked":  decisions.Blocked,
+		"masked":   decisions.Masked,
+		"warned":   decisions.Warned,
+		"logged":   decisions.Logged,
+	})
 }
 
 // Update mutates name/plan/scopes/disabled on an existing key.
@@ -197,7 +295,7 @@ func (h *keysHandler) Update(c fiber.Ctx) error {
 		return err
 	}
 	h.app.KeysChanged()
-	auditRecord(c.Context(), h.app, actorFrom(c), "key.update", id.String(), map[string]any{"disabled": key.Disabled})
+	auditRecord(c, actorFrom(c), "key.update", id.String(), map[string]any{"disabled": key.Disabled})
 	return dtos.OK(c, fiber.Map{
 		"id":     key.ID,
 		"name":   key.Name,
@@ -215,7 +313,7 @@ func (h *keysHandler) Delete(c fiber.Ctx) error {
 		return err
 	}
 	h.app.KeysChanged()
-	auditRecord(c.Context(), h.app, actorFrom(c), "key.delete", id.String(), nil)
+	auditRecord(c, actorFrom(c), "key.delete", id.String(), nil)
 	return dtos.Deleted(c, "Key deleted")
 }
 
@@ -252,7 +350,7 @@ func (h *keysHandler) Reveal(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "key.reveal", id.String(), nil)
+	auditRecord(c, actorFrom(c), "key.reveal", id.String(), nil)
 	return dtos.OK(c, fiber.Map{"id": id.String(), "full_key": plaintext})
 }
 
@@ -296,7 +394,7 @@ func (h *keysHandler) Rotate(c fiber.Ctx) error {
 		return err
 	}
 	h.app.KeysChanged()
-	auditRecord(c.Context(), h.app, actorFrom(c), "key.rotate", key.ID, nil)
+	auditRecord(c, actorFrom(c), "key.rotate", key.ID, nil)
 	return dtos.OK(c, fiber.Map{
 		"id":          key.ID,
 		"key_preview": gen.Display,

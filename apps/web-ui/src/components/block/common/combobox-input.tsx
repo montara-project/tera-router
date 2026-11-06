@@ -1,6 +1,6 @@
 'use client'
 
-import { IconX } from '@tabler/icons-react'
+import { IconPlus, IconX } from '@tabler/icons-react'
 import React, { useState } from 'react'
 
 import type { Option } from '@/types/select'
@@ -32,6 +32,13 @@ interface ComboboxInputProps<TData> {
   /** Trigger text while nothing is selected; falls back to the label */
   placeholder?: string
   disabled?: boolean
+  /**
+   * Offers the typed text as a new value, for free-form fields. In single
+   * mode, picking the selected value again also clears it.
+   */
+  creatable?: boolean
+  /** id for the trigger, so a field label can point at it */
+  id?: string
 }
 
 export default function ComboboxInput<TData>({
@@ -44,10 +51,19 @@ export default function ComboboxInput<TData>({
   multiple = true,
   placeholder,
   disabled = false,
+  creatable = false,
+  id,
 }: ComboboxInputProps<TData>) {
   const [open, setOpen] = useState(false)
   const [fallbackSelection, setFallbackSelection] = React.useState<string[]>(defaultValues)
   const selectedValues = selection ?? fallbackSelection
+  const [search, setSearch] = useState('')
+  const typed = search.trim()
+  const canCreate =
+    creatable &&
+    typed !== '' &&
+    !options.some((o) => o.value === typed) &&
+    !selectedValues.includes(typed)
 
   const applySelection = (next: string[]) => {
     if (selection === undefined) setFallbackSelection(next)
@@ -56,7 +72,8 @@ export default function ComboboxInput<TData>({
 
   const toggleSelection = (value: string) => {
     if (!multiple) {
-      applySelection([value])
+      applySelection(creatable && selectedValues[0] === value ? [] : [value])
+      setSearch('')
       setOpen(false)
       return
     }
@@ -65,6 +82,8 @@ export default function ComboboxInput<TData>({
         ? selectedValues.filter((v) => v !== value)
         : [...selectedValues, value]
     )
+    // A created value leaves the list open for the next pick, with a clean search.
+    if (creatable) setSearch('')
   }
 
   const removeSelection = (value: string) => {
@@ -76,9 +95,18 @@ export default function ComboboxInput<TData>({
   return (
     // modal: the content is portaled outside any open Dialog, whose scroll lock
     // would otherwise swallow wheel/touch scrolling in the option list.
-    <Popover modal open={open} onOpenChange={setOpen}>
+    <Popover
+      modal
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next)
+        // Every open starts with an empty search, as when the input was uncontrolled.
+        if (!next) setSearch('')
+      }}
+    >
       <PopoverTrigger asChild>
         <Button
+          id={id}
           variant="outline"
           role="combobox"
           aria-expanded={open}
@@ -93,13 +121,14 @@ export default function ComboboxInput<TData>({
               multiple ? (
                 selectedValues.map((val) => {
                   const item = options.find((c) => c.value === val)
-                  return item ? (
+                  // Created values (patterns) have no option of their own.
+                  return item || creatable ? (
                     <Badge
                       key={val}
                       variant="outline"
                       className="text-primary bg-ivory font-medium"
                     >
-                      {item.label}
+                      {item?.label ?? val}
                       <BadgeButton
                         className="text-primary"
                         onClick={(e) => {
@@ -124,15 +153,33 @@ export default function ComboboxInput<TData>({
       </PopoverTrigger>
       <PopoverContent className="w-(--radix-popper-anchor-width) p-0">
         <Command>
-          <CommandInput placeholder={`Search ${label.toLowerCase()}...`} />
+          <CommandInput
+            placeholder={
+              creatable
+                ? `Search or create ${label.toLowerCase()}...`
+                : `Search ${label.toLowerCase()}...`
+            }
+            value={search}
+            onValueChange={setSearch}
+          />
           <CommandList>
             <ScrollArea viewportClassName="max-h-[300px] [&>div]:block!">
-              <CommandEmpty>No {label.toLowerCase()} found.</CommandEmpty>
+              {canCreate ? null : <CommandEmpty>No {label.toLowerCase()} found.</CommandEmpty>}
+              {canCreate ? (
+                <CommandGroup>
+                  <CommandItem value={`create:${typed}`} onSelect={() => toggleSelection(typed)}>
+                    <IconPlus className="text-muted-foreground" aria-hidden />
+                    <span className="truncate">Create “{typed}”</span>
+                  </CommandItem>
+                </CommandGroup>
+              ) : null}
               <CommandGroup>
                 {options.map((item) => (
                   <CommandItem
                     key={item.value}
                     value={item.value}
+                    // Search matches the label too, so an id-valued option (an API key) is found by name.
+                    keywords={[item.label]}
                     onSelect={() => toggleSelection(item.value)}
                     onBlur={onBlur}
                   >

@@ -49,14 +49,12 @@ export default function OverviewTokenComposition({ telemetry }: OverviewTokenCom
   ]
 
   return (
-    <Card className="bg-background">
-      <CardContent className="grid gap-6 p-5 lg:grid-cols-[220px_1fr] lg:items-center">
-        <div className="flex items-start gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
-            <IconStack2 className="h-4 w-4 text-muted-foreground" />
-          </span>
+    <Card className="rounded-lg shadow-none">
+      <CardContent className="grid gap-6 p-4 lg:grid-cols-[220px_1fr] lg:items-center">
+        <div className="flex items-start gap-2.5">
+          <IconStack2 className="text-primary mt-0.5 size-4 shrink-0" stroke={1.75} aria-hidden />
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-foreground">Token composition</p>
+            <p className="text-[13px] font-semibold text-foreground">Token composition</p>
             <p className="text-foreground mt-1">
               <span className="text-2xl font-semibold">{formatCompact(total)}</span>
               <span className="text-muted-foreground ml-1.5 text-sm">tokens</span>
@@ -95,7 +93,7 @@ export default function OverviewTokenComposition({ telemetry }: OverviewTokenCom
 
               return (
                 <div key={segment.key} className="min-w-0">
-                  <p className="text-muted-foreground flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em]">
+                  <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
                     <span className={`size-1.5 rounded-full ${segment.dotClass}`} />
                     {segment.label}
                   </p>

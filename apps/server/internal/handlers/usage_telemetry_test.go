@@ -167,7 +167,7 @@ func TestRequestRowsCostNullForFailedAndUnpriced(t *testing.T) {
 	}
 	rates := map[string]models.PricingOverride{pricingKey("openai", "priced"): {InputMicros: 1}}
 
-	rows := requestRows(records, rates, time.Now(), nil)
+	rows := requestRows(records, rates, time.Now(), nil, nil)
 	if len(rows) != 3 {
 		t.Fatalf("rows = %d, want 3", len(rows))
 	}
@@ -207,7 +207,7 @@ func TestRequestRowsDeriveCostWhenRecordedZero(t *testing.T) {
 		pricingKey("openai", "gpt-4o-mini"): {InputMicros: 150_000, OutputMicros: 600_000},
 	}
 
-	rows := requestRows(records, rates, time.Now(), nil)
+	rows := requestRows(records, rates, time.Now(), nil, nil)
 	if rows[0].CostMicros == nil || *rows[0].CostMicros != 750_000 {
 		t.Errorf("cost = %v, want the derived 750000", rows[0].CostMicros)
 	}
@@ -313,17 +313,20 @@ func TestTrendPointsFormatDayAndBusiest(t *testing.T) {
 		{Day: "2026-09-07", Requests: 9, CostMicros: 40, Tokens: 90},
 	}
 
-	points := trendPoints(daily)
-	if points[0].Day != "Sep 05" || points[1].Day != "Sep 07" {
-		t.Errorf("labels = %q/%q, want Sep 05/Sep 07", points[0].Day, points[1].Day)
+	from := time.Date(2026, 9, 5, 10, 0, 0, 0, time.UTC)
+	now := time.Date(2026, 9, 7, 8, 0, 0, 0, time.UTC)
+	points := trendPoints(daily, from, now, false)
+	// The quiet Sep 06 is filled in as a zero bucket.
+	if len(points) != 3 || points[0].Day != "Sep 05" || points[1].Day != "Sep 06" || points[2].Day != "Sep 07" {
+		t.Fatalf("points = %+v, want Sep 05/06/07", points)
 	}
-	if points[0].Failures != 1 {
-		t.Errorf("failures = %d, want 1", points[0].Failures)
+	if points[0].Failures != 1 || points[1].Requests != 0 || points[2].Requests != 9 {
+		t.Errorf("points = %+v", points)
 	}
-	if got := busiestDay(daily); got != "Sep 07" {
+	if got := busiestDay(daily, false); got != "Sep 07" {
 		t.Errorf("busiest = %q, want Sep 07", got)
 	}
-	if got := busiestDay(nil); got != "" {
+	if got := busiestDay(nil, false); got != "" {
 		t.Errorf("busiest of empty window = %q, want empty", got)
 	}
 }
@@ -391,5 +394,63 @@ func TestUsageTelemetryJSONKeys(t *testing.T) {
 		if !bytes.Contains(encoded, []byte(key)) {
 			t.Errorf("telemetry JSON is missing %s", key)
 		}
+	}
+}
+
+func TestTrendPointsHourly(t *testing.T) {
+	buckets := []repositories.UsageDailyWithFailures{
+		{Day: "2026-09-07 06:00", Requests: 4, LatencyMS: 250},
+	}
+	from := time.Date(2026, 9, 7, 5, 30, 0, 0, time.UTC)
+	now := time.Date(2026, 9, 7, 7, 10, 0, 0, time.UTC)
+
+	points := trendPoints(buckets, from, now, true)
+	if len(points) != 3 || points[0].Day != "05:00" || points[1].Day != "06:00" || points[2].Day != "07:00" {
+		t.Fatalf("points = %+v, want 05:00/06:00/07:00", points)
+	}
+	if points[1].Requests != 4 || points[1].LatencyMs != 250 {
+		t.Errorf("06:00 = %+v, want 4 requests at 250 ms", points[1])
+	}
+	if got := busiestDay(buckets, true); got != "06:00" {
+		t.Errorf("busiest = %q, want 06:00", got)
+	}
+}
+
+func TestPreviousWindowAndPercentile(t *testing.T) {
+	prev := previousWindow(repositories.UsageTraffic{Requests: 4, Failed: 1, CostMicros: 9, PromptTokens: 10, CompletionTokens: 5}, []int{400, 100, 300, 200})
+	if prev.Requests != 4 || prev.SuccessRate != 75 || prev.CostMicros != 9 || prev.Tokens != 15 {
+		t.Errorf("previous = %+v, want 4 requests / 75%% / 9 micros", prev)
+	}
+	// Nearest-rank on the sorted sample [100 200 300 400]: p50 -> index 1.
+	if prev.P50Ms != 200 {
+		t.Errorf("p50 = %d, want 200", prev.P50Ms)
+	}
+	if got := percentile(nil, 0.95); got != 0 {
+		t.Errorf("percentile of empty = %d, want 0", got)
+	}
+}
+
+func TestSavingRulesSplit(t *testing.T) {
+	rules := map[string]int64{"headroom": 50, "repeated_lines": 30, "ansi_escapes": 30, "comments": 0}
+	if got := sumRTK(rules); got != 60 {
+		t.Errorf("rtk = %d, want 60", got)
+	}
+	got := savingRules(rules)
+	if len(got) != 3 || got[0].Rule != "headroom" || got[1].Rule != "ansi_escapes" || got[2].Rule != "repeated_lines" {
+		t.Errorf("rules = %+v, want headroom, ansi_escapes, repeated_lines (zero dropped, ties by name)", got)
+	}
+}
+
+func TestWithHealthAttachesStatusAndDetailID(t *testing.T) {
+	rows := []dtos.UsageTelemetryProviderRow{{Slug: "openai"}, {Slug: "gone"}}
+	health := []healthEntry{{ID: "openai", Status: "down", P95Ms: 81}}
+	got := withHealth(rows, health, map[string]string{"openai": "prov-openai"})
+
+	if got[0].Status != "down" || got[0].P95Ms != 81 || got[0].DetailID != "prov-openai" {
+		t.Errorf("openai = %+v", got[0])
+	}
+	// No health entry and no registration: healthy, no link.
+	if got[1].Status != "healthy" || got[1].DetailID != "" {
+		t.Errorf("gone = %+v", got[1])
 	}
 }

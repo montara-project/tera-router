@@ -39,46 +39,118 @@ func (s *Server) loadAppSettings(ctx context.Context) (dtos.AppSettings, error) 
 	return dtos.UnmarshalSettings([]byte(raw))
 }
 
+// tokenSaving records what the token-saving stages did to one request, so
+// the usage rows can attribute the savings on the dashboard.
+type tokenSaving struct {
+	// PromptReducedBytes is how many bytes input compression removed from the
+	// tool results.
+	PromptReducedBytes int
+	// OutputShaped is true when an output-shaping directive was appended.
+	OutputShaped bool
+	// Rules attributes the removed bytes: "headroom" for the Headroom proxy,
+	// otherwise the RTK rule that removed them (see rtk* constants).
+	Rules map[string]int
+	// Directives names the output-shaping directives appended (caveman,
+	// terse, ponytail).
+	Directives []string
+}
+
+// RTK rule names, as stored per request and shown on the Usage page.
+const (
+	rtkANSI        = "ansi_escapes"
+	rtkTrailing    = "trailing_whitespace"
+	rtkBlankLines  = "blank_lines"
+	rtkRepeats     = "repeated_lines"
+	rtkComments    = "comments"
+	savingHeadroom = "headroom"
+)
+
 // applyTokenSaving runs the token-saving stages the operator enabled on the
 // Settings page. Every stage is an optimization, so a failure leaves the
 // request as it was instead of failing it.
-func (s *Server) applyTokenSaving(ctx context.Context, req *core.ChatRequest) {
+func (s *Server) applyTokenSaving(ctx context.Context, req *core.ChatRequest) tokenSaving {
 	st, err := s.loadAppSettings(ctx)
 	if err != nil {
 		s.log.Warn("token saving: load settings failed", "error", err)
-		return
+		return tokenSaving{}
 	}
 
+	before := toolResultBytes(req)
+	rules := map[string]int{}
 	if on(st.HeadroomEnabled) {
 		if err := s.headroomCompress(ctx, req, deref(st.HeadroomURL), deref(st.HeadroomTimeout)); err != nil {
 			s.log.Warn("token saving: headroom failed open", "error", err)
 		}
+		rules[savingHeadroom] = before - toolResultBytes(req)
 	}
 	if on(st.RTKEnabled) {
-		compressToolResults(req, deref(st.SourceCodeFilter))
+		compressToolResults(req, deref(st.SourceCodeFilter), rules)
 	}
-	req.System = appendDirectives(req.System, st)
+	for rule, n := range rules {
+		if n <= 0 {
+			delete(rules, rule)
+		}
+	}
+	names := directiveNames(st)
+	req.System = appendDirectives(req.System, names)
+	return tokenSaving{
+		PromptReducedBytes: max(before-toolResultBytes(req), 0),
+		OutputShaped:       len(names) > 0,
+		Rules:              rules,
+		Directives:         names,
+	}
 }
 
-// appendDirectives adds the output-shaping instructions after the client's
-// system prompt. Caveman and Terse are alternatives, so Caveman wins when both
-// are on; Ponytail layers on top of either.
-func appendDirectives(system string, st dtos.AppSettings) string {
-	var extra []string
+// toolResultBytes sums the text of every tool result, the part of the request
+// input compression rewrites.
+func toolResultBytes(req *core.ChatRequest) int {
+	n := 0
+	for i := range req.Messages {
+		for j := range req.Messages[i].Content {
+			if tr := req.Messages[i].Content[j].ToolResult; tr != nil {
+				n += len(tr.Content)
+			}
+		}
+	}
+	return n
+}
+
+// directivePrompts maps each output-shaping directive to its instruction.
+var directivePrompts = map[string]string{
+	"caveman":  cavemanPrompt,
+	"terse":    tersePrompt,
+	"ponytail": ponytailPrompt,
+}
+
+// directiveNames lists the output-shaping directives the settings enable, in
+// the order they are appended. Caveman and Terse are alternatives, so Caveman
+// wins when both are on; Ponytail layers on top of either.
+func directiveNames(st dtos.AppSettings) []string {
+	var names []string
 	switch {
 	case on(st.CavemanEnabled):
-		extra = append(extra, cavemanPrompt)
+		names = append(names, "caveman")
 	case on(st.TerseEnabled):
-		extra = append(extra, tersePrompt)
+		names = append(names, "terse")
 	}
 	if on(st.PonytailEnabled) {
-		extra = append(extra, ponytailPrompt)
+		names = append(names, "ponytail")
 	}
-	if len(extra) == 0 {
+	return names
+}
+
+// appendDirectives adds the named directives' instructions after the
+// client's system prompt.
+func appendDirectives(system string, names []string) string {
+	if len(names) == 0 {
 		return system
 	}
+	extra := make([]string, 0, len(names)+1)
 	if strings.TrimSpace(system) != "" {
-		extra = append([]string{system}, extra...)
+		extra = append(extra, system)
+	}
+	for _, name := range names {
+		extra = append(extra, directivePrompts[name])
 	}
 	return strings.Join(extra, "\n\n")
 }
@@ -89,38 +161,56 @@ var ansiEscape = regexp.MustCompile(`\x1b\[[0-9;?]*[ -/]*[@-~]`)
 // dropping information — ANSI escapes, trailing whitespace, blank-line runs,
 // and runs of identical lines collapse. The source code filter additionally
 // strips whole-line comments ("minimal": //, "aggressive": also # and /* */).
-func compressToolResults(req *core.ChatRequest, filter string) {
+// Bytes removed are added to removed per rule.
+func compressToolResults(req *core.ChatRequest, filter string, removed map[string]int) {
 	for i := range req.Messages {
 		for j := range req.Messages[i].Content {
 			if tr := req.Messages[i].Content[j].ToolResult; tr != nil && tr.Content != "" {
-				tr.Content = rtkCompress(tr.Content, filter)
+				tr.Content = rtkCompress(tr.Content, filter, removed)
 			}
 		}
 	}
 }
 
-func rtkCompress(text, filter string) string {
-	lines := strings.Split(ansiEscape.ReplaceAllString(text, ""), "\n")
+// rtkCompress rewrites one tool result. When removed is non-nil it adds the
+// bytes each rule removed; a collapsed run is credited net of the summary
+// line that replaces it.
+func rtkCompress(text, filter string, removed map[string]int) string {
+	credit := func(rule string, n int) {
+		if removed != nil {
+			removed[rule] += n
+		}
+	}
+	stripped := ansiEscape.ReplaceAllString(text, "")
+	credit(rtkANSI, len(text)-len(stripped))
+
+	lines := strings.Split(stripped, "\n")
 	out := make([]string, 0, len(lines))
 	prev, repeats, inBlock := "", 0, false
 
 	flush := func() {
 		if repeats > 0 {
-			out = append(out, fmt.Sprintf("... (previous line repeated %d more times)", repeats))
+			summary := fmt.Sprintf("... (previous line repeated %d more times)", repeats)
+			out = append(out, summary)
+			credit(rtkRepeats, -(len(summary) + 1))
 			repeats = 0
 		}
 	}
 
-	for _, line := range lines {
-		line = strings.TrimRight(line, " \t\r")
+	for _, raw := range lines {
+		line := strings.TrimRight(raw, " \t\r")
+		credit(rtkTrailing, len(raw)-len(line))
 		if dropComment(strings.TrimSpace(line), filter, &inBlock) {
+			credit(rtkComments, len(line)+1)
 			continue
 		}
 		if line == "" && len(out) > 0 && out[len(out)-1] == "" {
+			credit(rtkBlankLines, 1)
 			continue
 		}
 		if line != "" && line == prev {
 			repeats++
+			credit(rtkRepeats, len(line)+1)
 			continue
 		}
 		flush()

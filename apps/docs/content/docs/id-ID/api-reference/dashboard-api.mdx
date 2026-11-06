@@ -48,15 +48,25 @@ Pagination memakai query `offset` (0-based) dan `limit` (default 10, maks 100).
 
 ### Auth
 
-| Method | Path                    | Keterangan                                                    |
-| ------ | ----------------------- | ------------------------------------------------------------- |
-| POST   | `/v1/auth/sign-in`      | Masuk, terima token                                           |
-| POST   | `/v1/auth/refresh`      | Rotasi refresh token                                          |
-| GET    | `/v1/auth/me`           | Profil user saat ini                                          |
-| POST   | `/v1/auth/sign-out`     | Cabut semua token sesi                                        |
-| POST   | `/v1/auth/totp/setup`   | Terbitkan secret TOTP baru untuk pendaftaran (belum disimpan) |
-| POST   | `/v1/auth/totp/enable`  | Nyalakan autentikasi dua faktor dengan kode dari secret itu   |
-| POST   | `/v1/auth/totp/disable` | Matikan dengan kode yang berlaku                              |
+| Method | Path                                | Keterangan                                                    |
+| ------ | ----------------------------------- | ------------------------------------------------------------- |
+| POST   | `/v1/auth/sign-in`                  | Masuk, terima token                                           |
+| POST   | `/v1/auth/refresh`                  | Rotasi refresh token                                          |
+| GET    | `/v1/auth/me`                       | Profil user saat ini                                          |
+| POST   | `/v1/auth/sign-out`                 | Cabut semua token sesi                                        |
+| POST   | `/v1/auth/totp/setup`               | Terbitkan secret TOTP baru untuk pendaftaran (belum disimpan) |
+| POST   | `/v1/auth/totp/enable`              | Nyalakan autentikasi dua faktor dengan kode dari secret itu   |
+| POST   | `/v1/auth/totp/disable`             | Matikan dengan kode yang berlaku                              |
+| GET    | `/v1/auth/sessions`                 | Sesi login aktif; `current` menandai sesi pemanggil           |
+| DELETE | `/v1/auth/sessions/:id`             | Cabut satu sesi; tokennya langsung tidak berlaku              |
+| GET    | `/v1/auth/passkeys`                 | Passkey milikmu                                               |
+| POST   | `/v1/auth/passkeys/register/begin`  | Mulai menambah passkey; perlu password (+ TOTP)               |
+| POST   | `/v1/auth/passkeys/register/finish` | Verifikasi dan simpan credential baru dari browser            |
+| DELETE | `/v1/auth/passkeys/:id`             | Hapus passkey                                                 |
+| POST   | `/v1/auth/passkey/begin`            | Publik: mulai login dengan passkey                            |
+| POST   | `/v1/auth/passkey/finish`           | Publik: verifikasi passkey, terima token                      |
+
+Panggilan passkey membaca header `Origin`: RP ID passkey adalah host origin itu, jadi dashboard harus di `https` atau `http://localhost`, dengan nama host (bukan IP), dan passkey hanya berlaku di host tempat ia ditambahkan. Setiap `begin` mengembalikan `ceremony_id` dan `options` (JSON WebAuthn untuk `PublicKeyCredential.parseCreationOptionsFromJSON` / `parseRequestOptionsFromJSON`); kirim `finish` dengan `ceremony_id` yang sama dan `credential` (hasil `credential.toJSON()` browser) dalam 5 menit. Login dengan passkey melewati password dan kode TOTP.
 
 ### Keys
 
@@ -113,6 +123,7 @@ Playground memakai JWT dashboard, bukan API key. Pemakaiannya dihitung dan kena 
 | GET / POST           | `/v1/accounts`                         | Daftar / tambah akun                                                                             |
 | GET / PATCH / DELETE | `/v1/accounts/:id`                     | Kelola akun                                                                                      |
 | POST                 | `/v1/accounts/:id/test`                | Uji koneksi akun                                                                                 |
+| POST                 | `/v1/accounts/test`                    | Uji key sebelum disimpan; tidak ada yang disimpan                                                |
 | GET                  | `/v1/accounts/:id/quota`               | Kuota akun                                                                                       |
 | GET / PUT            | `/v1/providers/:id/routing`            | Strategi akun (`:id` adalah slug provider)                                                       |
 | POST                 | `/v1/oauth/:provider/authorize`        | Mulai login PKCE (`anthropic`, `codex`); mengembalikan URL yang harus dibuka                     |
@@ -122,17 +133,17 @@ Endpoint uji model menerima `{"model", "messages", "stream"}`. Dengan `"stream":
 
 ### Budgets & usage
 
-| Method               | Path                  | Keterangan                                                                                           |
-| -------------------- | --------------------- | ---------------------------------------------------------------------------------------------------- |
-| GET / POST           | `/v1/budgets`         | Daftar / buat budget                                                                                 |
-| GET                  | `/v1/budgets/status`  | Pemakaian berjalan per budget                                                                        |
-| PUT / PATCH / DELETE | `/v1/budgets/:id`     | Kelola budget                                                                                        |
-| GET                  | `/v1/usage/telemetry` | Payload penuh halaman Usage                                                                          |
-| GET                  | `/v1/usage/activity`  | Request per hari (UTC) selama 53 minggu terakhir, dengan jumlah per model                            |
-| GET                  | `/v1/provider-health` | Kesehatan per provider, per model, dan per chain (`?window=5m\|15m\|1h\|6h\|24h\|7d`, default `15m`) |
-| GET                  | `/v1/quota`           | Daftar kuota aktif                                                                                   |
-| GET                  | `/v1/quota/overview`  | Ringkasan kuota                                                                                      |
-| PATCH / DELETE       | `/v1/quota/:id`       | Jeda / hapus kuota                                                                                   |
+| Method               | Path                  | Keterangan                                                                                                     |
+| -------------------- | --------------------- | -------------------------------------------------------------------------------------------------------------- |
+| GET / POST           | `/v1/budgets`         | Daftar / buat budget                                                                                           |
+| GET                  | `/v1/budgets/status`  | Pemakaian berjalan per budget                                                                                  |
+| PUT / PATCH / DELETE | `/v1/budgets/:id`     | Kelola budget                                                                                                  |
+| GET                  | `/v1/usage/telemetry` | Payload penuh halaman Usage                                                                                    |
+| GET                  | `/v1/usage/activity`  | Request per hari (UTC) selama 53 minggu terakhir, dengan jumlah per model                                      |
+| GET                  | `/v1/provider-health` | Kesehatan per provider, per model, dan per chain (`?window=5m\|15m\|1h\|6h\|24h\|7d\|30d\|90d`, default `15m`) |
+| GET                  | `/v1/quota`           | Daftar kuota aktif                                                                                             |
+| GET                  | `/v1/quota/overview`  | Ringkasan kuota                                                                                                |
+| PATCH / DELETE       | `/v1/quota/:id`       | Jeda / hapus kuota                                                                                             |
 
 ### Proxy pools
 
@@ -207,18 +218,24 @@ Menyalakan dan mematikan tercatat di audit log. Lihat [Akses jarak jauh](/id-ID/
 
 ### Lainnya
 
-| Method       | Path                              | Keterangan                                                                               |
-| ------------ | --------------------------------- | ---------------------------------------------------------------------------------------- |
-| GET / PATCH  | `/v1/settings`                    | Settings router (timeout, round-robin, dst.)                                             |
-| GET / POST   | `/v1/skills`                      | Daftar / buat skill                                                                      |
-| PATCH        | `/v1/skills/:id`                  | Nyalakan/matikan injeksi gateway (`enabled`)                                             |
-| DELETE       | `/v1/skills/:id`                  | Hapus skill                                                                              |
-| GET / DELETE | `/v1/console`                     | Log ring buffer (500 entri) / bersihkan                                                  |
-| GET          | `/v1/system/stats`                | Metrik host & proses                                                                     |
-| GET          | `/v1/media`                       | Provider katalog per kemampuan non-chat                                                  |
-| GET          | `/v1/cli-tools/claude-code`       | Apakah CLI `claude` terpasang di host dan ke mana pengaturannya mengarah                 |
-| POST         | `/v1/cli-tools/claude-code/apply` | Tulis URL gateway, API key, dan model default opsional ke pengaturan Claude Code di host |
-| GET          | `/health`                         | Kesehatan server (tanpa auth)                                                            |
-| GET          | `/skills/:slug/SKILL.md`          | Dokumen skill publik yang diambil agent lewat URL (tanpa auth)                           |
+| Method       | Path                      | Keterangan                                                                                                                                                   |
+| ------------ | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| GET / PATCH  | `/v1/settings`            | Settings router (timeout, round-robin, dst.)                                                                                                                 |
+| GET / POST   | `/v1/skills`              | Daftar / buat skill                                                                                                                                          |
+| PATCH        | `/v1/skills/:id`          | Nyalakan/matikan injeksi gateway (`enabled`)                                                                                                                 |
+| DELETE       | `/v1/skills/:id`          | Hapus skill                                                                                                                                                  |
+| GET          | `/v1/audit`               | Jejak audit, terbaru dulu. Query: `search`, `outcome` (`success`/`failed`), `category`, `offset`, `limit`                                                    |
+| GET          | `/v1/audit/stats`         | Total, kategori aksi, tulisan dan tulisan gagal sejak server start                                                                                           |
+| POST         | `/v1/audit/verify`        | Telusuri hash chain dan laporkan baris pertama yang tidak cocok                                                                                              |
+| GET          | `/v1/audit/export`        | Seluruh jejak sebagai JSON Lines (`application/x-ndjson`)                                                                                                    |
+| GET / DELETE | `/v1/console`             | Log ring buffer (500 entri) / bersihkan                                                                                                                      |
+| GET          | `/v1/system/stats`        | Metrik host & proses                                                                                                                                         |
+| GET          | `/v1/system/status`       | Kartu status gateway: status, versi, uptime proses, alamat listen, database                                                                                  |
+| GET          | `/v1/media`               | Provider katalog per kemampuan non-chat                                                                                                                      |
+| GET          | `/v1/endpoints`           | Base URL dan daftar route untuk halaman Endpoints                                                                                                            |
+| GET          | `/v1/cli-tools/:id`       | Status instalasi satu tool dan pratinjau file config-nya. Query: `base_url`, `model` (key berupa placeholder)                                                |
+| POST         | `/v1/cli-tools/:id/apply` | Tulis URL gateway, key, dan model ke file config tool di host. Body: `base_url`, `model`, dan `key_name` (buat key khusus) atau `api_key` (tempel key aktif) |
+| GET          | `/health`                 | Kesehatan server (tanpa auth)                                                                                                                                |
+| GET          | `/skills/:slug/SKILL.md`  | Dokumen skill publik yang diambil agent lewat URL (tanpa auth)                                                                                               |
 
 Reveal dan rotate key, kedua download backup, dan `PATCH /v1/accounts/:id` yang mengubah `metadata.base_url` meminta autentikasi ulang: kirim `"password"`, dan saat autentikasi dua faktor aktif server menjawab `{ "totp_required": true }` sampai kamu mengirim ulang dengan `"otp"`. Password atau kode yang salah dijawab `422` dan dihitung ke blokir IP, sama seperti login gagal.

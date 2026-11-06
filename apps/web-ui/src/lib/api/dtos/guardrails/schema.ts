@@ -94,3 +94,28 @@ export const EvaluateSchema = z.object({
 export type PolicyDto = z.output<typeof PolicySchema>
 export type GuardrailsSettingsDto = z.output<typeof SettingsSchema>
 export type EvaluateDto = z.output<typeof EvaluateSchema>
+
+/**
+ * Values of the policy dialog. The detector config is edited by its own
+ * cards, so it is carried as is; scope rides along so a scoped policy can
+ * require its target.
+ */
+export const GuardrailPolicyFormSchema = z
+  .object({
+    scope: z.enum(SCOPES),
+    name: z.string(),
+    target: z.string(),
+    config: z.custom<import('../../models/guardrails').GuardrailsPolicyConfig>(),
+  })
+  .superRefine((v, ctx) => {
+    // A scoped policy without a target matches no request.
+    if (v.scope !== 'global' && !v.target.trim()) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['target'],
+        message: `Pick the ${v.scope === 'key' ? 'API key' : v.scope} this policy applies to.`,
+      })
+    }
+  })
+
+export type GuardrailPolicyFormValues = z.infer<typeof GuardrailPolicyFormSchema>

@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -91,13 +92,18 @@ func (s *Server) streamChat(
 	}
 
 	// The stream writer runs on its own goroutine after the handler returns,
-	// so Drain must wait for it: the writer is what records the stream's usage.
+	// so Drain must wait for it: the writer is what records the stream's usage
+	// and closes the request's Console trace.
+	meta.trace.deferFinish()
 	s.metering.Add(1)
 	return c.SendStreamWriter(func(w *bufio.Writer) {
 		defer s.metering.Done()
 		writer.run(ctx, w)
 	})
 }
+
+// sseData marks one server-sent event's payload line.
+var sseData = []byte("data:")
 
 // streamConn is the result of a successful connect: either a raw body for the
 // passthrough path or a canonical chunk channel for the rendered path.
@@ -317,6 +323,9 @@ func (sw *streamWriter) runDirect(ctx context.Context, w *bufio.Writer) {
 					sw.setTTFT(time.Since(sw.start))
 				}
 			}
+			// Count SSE events in passing; a "data:" prefix split across two
+			// reads is missed, which only makes the count approximate.
+			sw.chunksSent += bytes.Count(buf[:n], sseData)
 			if !sw.writeRaw(w, buf[:n]) {
 				// The client is gone: closing the body below aborts the
 				// upstream request so no quota is burned for nobody.
@@ -481,6 +490,8 @@ func (sw *streamWriter) record(ctx context.Context) {
 		ClientIP:   sw.meta.ClientIP,
 		RequestID:  sw.meta.RequestID,
 		Chain:      sw.meta.Chain,
+		Saving:     sw.meta.Saving,
+		trace:      sw.meta.trace,
 		Usage:      usage,
 		CostMicros: cost,
 		TokenRate:  tokenRate,
@@ -493,6 +504,10 @@ func (sw *streamWriter) record(ctx context.Context) {
 	if sw.failed() {
 		sw.logWarn("gateway stream ended with client write error", sw.writeErr)
 	}
+	// The status line went out as 200 when the stream connected; anything
+	// that went wrong after that is in the timeline, not the status.
+	sw.meta.trace.streamed(sw.chunksSent)
+	sw.meta.trace.finish(http.StatusOK)
 }
 
 // logWarn emits a warning through the server's logger.

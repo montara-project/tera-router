@@ -1,26 +1,23 @@
 import {
-  IconBolt,
+  IconArrowsMinimize,
+  IconCheck,
+  IconChevronRight,
+  IconCopy,
   IconExternalLink,
-  IconInfoCircle,
-  IconMessage,
-  IconStack2,
-  IconTerminal2,
+  IconMessageDown,
+  IconServer,
 } from '@tabler/icons-react'
 
 import type { AppSettings, SourceCodeFilterMode } from '@/lib/api/models/settings'
 
-import IconBadge from '@/components/block/common/icon-badge'
-import SettingRow, { SegmentedControl } from '@/components/block/settings/setting-row'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardHeading,
-  CardTitle,
-} from '@/components/ui/card'
+import SettingRow, {
+  SegmentedControl,
+  SettingsSection,
+  UnitInput,
+} from '@/components/block/settings/setting-row'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
+import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 
 interface TokenSavingTabProps {
   settings: AppSettings
@@ -39,187 +36,117 @@ const SOURCE_CODE_FILTER_DESCRIPTIONS: Record<SourceCodeFilterMode, string> = {
   aggressive: 'Strips whole-line //, # and /* */ comments from tool outputs.',
 }
 
-const CODE_LINES: { command: string; comment?: string }[] = [
-  { command: 'docker run -d --name headroom -p 8787:8787 \\' },
+/** The install steps, with each line's trailing comment kept apart for styling. */
+const INSTALL_LINES: { command: string; comment?: string }[] = [
   {
-    command: '  -e HEADROOM_COMPRESS_ALLOW_REMOTE=1 \\',
-    comment: '# /v1/compress is loopback-only otherwise',
+    command: 'pipx install "headroom-ai[all]"',
+    comment: '# needs Python 3.10+ (or: pip install --user)',
   },
-  { command: '  ghcr.io/headroomlabs-ai/headroom:latest \\' },
-  { command: '  headroom proxy --host 0.0.0.0 --port 8787' },
+  { command: 'pipx ensurepath', comment: '# add headroom to PATH, then restart your shell' },
+  { command: 'headroom proxy --port 8787' },
+  { command: 'headroom doctor', comment: "# verify it's working" },
 ]
 
-const ariaLabels = {
-  rtk_enabled: 'Enable RTK token saver',
-  caveman_enabled: 'Enable caveman mode',
-  terse_enabled: 'Enable terse mode',
-  headroom_enabled: 'Enable Headroom',
-  ponytail_enabled: 'Enable Ponytail',
-}
-
 export default function TokenSavingTab({ settings, onUpdate }: TokenSavingTabProps) {
-  const switchClass = 'data-[state=checked]:bg-amber-600'
-
   return (
-    <div className="space-y-4">
-      <Card className="bg-background">
-        <CardHeader className="py-4">
-          <div className="flex items-center gap-3.5">
-            <IconBadge
-              icon={IconBolt}
-              variant="soft"
-              className="h-10 w-10 shrink-0"
-              iconClassName="h-5 w-5"
-            />
-            <CardHeading>
-              <CardTitle>RTK input compression</CardTitle>
-              <CardDescription>
-                Compresses bulky tool outputs (diffs, greps, listings, build logs) before they reach
-                the model. Saves input tokens. Safe by design — never corrupts content.
-              </CardDescription>
-            </CardHeading>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="divide-y divide-border">
-            <SettingRow title="Enable RTK token saver">
-              <Switch
-                aria-label={ariaLabels.rtk_enabled}
-                checked={settings.rtk_enabled}
-                className={switchClass}
-                onCheckedChange={(value) => onUpdate({ rtk_enabled: value })}
-              />
-            </SettingRow>
-            <SettingRow
-              title="Source code filter"
-              description={SOURCE_CODE_FILTER_DESCRIPTIONS[settings.source_code_filter]}
-            >
-              <SegmentedControl
-                onChange={(value) =>
-                  onUpdate({ source_code_filter: value as SourceCodeFilterMode })
-                }
-                options={SOURCE_CODE_FILTER_OPTIONS}
-                value={settings.source_code_filter}
-              />
-            </SettingRow>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="flex flex-col gap-4">
+      <SettingsSection
+        icon={IconArrowsMinimize}
+        title="Input compression"
+        description="Saves input tokens"
+      >
+        <SettingRow
+          title="RTK input compression"
+          description="Shrinks bulky tool output before it reaches the model."
+          info="Compresses diffs, greps, listings and build logs in tool results. Safe by design: it never corrupts content."
+        >
+          <Switch
+            aria-label="RTK input compression"
+            checked={settings.rtk_enabled}
+            onCheckedChange={(value) => onUpdate({ rtk_enabled: value })}
+          />
+        </SettingRow>
+        <SettingRow
+          nested
+          title="Source code filter"
+          description={SOURCE_CODE_FILTER_DESCRIPTIONS[settings.source_code_filter]}
+        >
+          <SegmentedControl
+            aria-label="Source code filter"
+            options={SOURCE_CODE_FILTER_OPTIONS}
+            value={settings.source_code_filter}
+            onChange={(value) => onUpdate({ source_code_filter: value as SourceCodeFilterMode })}
+          />
+        </SettingRow>
+      </SettingsSection>
 
-      <Card className="bg-background">
-        <CardHeader className="py-4">
-          <div className="flex items-center gap-3.5">
-            <IconBadge
-              icon={IconMessage}
-              variant="soft"
-              className="h-10 w-10 shrink-0"
-              iconClassName="h-5 w-5"
-            />
-            <CardHeading>
-              <CardTitle>Caveman output compression</CardTitle>
-              <CardDescription>
-                Instructs the model to answer tersely (caveman style) — keeps all technical
-                substance, drops filler. Cuts output tokens 65-75%.
-              </CardDescription>
-            </CardHeading>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="divide-y divide-border">
-            <SettingRow title="Enable caveman mode">
-              <Switch
-                aria-label={ariaLabels.caveman_enabled}
-                checked={settings.caveman_enabled}
-                className={switchClass}
-                onCheckedChange={(value) => onUpdate({ caveman_enabled: value })}
-              />
-            </SettingRow>
-          </div>
-        </CardContent>
-      </Card>
+      <SettingsSection
+        icon={IconMessageDown}
+        title="Output compression"
+        description="Caveman and terse can't run together"
+      >
+        <SettingRow
+          title="Caveman mode"
+          description="Terse caveman-style answers. Cuts output tokens 65–75%."
+          info="Instructs the model to answer tersely, keeping all technical substance and dropping filler."
+        >
+          <Switch
+            aria-label="Caveman mode"
+            checked={settings.caveman_enabled}
+            // Both inject a system instruction, so turning one on turns the other off.
+            onCheckedChange={(value) =>
+              onUpdate(
+                value ? { caveman_enabled: true, terse_enabled: false } : { caveman_enabled: false }
+              )
+            }
+          />
+        </SettingRow>
+        <SettingRow
+          title="Terse mode"
+          description="Tera Router's own concise-output instruction."
+          info="An alternative to caveman mode with a lighter touch."
+        >
+          <Switch
+            aria-label="Terse mode"
+            checked={settings.terse_enabled}
+            onCheckedChange={(value) =>
+              onUpdate(
+                value ? { terse_enabled: true, caveman_enabled: false } : { terse_enabled: false }
+              )
+            }
+          />
+        </SettingRow>
+        <SettingRow
+          title="Ponytail"
+          description="Biases the model toward minimal code changes."
+          info="Adds a lazy-senior-developer instruction. Works on top of caveman or terse mode."
+        >
+          <Switch
+            aria-label="Ponytail"
+            checked={settings.ponytail_enabled}
+            onCheckedChange={(value) => onUpdate({ ponytail_enabled: value })}
+          />
+        </SettingRow>
+      </SettingsSection>
 
-      <Card className="bg-background">
-        <CardHeader className="py-4">
-          <div className="flex items-center gap-3.5">
-            <IconBadge
-              icon={IconStack2}
-              variant="soft"
-              className="h-10 w-10 shrink-0"
-              iconClassName="h-5 w-5"
-            />
-            <CardHeading>
-              <CardTitle>Terse mode (alternative)</CardTitle>
-              <CardDescription>
-                Tera Router's own concise-output directive. An alternative to caveman; both inject a
-                system instruction, so pick one.
-              </CardDescription>
-            </CardHeading>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="divide-y divide-border">
-            <SettingRow title="Enable terse mode">
-              <Switch
-                aria-label={ariaLabels.terse_enabled}
-                checked={settings.terse_enabled}
-                className={switchClass}
-                onCheckedChange={(value) => onUpdate({ terse_enabled: value })}
-              />
-            </SettingRow>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="bg-background">
-        <CardHeader className="py-4">
-          <div className="flex items-center gap-3.5">
-            <IconBadge
-              icon={IconBolt}
-              variant="soft"
-              className="h-10 w-10 shrink-0"
-              iconClassName="h-5 w-5"
-            />
-            <CardHeading>
-              <CardTitle>Headroom input compression</CardTitle>
-              <CardDescription>
-                Compresses request messages through an external Headroom proxy before they reach the
-                model. Fail-open — any proxy error leaves the request untouched.
-              </CardDescription>
-            </CardHeading>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="px-5 py-5">
-            <div className="flex gap-3 rounded-lg bg-muted/50 p-4">
-              <IconInfoCircle className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-              <p className="text-muted-foreground text-xs leading-relaxed">
-                <strong className="font-semibold text-foreground">
-                  Best for a fast, local proxy
-                </strong>
-                : Headroom is called synchronously before each request. Large or first-seen contexts
-                can take the proxy several seconds (sometimes much longer on CPU-only machines) to
-                compress — when that exceeds the timeout below, Headroom{' '}
-                <strong className="font-semibold text-foreground">fails open</strong> (the request
-                goes through uncompressed and records 0 savings). For consistent savings without an
-                external dependency, rely on{' '}
-                <strong className="font-semibold text-foreground">
-                  RTK + Caveman/Terse + Ponytail
-                </strong>
-                , which run instantly in-process.
-              </p>
-            </div>
-          </div>
-
-          <div className="divide-y divide-border border-t border-border">
-            <SettingRow title="Enable Headroom">
-              <Switch
-                aria-label={ariaLabels.headroom_enabled}
-                checked={settings.headroom_enabled}
-                className={switchClass}
-                onCheckedChange={(value) => onUpdate({ headroom_enabled: value })}
-              />
-            </SettingRow>
-            <SettingRow title="Proxy URL" description="Base URL of the Headroom proxy.">
+      <SettingsSection
+        icon={IconServer}
+        title="Headroom proxy"
+        description="External input compression"
+      >
+        <SettingRow
+          title="Headroom input compression"
+          description="Fails open — proxy errors leave the request untouched."
+        >
+          <Switch
+            aria-label="Headroom input compression"
+            checked={settings.headroom_enabled}
+            onCheckedChange={(value) => onUpdate({ headroom_enabled: value })}
+          />
+        </SettingRow>
+        {settings.headroom_enabled ? (
+          <>
+            <SettingRow nested title="Proxy URL" description="Base URL of the Headroom proxy.">
               <Input
                 key={settings.headroom_url}
                 aria-label="Headroom proxy URL"
@@ -233,95 +160,91 @@ export default function TokenSavingTab({ settings, onUpdate }: TokenSavingTabPro
                 }}
               />
             </SettingRow>
-            <SettingRow title="Timeout (sec)" description="Fails open past this. Default: 5s.">
-              <Input
-                aria-label="Headroom timeout in seconds"
-                type="number"
+            <SettingRow nested title="Timeout" description="Fails open past this. Default 5 s.">
+              <UnitInput
+                label="Headroom timeout in seconds"
+                unit="sec"
                 min={1}
-                step={1}
                 value={settings.headroom_timeout}
-                className="w-24 text-center font-mono"
-                onChange={(e) => {
-                  const value = e.target.valueAsNumber
-                  if (!Number.isNaN(value) && value >= 1) onUpdate({ headroom_timeout: value })
-                }}
+                onCommit={(value) => onUpdate({ headroom_timeout: value })}
               />
             </SettingRow>
-          </div>
-
-          <div className="border-t border-border p-5">
-            <div className="space-y-3 rounded-lg border border-border bg-muted/40 p-4">
-              <p className="flex items-center gap-2 text-sm font-medium text-foreground">
-                <IconTerminal2 className="h-4 w-4 text-muted-foreground" />
-                Don't have a Headroom proxy yet?
-              </p>
-              <p className="text-muted-foreground text-xs leading-relaxed">
-                Headroom is a local, open-source compression proxy. Run it from its Docker image:
-              </p>
-              <div className="space-y-1.5 rounded-md bg-background p-3 font-mono text-xs">
-                {CODE_LINES.map((line) => (
-                  <div key={line.command} className="flex flex-wrap gap-x-6">
-                    <code className="text-foreground">{line.command}</code>
-                    {line.comment && <span className="text-muted-foreground">{line.comment}</span>}
-                  </div>
-                ))}
-              </div>
-              <p className="text-muted-foreground text-xs">
-                Then set <strong className="font-semibold text-foreground">Proxy URL</strong> to{' '}
-                <code className="rounded bg-background px-1.5 py-0.5 font-mono text-xs">
-                  http://localhost:8787
-                </code>{' '}
-                (or{' '}
-                <code className="rounded bg-background px-1.5 py-0.5 font-mono text-xs">
-                  http://headroom:8787
-                </code>{' '}
-                when Tera Router runs in the same Docker network).
-              </p>
-              <a
-                className="inline-flex cursor-pointer items-center gap-1.5 text-xs font-medium text-amber-500 hover:text-amber-400 dark:text-amber-400 dark:hover:text-amber-300"
-                href="https://github.com/headroomlabs-ai/headroom"
-                rel="noreferrer"
-                target="_blank"
-              >
-                Installation guide
-                <IconExternalLink className="h-3 w-3" />
-              </a>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="bg-background">
-        <CardHeader className="py-4">
-          <div className="flex items-center gap-3.5">
-            <IconBadge
-              icon={IconMessage}
-              variant="soft"
-              className="h-10 w-10 shrink-0"
-              iconClassName="h-5 w-5"
-            />
-            <CardHeading>
-              <CardTitle>Ponytail output compression</CardTitle>
-              <CardDescription>
-                Injects a lazy-senior-developer system prompt that biases the model toward minimal
-                code. Layers on top of Terse or Caveman.
-              </CardDescription>
-            </CardHeading>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="divide-y divide-border">
-            <SettingRow title="Enable Ponytail">
-              <Switch
-                aria-label={ariaLabels.ponytail_enabled}
-                checked={settings.ponytail_enabled}
-                className={switchClass}
-                onCheckedChange={(value) => onUpdate({ ponytail_enabled: value })}
-              />
-            </SettingRow>
-          </div>
-        </CardContent>
-      </Card>
+          </>
+        ) : null}
+        <HeadroomGuide />
+      </SettingsSection>
     </div>
+  )
+}
+
+function HeadroomGuide() {
+  const { copied, copy } = useCopyToClipboard()
+  const script = INSTALL_LINES.map((l) => l.command).join('\n')
+
+  return (
+    <details className="group px-4 py-3">
+      <summary className="inline-flex cursor-pointer list-none items-center gap-1 rounded-sm text-[12.5px] font-medium text-blue-600 dark:text-blue-400 [&::-webkit-details-marker]:hidden">
+        <IconChevronRight
+          className="size-3.5 transition-transform group-open:rotate-90"
+          aria-hidden
+        />
+        How Headroom works and how to install it
+      </summary>
+      <div className="mt-3 flex flex-col gap-3 text-xs text-muted-foreground">
+        <p>
+          <span className="font-medium text-foreground">Best with a fast, local proxy.</span>{' '}
+          Headroom runs before each request. Large or first-seen contexts can take several seconds
+          to compress (longer on CPU-only machines); past the timeout the request goes through
+          uncompressed and records no savings.
+        </p>
+        <div className="flex flex-col gap-2">
+          <p>
+            Install the{' '}
+            <code className="rounded-sm bg-muted px-1 font-mono text-[11.5px] text-foreground">
+              headroom
+            </code>{' '}
+            CLI from the Python package (the npm package is a library only), then start it:
+          </p>
+          <div className="relative rounded-md border border-border bg-background">
+            <pre className="overflow-x-auto py-3 pr-12 pl-3.5 font-mono text-[12.5px] leading-relaxed">
+              {INSTALL_LINES.map((line) => (
+                <div key={line.command}>
+                  <span className="text-foreground">{line.command}</span>
+                  {line.comment ? (
+                    <span className="text-muted-foreground"> {line.comment}</span>
+                  ) : null}
+                </div>
+              ))}
+            </pre>
+            <button
+              type="button"
+              aria-label={copied ? 'Copied' : 'Copy install commands'}
+              onClick={() => copy(script)}
+              className="absolute top-2 right-2 inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              {copied ? <IconCheck className="size-3.5" /> : <IconCopy className="size-3.5" />}
+            </button>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p>
+            Then set <span className="font-medium text-foreground">Proxy URL</span> to{' '}
+            <code className="rounded-sm bg-muted px-1 font-mono text-[11.5px] text-foreground">
+              http://localhost:8787
+            </code>
+            .
+          </p>
+          <a
+            href="https://github.com/headroomlabs-ai/headroom"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 font-medium text-blue-600 hover:underline dark:text-blue-400"
+          >
+            Headroom installation guide
+            <IconExternalLink className="size-3.5" aria-hidden />
+          </a>
+        </div>
+      </div>
+    </details>
   )
 }

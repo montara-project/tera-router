@@ -1,4 +1,4 @@
-import { IconLoader2 } from '@tabler/icons-react'
+import { IconFingerprint, IconLoader2 } from '@tabler/icons-react'
 import { revalidateLogic } from '@tanstack/react-form'
 import { useRouter } from '@tanstack/react-router'
 import { useState } from 'react'
@@ -11,6 +11,7 @@ import { useAppForm } from '@/hooks/form'
 import { useBranding } from '@/hooks/use-branding'
 import { SignInSchema } from '@/lib/api/dtos/auth/schema'
 import { signInWithEmail } from '@/lib/auth/email-auth'
+import { passkeysSupported, signInWithPasskey } from '@/lib/auth/passkey'
 import { cn } from '@/lib/utils'
 
 const SUBMIT_LABELS = {
@@ -61,6 +62,19 @@ export default function LoginSection({ className, ...props }: React.ComponentPro
       }
     },
   })
+
+  const passkeySignIn = async () => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      await signInWithPasskey()
+      navigate({ to: '/dashboard' })
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'An error occurred')
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const cancelCode = () => {
     setNeedsCode(false)
@@ -156,6 +170,12 @@ export default function LoginSection({ className, ...props }: React.ComponentPro
             {needsCode && (
               <Button type="button" variant="ghost" onClick={cancelCode} disabled={isLoading}>
                 Back
+              </Button>
+            )}
+            {!needsCode && passkeysSupported() && (
+              <Button type="button" variant="outline" onClick={passkeySignIn} disabled={isLoading}>
+                <IconFingerprint className="size-4" />
+                Sign in with a passkey
               </Button>
             )}
           </Field>

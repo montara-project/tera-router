@@ -1,47 +1,30 @@
-import {
-  IconArrowLeft,
-  IconCalendar,
-  IconCheck,
-  IconCopy,
-  IconCpu,
-  IconEye,
-  IconEyeOff,
-  IconKey,
-  IconPuzzle,
-  IconSettings,
-  IconShield,
-  IconStack2,
-} from '@tabler/icons-react'
+import { IconArrowLeft, IconKey } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
-import { createFileRoute, Link, useParams } from '@tanstack/react-router'
+import { createFileRoute, Link, useNavigate, useParams } from '@tanstack/react-router'
 import { useState } from 'react'
 
 import SectionCard from '@/components/block/common/section-card'
+import KeyActionsMenu from '@/components/block/keys/key-actions-menu'
 import KeyGeneralTab, { KeyStatusBadge } from '@/components/block/keys/key-general-tab'
 import KeyGuardrailsTab from '@/components/block/keys/key-guardrails-tab'
 import KeyModelsTab from '@/components/block/keys/key-models-tab'
 import KeySkillsTab from '@/components/block/keys/key-skills-tab'
+import PortalLinkButton from '@/components/block/keys/portal-link-button'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
-import { useRevealKey } from '@/hooks/use-reveal-key'
 import { queries } from '@/lib/api/queries'
 import { formatDate } from '@/lib/date'
-import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/(protected)/(connection)/keys/$keyId')({
   component: KeyDetailRoute,
 })
 
-const ACTIVE_TAB_CLASS =
-  'data-[state=active]:border-emerald-500! data-[state=active]:text-emerald-400! data-[state=active]:[&_svg]:text-emerald-400!'
-
 const TABS = [
-  { value: 'general', label: 'General', icon: IconSettings },
-  { value: 'models', label: 'Models', icon: IconCpu },
-  { value: 'skills', label: 'Skills', icon: IconPuzzle },
-  { value: 'guardrails', label: 'Guardrails', icon: IconShield },
+  { value: 'overview', label: 'Overview' },
+  { value: 'models', label: 'Models' },
+  { value: 'skills', label: 'Skills' },
+  { value: 'guardrails', label: 'Guardrails' },
 ] as const
 
 function DetailSkeleton() {
@@ -63,32 +46,11 @@ function DetailSkeleton() {
 
 function KeyDetailRoute() {
   const { keyId } = useParams({ from: '/(protected)/(connection)/keys/$keyId' })
-  const [tab, setTab] = useState<string>('general')
-  const [revealed, setRevealed] = useState<string | null>(null)
-  const { copied, copy } = useCopyToClipboard()
+  const [tab, setTab] = useState<string>('overview')
+  const navigate = useNavigate()
 
   const keyQuery = useQuery(queries.keys.get(keyId))
   const key = keyQuery.data
-
-  const { reveal, dialog } = useRevealKey()
-
-  // The masked preview is all GET returns, so copying the real credential goes
-  // through the re-authenticated reveal dialog first; the result is kept for
-  // this visit so copy after reveal does not ask again.
-  const handleCopy = async () => {
-    const value = revealed ?? (await reveal(keyId))
-    if (!value) return
-    setRevealed(value)
-    copy(value)
-  }
-
-  const handleToggleReveal = async () => {
-    if (revealed) {
-      setRevealed(null)
-      return
-    }
-    setRevealed(await reveal(keyId))
-  }
 
   if (keyQuery.isLoading) return <DetailSkeleton />
 
@@ -109,112 +71,85 @@ function KeyDetailRoute() {
   }
 
   return (
-    <div className="space-y-4">
-      <Link
-        to="/keys"
-        className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm transition-colors"
-      >
-        <IconArrowLeft className="h-4 w-4" />
-        API keys
-      </Link>
+    <div className="flex flex-col gap-5">
+      <nav aria-label="Breadcrumb">
+        <ol className="flex items-center gap-1.5 text-[13px]">
+          <li>
+            <Link
+              to="/keys"
+              className="inline-flex items-center gap-1.5 rounded-sm text-muted-foreground hover:text-foreground"
+            >
+              <IconKey className="size-3.5" aria-hidden />
+              API keys
+            </Link>
+          </li>
+          <li aria-hidden className="text-muted-foreground/70">
+            /
+          </li>
+          <li aria-current="page" className="truncate">
+            {key.name}
+          </li>
+        </ol>
+      </nav>
 
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex items-start gap-3.5">
-          <span className="bg-amber-100 text-amber-700 ring-amber-200/70 dark:bg-amber-950/40 dark:text-amber-300 dark:ring-amber-900/60 flex size-14 shrink-0 items-center justify-center rounded-2xl ring-1">
-            <IconKey className="h-6 w-6" />
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400">
+            <IconKey className="size-5" aria-hidden />
           </span>
           <div className="min-w-0">
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-2xl font-semibold tracking-tight">{key.name}</h1>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="truncate text-xl font-semibold tracking-tight">{key.name}</h1>
               <KeyStatusBadge status={key.status} />
             </div>
-            <div className="mt-1.5 flex items-center gap-1.5">
-              <code
-                key={revealed ? 'revealed' : 'masked'}
-                className="text-muted-foreground animate-in fade-in-0 font-mono text-sm duration-200"
-              >
-                {revealed ?? key.key_preview}
-              </code>
-              <Button
-                aria-label={revealed ? 'Hide key' : 'Reveal key'}
-                className="text-muted-foreground hover:text-foreground"
-                mode="icon"
-                onClick={handleToggleReveal}
-                size="xs"
-                variant="ghost"
-              >
-                <span className="grid *:col-start-1 *:row-start-1">
-                  <IconEye
-                    className={cn('transition-all duration-200', revealed && 'scale-50 opacity-0')}
-                  />
-                  <IconEyeOff
-                    className={cn('transition-all duration-200', !revealed && 'scale-50 opacity-0')}
-                  />
-                </span>
-              </Button>
-              <Button
-                aria-label={`Copy ${key.name} key`}
-                className="text-muted-foreground hover:text-foreground"
-                mode="icon"
-                onClick={handleCopy}
-                size="xs"
-                variant="ghost"
-              >
-                <span className="grid *:col-start-1 *:row-start-1">
-                  <IconCopy
-                    className={cn('transition-all duration-200', copied && 'scale-50 opacity-0')}
-                  />
-                  <IconCheck
-                    className={cn(
-                      'text-emerald-600 transition-all duration-200 dark:text-emerald-300',
-                      !copied && 'scale-50 opacity-0'
-                    )}
-                  />
-                </span>
-              </Button>
-            </div>
+            <p className="text-[13px] text-muted-foreground">
+              <code className="font-mono text-[12.5px]">{key.key_preview}</code>
+              <span className="mx-1.5 text-muted-foreground/60">·</span>
+              {key.plan_label}
+              <span className="mx-1.5 text-muted-foreground/60">·</span>
+              Created {formatDate(key.created_at)}
+            </p>
           </div>
         </div>
-
-        <div className="text-muted-foreground flex flex-wrap items-center gap-5 text-sm">
-          <span className="inline-flex items-center gap-2">
-            <IconStack2 className="h-4 w-4" />
-            {key.plan_label}
-          </span>
-          <span className="inline-flex items-center gap-2">
-            <IconCalendar className="h-4 w-4" />
-            Created {formatDate(key.created_at)}
-          </span>
+        <div className="flex items-center gap-2">
+          <PortalLinkButton apiKey={key} />
+          <KeyActionsMenu
+            record={key}
+            triggerClassName="size-9"
+            onRevoked={() => void navigate({ to: '/keys' })}
+          />
         </div>
-      </div>
+      </header>
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList variant="line" size="lg" className="w-full justify-start">
+        <TabsList variant="line" size="md" className="w-full justify-start gap-1 overflow-x-auto">
           {TABS.map((item) => (
-            <TabsTrigger key={item.value} value={item.value} className={ACTIVE_TAB_CLASS}>
-              <item.icon className="h-4 w-4" />
-              <span>{item.label}</span>
+            <TabsTrigger
+              key={item.value}
+              value={item.value}
+              className="px-3 data-[state=active]:text-foreground"
+            >
+              {item.label}
             </TabsTrigger>
           ))}
         </TabsList>
 
-        <TabsContent value="general" className="mt-4">
+        <TabsContent value="overview" className="mt-5">
           <KeyGeneralTab apiKey={key} />
         </TabsContent>
 
-        <TabsContent value="models" className="mt-4">
+        <TabsContent value="models" className="mt-5">
           <KeyModelsTab apiKey={key} />
         </TabsContent>
 
-        <TabsContent value="skills" className="mt-4">
+        <TabsContent value="skills" className="mt-5">
           <KeySkillsTab apiKey={key} />
         </TabsContent>
 
-        <TabsContent value="guardrails" className="mt-4">
+        <TabsContent value="guardrails" className="mt-5">
           <KeyGuardrailsTab apiKey={key} />
         </TabsContent>
       </Tabs>
-      {dialog}
     </div>
   )
 }

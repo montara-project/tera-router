@@ -1,6 +1,10 @@
 package handlers
 
 import (
+	"fmt"
+	"tera-router/server/internal/consolelog"
+	"time"
+
 	"tera-router/server/internal/app"
 	"tera-router/server/internal/catalog"
 	"tera-router/server/internal/dtos"
@@ -14,13 +18,13 @@ type consoleHandler struct {
 
 // Index returns the console ring buffer, newest last.
 func (h *consoleHandler) Index(c fiber.Ctx) error {
-	return dtos.List(c, ConsoleList(), dtos.Metadata{})
+	return dtos.List(c, consolelog.List(), dtos.Metadata{})
 }
 
 // Clear empties the console feed.
 func (h *consoleHandler) Clear(c fiber.Ctx) error {
-	ConsoleClear()
-	ConsolePush(dtos.LogLevelInfo, "Console cleared", "")
+	consolelog.Clear()
+	consolelog.Push(dtos.LogLevelInfo, "Console cleared", "")
 	return dtos.List(c, []dtos.ConsoleEntry{}, dtos.Metadata{})
 }
 
@@ -35,6 +39,27 @@ func (h *systemHandler) Stats(c fiber.Ctx) error {
 		return err
 	}
 	return dtos.OK(c, stats)
+}
+
+// processStartedAt approximates when the gateway started: package
+// initialisation runs once, at boot.
+var processStartedAt = time.Now()
+
+// Status reports the running gateway for the dashboard's status card.
+func (h *systemHandler) Status(c fiber.Ctx) error {
+	return dtos.OK(c, buildSystemStatus(h.app.Config.App.Port, processStartedAt, time.Now()))
+}
+
+// buildSystemStatus assembles the status card. The server binds every
+// interface (Listen(":port")), so the address is shown as 0.0.0.0:port.
+func buildSystemStatus(port int, startedAt, now time.Time) dtos.SystemStatus {
+	return dtos.SystemStatus{
+		Status:        "running",
+		Version:       app.Version,
+		UptimeSeconds: int64(now.Sub(startedAt).Seconds()),
+		ListenAddr:    fmt.Sprintf("0.0.0.0:%d", port),
+		Database:      "SQLite",
+	}
 }
 
 type mediaHandler struct {

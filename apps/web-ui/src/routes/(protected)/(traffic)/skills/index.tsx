@@ -1,3 +1,4 @@
+import { IconPuzzle } from '@tabler/icons-react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
@@ -6,10 +7,11 @@ import { toast } from 'sonner'
 import type { CreateSkillDto } from '@/lib/api/dtos/skill/schema'
 import type { Models } from '@/lib/api/models'
 
-import SectionCard from '@/components/block/common/section-card'
-import CreateSkillCard from '@/components/block/traffic/skills/create-skill-card'
+import PageHeader from '@/components/block/common/page-header'
+import CreateSkillDialog from '@/components/block/traffic/skills/create-skill-dialog'
 import CustomSkillsCard from '@/components/block/traffic/skills/custom-skills-card'
 import ReferenceSkillsCard from '@/components/block/traffic/skills/reference-skills-card'
+import SkillTemplatesCard from '@/components/block/traffic/skills/skill-templates-card'
 import { toastAxiosError } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
 
@@ -20,6 +22,7 @@ export const Route = createFileRoute('/(protected)/(traffic)/skills/')({
 function RouteComponent() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [togglingId, setTogglingId] = useState<string | null>(null)
+  const [creating, setCreating] = useState<{ initial?: CreateSkillDto } | null>(null)
 
   const { data, isFetching, isLoading } = useQuery(queries.skills.list())
   const skills = data?.data ?? []
@@ -60,22 +63,38 @@ function RouteComponent() {
   }
 
   return (
-    <SectionCard
-      title="Skills"
-      description="Reference docs for AI agents and reusable system-prompt augmentations."
-    >
-      <div className="space-y-4">
-        <ReferenceSkillsCard />
-        <CreateSkillCard onSubmit={handleCreate} />
-        <CustomSkillsCard
-          skills={skills}
-          loading={isFetching || isLoading}
-          deletingId={deletingId}
-          togglingId={togglingId}
-          onToggle={handleToggle}
-          onDelete={handleDelete}
-        />
-      </div>
-    </SectionCard>
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        icon={IconPuzzle}
+        iconClassName="text-primary border-transparent bg-primary/10"
+        title="Skills"
+        description="Standing instructions the gateway adds to chat requests, plus reference docs that teach agents to use Tera Router."
+      />
+
+      <CustomSkillsCard
+        skills={skills}
+        loading={isFetching || isLoading}
+        deletingId={deletingId}
+        togglingId={togglingId}
+        onToggle={handleToggle}
+        onDelete={handleDelete}
+        onCreate={() => setCreating({})}
+        templatesHref="#skill-templates"
+      />
+      <SkillTemplatesCard
+        id="skill-templates"
+        onUse={({ name, description, prompt }) =>
+          setCreating({ initial: { name, description, prompt } })
+        }
+      />
+      <ReferenceSkillsCard />
+
+      <CreateSkillDialog
+        open={creating !== null}
+        onOpenChange={(open) => !open && setCreating(null)}
+        initial={creating?.initial}
+        onSubmit={handleCreate}
+      />
+    </div>
   )
 }

@@ -11,5 +11,6 @@ export type AccountResources = {
   update: (id: string, payload: Partial<AccountDto>) => Promise<AxiosItemResponse<Account>>
   remove: (id: string) => Promise<AxiosItemResponse<{ id: string }>>
   test: (id: string) => Promise<AxiosItemResponse<TestResult>>
+  testKey: (payload: AccountDto) => Promise<AxiosItemResponse<TestResult>>
   quota: (id: string) => Promise<AxiosItemResponse<AccountQuota>>
 }

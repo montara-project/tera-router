@@ -59,7 +59,7 @@ func TestUsageRecordRoundtripsConsumptionRate(t *testing.T) {
 		Provider: "openai", Model: "gpt-4o", PromptTokens: 10,
 	})
 
-	rows, err := repo.Recent(ctx, 10)
+	rows, err := repo.Recent(ctx, time.Time{}, 10)
 	if err != nil {
 		t.Fatalf("recent: %v", err)
 	}
