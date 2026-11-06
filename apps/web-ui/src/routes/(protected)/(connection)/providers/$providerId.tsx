@@ -9,6 +9,7 @@ import {
 } from '@tabler/icons-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate, useParams } from '@tanstack/react-router'
+import { useQueryState } from 'nuqs'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
@@ -51,6 +52,14 @@ function CustomProviderDetailRoute() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [tab, setTab] = useState('overview')
+  // Each tab's table pages on its own, so a page from another tab is dropped.
+  const [, setPage] = useQueryState('page')
+  const [, setPageSize] = useQueryState('pageSize')
+  const changeTab = (value: string) => {
+    setTab(value)
+    void setPage(null)
+    void setPageSize(null)
+  }
   const [accountOpen, setAccountOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
 
@@ -295,7 +304,7 @@ function CustomProviderDetailRoute() {
 
       <ProviderStatStrip health={health} />
 
-      <Tabs value={tab} onValueChange={setTab}>
+      <Tabs value={tab} onValueChange={changeTab}>
         <TabsList variant="line" size="md" className="w-full justify-start gap-1 overflow-x-auto">
           <TabsTrigger
             value="overview"

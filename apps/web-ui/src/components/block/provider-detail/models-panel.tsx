@@ -8,7 +8,6 @@ import type { Models } from '@/lib/api/models'
 
 import SegmentedControl from '@/components/block/common/segmented-control'
 import ModelsCatalog, {
-  CATALOG_PAGE_SIZE,
   type ModelStateFilter,
 } from '@/components/block/provider-detail/models-catalog'
 import ObservedPanel from '@/components/block/provider-detail/observed-panel'
@@ -61,8 +60,17 @@ export default function ModelsPanel({
   const search = useDebounce({ value: searchInput, delay: 300 })
   const [selected, setSelected] = useState<string[]>([])
 
-  const { offset, limit, pageIndex } = usePaginationQuery({ limit: CATALOG_PAGE_SIZE })
+  const { offset, limit, pageIndex } = usePaginationQuery()
   const [, setQueryPage] = useQueryState('page')
+  const [, setQueryPageSize] = useQueryState('pageSize')
+
+  // Catalog and Observed page on their own, so a page from the other view is dropped.
+  const onSubTabChange = (value: 'catalog' | 'observed') => {
+    setSubTab(value)
+    void setQueryPage(null)
+    void setQueryPageSize(null)
+    setSelected([])
+  }
 
   const onSearchChange = (value: string) => {
     setSearchInput(value)
@@ -152,18 +160,13 @@ export default function ModelsPanel({
     }
   }
 
-  const changePage = (next: number) => {
-    setQueryPage(String(next))
-    setSelected([])
-  }
-
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <SegmentedControl
           aria-label="Model view"
           value={subTab}
-          onChange={setSubTab}
+          onChange={onSubTabChange}
           options={[
             { value: 'catalog', label: 'Catalog', count: catalog?.count ?? 0 },
             { value: 'observed', label: 'Observed', count: observed.length },
@@ -186,7 +189,7 @@ export default function ModelsPanel({
           stateFilter={stateFilter}
           onStateFilterChange={onStateFilterChange}
           pageIndex={pageIndex}
-          onPageChange={changePage}
+          pageSize={limit}
           selected={selected}
           onSelectedChange={setSelected}
           syncing={syncing}

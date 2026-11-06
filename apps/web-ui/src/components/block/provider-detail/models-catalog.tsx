@@ -1,3 +1,5 @@
+import type { ColumnDef } from '@tanstack/react-table'
+
 import {
   IconApps,
   IconCircleCheck,
@@ -14,8 +16,13 @@ import { toast } from 'sonner'
 import type { ModelTestStatus } from '@/components/block/provider-detail/models-panel'
 import type { Models } from '@/lib/api/models'
 
+import ReactTable, { features } from '@/components/block/common/react-table'
 import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
-import ModelRow from '@/components/block/provider-detail/model-row'
+import {
+  ModelActionsCell,
+  RouteAsCell,
+  TestBadge,
+} from '@/components/block/provider-detail/model-row'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input, InputWrapper } from '@/components/ui/input'
@@ -24,7 +31,8 @@ import { cn, selectAllState } from '@/lib/utils'
 
 import EmptyState from '../common/empty-state'
 
-export const CATALOG_PAGE_SIZE = 25
+/** The pager never offers fewer than 10 rows; the server caps a page at 100. */
+export const CATALOG_PAGE_SIZES = [10, 25, 50, 100]
 
 export type ModelStateFilter = 'all' | Models.ProviderModelState
 
@@ -45,7 +53,7 @@ export default function ModelsCatalog({
   stateFilter,
   onStateFilterChange,
   pageIndex,
-  onPageChange,
+  pageSize,
   selected,
   onSelectedChange,
   syncing,
@@ -66,7 +74,7 @@ export default function ModelsCatalog({
   stateFilter: ModelStateFilter
   onStateFilterChange: (value: ModelStateFilter) => void
   pageIndex: number
-  onPageChange: (page: number) => void
+  pageSize: number
   selected: string[]
   onSelectedChange: (ids: string[]) => void
   syncing: boolean
@@ -82,7 +90,6 @@ export default function ModelsCatalog({
   const enabledCount = catalog?.enabled ?? 0
   const totalCount = catalog?.count ?? 0
   const filteredTotal = catalog?.total ?? 0
-  const pages = Math.max(1, Math.ceil(filteredTotal / CATALOG_PAGE_SIZE))
   // Selection is page-scoped: the catalog is paged server-side, so "select
   // all" and bulk actions operate on the rows currently on screen.
   const selectedInPage = selected.filter((id) => models.some((m) => m.id === id))
@@ -169,45 +176,89 @@ export default function ModelsCatalog({
     }
 
     return (
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[44rem] text-[13px]">
-          <thead className="border-b border-border text-xs text-muted-foreground dark:bg-muted/40">
-            <tr>
-              <th className="w-12 px-4 py-2">
-                <Checkbox
-                  size="sm"
-                  checked={selectAllState(allSelected, someSelected)}
-                  onCheckedChange={(checked) =>
-                    onSelectedChange(checked === true ? models.map((m) => m.id) : [])
-                  }
-                  aria-label="Select all models on this page"
-                />
-              </th>
-              <th className="w-[38%] py-2 pe-4 text-left font-medium">Model</th>
-              <th className="px-4 py-2 text-left font-medium">Kind</th>
-              <th className="px-4 py-2 text-left font-medium">Route as</th>
-              <th className="px-4 py-2 text-right font-medium">Enabled</th>
-            </tr>
-          </thead>
-          <tbody>
-            {models.map((model) => (
-              <ModelRow
-                key={model.id}
-                providerSlug={providerSlug}
-                providerId={providerId}
-                variant={variant}
-                model={model}
-                selected={selected.includes(model.id)}
-                onToggleSelect={toggleSelect}
-                onToggleState={toggleModel}
-                testResult={testResults[model.id]}
-              />
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <ReactTable
+        total={filteredTotal}
+        data={models}
+        pageIndex={pageIndex}
+        pageSize={pageSize}
+        pageSizes={CATALOG_PAGE_SIZES}
+        onPageChange={() => onSelectedChange([])}
+        onPageSizeChange={() => onSelectedChange([])}
+        columns={columns}
+        tableClassName="min-w-[44rem]"
+      />
     )
   }
+
+  const columns: ColumnDef<typeof features, Models.ProviderModel, unknown>[] = [
+    {
+      id: 'select',
+      header: () => (
+        <Checkbox
+          size="sm"
+          checked={selectAllState(allSelected, someSelected)}
+          onCheckedChange={(checked) =>
+            onSelectedChange(checked === true ? models.map((m) => m.id) : [])
+          }
+          aria-label="Select all models on this page"
+        />
+      ),
+      meta: { headerClassName: 'w-12' },
+      cell: ({ row }) => (
+        <Checkbox
+          size="sm"
+          checked={selected.includes(row.original.id)}
+          onCheckedChange={(checked) => toggleSelect(row.original.id, checked === true)}
+          aria-label={`Select ${row.original.id}`}
+        />
+      ),
+    },
+    {
+      id: 'model',
+      header: 'Model',
+      meta: { headerClassName: 'w-[38%]', cellClassName: 'max-w-0' },
+      cell: ({ row }) => (
+        <div className="flex min-w-0 items-center gap-2">
+          <span
+            className={cn(
+              'truncate font-medium',
+              row.original.state !== 'active' && 'text-muted-foreground'
+            )}
+            title={row.original.id}
+          >
+            {row.original.id}
+          </span>
+          <TestBadge result={testResults[row.original.id]} />
+        </div>
+      ),
+    },
+    {
+      id: 'kind',
+      header: 'Kind',
+      meta: { cellClassName: 'text-muted-foreground' },
+      cell: () => 'llm',
+    },
+    {
+      id: 'route_as',
+      header: 'Route as',
+      meta: { cellClassName: 'max-w-0' },
+      cell: ({ row }) => <RouteAsCell routeAs={`${providerSlug}/${row.original.id}`} />,
+    },
+    {
+      id: 'enabled',
+      header: 'Enabled',
+      meta: { headerClassName: 'text-right' },
+      cell: ({ row }) => (
+        <ModelActionsCell
+          providerSlug={providerSlug}
+          providerId={providerId}
+          variant={variant}
+          model={row.original}
+          onToggleState={toggleModel}
+        />
+      ),
+    },
+  ]
 
   return (
     <DashboardPanel
@@ -286,33 +337,6 @@ export default function ModelsCatalog({
       )}
 
       {renderBody()}
-
-      {filteredTotal > CATALOG_PAGE_SIZE ? (
-        <div className="flex items-center justify-between border-t border-border px-4 py-2.5">
-          <p className="text-xs text-muted-foreground">{filteredTotal} models</p>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={pageIndex === 0}
-              onClick={() => onPageChange(Math.max(0, pageIndex - 1))}
-            >
-              Previous
-            </Button>
-            <span className="text-xs tabular-nums text-muted-foreground">
-              {pageIndex + 1} / {pages}
-            </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={pageIndex >= pages - 1}
-              onClick={() => onPageChange(Math.min(pages - 1, pageIndex + 1))}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
-      ) : null}
     </DashboardPanel>
   )
 }

@@ -1,3 +1,5 @@
+import type { ColumnDef } from '@tanstack/react-table'
+
 import {
   IconCircleCheck,
   IconKey,
@@ -13,15 +15,18 @@ import { toast } from 'sonner'
 import type { Models } from '@/lib/api/models'
 
 import EmptyState from '@/components/block/common/empty-state'
+import ReactTable, { features } from '@/components/block/common/react-table'
 import SimpleAlertDialog from '@/components/block/common/simple-alert-dialog'
 import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
+import { usePaginationQuery } from '@/hooks/use-pagination-query'
 import { queries } from '@/lib/api/queries'
 import { services } from '@/lib/api/services'
 
-const PAGE_SIZE = 10
+/** The pager never offers fewer than 10 rows. */
+const PAGE_SIZES = [10, 25, 50, 100]
 
 const AUTH_LABEL: Record<string, string> = { api_key: 'API key', oauth: 'OAuth', none: 'No auth' }
 
@@ -65,7 +70,8 @@ export default function AccountsPanel({
   onAddKey: () => void
   onChanged: () => Promise<unknown> | void
 }) {
-  const [accountPage, setAccountPage] = useState(1)
+  // The list arrives whole, so paging runs here; the pager keeps its page in ?page.
+  const { offset, limit, pageIndex } = usePaginationQuery()
   const [testingId, setTestingId] = useState<string | null>(null)
   const [testingAll, setTestingAll] = useState(false)
   const [deleteAccountId, setDeleteAccountId] = useState<string | null>(null)
@@ -75,9 +81,6 @@ export default function AccountsPanel({
   const testAccountMutation = useMutation(queries.accounts.test())
   const deleteAccountMutation = useMutation(queries.accounts.delete())
   const toggleAccountMutation = useMutation(queries.accounts.update())
-
-  const visibleAccounts = accounts.slice((accountPage - 1) * PAGE_SIZE, accountPage * PAGE_SIZE)
-  const accountPages = Math.max(1, Math.ceil(accounts.length / PAGE_SIZE))
 
   const testAccount = async (id: string) => {
     setTestingId(id)
@@ -191,121 +194,145 @@ export default function AccountsPanel({
     }
 
     return (
-      <div className="relative overflow-x-auto">
-        <table className="w-full min-w-[44rem] text-[13px]">
-          <thead className="border-b border-border text-xs text-muted-foreground dark:bg-muted/40">
-            <tr>
-              <th className="px-4 py-2 text-left font-medium">Account</th>
-              <th className="px-4 py-2 text-left font-medium">Status</th>
-              <th className="px-4 py-2 text-left font-medium">
-                Priority <span className="font-normal">· lower runs first</span>
-              </th>
-              <th className="px-4 py-2 text-left font-medium">Enabled</th>
-              <th className="w-24 px-4 py-2">
-                <span className="sr-only">Actions</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {visibleAccounts.map((account) => {
-              const name = account.label || 'API key'
-              const saving = savingPriorityId === account.id
-              return (
-                <tr key={account.id} className="border-b border-border last:border-0">
-                  <td className="max-w-0 px-4 py-2.5">
-                    <p className="truncate font-medium" title={name}>
-                      {name}
-                    </p>
-                    <p
-                      className="truncate text-xs text-muted-foreground"
-                      title={account.key_fingerprint || undefined}
-                    >
-                      {AUTH_LABEL[account.auth_kind] ?? account.auth_kind}
-                      {account.key_fingerprint ? (
-                        <span className="font-mono"> · {account.key_fingerprint}</span>
-                      ) : null}
-                    </p>
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <AccountStatusPill account={account} />
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <div
-                      role="group"
-                      aria-label={`${name} priority`}
-                      className="inline-flex h-8 items-center rounded-md border border-input"
-                    >
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-7 rounded-e-none"
-                        aria-label={`Raise ${name} priority`}
-                        disabled={saving || account.priority <= 1}
-                        onClick={() => setPriority(account, account.priority - 1)}
-                      >
-                        <IconMinus className="size-3.5" />
-                      </Button>
-                      <span
-                        className="w-11 border-x border-input text-center tabular-nums"
-                        aria-live="polite"
-                      >
-                        {account.priority}
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-7 rounded-s-none"
-                        aria-label={`Lower ${name} priority`}
-                        disabled={saving}
-                        onClick={() => setPriority(account, account.priority + 1)}
-                      >
-                        <IconPlus className="size-3.5" />
-                      </Button>
-                    </div>
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <Switch
-                      checked={!account.disabled}
-                      disabled={togglingId === account.id}
-                      onCheckedChange={() => toggleAccount(account)}
-                      aria-label={`${name} enabled`}
-                    />
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <div className="flex justify-end gap-0.5">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="size-8"
-                        aria-label={`Test ${name}`}
-                        disabled={testingId === account.id}
-                        onClick={() => testAccount(account.id)}
-                      >
-                        {testingId === account.id ? (
-                          <IconRefresh className="animate-spin" />
-                        ) : (
-                          <IconCircleCheck />
-                        )}
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="size-8"
-                        aria-label={`Delete ${name}`}
-                        onClick={() => setDeleteAccountId(account.id)}
-                      >
-                        <IconTrash />
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
+      <ReactTable
+        total={accounts.length}
+        data={accounts.slice(offset, offset + limit)}
+        pageIndex={pageIndex}
+        pageSize={limit}
+        pageSizes={PAGE_SIZES}
+        columns={columns}
+        tableClassName="min-w-[44rem]"
+      />
     )
   }
+
+  const columns: ColumnDef<typeof features, Models.Account, unknown>[] = [
+    {
+      id: 'account',
+      header: 'Account',
+      meta: { cellClassName: 'max-w-0' },
+      cell: ({ row }) => {
+        const account = row.original
+        const name = account.label || 'API key'
+        return (
+          <>
+            <p className="truncate font-medium" title={name}>
+              {name}
+            </p>
+            <p
+              className="truncate text-xs text-muted-foreground"
+              title={account.key_fingerprint || undefined}
+            >
+              {AUTH_LABEL[account.auth_kind] ?? account.auth_kind}
+              {account.key_fingerprint ? (
+                <span className="font-mono"> · {account.key_fingerprint}</span>
+              ) : null}
+            </p>
+          </>
+        )
+      },
+    },
+    {
+      id: 'status',
+      header: 'Status',
+      cell: ({ row }) => <AccountStatusPill account={row.original} />,
+    },
+    {
+      id: 'priority',
+      header: () => (
+        <>
+          Priority <span className="font-normal">· lower runs first</span>
+        </>
+      ),
+      cell: ({ row }) => {
+        const account = row.original
+        const name = account.label || 'API key'
+        const saving = savingPriorityId === account.id
+        return (
+          <div
+            role="group"
+            aria-label={`${name} priority`}
+            className="inline-flex h-8 items-center rounded-md border border-input"
+          >
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7 rounded-e-none"
+              aria-label={`Raise ${name} priority`}
+              disabled={saving || account.priority <= 1}
+              onClick={() => setPriority(account, account.priority - 1)}
+            >
+              <IconMinus className="size-3.5" />
+            </Button>
+            <span
+              className="w-11 border-x border-input text-center tabular-nums"
+              aria-live="polite"
+            >
+              {account.priority}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7 rounded-s-none"
+              aria-label={`Lower ${name} priority`}
+              disabled={saving}
+              onClick={() => setPriority(account, account.priority + 1)}
+            >
+              <IconPlus className="size-3.5" />
+            </Button>
+          </div>
+        )
+      },
+    },
+    {
+      id: 'enabled',
+      header: 'Enabled',
+      cell: ({ row }) => (
+        <Switch
+          checked={!row.original.disabled}
+          disabled={togglingId === row.original.id}
+          onCheckedChange={() => toggleAccount(row.original)}
+          aria-label={`${row.original.label || 'API key'} enabled`}
+        />
+      ),
+    },
+    {
+      id: 'actions',
+      header: () => <span className="sr-only">Actions</span>,
+      meta: { headerClassName: 'w-24' },
+      cell: ({ row }) => {
+        const account = row.original
+        const name = account.label || 'API key'
+        return (
+          <div className="flex justify-end gap-0.5">
+            <Button
+              size="icon"
+              variant="ghost"
+              className="size-8"
+              aria-label={`Test ${name}`}
+              disabled={testingId === account.id}
+              onClick={() => testAccount(account.id)}
+            >
+              {testingId === account.id ? (
+                <IconRefresh className="animate-spin" />
+              ) : (
+                <IconCircleCheck />
+              )}
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="size-8"
+              aria-label={`Delete ${name}`}
+              onClick={() => setDeleteAccountId(account.id)}
+            >
+              <IconTrash />
+            </Button>
+          </div>
+        )
+      },
+    },
+  ]
 
   return (
     <>
@@ -332,32 +359,6 @@ export default function AccountsPanel({
         }
       >
         {renderAccounts()}
-        {accounts.length > PAGE_SIZE ? (
-          <div className="flex items-center justify-between border-t border-border px-4 py-2.5">
-            <p className="text-xs text-muted-foreground">{accounts.length} total</p>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={accountPage <= 1}
-                onClick={() => setAccountPage((p) => Math.max(1, p - 1))}
-              >
-                Previous
-              </Button>
-              <span className="text-xs tabular-nums text-muted-foreground">
-                {accountPage} / {accountPages}
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={accountPage >= accountPages}
-                onClick={() => setAccountPage((p) => Math.min(accountPages, p + 1))}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
-        ) : null}
       </DashboardPanel>
 
       <SimpleAlertDialog
