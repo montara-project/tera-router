@@ -28,6 +28,8 @@ export default function TextField({
   disabled,
   asterisk = false,
   hint,
+  icon: Icon,
+  variant = 'lg',
   ...props
 }: TextFieldProps) {
   const field = useFieldContext<string | number>()
@@ -44,8 +46,8 @@ export default function TextField({
         </FieldLabel>
         {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
       </div>
-      <InputWrapper variant="lg">
-        {props.icon && <props.icon />}
+      <InputWrapper variant={variant}>
+        {Icon && <Icon />}
         <Input
           id={field.name}
           name={field.name}
@@ -57,7 +59,7 @@ export default function TextField({
           }}
           aria-invalid={isInvalid}
           placeholder={placeholder}
-          variant="lg"
+          variant={variant}
           disabled={disabled}
           {...props}
         />

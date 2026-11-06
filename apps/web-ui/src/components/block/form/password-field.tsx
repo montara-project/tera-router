@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { Input, inputVariants } from '@/components/ui/input'
 import { useFieldContext } from '@/hooks/form-context'
+import { cn } from '@/lib/utils'
 
 type PasswordInputProps = React.ComponentProps<'input'> &
   VariantProps<typeof inputVariants> & {
@@ -17,6 +18,8 @@ type PasswordInputProps = React.ComponentProps<'input'> &
     asterisk?: boolean
     /** Muted note right of the label, e.g. "Required". */
     hint?: string
+    /** Leading icon inside the field, as in TextField. */
+    icon?: React.ElementType
   }
 
 export default function PasswordField({
@@ -24,6 +27,9 @@ export default function PasswordField({
   placeholder,
   asterisk = false,
   hint,
+  icon: Icon,
+  className,
+  variant = 'lg',
   ...props
 }: PasswordInputProps) {
   const [passwordVisible, setPasswordVisible] = useState(false)
@@ -43,6 +49,12 @@ export default function PasswordField({
         {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
       </div>
       <div className="relative">
+        {Icon && (
+          <Icon
+            className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden
+          />
+        )}
         <Input
           type={passwordVisible ? 'text' : 'password'}
           id={field.name}
@@ -53,7 +65,8 @@ export default function PasswordField({
           aria-invalid={isInvalid}
           placeholder={placeholder}
           autoComplete="off"
-          variant="lg"
+          variant={variant}
+          className={cn('pe-10', Icon && 'ps-9', className)}
           {...props}
         />
         <Button
