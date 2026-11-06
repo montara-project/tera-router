@@ -35,6 +35,8 @@
   --sidebar-accent-foreground: 240 5.9% 10%;
   --sidebar-border: 220 13% 91%;
   --sidebar-ring: 217.2 91.2% 59.8%;
+  /* Scrollbar thumb: the border color, solid so it reads the same on any surface. */
+  --scrollbar-thumb: var(--border);
 }
 
 .dark {
@@ -56,6 +58,9 @@
   --destructive: oklch(0.704 0.191 22.216);
   --destructive-foreground: oklch(0.985 0 0);
   --border: oklch(1 0 0 / 10%);
+  /* The dark border is translucent, so a thumb over the page looked darker than
+     the sidebar's. Pin it to the border as it shows over the sidebar. */
+  --scrollbar-thumb: color-mix(in srgb, oklch(1 0 0) 10%, hsl(var(--sidebar-background)));
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
   --sidebar-background: 240 5.9% 10%;
@@ -229,7 +234,7 @@
    surface; the thumb only gains contrast while the pointer is over it. */
 @utility scrollbar-seamless {
   scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
   &:hover {
     scrollbar-color: color-mix(in oklch, var(--muted-foreground) 50%, transparent) transparent;
   }
@@ -241,7 +246,7 @@
     background: transparent;
   }
   &::-webkit-scrollbar-thumb {
-    background: var(--border);
+    background: var(--scrollbar-thumb);
     border-radius: 9999px;
   }
 }
