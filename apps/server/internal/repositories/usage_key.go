@@ -24,7 +24,7 @@ type KeyDailyUsage struct {
 // traffic are left out.
 func (r *UsageRepository) DailyForKey(ctx context.Context, keyID string, from time.Time) ([]KeyDailyUsage, error) {
 	rows, err := r.queryContext(ctx, r.DB, `
-		SELECT strftime('%Y-%m-%d', created_at), `+requestCount+`,
+		SELECT `+dayBucket+`, `+requestCount+`,
 		       COALESCE(SUM(prompt_tokens), 0), COALESCE(SUM(completion_tokens), 0),
 		       COALESCE(SUM(cost_micros), 0)
 		FROM usage_records WHERE api_key_id = $1 AND created_at >= $2
