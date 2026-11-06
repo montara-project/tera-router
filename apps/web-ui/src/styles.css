@@ -163,6 +163,12 @@
   html {
     scrollbar-gutter: stable;
   }
+  /* Under the app shell the page itself never scrolls: #app-main does, below
+     the top bar (components/layout/sidebar/layout.tsx). A reserved gutter on
+     <html> would only leave an empty strip beside the bar. */
+  html:has(#app-main) {
+    scrollbar-gutter: auto;
+  }
   body {
     @apply bg-background text-foreground;
     margin: 0;
