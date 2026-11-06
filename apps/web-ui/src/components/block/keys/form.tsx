@@ -1,17 +1,11 @@
 import { IconChevronDown, IconSearch, IconSelector, IconX } from '@tabler/icons-react'
+import { useSelector } from '@tanstack/react-form'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useId, useState } from 'react'
 import { toast } from 'sonner'
 
 import type { Models } from '@/lib/api/models'
 
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import { Button } from '@/components/ui/button'
 import {
   Command,
   CommandEmpty,
@@ -20,39 +14,34 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command'
-import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Switch } from '@/components/ui/switch'
+import { useAppForm } from '@/hooks/form'
 import { toastAxiosError } from '@/lib/api/axios-error'
+import { KeyFormSchema, type KeyFormValues } from '@/lib/api/dtos/key/schema'
 import { queries } from '@/lib/api/queries'
 import { cn } from '@/lib/utils'
 
-type Period = 'daily' | 'weekly' | 'monthly'
+import SimpleAlertScrollableDialogForm from '../common/simple-alert-scrollable-dialog-form'
 
-type Draft = {
-  name: string
-  planId: string
-  limitUsd: string
-  limitTokens: string
-  period: Period
-  models: string[]
-  alertPct: string
-  hardCutoff: boolean
-}
+const NO_PLAN = 'none'
 
-const EMPTY: Draft = {
+const DEFAULT_VALUES: KeyFormValues = {
   name: '',
-  planId: '',
-  limitUsd: '',
-  limitTokens: '',
+  plan_id: NO_PLAN,
+  limit_usd: '',
+  limit_tokens: '',
   period: 'monthly',
   models: [],
-  alertPct: '80',
-  hardCutoff: true,
+  alert_pct: '80',
+  hard_cutoff: true,
 }
 
-const selectClass =
-  'h-9 w-full rounded-md border border-input bg-background px-2.5 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden'
+const PERIOD_OPTIONS = [
+  { value: 'daily', label: 'Daily' },
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'monthly', label: 'Monthly' },
+]
 
 /** Label row with a muted hint on the right, as in the other forms. */
 export function FieldLabel({
@@ -83,252 +72,222 @@ type AddKeyFormProps = {
 
 /** Keyed by open state so every open starts from an empty form. */
 export function AddKeyForm(props: AddKeyFormProps) {
-  return <CreateKeyDialog key={String(props.open)} {...props} />
+  return <CreateKeyForm key={String(props.open)} {...props} />
 }
 
-function CreateKeyDialog({ open, onOpenChange, onCreated }: AddKeyFormProps) {
+const optionalNumber = (raw: string) => (raw.trim() === '' ? undefined : Number(raw))
+
+function CreateKeyForm({ open, onOpenChange, onCreated }: AddKeyFormProps) {
   const id = useId()
-  const [draft, setDraft] = useState<Draft>(EMPTY)
   const [advanced, setAdvanced] = useState(false)
-  const set = (patch: Partial<Draft>) => setDraft((d) => ({ ...d, ...patch }))
 
   const plansQuery = useQuery(queries.plans.list())
   const plans = plansQuery.data?.data ?? []
-  const plan = plans.find((p) => p.id === draft.planId)
 
   const createKey = useMutation(queries.keys.create())
   const createBudget = useMutation(queries.budgets.create())
-  const saving = createKey.isPending || createBudget.isPending
 
-  const usd = draft.limitUsd.trim() === '' ? undefined : Number(draft.limitUsd)
-  const tokens = draft.limitTokens.trim() === '' ? undefined : Number(draft.limitTokens)
-  const alert = Number(draft.alertPct)
-  const hasLimit = usd !== undefined || tokens !== undefined
-  const error = !draft.name.trim()
-    ? 'Name is required.'
-    : usd !== undefined && !(usd > 0)
-      ? 'Limit (USD) must be more than 0.'
-      : tokens !== undefined && !(Number.isInteger(tokens) && tokens > 0)
-        ? 'Limit (tokens) must be a whole number above 0.'
-        : hasLimit && !(Number.isInteger(alert) && alert >= 1 && alert <= 100)
-          ? 'Alert at must be between 1 and 100.'
-          : null
+  const form = useAppForm({
+    defaultValues: DEFAULT_VALUES,
+    validators: {
+      onSubmit: KeyFormSchema,
+      onChange: KeyFormSchema,
+    },
+    onSubmit: async ({ value }) => {
+      const usd = optionalNumber(value.limit_usd)
+      const tokens = optionalNumber(value.limit_tokens)
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (error) {
-      toast.error(error)
-      return
-    }
-    let key: Models.ApiKey
-    try {
-      const res = await createKey.mutateAsync({
-        name: draft.name.trim(),
-        plan_id: draft.planId || undefined,
-        allowed_models: draft.models.length ? draft.models : undefined,
-      })
-      key = res.data
-    } catch (err) {
-      toastAxiosError(err)
-      return
-    }
-
-    // The key exists from here on; a budget failure is reported, not hidden,
-    // and the secret is still shown because it is the only chance to copy it.
-    if (hasLimit) {
+      let key: Models.ApiKey
       try {
-        await createBudget.mutateAsync({
-          scope_kind: 'api_key',
-          scope_id: key.id,
-          budget_spend: usd,
-          limit_tokens: tokens,
-          period: draft.period,
-          alert_pct: alert,
-          hard_cutoff: draft.hardCutoff,
+        const res = await createKey.mutateAsync({
+          name: value.name.trim(),
+          plan_id: value.plan_id === NO_PLAN ? undefined : value.plan_id,
+          allowed_models: value.models.length ? value.models : undefined,
         })
-      } catch (err) {
-        toastAxiosError(err)
-        toast.error('Key created without its limit. Add the budget under Plans & budgets.')
+        key = res.data
+      } catch (error) {
+        toastAxiosError(error)
+        return
       }
-    }
 
-    onOpenChange(false)
-    onCreated?.(key)
-  }
+      // The key exists from here on; a budget failure is reported, not hidden,
+      // and the secret is still shown because it is the only chance to copy it.
+      if (usd !== undefined || tokens !== undefined) {
+        try {
+          await createBudget.mutateAsync({
+            scope_kind: 'api_key',
+            scope_id: key.id,
+            budget_spend: usd,
+            limit_tokens: tokens,
+            period: value.period,
+            alert_pct: Number(value.alert_pct),
+            hard_cutoff: value.hard_cutoff,
+          })
+        } catch (error) {
+          toastAxiosError(error)
+          toast.error('Key created without its limit. Add the budget under Plans & budgets.')
+        }
+      }
+
+      onOpenChange(false)
+      onCreated?.(key)
+    },
+  })
+
+  const planId = useSelector(form.store, (state) => state.values.plan_id)
+  const hasLimit = useSelector(
+    form.store,
+    (state) => state.values.limit_usd.trim() !== '' || state.values.limit_tokens.trim() !== ''
+  )
+  const plan = plans.find((p) => p.id === planId)
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="flex max-h-[90vh] max-w-lg flex-col gap-0 overflow-hidden p-0">
-        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
-          <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
-            <AlertDialogTitle className="text-[15px]">Create API key</AlertDialogTitle>
-            <AlertDialogDescription className="sr-only">
-              The key is shown once after it is created.
-            </AlertDialogDescription>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-8 text-muted-foreground"
-              aria-label="Close"
-              onClick={() => onOpenChange(false)}
-            >
-              <IconX className="size-4" />
-            </Button>
-          </div>
+    <SimpleAlertScrollableDialogForm
+      onSubmit={(e) => {
+        e.preventDefault()
+        void form.handleSubmit()
+      }}
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Create API key"
+      description="The key is shown once after it is created."
+      confirmText="Create key"
+      loading={createKey.isPending || createBudget.isPending}
+      size="md"
+    >
+      <form.AppField
+        name="name"
+        children={(field) => (
+          <field.TextField
+            label="Name"
+            placeholder="e.g. Cursor on my laptop"
+            autoComplete="off"
+            asterisk
+          />
+        )}
+      />
 
-          <div className="scrollbar-seamless min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-4">
-            <div className="space-y-1.5">
-              <FieldLabel htmlFor={`${id}-name`} label="Name" hint="Required" />
-              <Input
-                id={`${id}-name`}
-                value={draft.name}
-                onChange={(e) => set({ name: e.target.value })}
-                placeholder="e.g. Cursor on my laptop"
-                autoComplete="off"
+      <div className="space-y-1.5">
+        <form.AppField
+          name="plan_id"
+          children={(field) => (
+            <field.SelectField
+              label="Plan"
+              className="w-full"
+              options={[
+                { value: NO_PLAN, label: 'No plan' },
+                ...plans.map((p) => ({ value: p.id, label: p.name })),
+              ]}
+            />
+          )}
+        />
+        <p className="text-xs text-muted-foreground">
+          {plan
+            ? plan.description || `Limits and models follow ${plan.name}.`
+            : 'No plan. Set limits under Advanced.'}
+        </p>
+      </div>
+
+      <div className="overflow-hidden rounded-md border border-border">
+        <button
+          type="button"
+          aria-expanded={advanced}
+          aria-controls={`${id}-advanced`}
+          onClick={() => setAdvanced((v) => !v)}
+          className="flex h-10 w-full items-center justify-between gap-2 px-3 text-[13px] font-medium hover:bg-muted/40"
+        >
+          Advanced · limits and models
+          <IconChevronDown
+            className={cn('size-4 text-muted-foreground', advanced && 'rotate-180')}
+            aria-hidden
+          />
+        </button>
+        {advanced ? (
+          <div id={`${id}-advanced`} className="space-y-4 border-t border-border p-3">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <form.AppField
+                name="limit_usd"
+                children={(field) => (
+                  <field.TextField label="Limit (USD)" inputMode="decimal" placeholder="50.00" />
+                )}
+              />
+              <form.AppField
+                name="limit_tokens"
+                children={(field) => (
+                  <field.TextField
+                    label="Limit (tokens)"
+                    inputMode="numeric"
+                    placeholder="100000000"
+                  />
+                )}
+              />
+              <form.AppField
+                name="period"
+                children={(field) => (
+                  <field.SelectField label="Period" className="w-full" options={PERIOD_OPTIONS} />
+                )}
               />
             </div>
 
-            <div className="space-y-1.5">
-              <FieldLabel htmlFor={`${id}-plan`} label="Plan" />
-              <select
-                id={`${id}-plan`}
-                value={draft.planId}
-                onChange={(e) => set({ planId: e.target.value })}
-                className={selectClass}
-              >
-                <option value="">No plan</option>
-                {plans.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-muted-foreground">
-                {plan
-                  ? plan.description || `Limits and models follow ${plan.name}.`
-                  : 'No plan. Set limits under Advanced.'}
-              </p>
-            </div>
+            <p className="-mt-2 text-xs text-muted-foreground">
+              Limits are optional; empty means no limit.
+            </p>
 
-            <div className="overflow-hidden rounded-md border border-border">
-              <button
-                type="button"
-                aria-expanded={advanced}
-                onClick={() => setAdvanced((v) => !v)}
-                className="flex h-10 w-full items-center justify-between gap-2 px-3 text-[13px] font-medium hover:bg-muted/40"
-              >
-                Advanced · limits and models
-                <IconChevronDown
-                  className={cn('size-4 text-muted-foreground', advanced && 'rotate-180')}
-                  aria-hidden
-                />
-              </button>
-              {advanced ? (
-                <div className="space-y-4 border-t border-border p-3">
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <div className="space-y-1.5">
-                      <FieldLabel htmlFor={`${id}-usd`} label="Limit (USD)" hint="Optional" />
-                      <Input
-                        id={`${id}-usd`}
-                        inputMode="decimal"
-                        value={draft.limitUsd}
-                        onChange={(e) => set({ limitUsd: e.target.value.replace(/[^\d.]/g, '') })}
-                        placeholder="50.00"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <FieldLabel htmlFor={`${id}-tokens`} label="Limit (tokens)" hint="Optional" />
-                      <Input
-                        id={`${id}-tokens`}
-                        inputMode="numeric"
-                        value={draft.limitTokens}
-                        onChange={(e) => set({ limitTokens: e.target.value.replace(/\D/g, '') })}
-                        placeholder="100000000"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <FieldLabel htmlFor={`${id}-period`} label="Period" />
-                      <select
-                        id={`${id}-period`}
-                        value={draft.period}
-                        onChange={(e) => set({ period: e.target.value as Period })}
-                        className={selectClass}
-                      >
-                        <option value="daily">Daily</option>
-                        <option value="weekly">Weekly</option>
-                        <option value="monthly">Monthly</option>
-                      </select>
-                    </div>
-                  </div>
+            <form.AppField
+              name="models"
+              children={(field) => (
+                <div className="space-y-1.5">
+                  <FieldLabel htmlFor={`${id}-models`} label="Allowed models" hint="Optional" />
+                  <ModelPatternPicker
+                    id={`${id}-models`}
+                    value={field.state.value}
+                    onChange={field.handleChange}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Empty allows every model. * matches many, e.g. claude-*.
+                  </p>
+                </div>
+              )}
+            />
 
-                  <div className="space-y-1.5">
-                    <FieldLabel htmlFor={`${id}-models`} label="Allowed models" hint="Optional" />
-                    <ModelPatternPicker
-                      id={`${id}-models`}
-                      value={draft.models}
-                      onChange={(models) => set({ models })}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Empty allows every model. * matches many, e.g. claude-*.
-                    </p>
-                  </div>
-
+            <div className="grid gap-3 sm:grid-cols-3">
+              <form.AppField
+                name="alert_pct"
+                children={(field) => (
+                  <field.TextField label="Alert at (%)" inputMode="numeric" disabled={!hasLimit} />
+                )}
+              />
+              <form.AppField
+                name="hard_cutoff"
+                children={(field) => (
                   <div
                     className={cn(
-                      'divide-y divide-border rounded-md border border-border',
+                      'flex items-center justify-between gap-4 self-start rounded-md border border-border sm:mt-7 px-3 py-2.5 sm:col-span-2',
                       !hasLimit && 'opacity-60'
                     )}
                   >
-                    <div className="flex items-center justify-between gap-3 px-3 py-2.5">
-                      <label htmlFor={`${id}-alert`} className="text-[13px] font-medium">
-                        Alert at
-                      </label>
-                      <span className="flex items-center gap-2 text-[13px] text-muted-foreground">
-                        <Input
-                          id={`${id}-alert`}
-                          inputMode="numeric"
-                          className="w-20 text-right"
-                          disabled={!hasLimit}
-                          value={draft.alertPct}
-                          onChange={(e) => set({ alertPct: e.target.value.replace(/\D/g, '') })}
-                        />
-                        % of budget
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3 px-3 py-2.5">
-                      <span className="text-[13px] font-medium">
-                        Block requests when the budget is used up
-                      </span>
-                      <Switch
-                        checked={draft.hardCutoff}
-                        disabled={!hasLimit}
-                        onCheckedChange={(hardCutoff) => set({ hardCutoff })}
-                        aria-label="Block requests when the budget is used up"
-                      />
-                    </div>
+                    <label htmlFor={`${id}-cutoff`} className="text-[13px] font-medium">
+                      Block requests when the budget is used up
+                    </label>
+                    <Switch
+                      id={`${id}-cutoff`}
+                      checked={field.state.value}
+                      disabled={!hasLimit}
+                      onCheckedChange={field.handleChange}
+                    />
                   </div>
-                  {!hasLimit ? (
-                    <p className="text-xs text-muted-foreground">
-                      Alert and block apply once a USD or token limit is set.
-                    </p>
-                  ) : null}
-                </div>
-              ) : null}
+                )}
+              />
             </div>
+            {!hasLimit ? (
+              <p className="text-xs text-muted-foreground">
+                Alert and block apply once a USD or token limit is set.
+              </p>
+            ) : null}
           </div>
-
-          <div className="flex justify-end gap-2 border-t border-border bg-muted/40 px-5 py-3">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={saving || !draft.name.trim()}>
-              {saving ? 'Creating…' : 'Create key'}
-            </Button>
-          </div>
-        </form>
-      </AlertDialogContent>
-    </AlertDialog>
+        ) : null}
+      </div>
+    </SimpleAlertScrollableDialogForm>
   )
 }
 

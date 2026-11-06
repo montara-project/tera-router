@@ -65,7 +65,7 @@ export default function PlansTable({ plans, rateLimitsEnforced, onCreate }: Plan
           action={<Button onClick={onCreate}>New plan</Button>}
         />
       ) : (
-        <div className="overflow-x-auto">
+        <div className="relative overflow-x-auto">
           <table className="w-full min-w-[60rem] text-[13px]">
             <thead className="border-b border-border text-xs text-muted-foreground dark:bg-muted/40">
               <tr>

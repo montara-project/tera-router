@@ -223,21 +223,25 @@ Enabling and disabling are audit-logged. See [Remote access](/docs/getting-start
 
 ### Misc
 
-| Method       | Path                              | Notes                                                                                                 |
-| ------------ | --------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| GET / PATCH  | `/v1/settings`                    | Router settings (timeout, round-robin, etc.)                                                          |
-| GET          | `/v1/branding`                    | Public (no auth): display name, tagline, logo, favicon                                                |
-| GET / POST   | `/v1/skills`                      | List / create skills                                                                                  |
-| PATCH        | `/v1/skills/:id`                  | Switch gateway injection (`enabled`)                                                                  |
-| DELETE       | `/v1/skills/:id`                  | Delete skill                                                                                          |
-| GET / DELETE | `/v1/console`                     | Ring buffer log (500 entries) / clear                                                                 |
-| GET          | `/v1/system/stats`                | Host & process metrics                                                                                |
-| GET          | `/v1/system/status`               | Gateway status card: status, version, process uptime, listen address, database                        |
-| GET          | `/v1/media`                       | Catalog providers grouped by non-chat capability                                                      |
-| GET          | `/v1/endpoints`                   | Base URL and route reference for the Endpoints page                                                   |
-| GET          | `/v1/cli-tools/claude-code`       | Whether the `claude` CLI is installed on the host and what its settings point at                      |
-| POST         | `/v1/cli-tools/claude-code/apply` | Write the gateway URL, an API key, and an optional default model into the host's Claude Code settings |
-| GET          | `/health`                         | Server health (no auth)                                                                               |
-| GET          | `/skills/:slug/SKILL.md`          | Public skill document an agent fetches by URL (no auth)                                               |
+| Method       | Path                      | Notes                                                                                                                                                                                      |
+| ------------ | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| GET / PATCH  | `/v1/settings`            | Router settings (timeout, round-robin, etc.)                                                                                                                                               |
+| GET          | `/v1/branding`            | Public (no auth): display name, tagline, logo, favicon                                                                                                                                     |
+| GET / POST   | `/v1/skills`              | List / create skills                                                                                                                                                                       |
+| PATCH        | `/v1/skills/:id`          | Switch gateway injection (`enabled`)                                                                                                                                                       |
+| DELETE       | `/v1/skills/:id`          | Delete skill                                                                                                                                                                               |
+| GET          | `/v1/audit`               | Audit trail, newest first. Query: `search`, `outcome` (`success`/`failed`), `category`, `offset`, `limit`                                                                                  |
+| GET          | `/v1/audit/stats`         | Totals, action categories, writes and lost writes since start                                                                                                                              |
+| POST         | `/v1/audit/verify`        | Walk the hash chain and report the first row that does not match                                                                                                                           |
+| GET          | `/v1/audit/export`        | Whole trail as JSON Lines (`application/x-ndjson`)                                                                                                                                         |
+| GET / DELETE | `/v1/console`             | Ring buffer log (500 entries) / clear                                                                                                                                                      |
+| GET          | `/v1/system/stats`        | Host & process metrics                                                                                                                                                                     |
+| GET          | `/v1/system/status`       | Gateway status card: status, version, process uptime, listen address, database                                                                                                             |
+| GET          | `/v1/media`               | Catalog providers grouped by non-chat capability                                                                                                                                           |
+| GET          | `/v1/endpoints`           | Base URL and route reference for the Endpoints page                                                                                                                                        |
+| GET          | `/v1/cli-tools/:id`       | One tool's install status and a preview of its config files. Query: `base_url`, `model` (the key is a placeholder)                                                                         |
+| POST         | `/v1/cli-tools/:id/apply` | Write the gateway URL, a key and the model into the tool's config files on the host. Body: `base_url`, `model`, and `key_name` (create a dedicated key) or `api_key` (paste an active key) |
+| GET          | `/health`                 | Server health (no auth)                                                                                                                                                                    |
+| GET          | `/skills/:slug/SKILL.md`  | Public skill document an agent fetches by URL (no auth)                                                                                                                                    |
 
 The key reveal and rotate, both backup downloads, and a `PATCH /v1/accounts/:id` that changes `metadata.base_url` re-authenticate: send `"password"`, and when two-factor auth is on the server answers `{ "totp_required": true }` until you resend with `"otp"`. Wrong passwords or codes return `422` and count toward the IP block, like failed sign-ins.

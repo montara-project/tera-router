@@ -3,13 +3,14 @@ import { z } from 'zod'
 import { optionalString, requiredString } from '@/lib/validation'
 
 /**
- * Claude Code wiring body (POST /v1/cli-tools/claude-code/apply). The key is
- * sent by id; the server decrypts the plaintext and writes it itself.
+ * POST /v1/cli-tools/:id/apply. Send key_name to create a dedicated key for
+ * the tool, or api_key to use a full key the user pasted.
  */
-export const ApplyClaudeCodeSchema = z.object({
+export const ApplyCliToolSchema = z.object({
   base_url: requiredString('endpoint URL'),
-  key_id: requiredString('API key'),
   model: optionalString('default model'),
+  key_name: optionalString('key name'),
+  api_key: optionalString('API key'),
 })
 
-export type ApplyClaudeCodeDto = z.infer<typeof ApplyClaudeCodeSchema>
+export type ApplyCliToolDto = z.infer<typeof ApplyCliToolSchema>

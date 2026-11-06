@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import type { Models } from '@/lib/api/models'
 
 import EmptyState from '@/components/block/common/empty-state'
+import SelectInput from '@/components/block/common/select-input'
 import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -87,7 +88,7 @@ export default function KeysTable({
       )
     }
     return (
-      <div className="overflow-x-auto">
+      <div className="relative overflow-x-auto">
         <table className="w-full min-w-[52rem] text-[13px]">
           <thead className="border-b border-border text-xs text-muted-foreground dark:bg-muted/40">
             <tr>
@@ -116,18 +117,13 @@ export default function KeysTable({
       icon={IconKey}
       title="Keys"
       toolbar={
-        <select
+        <SelectInput
           aria-label="Sort keys"
           value={filters.sort}
-          onChange={(e) => onFiltersChange({ sort: e.target.value as KeysSortValue })}
-          className="h-9 rounded-md border border-input bg-background px-2.5 text-sm"
-        >
-          {SORT_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
+          onSelect={(value) => onFiltersChange({ sort: value as KeysSortValue })}
+          className="w-44"
+          options={SORT_OPTIONS.map((o) => ({ value: o.value as string, label: o.label }))}
+        />
       }
     >
       {keys.length > 0 && <FilterKeys keys={keys} filters={filters} onChange={onFiltersChange} />}

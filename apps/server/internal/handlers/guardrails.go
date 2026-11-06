@@ -120,7 +120,7 @@ func (h *guardrailsHandler) Store(c fiber.Ctx) error {
 	if err := h.app.Repos.Guardrails.Insert(c.Context(), policy); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "guardrail.policy.create", policy.ID,
+	auditRecord(c, actorFrom(c), "guardrail.policy.create", policy.ID,
 		map[string]string{"name": policy.Name, "scope": policy.Scope})
 	return dtos.Created(c, policyView(policy), "Policy created")
 }
@@ -142,7 +142,7 @@ func (h *guardrailsHandler) Update(c fiber.Ctx) error {
 	if err := h.app.Repos.Guardrails.Update(c.Context(), policy); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "guardrail.policy.update", policy.ID,
+	auditRecord(c, actorFrom(c), "guardrail.policy.update", policy.ID,
 		map[string]string{"name": policy.Name, "scope": policy.Scope})
 	return dtos.OK(c, policyView(policy))
 }
@@ -157,7 +157,7 @@ func (h *guardrailsHandler) Delete(c fiber.Ctx) error {
 	if err := h.app.Repos.Guardrails.Delete(c.Context(), id.String()); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "guardrail.policy.delete", id.String(), nil)
+	auditRecord(c, actorFrom(c), "guardrail.policy.delete", id.String(), nil)
 	return dtos.Deleted(c, "Policy deleted")
 }
 
@@ -176,7 +176,7 @@ func (h *guardrailsHandler) UpdateSettings(c fiber.Ctx) error {
 	if err := h.app.Repos.Settings.Upsert(c.Context(), guardrailsSettingsKey, string(raw)); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "guardrail.settings.update", guardrailsSettingsKey, settings)
+	auditRecord(c, actorFrom(c), "guardrail.settings.update", guardrailsSettingsKey, settings)
 	return dtos.OK(c, settings)
 }
 

@@ -218,20 +218,24 @@ Menyalakan dan mematikan tercatat di audit log. Lihat [Akses jarak jauh](/id-ID/
 
 ### Lainnya
 
-| Method       | Path                              | Keterangan                                                                               |
-| ------------ | --------------------------------- | ---------------------------------------------------------------------------------------- |
-| GET / PATCH  | `/v1/settings`                    | Settings router (timeout, round-robin, dst.)                                             |
-| GET / POST   | `/v1/skills`                      | Daftar / buat skill                                                                      |
-| PATCH        | `/v1/skills/:id`                  | Nyalakan/matikan injeksi gateway (`enabled`)                                             |
-| DELETE       | `/v1/skills/:id`                  | Hapus skill                                                                              |
-| GET / DELETE | `/v1/console`                     | Log ring buffer (500 entri) / bersihkan                                                  |
-| GET          | `/v1/system/stats`                | Metrik host & proses                                                                     |
-| GET          | `/v1/system/status`               | Kartu status gateway: status, versi, uptime proses, alamat listen, database              |
-| GET          | `/v1/media`                       | Provider katalog per kemampuan non-chat                                                  |
-| GET          | `/v1/endpoints`                   | Base URL dan daftar route untuk halaman Endpoints                                        |
-| GET          | `/v1/cli-tools/claude-code`       | Apakah CLI `claude` terpasang di host dan ke mana pengaturannya mengarah                 |
-| POST         | `/v1/cli-tools/claude-code/apply` | Tulis URL gateway, API key, dan model default opsional ke pengaturan Claude Code di host |
-| GET          | `/health`                         | Kesehatan server (tanpa auth)                                                            |
-| GET          | `/skills/:slug/SKILL.md`          | Dokumen skill publik yang diambil agent lewat URL (tanpa auth)                           |
+| Method       | Path                      | Keterangan                                                                                                                                                   |
+| ------------ | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| GET / PATCH  | `/v1/settings`            | Settings router (timeout, round-robin, dst.)                                                                                                                 |
+| GET / POST   | `/v1/skills`              | Daftar / buat skill                                                                                                                                          |
+| PATCH        | `/v1/skills/:id`          | Nyalakan/matikan injeksi gateway (`enabled`)                                                                                                                 |
+| DELETE       | `/v1/skills/:id`          | Hapus skill                                                                                                                                                  |
+| GET          | `/v1/audit`               | Jejak audit, terbaru dulu. Query: `search`, `outcome` (`success`/`failed`), `category`, `offset`, `limit`                                                    |
+| GET          | `/v1/audit/stats`         | Total, kategori aksi, tulisan dan tulisan gagal sejak server start                                                                                           |
+| POST         | `/v1/audit/verify`        | Telusuri hash chain dan laporkan baris pertama yang tidak cocok                                                                                              |
+| GET          | `/v1/audit/export`        | Seluruh jejak sebagai JSON Lines (`application/x-ndjson`)                                                                                                    |
+| GET / DELETE | `/v1/console`             | Log ring buffer (500 entri) / bersihkan                                                                                                                      |
+| GET          | `/v1/system/stats`        | Metrik host & proses                                                                                                                                         |
+| GET          | `/v1/system/status`       | Kartu status gateway: status, versi, uptime proses, alamat listen, database                                                                                  |
+| GET          | `/v1/media`               | Provider katalog per kemampuan non-chat                                                                                                                      |
+| GET          | `/v1/endpoints`           | Base URL dan daftar route untuk halaman Endpoints                                                                                                            |
+| GET          | `/v1/cli-tools/:id`       | Status instalasi satu tool dan pratinjau file config-nya. Query: `base_url`, `model` (key berupa placeholder)                                                |
+| POST         | `/v1/cli-tools/:id/apply` | Tulis URL gateway, key, dan model ke file config tool di host. Body: `base_url`, `model`, dan `key_name` (buat key khusus) atau `api_key` (tempel key aktif) |
+| GET          | `/health`                 | Kesehatan server (tanpa auth)                                                                                                                                |
+| GET          | `/skills/:slug/SKILL.md`  | Dokumen skill publik yang diambil agent lewat URL (tanpa auth)                                                                                               |
 
 Reveal dan rotate key, kedua download backup, dan `PATCH /v1/accounts/:id` yang mengubah `metadata.base_url` meminta autentikasi ulang: kirim `"password"`, dan saat autentikasi dua faktor aktif server menjawab `{ "totp_required": true }` sampai kamu mengirim ulang dengan `"otp"`. Password atau kode yang salah dijawab `422` dan dihitung ke blokir IP, sama seperti login gagal.

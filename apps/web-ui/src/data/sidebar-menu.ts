@@ -66,7 +66,6 @@ const NAV_ACCESS: NavMainItem[] = [
   nav('Plans & budgets', '/plans', IconReceipt, { activeOn: ['/budgets'] }),
   nav('Budgets', '/budgets', IconPigMoney, { hidden: true }),
   nav('Guardrails', '/guardrails', IconShield),
-  // ponytail: menu only; the /audit-log page and its list endpoint are not built yet.
   nav('Audit log', '/audit-log', IconHistory),
 ]
 

@@ -1,28 +1,34 @@
-import { IconPackages, IconPlus } from '@tabler/icons-react'
+import { IconPackages, IconPlugConnected, IconPlus, IconTrash } from '@tabler/icons-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
+import { useQueryState } from 'nuqs'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
 import type { Models } from '@/lib/api/models'
 
+import EmptyState from '@/components/block/common/empty-state'
 import PageHeader from '@/components/block/common/page-header'
+import ReactTable from '@/components/block/common/react-table'
 import SimpleAlertDialog from '@/components/block/common/simple-alert-dialog'
+import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
 import {
   API_KEY_PROVIDERS,
   CUSTOM_CONNECT_PRESETS,
   KEY_ONLY_PROVIDERS,
   OAUTH_FLOW_FOR,
 } from '@/components/block/providers/catalog-connect'
+import { ProvidersColumn } from '@/components/block/providers/column'
 import ConnectModeDialog from '@/components/block/providers/connect-mode-dialog'
 import ConnectProviderDialog from '@/components/block/providers/connect-provider-dialog'
-import ConnectedProvidersTable from '@/components/block/providers/connected-providers-table'
+import FilterProviders from '@/components/block/providers/filter'
 import { AddCustomProviderForm } from '@/components/block/providers/form'
 import { AddCustomProviderApiKeyForm } from '@/components/block/providers/form-provider-api-key'
 import OAuthPasteCodeDialog from '@/components/block/providers/oauth-paste-code-dialog'
 import { useOAuthConnect } from '@/components/block/providers/use-oauth-connect'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { usePaginationQuery } from '@/hooks/use-pagination-query'
 import { toastAxiosError } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
 import { ACCOUNT_QUERY_KEY } from '@/lib/api/queries/account'
@@ -87,6 +93,20 @@ function RouteComponent() {
   )
 
   const emptyProviders = (overview?.connected ?? []).filter(isEmptyProvider)
+  const columns = ProvidersColumn({ health })
+
+  // The list arrives whole, so search, capability and paging run here; the
+  // pager keeps its page in ?page like the server-paged tables.
+  const { offset, limit, pageIndex } = usePaginationQuery()
+  const [, setPageParam] = useQueryState('page')
+  const [search, setSearch] = useState('')
+  const [capability, setCapability] = useState('all')
+  const q = search.trim().toLowerCase()
+  const rows = (overview?.connected ?? []).filter(
+    (p) =>
+      (capability === 'all' || p.capabilities.includes(capability as Models.ProviderCapability)) &&
+      (!q || `${p.name} ${p.slug}`.toLowerCase().includes(q))
+  )
 
   if (!overview) {
     return <RouteSkeleton />
@@ -185,13 +205,68 @@ function RouteComponent() {
           }
         />
 
-        <ConnectedProvidersTable
-          providers={overview.connected}
-          health={health}
-          emptyCount={emptyProviders.length}
-          onDeleteEmpty={() => setPendingDelete(emptyProviders)}
-          deleting={bulkDelete.isPending}
-        />
+        <DashboardPanel
+          icon={IconPlugConnected}
+          title={
+            <>
+              Connected
+              <span className="font-normal text-muted-foreground tabular-nums">
+                {overview.connected.length}
+              </span>
+            </>
+          }
+          toolbar={
+            <div className="flex flex-wrap items-center gap-2">
+              {emptyProviders.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={bulkDelete.isPending}
+                  onClick={() => setPendingDelete(emptyProviders)}
+                >
+                  <IconTrash />
+                  Delete empty ({emptyProviders.length})
+                </Button>
+              )}
+              <FilterProviders
+                search={search}
+                onSearchChange={(value) => {
+                  setSearch(value)
+                  void setPageParam(null)
+                }}
+                capability={capability}
+                onCapabilityChange={(value) => {
+                  setCapability(value)
+                  void setPageParam(null)
+                }}
+              />
+            </div>
+          }
+        >
+          <ReactTable
+            total={rows.length}
+            data={rows.slice(offset, offset + limit)}
+            pageIndex={pageIndex}
+            pageSize={limit}
+            columns={columns}
+            emptyMessage={
+              <EmptyState
+                icon={IconPlugConnected}
+                title={
+                  overview.connected.length === 0
+                    ? 'No providers connected yet'
+                    : 'No providers match'
+                }
+                description={
+                  overview.connected.length === 0
+                    ? 'Connect a provider to start routing requests through it.'
+                    : 'Try a different search or capability.'
+                }
+                className="py-10"
+              />
+            }
+          />
+        </DashboardPanel>
       </div>
 
       <ConnectProviderDialog

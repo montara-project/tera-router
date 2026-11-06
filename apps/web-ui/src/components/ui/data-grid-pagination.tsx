@@ -176,7 +176,7 @@ function DataGridPagination({
           mergedProps?.sizesSkeleton
         ) : (
           <>
-            <div className="text-muted-foreground text-sm">Rows per page</div>
+            <div className="text-muted-foreground text-xs">Rows per page</div>
             <Select
               value={`${newPageSize}`}
               indicatorPosition="right"
@@ -205,7 +205,7 @@ function DataGridPagination({
           mergedProps?.infoSkeleton
         ) : (
           <>
-            <div className="text-muted-foreground order-2 text-sm text-nowrap sm:order-1">
+            <div className="text-muted-foreground order-2 text-xs text-nowrap tabular-nums sm:order-1">
               {paginationInfo}
             </div>
             {pageCount > 1 && (

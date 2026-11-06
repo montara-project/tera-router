@@ -172,7 +172,7 @@ export function ProvidersHealthTable({
   const paged = usePagedRows(entries, PAGE_SIZE)
   return (
     <Panel entries={entries} empty="No provider traffic in this range">
-      <div className="overflow-x-auto">
+      <div className="relative overflow-x-auto">
         <table className="w-full min-w-[64rem] text-[13px]">
           <thead className={THEAD}>
             <tr>
@@ -251,7 +251,7 @@ export function ModelsHealthTable({ entries }: { entries: HealthEntry[] }) {
   const paged = usePagedRows(entries, PAGE_SIZE)
   return (
     <Panel entries={entries} empty="No model traffic in this range">
-      <div className="overflow-x-auto">
+      <div className="relative overflow-x-auto">
         <table className="w-full min-w-[60rem] text-[13px]">
           <thead className={THEAD}>
             <tr>
@@ -337,7 +337,7 @@ export function ChainsHealthTable({
   const paged = usePagedRows(entries, PAGE_SIZE)
   return (
     <Panel entries={entries} empty="No chains yet">
-      <div className="overflow-x-auto">
+      <div className="relative overflow-x-auto">
         <table className="w-full min-w-[52rem] text-[13px]">
           <thead className={THEAD}>
             <tr>

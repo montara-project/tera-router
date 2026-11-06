@@ -2,7 +2,7 @@ import { IconSearch } from '@tabler/icons-react'
 
 import type { Models } from '@/lib/api/models'
 
-import SegmentedControl from '@/components/block/common/segmented-control'
+import SelectInput from '@/components/block/common/select-input'
 import { Input, InputWrapper } from '@/components/ui/input'
 import { CHAIN_STRATEGY_OPTIONS } from '@/lib/constants/chain'
 
@@ -50,6 +50,7 @@ interface FilterChainProps {
   onChange: (patch: Partial<ChainFilters>) => void
 }
 
+/** Panel toolbar of the chains table; option labels carry their match count. */
 export default function FilterChain({ rows, filters, onChange }: FilterChainProps) {
   const count = (match: (row: ChainRow) => boolean) => rows.filter(match).length
 
@@ -62,35 +63,34 @@ export default function FilterChain({ rows, filters, onChange }: FilterChainProp
           aria-label="Search chains or models"
           value={filters.search}
           onChange={(event) => onChange({ search: event.target.value })}
-          placeholder="Search chains or models"
+          placeholder="Search"
         />
       </InputWrapper>
 
-      <SegmentedControl
+      <SelectInput
         aria-label="Strategy"
-        className="max-w-full overflow-x-auto"
         value={filters.strategy}
-        onChange={(strategy) => onChange({ strategy })}
+        onSelect={(strategy) => onChange({ strategy })}
+        className="w-full sm:w-44"
         options={[
-          { value: 'all', label: 'All', count: rows.length },
+          { value: 'all', label: `All strategies (${rows.length})` },
           ...CHAIN_STRATEGY_OPTIONS.map((o) => ({
             value: o.value as string,
-            label: o.label,
-            count: count((row) => row.strategy === o.value),
+            label: `${o.label} (${count((row) => row.strategy === o.value)})`,
           })),
         ]}
       />
 
-      <SegmentedControl<ChainHealthFilter>
+      <SelectInput
         aria-label="Health in the last 24 hours"
-        className="max-w-full overflow-x-auto"
         value={filters.health}
-        onChange={(health) => onChange({ health })}
+        onSelect={(health) => onChange({ health: health as ChainHealthFilter })}
+        className="w-full sm:w-40"
         options={[
           { value: 'all', label: 'Any health' },
           ...HEALTH_OPTIONS.map((o) => ({
-            ...o,
-            count: count((row) => healthOf(row) === o.value),
+            value: o.value as string,
+            label: `${o.label} (${count((row) => healthOf(row) === o.value)})`,
           })),
         ]}
       />

@@ -1,16 +1,14 @@
-import { mutationOptions, queryOptions } from '@tanstack/react-query'
+import { keepPreviousData, mutationOptions, queryOptions } from '@tanstack/react-query'
 
 import { getQueryClient } from '@/lib/providers/react-query'
 
-import type { ApplyClaudeCodeDto } from '../dtos/cli-tool/schema'
+import type { ApplyCliToolDto } from '../dtos/cli-tool/schema'
+import type { CliToolPreviewParams } from '../services/types/cli-tool'
 
 import { services } from '../services'
+import { KEY_QUERY_KEY } from './key'
 
 export const CLI_TOOL_QUERY_KEY = 'cli-tools'
-
-export const GET_CLAUDE_CODE_QUERY_KEY = () => {
-  return [CLI_TOOL_QUERY_KEY, 'claude-code']
-}
 
 const list = () =>
   queryOptions({
@@ -21,31 +19,28 @@ const list = () =>
     },
   })
 
-const claudeCode = () =>
+const detail = (id: string, params: CliToolPreviewParams) =>
   queryOptions({
-    queryKey: GET_CLAUDE_CODE_QUERY_KEY(),
+    queryKey: [CLI_TOOL_QUERY_KEY, 'detail', id, params],
     queryFn: async () => {
-      const res = await services.cliTools.claudeCode()
+      const res = await services.cliTools.get(id, params)
       return res.data.data
     },
+    // Keep the preview on screen while the next endpoint or model loads.
+    placeholderData: keepPreviousData,
   })
 
-const applyClaudeCode = () => {
+const apply = (id: string) => {
   const qc = getQueryClient()
 
   return mutationOptions({
-    mutationFn: async (reqBody: ApplyClaudeCodeDto) => {
-      const res = await services.cliTools.applyClaudeCode(reqBody)
+    mutationFn: async (reqBody: ApplyCliToolDto) => {
+      const res = await services.cliTools.apply(id, reqBody)
       return res.data
     },
-    onSuccess: (res) => {
-      qc.setQueryData(GET_CLAUDE_CODE_QUERY_KEY(), res.data)
-    },
+    // A "create new" apply adds a key.
+    onSuccess: () => qc.invalidateQueries({ queryKey: [KEY_QUERY_KEY] }),
   })
 }
 
-export const cliToolQueries = {
-  list,
-  claudeCode,
-  applyClaudeCode,
-} as const
+export const cliToolQueries = { list, detail, apply } as const

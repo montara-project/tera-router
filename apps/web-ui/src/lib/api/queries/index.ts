@@ -1,5 +1,6 @@
 import { accountQueries } from './account'
 import { aliasQueries } from './alias'
+import { auditQueries } from './audit'
 import { authQueries } from './auth'
 import { backupQueries } from './backup'
 import { budgetQueries } from './budget'
@@ -29,6 +30,7 @@ import { usageQueries } from './usage'
 export const queries = {
   accounts: accountQueries,
   aliases: aliasQueries,
+  audit: auditQueries,
   auth: authQueries,
   backup: backupQueries,
   budgets: budgetQueries,

@@ -1,6 +1,7 @@
 import { IconCpu, IconPlus, IconSearch, IconX } from '@tabler/icons-react'
 import { useId, useMemo, useState } from 'react'
 
+import SelectInput from '@/components/block/common/select-input'
 import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
 import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
 import { useChainModelGroups } from '@/components/block/traffic/chains/chain-model-picker'
@@ -148,19 +149,16 @@ export default function KeyModelsEditor({
             onChange={(e) => resetPage(setSearch)(e.target.value)}
           />
         </InputWrapper>
-        <select
+        <SelectInput
           aria-label="Provider"
           value={provider}
-          onChange={(e) => resetPage(setProvider)(e.target.value)}
-          className="h-9 w-full rounded-md border border-input bg-background px-2.5 text-sm sm:w-44"
-        >
-          <option value="">All providers</option>
-          {groups.map((g) => (
-            <option key={g.slug} value={g.slug}>
-              {g.name}
-            </option>
-          ))}
-        </select>
+          onSelect={resetPage(setProvider)}
+          className="w-full sm:w-44"
+          options={[
+            { value: '', label: 'All providers' },
+            ...groups.map((g) => ({ value: g.slug, label: g.name })),
+          ]}
+        />
         <div role="group" aria-label="Show" className="flex gap-1">
           {(['all', 'selected'] as const).map((v) => (
             <button
@@ -230,7 +228,7 @@ export default function KeyModelsEditor({
         ) : null}
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="relative overflow-x-auto">
         <table className="w-full min-w-[36rem] text-[13px]">
           <thead className="border-b border-border bg-muted/40 text-xs text-muted-foreground">
             <tr>

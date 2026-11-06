@@ -70,7 +70,7 @@ func New(db *sql.DB, cfg *config.ConfigApp) *Repositories {
 		ProxyPools: &ProxyPoolRepository{base},
 		Skills:     &SkillRepository{base},
 		Settings:   &SettingRepository{base},
-		Audit:      &AuditRepository{base},
+		Audit:      &AuditRepository{BaseRepository: base},
 		Guardrails: &GuardrailRepository{base},
 		Pricing:    &PricingRepository{base},
 		Capability: &CapabilityRepository{base},

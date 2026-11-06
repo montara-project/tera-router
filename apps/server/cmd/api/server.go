@@ -13,6 +13,7 @@ import (
 	"tera-router/server/internal/app"
 	"tera-router/server/internal/config"
 	"tera-router/server/internal/gateway"
+	"tera-router/server/internal/handlers"
 	"tera-router/server/internal/middlewares"
 	"tera-router/server/internal/repositories"
 
@@ -133,6 +134,8 @@ func serve(app *app.Application) error {
 	server.Get("/*", spaFallback)
 	server.Head("/*", spaFallback)
 
+	handlers.RecordSystemEvent(context.Background(), app, "system.start")
+
 	// Create channel to listen for interrupt signals
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
@@ -177,6 +180,7 @@ func serve(app *app.Application) error {
 	// Requests already answered may still be metering asynchronously; wait for
 	// those writes so an exit cannot drop the accounting for served traffic.
 	gw.Drain()
+	handlers.RecordSystemEvent(context.Background(), app, "system.stop")
 
 	return nil
 }

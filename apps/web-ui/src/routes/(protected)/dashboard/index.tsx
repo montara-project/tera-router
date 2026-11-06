@@ -86,7 +86,7 @@ function RouteComponent() {
               <IconRefresh />
             </Button>
             <Button asChild>
-              <Link to="/cli-tools">
+              <Link to="/providers">
                 <IconPlus />
                 Connect
               </Link>

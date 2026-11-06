@@ -64,7 +64,7 @@ func (h *proxyPoolsHandler) Store(c fiber.Ctx) error {
 	if err := h.app.Repos.ProxyPools.Insert(c.Context(), pool); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "proxy_pool.create", pool.ID, map[string]string{"url": pool.URL})
+	auditRecord(c, actorFrom(c), "proxy_pool.create", pool.ID, map[string]string{"url": pool.URL})
 	return dtos.Created(c, poolView(pool), "Proxy pool created")
 }
 
@@ -135,7 +135,7 @@ func (h *proxyPoolsHandler) Update(c fiber.Ctx) error {
 	if err := h.app.Repos.ProxyPools.Update(c.Context(), pool); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "proxy_pool.update", pool.ID, map[string]string{"url": pool.URL})
+	auditRecord(c, actorFrom(c), "proxy_pool.update", pool.ID, map[string]string{"url": pool.URL})
 	return dtos.Item(c, fiber.StatusOK, poolView(pool), "Proxy pool updated")
 }
 
@@ -163,7 +163,7 @@ func (h *proxyPoolsHandler) BulkStore(c fiber.Ctx) error {
 	if err := h.app.Repos.ProxyPools.InsertMany(c.Context(), pools); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "proxy_pool.bulk_create", fmt.Sprintf("%d pools", len(pools)), nil)
+	auditRecord(c, actorFrom(c), "proxy_pool.bulk_create", fmt.Sprintf("%d pools", len(pools)), nil)
 
 	out := make([]fiber.Map, 0, len(pools))
 	for _, p := range pools {
@@ -201,7 +201,7 @@ func (h *proxyPoolsHandler) BulkDelete(c fiber.Ctx) error {
 			return err
 		}
 		deleted = append(deleted, id.String())
-		auditRecord(c.Context(), h.app, actorFrom(c), "proxy_pool.delete", id.String(), map[string]any{"bulk": true})
+		auditRecord(c, actorFrom(c), "proxy_pool.delete", id.String(), map[string]any{"bulk": true})
 	}
 	return dtos.Item(c, fiber.StatusOK, fiber.Map{"deleted": deleted},
 		fmt.Sprintf("Deleted %d %s", len(deleted), pluralize(int64(len(deleted)), "proxy pool", "proxy pools")))
@@ -261,7 +261,7 @@ func (h *proxyPoolsHandler) Delete(c fiber.Ctx) error {
 	if err := h.app.Repos.ProxyPools.Delete(c.Context(), id.String()); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "proxy_pool.delete", id.String(), nil)
+	auditRecord(c, actorFrom(c), "proxy_pool.delete", id.String(), nil)
 	return dtos.Deleted(c, "Proxy pool deleted")
 }
 
@@ -296,7 +296,7 @@ func (h *proxyPoolsHandler) HealthCheck(c fiber.Ctx) error {
 			return err
 		}
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "proxy_pool.health_check", fmt.Sprintf("%d pools", len(pools)), nil)
+	auditRecord(c, actorFrom(c), "proxy_pool.health_check", fmt.Sprintf("%d pools", len(pools)), nil)
 	return dtos.OK(c, fiber.Map{"tested": len(pools)})
 }
 

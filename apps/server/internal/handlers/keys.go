@@ -120,7 +120,7 @@ func (h *keysHandler) Store(c fiber.Ctx) error {
 		return err
 	}
 
-	auditRecord(c.Context(), h.app, actorFrom(c), "key.create", key.ID, map[string]string{"name": req.Name})
+	auditRecord(c, actorFrom(c), "key.create", key.ID, map[string]string{"name": req.Name})
 	return dtos.Created(c, fiber.Map{
 		"id":          key.ID,
 		"name":        key.Name,
@@ -172,7 +172,7 @@ func (h *keysHandler) IssuePortal(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "key.portal.issue", id.String(), nil)
+	auditRecord(c, actorFrom(c), "key.portal.issue", id.String(), nil)
 	return dtos.OK(c, fiber.Map{"portal_token": token})
 }
 
@@ -185,7 +185,7 @@ func (h *keysHandler) RevokePortal(c fiber.Ctx) error {
 	if err := h.app.Repos.Portal.Revoke(c.Context(), id.String()); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "key.portal.revoke", id.String(), nil)
+	auditRecord(c, actorFrom(c), "key.portal.revoke", id.String(), nil)
 	return dtos.OK(c, fiber.Map{"portal_token": ""})
 }
 
@@ -295,7 +295,7 @@ func (h *keysHandler) Update(c fiber.Ctx) error {
 		return err
 	}
 	h.app.KeysChanged()
-	auditRecord(c.Context(), h.app, actorFrom(c), "key.update", id.String(), map[string]any{"disabled": key.Disabled})
+	auditRecord(c, actorFrom(c), "key.update", id.String(), map[string]any{"disabled": key.Disabled})
 	return dtos.OK(c, fiber.Map{
 		"id":     key.ID,
 		"name":   key.Name,
@@ -313,7 +313,7 @@ func (h *keysHandler) Delete(c fiber.Ctx) error {
 		return err
 	}
 	h.app.KeysChanged()
-	auditRecord(c.Context(), h.app, actorFrom(c), "key.delete", id.String(), nil)
+	auditRecord(c, actorFrom(c), "key.delete", id.String(), nil)
 	return dtos.Deleted(c, "Key deleted")
 }
 
@@ -350,7 +350,7 @@ func (h *keysHandler) Reveal(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "key.reveal", id.String(), nil)
+	auditRecord(c, actorFrom(c), "key.reveal", id.String(), nil)
 	return dtos.OK(c, fiber.Map{"id": id.String(), "full_key": plaintext})
 }
 
@@ -394,7 +394,7 @@ func (h *keysHandler) Rotate(c fiber.Ctx) error {
 		return err
 	}
 	h.app.KeysChanged()
-	auditRecord(c.Context(), h.app, actorFrom(c), "key.rotate", key.ID, nil)
+	auditRecord(c, actorFrom(c), "key.rotate", key.ID, nil)
 	return dtos.OK(c, fiber.Map{
 		"id":          key.ID,
 		"key_preview": gen.Display,

@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 
 import type { ApiKeyDetail } from '@/lib/api/models/key'
 
+import SelectInput from '@/components/block/common/select-input'
 import DashboardPanel from '@/components/block/dashboard/dashboard-panel'
 import KeyModelsEditor, {
   ModelCells,
@@ -160,20 +161,17 @@ function AllowedModelsList({ allowed }: { allowed: string[] }) {
             onChange={(e) => setSearch(e.target.value)}
           />
         </InputWrapper>
-        <select
+        <SelectInput
           aria-label="Provider"
           value={provider}
-          onChange={(e) => setProvider(e.target.value)}
-          className="h-9 w-full rounded-md border border-input bg-background px-2.5 text-sm sm:w-44"
-        >
-          <option value="">All providers</option>
-          {providers.map(([slug, name]) => (
-            <option key={slug} value={slug}>
-              {name}
-            </option>
-          ))}
-          {hasPatterns ? <option value={PATTERNS}>Patterns</option> : null}
-        </select>
+          onSelect={setProvider}
+          className="w-full sm:w-44"
+          options={[
+            { value: '', label: 'All providers' },
+            ...providers.map(([slug, name]) => ({ value: slug, label: name })),
+            ...(hasPatterns ? [{ value: PATTERNS, label: 'Patterns' }] : []),
+          ]}
+        />
         <span className="ml-auto text-[12.5px] text-muted-foreground tabular-nums">
           {formatCount(filtered.length)} shown
         </span>

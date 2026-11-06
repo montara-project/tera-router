@@ -148,7 +148,7 @@ func (h *budgetsHandler) Store(c fiber.Ctx) error {
 	if err := h.app.Repos.Budgets.Insert(c.Context(), budget); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "budget.create", budget.ID, map[string]string{"scope": string(budget.ScopeKind)})
+	auditRecord(c, actorFrom(c), "budget.create", budget.ID, map[string]string{"scope": string(budget.ScopeKind)})
 	return dtos.Created(c, budget, "Budget created")
 }
 
@@ -175,7 +175,7 @@ func (h *budgetsHandler) Update(c fiber.Ctx) error {
 	if err := h.app.Repos.Budgets.Update(c.Context(), budget); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "budget.update", budget.ID, nil)
+	auditRecord(c, actorFrom(c), "budget.update", budget.ID, nil)
 	return dtos.OK(c, budget)
 }
 
@@ -188,6 +188,6 @@ func (h *budgetsHandler) Delete(c fiber.Ctx) error {
 	if err := h.app.Repos.Budgets.Delete(c.Context(), id.String()); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "budget.delete", id.String(), nil)
+	auditRecord(c, actorFrom(c), "budget.delete", id.String(), nil)
 	return dtos.Deleted(c, "Budget deleted")
 }

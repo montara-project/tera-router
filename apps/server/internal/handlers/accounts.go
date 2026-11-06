@@ -214,7 +214,7 @@ func (h *accountsHandler) Store(c fiber.Ctx) error {
 	if err := h.app.Repos.Accounts.Insert(c.Context(), account); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "account.create", account.ID, map[string]string{"provider": account.Provider, "label": account.Label})
+	auditRecord(c, actorFrom(c), "account.create", account.ID, map[string]string{"provider": account.Provider, "label": account.Label})
 	return dtos.Created(c, accountView(account), "Account created")
 }
 
@@ -292,7 +292,7 @@ func (h *accountsHandler) Update(c fiber.Ctx) error {
 	if err := h.app.Repos.Accounts.Update(c.Context(), account); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "account.update", id.String(), nil)
+	auditRecord(c, actorFrom(c), "account.update", id.String(), nil)
 	return dtos.OK(c, accountView(account))
 }
 
@@ -305,7 +305,7 @@ func (h *accountsHandler) Delete(c fiber.Ctx) error {
 	if err := h.app.Repos.Accounts.Delete(c.Context(), id.String()); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "account.delete", id.String(), nil)
+	auditRecord(c, actorFrom(c), "account.delete", id.String(), nil)
 	return dtos.Deleted(c, "Account deleted")
 }
 

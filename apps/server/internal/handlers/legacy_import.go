@@ -88,7 +88,7 @@ func (h *legacyImportHandler) Import(c fiber.Ctx) error {
 		return err
 	}
 
-	auditRecord(ctx, h.app, actor, "import."+string(src), string(src), map[string]any{"created": res.Created, "skipped": len(res.Skipped)})
+	auditRecord(c, actor, "import."+string(src), string(src), map[string]any{"created": res.Created, "skipped": len(res.Skipped)})
 	return dtos.Item(c, fiber.StatusOK, res, "Import complete")
 }
 

@@ -1,19 +1,10 @@
 import { IconAdjustmentsHorizontal, IconSearch } from '@tabler/icons-react'
-import { useMemo } from 'react'
+import { useId, useMemo, useState } from 'react'
 
 import type { Models } from '@/lib/api/models'
 
+import SelectInput from '@/components/block/common/select-input'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { Input, InputWrapper } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
@@ -65,6 +56,12 @@ interface FilterQuotaProps {
 }
 
 export default function FilterQuota({ filters, onChange, accounts }: FilterQuotaProps) {
+  const panelId = useId()
+  // Open while a provider, quota or sort choice differs from the default, so
+  // an active filter is never hidden behind the toggle.
+  const [open, setOpen] = useState(
+    filters.provider !== 'all' || filters.quotaState !== 'all' || filters.sort !== 'attention'
+  )
   const chipCounts = useMemo(() => {
     const counts = { all: accounts.length, active: 0, paused: 0, attention: 0 }
     for (const account of accounts) {
@@ -81,92 +78,109 @@ export default function FilterQuota({ filters, onChange, accounts }: FilterQuota
   }, [accounts])
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <InputWrapper variant="md" className="w-full rounded-md sm:w-60">
-        <IconSearch className="size-3.5" />
-        <Input
-          aria-label="Search provider or account"
-          onChange={(event) => onChange({ search: event.target.value })}
-          placeholder="Search accounts"
-          value={filters.search}
-        />
-      </InputWrapper>
+    <div className="flex w-full flex-col gap-2">
+      {/* Toolbar row on its own, so opening the filter row below never moves
+          the Filters button. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <InputWrapper variant="md" className="w-full rounded-md sm:w-60">
+          <IconSearch className="size-3.5" />
+          <Input
+            aria-label="Search provider or account"
+            onChange={(event) => onChange({ search: event.target.value })}
+            placeholder="Search accounts"
+            value={filters.search}
+          />
+        </InputWrapper>
 
-      <div className="flex flex-wrap items-center gap-1">
-        {QUOTA_STATUS_CHIPS.map((chip) => {
-          const active = filters.status === chip.value
+        <div className="flex flex-wrap items-center gap-1">
+          {QUOTA_STATUS_CHIPS.map((chip) => {
+            const active = filters.status === chip.value
 
-          return (
-            <button
-              key={chip.value}
-              type="button"
-              aria-pressed={active}
-              onClick={() => onChange({ status: chip.value })}
-              className={cn(
-                'inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors',
-                active
-                  ? 'border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400'
-                  : 'border-border text-muted-foreground hover:text-foreground'
-              )}
-            >
-              {chip.label}
-              <span className={cn('tabular-nums', !active && 'opacity-70')}>
-                {chipCounts[chip.value]}
-              </span>
-            </button>
-          )
-        })}
+            return (
+              <button
+                key={chip.value}
+                type="button"
+                aria-pressed={active}
+                onClick={() => onChange({ status: chip.value })}
+                className={cn(
+                  'inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors',
+                  active
+                    ? 'border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                    : 'border-border text-muted-foreground hover:text-foreground'
+                )}
+              >
+                {chip.label}
+                <span className={cn('tabular-nums', !active && 'opacity-70')}>
+                  {chipCounts[chip.value]}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+
+        <Button
+          className="ml-auto aria-expanded:bg-accent"
+          size="sm"
+          variant="outline"
+          aria-expanded={open}
+          aria-controls={panelId}
+          onClick={() => setOpen((v) => !v)}
+        >
+          <IconAdjustmentsHorizontal aria-hidden />
+          Filters
+        </Button>
       </div>
 
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button className="ml-auto" size="sm" variant="outline">
-            <IconAdjustmentsHorizontal aria-hidden />
-            Filters
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuLabel>Sort by</DropdownMenuLabel>
-          <DropdownMenuRadioGroup
-            onValueChange={(value) => onChange({ sort: value as QuotaSortValue })}
-            value={filters.sort}
-          >
-            {SORT_OPTIONS.map((option) => (
-              <DropdownMenuRadioItem key={option.value} value={option.value}>
-                {option.label}
-              </DropdownMenuRadioItem>
-            ))}
-          </DropdownMenuRadioGroup>
-          <DropdownMenuSeparator />
-          <DropdownMenuLabel>Quota state</DropdownMenuLabel>
-          <DropdownMenuRadioGroup
-            onValueChange={(value) => onChange({ quotaState: value })}
-            value={filters.quotaState}
-          >
-            {QUOTA_STATE_OPTIONS.map((option) => (
-              <DropdownMenuRadioItem key={option.value} value={option.value}>
-                {option.label}
-              </DropdownMenuRadioItem>
-            ))}
-          </DropdownMenuRadioGroup>
-          <DropdownMenuSeparator />
-          <DropdownMenuLabel>Provider</DropdownMenuLabel>
-          <div className="max-h-44 overflow-y-auto overscroll-contain">
-            {providerOptions.map((option) => (
-              <DropdownMenuCheckboxItem
-                key={option.value}
-                checked={filters.provider === option.value}
-                onCheckedChange={() =>
-                  onChange({ provider: filters.provider === option.value ? 'all' : option.value })
-                }
-                onSelect={(event) => event.preventDefault()}
-              >
-                {option.label}
-              </DropdownMenuCheckboxItem>
-            ))}
-          </div>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {open && (
+        <div id={panelId} className="grid w-full gap-x-3 gap-y-2 sm:grid-cols-3">
+          <FilterField id={`${panelId}-provider`} label="Provider">
+            <SelectInput
+              id={`${panelId}-provider`}
+              value={filters.provider}
+              onSelect={(provider) => onChange({ provider })}
+              className="w-full"
+              options={[{ value: 'all', label: 'All providers' }, ...providerOptions]}
+            />
+          </FilterField>
+          <FilterField id={`${panelId}-quota`} label="Quota">
+            <SelectInput
+              id={`${panelId}-quota`}
+              value={filters.quotaState}
+              onSelect={(quotaState) => onChange({ quotaState })}
+              className="w-full"
+              options={QUOTA_STATE_OPTIONS}
+            />
+          </FilterField>
+          <FilterField id={`${panelId}-sort`} label="Sort">
+            <SelectInput
+              id={`${panelId}-sort`}
+              value={filters.sort}
+              onSelect={(sort) => onChange({ sort: sort as QuotaSortValue })}
+              className="w-full"
+              options={SORT_OPTIONS}
+            />
+          </FilterField>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function FilterField({
+  id,
+  label,
+  children,
+}: {
+  id: string
+  label: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="flex min-w-0 items-center gap-2">
+      <label htmlFor={id} className="shrink-0 text-xs text-muted-foreground">
+        {label}
+      </label>
+      <div className="min-w-0 flex-1">{children}</div>
     </div>
   )
 }

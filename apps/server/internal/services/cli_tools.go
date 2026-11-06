@@ -22,11 +22,14 @@ type cliToolProbe struct {
 	id         string
 	binaries   []string
 	extensions []string
+	// homeBins are installer locations under the home folder that are not
+	// on PATH, e.g. Claude Code's native installer.
+	homeBins []string
 }
 
 // cliToolProbes lists every tool on the CLI tools page, ids matching the web UI.
 var cliToolProbes = []cliToolProbe{
-	{id: "claude-code", binaries: []string{"claude"}},
+	{id: "claude-code", binaries: []string{"claude"}, homeBins: []string{".claude/local/claude"}},
 	{id: "cline-roo", extensions: []string{"saoudrizwan.claude-dev-", "rooveterinaryinc.roo-cline-"}},
 	{id: "codex-cli", binaries: []string{"codex"}},
 	{id: "deepseek-tui", binaries: []string{"deepseek-tui", "deepseek"}},
@@ -56,6 +59,14 @@ func detectCLITools(home string, find func(name string) string) []CLIToolStatus 
 			if path := find(name); path != "" {
 				st.Installed, st.Path = true, path
 				break
+			}
+		}
+		for _, rel := range p.homeBins {
+			if st.Installed || home == "" {
+				break
+			}
+			if c := filepath.Join(home, rel); isExecutable(c) {
+				st.Installed, st.Path = true, c
 			}
 		}
 		if !st.Installed && home != "" {

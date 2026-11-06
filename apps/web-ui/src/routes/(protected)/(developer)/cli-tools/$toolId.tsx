@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-import CliToolGuideDetail from '@/components/block/cli-tools/cli-tool-guide'
+import CliToolDetail from '@/components/block/cli-tools/cli-tool-detail'
 
 export const Route = createFileRoute('/(protected)/(developer)/cli-tools/$toolId')({
   component: RouteComponent,
@@ -8,5 +8,6 @@ export const Route = createFileRoute('/(protected)/(developer)/cli-tools/$toolId
 
 function RouteComponent() {
   const { toolId } = Route.useParams()
-  return <CliToolGuideDetail toolId={toolId} />
+  // Keyed so the form starts fresh when moving between tools.
+  return <CliToolDetail key={toolId} toolId={toolId} />
 }

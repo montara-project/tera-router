@@ -28,9 +28,9 @@ import { Route as protectedconnectionProvidersProviderIdRouteImport } from './ro
 import { Route as protectedconnectionProxyPoolsIndexRouteImport } from './routes/(protected)/(connection)/proxy-pools/index'
 import { Route as protecteddeveloperCliToolsIndexRouteImport } from './routes/(protected)/(developer)/cli-tools/index'
 import { Route as protecteddeveloperCliToolsToolIdRouteImport } from './routes/(protected)/(developer)/cli-tools/$toolId'
-import { Route as protecteddeveloperCliToolsClaudeCodeRouteImport } from './routes/(protected)/(developer)/cli-tools/claude-code'
 import { Route as protecteddeveloperConsoleIndexRouteImport } from './routes/(protected)/(developer)/console/index'
 import { Route as protecteddeveloperPlaygroundIndexRouteImport } from './routes/(protected)/(developer)/playground/index'
+import { Route as protectedsafetyAuditLogIndexRouteImport } from './routes/(protected)/(safety)/audit-log/index'
 import { Route as protectedsafetyGuardrailsIndexRouteImport } from './routes/(protected)/(safety)/guardrails/index'
 import { Route as protectedsafetyProviderHealthIndexRouteImport } from './routes/(protected)/(safety)/provider-health/index'
 import { Route as protectedtrafficChainsIndexRouteImport } from './routes/(protected)/(traffic)/chains/index'
@@ -150,12 +150,6 @@ const protecteddeveloperCliToolsToolIdRoute =
     path: '/cli-tools/$toolId',
     getParentRoute: () => protectedRouteRoute,
   } as any)
-const protecteddeveloperCliToolsClaudeCodeRoute =
-  protecteddeveloperCliToolsClaudeCodeRouteImport.update({
-    id: '/(developer)/cli-tools/claude-code',
-    path: '/cli-tools/claude-code',
-    getParentRoute: () => protectedRouteRoute,
-  } as any)
 const protecteddeveloperConsoleIndexRoute =
   protecteddeveloperConsoleIndexRouteImport.update({
     id: '/(developer)/console/',
@@ -166,6 +160,12 @@ const protecteddeveloperPlaygroundIndexRoute =
   protecteddeveloperPlaygroundIndexRouteImport.update({
     id: '/(developer)/playground/',
     path: '/playground/',
+    getParentRoute: () => protectedRouteRoute,
+  } as any)
+const protectedsafetyAuditLogIndexRoute =
+  protectedsafetyAuditLogIndexRouteImport.update({
+    id: '/(safety)/audit-log/',
+    path: '/audit-log/',
     getParentRoute: () => protectedRouteRoute,
   } as any)
 const protectedsafetyGuardrailsIndexRoute =
@@ -231,7 +231,6 @@ export interface FileRoutesByFullPath {
   '/media/$slug': typeof protectedconnectionMediaSlugRoute
   '/providers/$providerId': typeof protectedconnectionProvidersProviderIdRoute
   '/cli-tools/$toolId': typeof protecteddeveloperCliToolsToolIdRoute
-  '/cli-tools/claude-code': typeof protecteddeveloperCliToolsClaudeCodeRoute
   '/chains/$chainId': typeof protectedtrafficChainsChainIdRoute
   '/chains/new': typeof protectedtrafficChainsNewRoute
   '/budgets/': typeof protectedanalyticsBudgetsIndexRoute
@@ -247,6 +246,7 @@ export interface FileRoutesByFullPath {
   '/cli-tools/': typeof protecteddeveloperCliToolsIndexRoute
   '/console/': typeof protecteddeveloperConsoleIndexRoute
   '/playground/': typeof protecteddeveloperPlaygroundIndexRoute
+  '/audit-log/': typeof protectedsafetyAuditLogIndexRoute
   '/guardrails/': typeof protectedsafetyGuardrailsIndexRoute
   '/provider-health/': typeof protectedsafetyProviderHealthIndexRoute
   '/chains/': typeof protectedtrafficChainsIndexRoute
@@ -263,7 +263,6 @@ export interface FileRoutesByTo {
   '/media/$slug': typeof protectedconnectionMediaSlugRoute
   '/providers/$providerId': typeof protectedconnectionProvidersProviderIdRoute
   '/cli-tools/$toolId': typeof protecteddeveloperCliToolsToolIdRoute
-  '/cli-tools/claude-code': typeof protecteddeveloperCliToolsClaudeCodeRoute
   '/chains/$chainId': typeof protectedtrafficChainsChainIdRoute
   '/chains/new': typeof protectedtrafficChainsNewRoute
   '/budgets': typeof protectedanalyticsBudgetsIndexRoute
@@ -279,6 +278,7 @@ export interface FileRoutesByTo {
   '/cli-tools': typeof protecteddeveloperCliToolsIndexRoute
   '/console': typeof protecteddeveloperConsoleIndexRoute
   '/playground': typeof protecteddeveloperPlaygroundIndexRoute
+  '/audit-log': typeof protectedsafetyAuditLogIndexRoute
   '/guardrails': typeof protectedsafetyGuardrailsIndexRoute
   '/provider-health': typeof protectedsafetyProviderHealthIndexRoute
   '/chains': typeof protectedtrafficChainsIndexRoute
@@ -297,7 +297,6 @@ export interface FileRoutesById {
   '/(protected)/(connection)/media/$slug': typeof protectedconnectionMediaSlugRoute
   '/(protected)/(connection)/providers/$providerId': typeof protectedconnectionProvidersProviderIdRoute
   '/(protected)/(developer)/cli-tools/$toolId': typeof protecteddeveloperCliToolsToolIdRoute
-  '/(protected)/(developer)/cli-tools/claude-code': typeof protecteddeveloperCliToolsClaudeCodeRoute
   '/(protected)/(traffic)/chains/$chainId': typeof protectedtrafficChainsChainIdRoute
   '/(protected)/(traffic)/chains/new': typeof protectedtrafficChainsNewRoute
   '/(protected)/(analytics)/budgets/': typeof protectedanalyticsBudgetsIndexRoute
@@ -313,6 +312,7 @@ export interface FileRoutesById {
   '/(protected)/(developer)/cli-tools/': typeof protecteddeveloperCliToolsIndexRoute
   '/(protected)/(developer)/console/': typeof protecteddeveloperConsoleIndexRoute
   '/(protected)/(developer)/playground/': typeof protecteddeveloperPlaygroundIndexRoute
+  '/(protected)/(safety)/audit-log/': typeof protectedsafetyAuditLogIndexRoute
   '/(protected)/(safety)/guardrails/': typeof protectedsafetyGuardrailsIndexRoute
   '/(protected)/(safety)/provider-health/': typeof protectedsafetyProviderHealthIndexRoute
   '/(protected)/(traffic)/chains/': typeof protectedtrafficChainsIndexRoute
@@ -331,7 +331,6 @@ export interface FileRouteTypes {
     | '/media/$slug'
     | '/providers/$providerId'
     | '/cli-tools/$toolId'
-    | '/cli-tools/claude-code'
     | '/chains/$chainId'
     | '/chains/new'
     | '/budgets/'
@@ -347,6 +346,7 @@ export interface FileRouteTypes {
     | '/cli-tools/'
     | '/console/'
     | '/playground/'
+    | '/audit-log/'
     | '/guardrails/'
     | '/provider-health/'
     | '/chains/'
@@ -363,7 +363,6 @@ export interface FileRouteTypes {
     | '/media/$slug'
     | '/providers/$providerId'
     | '/cli-tools/$toolId'
-    | '/cli-tools/claude-code'
     | '/chains/$chainId'
     | '/chains/new'
     | '/budgets'
@@ -379,6 +378,7 @@ export interface FileRouteTypes {
     | '/cli-tools'
     | '/console'
     | '/playground'
+    | '/audit-log'
     | '/guardrails'
     | '/provider-health'
     | '/chains'
@@ -396,7 +396,6 @@ export interface FileRouteTypes {
     | '/(protected)/(connection)/media/$slug'
     | '/(protected)/(connection)/providers/$providerId'
     | '/(protected)/(developer)/cli-tools/$toolId'
-    | '/(protected)/(developer)/cli-tools/claude-code'
     | '/(protected)/(traffic)/chains/$chainId'
     | '/(protected)/(traffic)/chains/new'
     | '/(protected)/(analytics)/budgets/'
@@ -412,6 +411,7 @@ export interface FileRouteTypes {
     | '/(protected)/(developer)/cli-tools/'
     | '/(protected)/(developer)/console/'
     | '/(protected)/(developer)/playground/'
+    | '/(protected)/(safety)/audit-log/'
     | '/(protected)/(safety)/guardrails/'
     | '/(protected)/(safety)/provider-health/'
     | '/(protected)/(traffic)/chains/'
@@ -562,13 +562,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof protecteddeveloperCliToolsToolIdRouteImport
       parentRoute: typeof protectedRouteRoute
     }
-    '/(protected)/(developer)/cli-tools/claude-code': {
-      id: '/(protected)/(developer)/cli-tools/claude-code'
-      path: '/cli-tools/claude-code'
-      fullPath: '/cli-tools/claude-code'
-      preLoaderRoute: typeof protecteddeveloperCliToolsClaudeCodeRouteImport
-      parentRoute: typeof protectedRouteRoute
-    }
     '/(protected)/(developer)/console/': {
       id: '/(protected)/(developer)/console/'
       path: '/console'
@@ -581,6 +574,13 @@ declare module '@tanstack/react-router' {
       path: '/playground'
       fullPath: '/playground/'
       preLoaderRoute: typeof protecteddeveloperPlaygroundIndexRouteImport
+      parentRoute: typeof protectedRouteRoute
+    }
+    '/(protected)/(safety)/audit-log/': {
+      id: '/(protected)/(safety)/audit-log/'
+      path: '/audit-log'
+      fullPath: '/audit-log/'
+      preLoaderRoute: typeof protectedsafetyAuditLogIndexRouteImport
       parentRoute: typeof protectedRouteRoute
     }
     '/(protected)/(safety)/guardrails/': {
@@ -655,7 +655,6 @@ interface protectedRouteRouteChildren {
   protectedconnectionMediaSlugRoute: typeof protectedconnectionMediaSlugRoute
   protectedconnectionProvidersProviderIdRoute: typeof protectedconnectionProvidersProviderIdRoute
   protecteddeveloperCliToolsToolIdRoute: typeof protecteddeveloperCliToolsToolIdRoute
-  protecteddeveloperCliToolsClaudeCodeRoute: typeof protecteddeveloperCliToolsClaudeCodeRoute
   protectedtrafficChainsChainIdRoute: typeof protectedtrafficChainsChainIdRoute
   protectedtrafficChainsNewRoute: typeof protectedtrafficChainsNewRoute
   protectedanalyticsBudgetsIndexRoute: typeof protectedanalyticsBudgetsIndexRoute
@@ -671,6 +670,7 @@ interface protectedRouteRouteChildren {
   protecteddeveloperCliToolsIndexRoute: typeof protecteddeveloperCliToolsIndexRoute
   protecteddeveloperConsoleIndexRoute: typeof protecteddeveloperConsoleIndexRoute
   protecteddeveloperPlaygroundIndexRoute: typeof protecteddeveloperPlaygroundIndexRoute
+  protectedsafetyAuditLogIndexRoute: typeof protectedsafetyAuditLogIndexRoute
   protectedsafetyGuardrailsIndexRoute: typeof protectedsafetyGuardrailsIndexRoute
   protectedsafetyProviderHealthIndexRoute: typeof protectedsafetyProviderHealthIndexRoute
   protectedtrafficChainsIndexRoute: typeof protectedtrafficChainsIndexRoute
@@ -687,8 +687,6 @@ const protectedRouteRouteChildren: protectedRouteRouteChildren = {
   protectedconnectionProvidersProviderIdRoute:
     protectedconnectionProvidersProviderIdRoute,
   protecteddeveloperCliToolsToolIdRoute: protecteddeveloperCliToolsToolIdRoute,
-  protecteddeveloperCliToolsClaudeCodeRoute:
-    protecteddeveloperCliToolsClaudeCodeRoute,
   protectedtrafficChainsChainIdRoute: protectedtrafficChainsChainIdRoute,
   protectedtrafficChainsNewRoute: protectedtrafficChainsNewRoute,
   protectedanalyticsBudgetsIndexRoute: protectedanalyticsBudgetsIndexRoute,
@@ -707,6 +705,7 @@ const protectedRouteRouteChildren: protectedRouteRouteChildren = {
   protecteddeveloperConsoleIndexRoute: protecteddeveloperConsoleIndexRoute,
   protecteddeveloperPlaygroundIndexRoute:
     protecteddeveloperPlaygroundIndexRoute,
+  protectedsafetyAuditLogIndexRoute: protectedsafetyAuditLogIndexRoute,
   protectedsafetyGuardrailsIndexRoute: protectedsafetyGuardrailsIndexRoute,
   protectedsafetyProviderHealthIndexRoute:
     protectedsafetyProviderHealthIndexRoute,

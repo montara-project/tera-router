@@ -66,7 +66,7 @@ func (h *settingsHandler) Update(c fiber.Ctx) error {
 	if audit.BrandingFavicon != nil {
 		audit.BrandingFavicon = new("(image updated)")
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "settings.update", settingsKey, audit)
+	auditRecord(c, actorFrom(c), "settings.update", settingsKey, audit)
 	return dtos.Item(c, fiber.StatusOK, merged, "Settings updated")
 }
 

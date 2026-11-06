@@ -117,7 +117,7 @@ export default function PoolsCard({
         </div>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="relative overflow-x-auto">
         <table className="w-full min-w-[58rem] text-[13px]">
           <thead className="border-b border-border text-xs text-muted-foreground dark:bg-muted/40">
             <tr>

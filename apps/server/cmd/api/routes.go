@@ -39,7 +39,8 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 
 	// Versioned dashboard API. Auth endpoints are public; everything else
 	// requires the Bearer JWT issued by /v1/auth/sign-in.
-	v1 := r.Group("/v1")
+	// AuditTrail writes the audit entries a request queued, with its status.
+	v1 := r.Group("/v1", handlers.AuditTrail(app))
 
 	publicAuth := v1.Group("/auth")
 	publicAuth.Post("/sign-in", h.Auth.SignIn)
@@ -243,6 +244,12 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	skills.Patch("/:id", h.Skills.Update)
 	skills.Delete("/:id", h.Skills.Delete)
 
+	audit := protected.Group("/audit")
+	audit.Get("", h.Audit.Index)
+	audit.Get("/stats", h.Audit.Stats)
+	audit.Get("/export", h.Audit.Export)
+	audit.Post("/verify", h.Audit.Verify)
+
 	console := protected.Group("/console")
 	console.Get("", h.Console.Index)
 	console.Delete("", h.Console.Clear)
@@ -257,9 +264,8 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	protected.Get("/endpoints", h.Endpoints.Catalog)
 
 	protected.Get("/cli-tools", h.CliTools.List)
-	claudeCode := protected.Group("/cli-tools/claude-code")
-	claudeCode.Get("", h.CliTools.ClaudeCode)
-	claudeCode.Post("/apply", h.CliTools.ClaudeCodeApply)
+	protected.Get("/cli-tools/:id", h.CliTools.Show)
+	protected.Post("/cli-tools/:id/apply", h.CliTools.Apply)
 
 	// Tunnels (cloudflared quick tunnel exposing this server publicly)
 	tunnels := protected.Group("/tunnels")

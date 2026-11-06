@@ -140,7 +140,7 @@ func (h *quotaHandler) Delete(c fiber.Ctx) error {
 	if err := h.app.Repos.Accounts.Delete(c.Context(), id.String()); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "account.delete", id.String(), nil)
+	auditRecord(c, actorFrom(c), "account.delete", id.String(), nil)
 	return dtos.OK(c, fiber.Map{"id": id.String()})
 }
 

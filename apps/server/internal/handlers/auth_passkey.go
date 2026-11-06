@@ -291,7 +291,7 @@ func (h *passkeysHandler) RegisterFinish(c fiber.Ctx) error {
 	if err := h.app.Repos.Passkeys.Insert(c.Context(), pk); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, cer.userID, "auth.passkey_add", pk.ID, fiber.Map{"name": name, "rp_id": pk.RPID})
+	auditRecord(c, cer.userID, "auth.passkey_add", pk.ID, fiber.Map{"name": name, "rp_id": pk.RPID})
 	return dtos.OK(c, pk)
 }
 
@@ -306,7 +306,7 @@ func (h *passkeysHandler) Delete(c fiber.Ctx) error {
 	if err := h.app.Repos.Passkeys.DeleteForUser(c.Context(), id, uid.String()); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, uid.String(), "auth.passkey_delete", id, nil)
+	auditRecord(c, uid.String(), "auth.passkey_delete", id, nil)
 	return dtos.Message(c, fiber.StatusOK, "Passkey removed")
 }
 
@@ -385,6 +385,7 @@ func (h *passkeysHandler) SignInFinish(c fiber.Ctx) error {
 		return err
 	}
 	consoleInfof("sign-in · %s (passkey)", user.Email)
-	auditRecord(ctx, h.app, user.ID, "auth.sign_in", user.ID, fiber.Map{"method": "passkey", "passkey": stored.ID})
+	lib.ContextSetSID(c, session.SessionID)
+	auditRecord(c, user.ID, "auth.sign_in", user.ID, fiber.Map{"method": "passkey", "passkey": stored.ID})
 	return dtos.OK(c, sessionView(session))
 }

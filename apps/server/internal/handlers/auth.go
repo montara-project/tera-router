@@ -53,11 +53,14 @@ func (h *authHandler) SignIn(c fiber.Ctx) error {
 		return dtos.OK(c, fiber.Map{"totp_required": true})
 	}
 	if err != nil {
+		// A refused sign-in is recorded too; its status marks it failed.
+		auditRecord(c, "", "auth.sign_in", req.Email, nil)
 		return err
 	}
 
 	consoleInfof("sign-in · %s", session.User.Email)
-	auditRecord(c.Context(), h.app, session.User.ID, "auth.sign_in", session.User.ID, nil)
+	lib.ContextSetSID(c, session.SessionID)
+	auditRecord(c, session.User.ID, "auth.sign_in", session.User.ID, nil)
 	return dtos.OK(c, sessionView(session))
 }
 
@@ -213,7 +216,7 @@ func (h *authHandler) RevokeSession(c fiber.Ctx) error {
 	if err := h.app.Repos.Refresh.RevokeForUser(c.Context(), id, uid.String()); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, uid.String(), "auth.session_revoke", id, nil)
+	auditRecord(c, uid.String(), "auth.session_revoke", id, nil)
 	return dtos.Message(c, fiber.StatusOK, "Session revoked")
 }
 
@@ -265,7 +268,8 @@ func (h *authHandler) sessionFor(user models.User, sid, refreshRaw string) (dtos
 	}
 
 	return dtos.Session{
-		User: user,
+		User:      user,
+		SessionID: sid,
 		Tokens: dtos.TokenPair{
 			AccessToken:  access,
 			RefreshToken: refreshRaw,

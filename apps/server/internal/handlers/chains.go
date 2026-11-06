@@ -113,7 +113,7 @@ func (h *chainsHandler) Store(c fiber.Ctx) error {
 	if err := h.app.Repos.Chains.Insert(c.Context(), chain); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "chain.create", chain.ID, map[string]string{"name": chain.Name})
+	auditRecord(c, actorFrom(c), "chain.create", chain.ID, map[string]string{"name": chain.Name})
 
 	created, err := h.app.Repos.Chains.Get(c.Context(), chain.ID)
 	if err != nil {
@@ -160,7 +160,7 @@ func (h *chainsHandler) Update(c fiber.Ctx) error {
 	if err := h.app.Repos.Chains.Update(c.Context(), chain); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "chain.update", chain.ID, nil)
+	auditRecord(c, actorFrom(c), "chain.update", chain.ID, nil)
 
 	updated, err := h.app.Repos.Chains.Get(c.Context(), chain.ID)
 	if err != nil {
@@ -178,7 +178,7 @@ func (h *chainsHandler) Delete(c fiber.Ctx) error {
 	if err := h.app.Repos.Chains.Delete(c.Context(), id.String()); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "chain.delete", id.String(), nil)
+	auditRecord(c, actorFrom(c), "chain.delete", id.String(), nil)
 	return dtos.Deleted(c, "Chain deleted")
 }
 
@@ -235,11 +235,11 @@ func (h *chainsHandler) AliasPut(c fiber.Ctx) error {
 		if err := h.app.Repos.Aliases.Rename(c.Context(), req.PreviousName, alias); err != nil {
 			return err
 		}
-		auditRecord(c.Context(), h.app, actorFrom(c), "alias.rename", alias.Name, map[string]string{"from": req.PreviousName})
+		auditRecord(c, actorFrom(c), "alias.rename", alias.Name, map[string]string{"from": req.PreviousName})
 	} else if err := h.app.Repos.Aliases.Upsert(c.Context(), alias); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "alias.put", alias.Name, map[string]int{"targets": len(alias.Targets)})
+	auditRecord(c, actorFrom(c), "alias.put", alias.Name, map[string]int{"targets": len(alias.Targets)})
 
 	existing, err := h.app.Repos.Aliases.GetByName(c.Context(), alias.Name)
 	if err != nil {
@@ -261,6 +261,6 @@ func (h *chainsHandler) AliasDelete(c fiber.Ctx) error {
 	if err := h.app.Repos.Aliases.Delete(c.Context(), name); err != nil {
 		return err
 	}
-	auditRecord(c.Context(), h.app, actorFrom(c), "alias.delete", name, nil)
+	auditRecord(c, actorFrom(c), "alias.delete", name, nil)
 	return dtos.Deleted(c, "Alias deleted")
 }

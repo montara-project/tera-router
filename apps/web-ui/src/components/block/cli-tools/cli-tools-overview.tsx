@@ -1,10 +1,11 @@
 import { IconRefresh, IconTerminal2 } from '@tabler/icons-react'
 import { useIsFetching, useQueryClient } from '@tanstack/react-query'
 
-import CliToolsGrid, { TOOLS, useInstalledTools } from '@/components/block/cli-tools/cli-tools-grid'
+import CliToolsGrid, { useInstalledTools } from '@/components/block/cli-tools/cli-tools-grid'
 import PageHeader from '@/components/block/common/page-header'
 import { Button } from '@/components/ui/button'
 import { CLI_TOOL_QUERY_KEY } from '@/lib/api/queries/cli-tool'
+import { CLI_TOOLS } from '@/lib/constants/cli-tools'
 import { cn } from '@/lib/utils'
 
 /** /cli-tools: page header with a host rescan, then every supported tool. */
@@ -38,7 +39,7 @@ export default function CliToolsOverview() {
           <div>
             <h2 className="text-[13px] font-semibold text-foreground">Tools</h2>
             <p className="text-xs text-muted-foreground">
-              {count} of {TOOLS.length} installed on this host
+              {count} of {CLI_TOOLS.length} installed on this host
             </p>
           </div>
         </div>

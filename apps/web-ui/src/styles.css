@@ -158,6 +158,11 @@
   * {
     @apply border-border outline-ring/50;
   }
+  /* Keep room for the page scrollbar even when the page fits, so content
+     that grows past the fold (an opened filter row) does not shift sideways. */
+  html {
+    scrollbar-gutter: stable;
+  }
   body {
     @apply bg-background text-foreground;
     margin: 0;

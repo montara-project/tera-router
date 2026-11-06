@@ -124,41 +124,37 @@ export default function ReactTable<T extends RowData>({
     onPaginationChange: setPagination,
   })
 
+  // Styled after the /providers table: it sits flush inside a panel
+  // (DashboardPanel), so it draws no border of its own, and the pager is the
+  // panel's footer.
   return (
     <DataGrid
       table={table as unknown as ReactTable<any, any>}
       recordCount={total}
       emptyMessage={emptyMessage}
-      tableLayout={{
-        columnsVisibility: true,
-        columnsResizable: true,
-        columnsPinnable: true,
-        columnsMovable: true,
-      }}
-      tableClassNames={{
-        edgeCell: 'px-5',
-      }}
+      tableLayout={{ width: 'auto' }}
     >
-      <div className="w-full space-y-2.5">
-        {/* A custom empty message renders outside the scrolling table so it
-            stays centred on phones instead of on the table's min-width. */}
+      <div className="w-full">
         {emptyMessage && data.length === 0 ? (
-          <div className="rounded-lg border border-border">{emptyMessage}</div>
+          emptyMessage
         ) : (
-          <DataGridContainer>
+          <DataGridContainer border={false}>
             <ScrollArea>
               <DataGridTable />
               <ScrollBar orientation="horizontal" />
             </ScrollArea>
           </DataGridContainer>
         )}
-        <DataGridPagination
-          total={total}
-          pageSize={pagination.pageSize}
-          pageIndex={pagination.pageIndex}
-          onPageChange={onPageChange}
-          onPageSizeChange={onPageSizeChange}
-        />
+        {total > 0 && (
+          <DataGridPagination
+            className="border-t border-border px-4 py-2.5 sm:py-2.5"
+            total={total}
+            pageSize={pagination.pageSize}
+            pageIndex={pagination.pageIndex}
+            onPageChange={onPageChange}
+            onPageSizeChange={onPageSizeChange}
+          />
+        )}
       </div>
     </DataGrid>
   )

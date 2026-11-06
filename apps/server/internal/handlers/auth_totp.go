@@ -109,7 +109,7 @@ func (h *authHandler) TOTPEnable(c fiber.Ctx) error {
 		return err
 	}
 
-	auditRecord(c.Context(), h.app, user.ID, "auth.totp_enable", user.ID, nil)
+	auditRecord(c, user.ID, "auth.totp_enable", user.ID, nil)
 	return dtos.Message(c, fiber.StatusOK, "Two-factor authentication enabled")
 }
 
@@ -133,6 +133,6 @@ func (h *authHandler) TOTPDisable(c fiber.Ctx) error {
 		return err
 	}
 
-	auditRecord(c.Context(), h.app, user.ID, "auth.totp_disable", user.ID, nil)
+	auditRecord(c, user.ID, "auth.totp_disable", user.ID, nil)
 	return dtos.Message(c, fiber.StatusOK, "Two-factor authentication disabled")
 }

@@ -51,7 +51,7 @@ func ensureCustomProviderRow(ctx context.Context, a *app.Application, actor, slu
 		}
 		return nil, err
 	}
-	auditRecord(ctx, a, actor, "custom_provider.create", row.ID,
+	auditRecordNow(ctx, a, actor, "custom_provider.create", row.ID,
 		map[string]string{"slug": slug, "seeded_from": "catalog"})
 	return &row, nil
 }

@@ -73,7 +73,9 @@ export function PricingColumn({ loading, onEdit }: PricingColumnProps) {
           }
 
           return (
-            <span className="text-sm tabular-nums text-foreground">
+            <span
+              className={row.original.input_micros === 0 ? 'text-muted-foreground' : 'tabular-nums'}
+            >
               {formatRate(row.original.input_micros)}
             </span>
           )
@@ -89,7 +91,11 @@ export function PricingColumn({ loading, onEdit }: PricingColumnProps) {
           }
 
           return (
-            <span className="text-sm tabular-nums text-foreground">
+            <span
+              className={
+                row.original.output_micros === 0 ? 'text-muted-foreground' : 'tabular-nums'
+              }
+            >
               {formatRate(row.original.output_micros)}
             </span>
           )
@@ -137,6 +143,8 @@ function ActionCell({ record, onEdit }: ActionCellProps) {
   return (
     <React.Fragment>
       <RowColumnAction
+        noun="override"
+        name={`${record.provider} / ${describeModel(record.model)}`}
         onEdit={onEdit ? () => onEdit(record) : undefined}
         onDelete={() => setOpenDelete(true)}
       />

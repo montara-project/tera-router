@@ -31,7 +31,7 @@ const bodyCellSpacingVariants = cva('', {
   variants: {
     size: {
       dense: 'px-2.5 py-2',
-      default: 'px-4 py-3',
+      default: 'px-4 py-2.5',
     },
   },
   defaultVariants: {
@@ -58,7 +58,7 @@ function DataGridTableBase({ children }: { children: ReactNode }) {
     <table
       data-slot="data-grid-table"
       className={cn(
-        'text-foreground w-full caption-bottom text-left align-middle text-sm font-normal rtl:text-right',
+        'text-foreground w-full caption-bottom text-left align-middle text-[13px] font-normal rtl:text-right',
         !props.tableLayout?.columnsDraggable && 'border-separate border-spacing-0',
         props.tableLayout?.width === 'fixed' ? 'table-fixed' : 'table-auto',
         props.tableClassNames?.base
@@ -97,7 +97,7 @@ function DataGridTableHeadRow<TData extends RowData>({
     <tr
       key={headerGroup.id}
       className={cn(
-        'bg-muted/40',
+        'dark:bg-muted/40',
         props.tableLayout?.headerBorder && '[&>th]:border-b',
         props.tableLayout?.cellBorder && '[&_>:last-child]:border-e-0',
         props.tableLayout?.stripped && 'bg-transparent',
@@ -145,7 +145,7 @@ function DataGridTableHeadRowCell<TData extends RowData>({
       data-pinned={isPinned || undefined}
       data-last-col={isLastLeftPinned ? 'left' : isFirstRightPinned ? 'right' : undefined}
       className={cn(
-        'text-secondary-foreground/80 relative h-10 text-left align-middle font-normal rtl:text-right [&:has([role=checkbox])]:pe-0',
+        'text-muted-foreground relative py-2 text-left align-middle text-xs font-medium rtl:text-right [&:has([role=checkbox])]:pe-0',
         headerCellSpacing,
         props.tableLayout?.cellBorder && 'border-e',
         props.tableLayout?.columnsResizable && column.getCanResize() && 'truncate',

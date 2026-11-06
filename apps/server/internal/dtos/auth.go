@@ -85,6 +85,8 @@ func (d *Refresh) Validate(v *validator.MapValidator) {
 type Session struct {
 	User   models.User `json:"-"`
 	Tokens TokenPair   `json:"-"`
+	// SessionID is the session's refresh token row id (the access token jti).
+	SessionID string `json:"-"`
 }
 
 // TokenPair carries the three tokens the web client stores.
