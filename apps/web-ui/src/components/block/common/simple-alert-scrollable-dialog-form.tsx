@@ -19,6 +19,8 @@ interface SimpleAlertScrollableDialogFormProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   title: string
+  /** Small icon drawn before the title. */
+  icon?: React.ElementType
   description?: string
   onSubmit: React.SubmitEventHandler<HTMLFormElement> | undefined
   children: React.ReactNode
@@ -26,13 +28,14 @@ interface SimpleAlertScrollableDialogFormProps {
   confirmText?: string
   loading?: boolean
   disabled?: boolean
-  size?: 'sm' | 'md' | 'lg' | 'xl'
+  size?: 'sm' | 'md' | 'lg' | '3xl' | 'xl'
 }
 
 export default function SimpleAlertScrollableDialogForm({
   open,
   onOpenChange,
   title,
+  icon: Icon,
   description,
   onSubmit,
   children,
@@ -52,6 +55,9 @@ export default function SimpleAlertScrollableDialogForm({
     if (size === 'lg') {
       return 'max-w-2xl'
     }
+    if (size === '3xl') {
+      return 'max-w-3xl'
+    }
 
     return 'max-w-4xl'
   }, [size])
@@ -64,7 +70,12 @@ export default function SimpleAlertScrollableDialogForm({
         <form className="flex min-h-0 flex-1 flex-col" onSubmit={onSubmit}>
           <div className="flex items-start justify-between gap-3 px-6 pt-6 pb-4">
             <AlertDialogHeader className="min-w-0 flex-1">
-              <AlertDialogTitle>{title}</AlertDialogTitle>
+              <AlertDialogTitle className="flex items-center gap-2">
+                {Icon ? (
+                  <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                ) : null}
+                {title}
+              </AlertDialogTitle>
               <AlertDialogDescription className={cn(!description && 'sr-only')}>
                 {description}
               </AlertDialogDescription>

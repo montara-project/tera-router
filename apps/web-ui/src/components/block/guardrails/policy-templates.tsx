@@ -1,4 +1,4 @@
-import { IconSparkles } from '@tabler/icons-react'
+import { IconChevronRight, IconSparkles } from '@tabler/icons-react'
 
 import type { GuardrailsPolicyConfig } from '@/lib/api/models/guardrails'
 
@@ -6,13 +6,11 @@ import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-
-const PRIMARY_BUTTON_CLASS =
-  'bg-emerald-600 text-white hover:bg-emerald-600/90 dark:bg-emerald-600 dark:hover:bg-emerald-600/90'
 
 export type PartialPolicyConfig = Partial<{
   [K in keyof GuardrailsPolicyConfig]: Partial<GuardrailsPolicyConfig[K]>
@@ -106,35 +104,50 @@ interface TemplateDialogProps {
 export default function TemplateDialog({ open, onOpenChange, onApply }: TemplateDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-full max-w-lg gap-0 p-0">
-        <DialogHeader className="mb-0 border-b border-border px-6 py-4">
-          <DialogTitle className="text-base">Start from a template</DialogTitle>
+      <DialogContent className="w-full max-w-xl gap-0 p-0">
+        <DialogHeader className="mb-0 gap-0.5 border-b border-border px-5 py-3.5">
+          <DialogTitle className="flex items-center gap-2 text-[15px]">
+            <IconSparkles className="text-primary size-4 shrink-0" aria-hidden />
+            Start from a template
+          </DialogTitle>
+          <DialogDescription className="text-[13px]">
+            Replaces the current detector settings
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="max-h-[60vh] space-y-2.5 overflow-y-auto px-6 py-5">
-          {TEMPLATES.map((template) => (
-            <button
-              key={template.name}
-              type="button"
-              onClick={() => {
-                onApply(template.config)
-                onOpenChange(false)
-              }}
-              className="w-full cursor-pointer rounded-lg border border-border bg-card p-3.5 text-left transition-colors hover:border-emerald-600/50 hover:bg-accent/40"
-            >
-              <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-                <IconSparkles className="h-4 w-4 text-emerald-500" />
-                {template.name}
-              </p>
-              <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
-                {template.description}
-              </p>
-            </button>
-          ))}
+        <div className="max-h-[60vh] overflow-y-auto overscroll-contain p-4">
+          <ul className="divide-y divide-border overflow-hidden rounded-md border border-border">
+            {TEMPLATES.map((template) => (
+              <li key={template.name}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onApply(template.config)
+                    onOpenChange(false)
+                  }}
+                  className="hover:bg-muted/40 flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left transition-colors"
+                >
+                  <span className="min-w-0 flex-1 space-y-0.5">
+                    <span className="block text-[13px] font-medium text-foreground">
+                      {template.name}
+                    </span>
+                    <span className="text-muted-foreground block text-xs leading-relaxed">
+                      {template.description}
+                    </span>
+                  </span>
+                  <IconChevronRight
+                    className="text-muted-foreground size-4 shrink-0"
+                    stroke={1.75}
+                    aria-hidden
+                  />
+                </button>
+              </li>
+            ))}
+          </ul>
         </div>
 
-        <DialogFooter className="mb-0 border-t border-border px-6 py-4">
-          <Button className={PRIMARY_BUTTON_CLASS} onClick={() => onOpenChange(false)}>
+        <DialogFooter className="mb-0 border-t border-border bg-muted/40 px-5 py-3.5">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
         </DialogFooter>

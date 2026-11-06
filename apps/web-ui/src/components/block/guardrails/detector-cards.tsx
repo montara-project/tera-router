@@ -1,9 +1,9 @@
 import {
+  IconAlertTriangle,
   IconChevronRight,
   IconFingerprint,
   IconMessageExclamation,
   IconScale,
-  IconShieldExclamation,
   IconTag,
   type TablerIcon,
 } from '@tabler/icons-react'
@@ -41,7 +41,7 @@ export const TOXICITY_CATEGORIES = ['profanity', 'hate speech', 'harassment', 'v
 export const BIAS_CATEGORIES = ['political', 'gender', 'ethnic', 'religious']
 
 export const MASKING_STRATEGIES = [
-  { value: 'redact', label: 'Redact — Replace with <PII>' },
+  { value: 'redact', label: 'Redact — replace with <PII>' },
   { value: 'mask', label: 'Mask — asterisks' },
   { value: 'hash', label: 'Hash — irreversible' },
 ]
@@ -89,13 +89,16 @@ interface DetectorCardsProps {
 interface DetectorMeta {
   key: Section
   label: string
+  /** Muted line shown while the detector is off: what it looks for. */
   hint: string
   icon: TablerIcon
   experimental?: boolean
-  /** Hint under the switch when the detector is on. */
+  /** Muted line shown while it is on: the settings in force. */
   summary: (config: PolicyConfig) => string
 }
 
+// Design order, matching the canvas frame: PII, injection, topics, toxicity,
+// bias.
 const DETECTORS: DetectorMeta[] = [
   {
     key: 'pii',
@@ -103,15 +106,13 @@ const DETECTORS: DetectorMeta[] = [
     hint: 'Emails, phone numbers, NIK, NPWP, API keys…',
     icon: IconFingerprint,
     summary: (config) =>
-      config.pii.entities.length > 0
-        ? `${config.pii.entities.length} entities · ${config.pii.masking_strategy}`
-        : `All entities · ${config.pii.masking_strategy}`,
+      `${config.pii.entities.length || 'All'} entities · ${config.pii.masking_strategy}`,
   },
   {
     key: 'injection',
     label: 'Prompt injection',
     hint: 'Jailbreaks, role overrides, prompt leaks',
-    icon: IconShieldExclamation,
+    icon: IconAlertTriangle,
     summary: (config) => `${config.injection.severity} · ${config.injection.action}`,
   },
   {
@@ -119,7 +120,7 @@ const DETECTORS: DetectorMeta[] = [
     label: 'Topics',
     hint: 'Keep chats on or off listed topics',
     icon: IconTag,
-    summary: (config) => `${config.topics.mode} · ${config.topics.action}`,
+    summary: (config) => `${config.topics.mode} list · ${config.topics.action}`,
   },
   {
     key: 'toxicity',
@@ -176,7 +177,7 @@ function SelectField({
   )
 }
 
-/** Toggle-only options that belong beside a select, e.g. "Also scan output". */
+/** Toggle that shares a row with a label but no description. */
 function InlineToggle({
   label,
   checked,
@@ -217,8 +218,8 @@ function ChipGroup({
             className={cn(
               'h-7 cursor-pointer rounded-md border px-2 font-mono text-[11.5px] transition-colors',
               active
-                ? 'border-primary/40 bg-primary/10 text-foreground'
-                : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/25'
+                ? 'border-primary/50 bg-primary/10 text-foreground'
+                : 'border-border text-muted-foreground hover:border-foreground/25 hover:text-foreground'
             )}
           >
             {option}
@@ -229,11 +230,10 @@ function ChipGroup({
   )
 }
 
-function NumberField({
+function ThresholdField({
   label,
   ariaLabel,
   value,
-  min,
   max,
   step,
   onCommit,
@@ -241,7 +241,6 @@ function NumberField({
   label: string
   ariaLabel: string
   value: number
-  min: number
   max: number
   step?: number
   onCommit: (value: number) => void
@@ -251,7 +250,7 @@ function NumberField({
       <FieldLabel>{label}</FieldLabel>
       <Input
         type="number"
-        min={min}
+        min={0}
         max={max}
         step={step}
         value={value}
@@ -262,7 +261,6 @@ function NumberField({
   )
 }
 
-/** PII body: the entity catalog, masking, confidence and output scan. */
 function PiiFields({ config, onPatch }: DetectorCardsProps) {
   const toggleEntity = (entity: string) =>
     onPatch('pii', {
@@ -272,31 +270,26 @@ function PiiFields({ config, onPatch }: DetectorCardsProps) {
     })
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="space-y-4">
       <div className="space-y-2">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-baseline gap-x-2">
           <FieldLabel>Entities</FieldLabel>
           <FieldHint>None selected detects every entity</FieldHint>
         </div>
-        <ChipGroup
-          options={PII_ENTITIES}
-          selected={config.pii.entities}
-          onToggle={toggleEntity}
-        />
+        <ChipGroup options={PII_ENTITIES} selected={config.pii.entities} onToggle={toggleEntity} />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2">
         <SelectField
           label="Masking strategy"
           value={config.pii.masking_strategy}
           options={MASKING_STRATEGIES}
           onValueChange={(masking_strategy) => onPatch('pii', { masking_strategy })}
         />
-        <NumberField
+        <ThresholdField
           label="Minimum confidence (0–1)"
           ariaLabel="Minimum confidence"
           value={config.pii.min_confidence}
-          min={0}
           max={1}
           step={0.05}
           onCommit={(min_confidence) => onPatch('pii', { min_confidence })}
@@ -310,8 +303,8 @@ function PiiFields({ config, onPatch }: DetectorCardsProps) {
         onValueChange={(engine) => onPatch('pii', { engine })}
       />
       <FieldHint>
-        Presidio needs the analyzer sidecar (compose.presidio.yaml) and falls back to native when
-        it is unreachable.
+        Presidio needs the analyzer sidecar (compose.presidio.yaml); the gateway falls back to the
+        native detector when it is unreachable.
       </FieldHint>
 
       <InlineToggle
@@ -325,7 +318,7 @@ function PiiFields({ config, onPatch }: DetectorCardsProps) {
 
 function InjectionFields({ config, onPatch }: DetectorCardsProps) {
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <div className="grid gap-4 sm:grid-cols-2">
       <SelectField
         label="Severity threshold"
         value={config.injection.severity}
@@ -344,8 +337,8 @@ function InjectionFields({ config, onPatch }: DetectorCardsProps) {
 
 function TopicsFields({ config, onPatch }: DetectorCardsProps) {
   return (
-    <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <div className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-2">
         <SelectField
           label="Mode"
           value={config.topics.mode}
@@ -359,8 +352,9 @@ function TopicsFields({ config, onPatch }: DetectorCardsProps) {
           onValueChange={(action) => onPatch('topics', { action })}
         />
       </div>
-      <div className="min-w-0 space-y-1.5">
-        <FieldLabel>Topics</FieldLabel>
+
+      <div className="space-y-1.5">
+        <FieldLabel>Topics (comma separated)</FieldLabel>
         <Input
           value={config.topics.topics.join(', ')}
           placeholder="programming, devops, cyber security"
@@ -371,14 +365,18 @@ function TopicsFields({ config, onPatch }: DetectorCardsProps) {
             })
           }
         />
-        <FieldHint>Comma separated. Empty means the detector has nothing to compare against.</FieldHint>
       </div>
+
       <SelectField
         label="Matching engine"
         value={config.topics.engine}
         options={MATCHING_ENGINES}
         onValueChange={(engine) => onPatch('topics', { engine })}
       />
+      <FieldHint>
+        Embeddings catch paraphrases the keyword path misses and need an embeddings provider
+        configured in <code className="font-mono">cache.embedding_provider=api</code>.
+      </FieldHint>
     </div>
   )
 }
@@ -392,9 +390,9 @@ function ToxicityFields({ config, onPatch }: DetectorCardsProps) {
     })
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="space-y-4">
       <div className="space-y-2">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-baseline gap-x-2">
           <FieldLabel>Categories</FieldLabel>
           <FieldHint>None selected scores every category</FieldHint>
         </div>
@@ -404,12 +402,12 @@ function ToxicityFields({ config, onPatch }: DetectorCardsProps) {
           onToggle={toggleCategory}
         />
       </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <NumberField
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <ThresholdField
           label="Threshold (0–100)"
           ariaLabel="Toxicity threshold"
           value={config.toxicity.threshold}
-          min={0}
           max={100}
           onCommit={(threshold) => onPatch('toxicity', { threshold })}
         />
@@ -420,6 +418,7 @@ function ToxicityFields({ config, onPatch }: DetectorCardsProps) {
           onValueChange={(action) => onPatch('toxicity', { action })}
         />
       </div>
+
       <SelectField
         label="Scoring engine"
         value={config.toxicity.engine}
@@ -429,7 +428,7 @@ function ToxicityFields({ config, onPatch }: DetectorCardsProps) {
       <FieldHint>
         [OI] scoring needs{' '}
         <code className="font-mono">TERAROUTER_GUARDRAILS_TOXICITY__OPENAI_API_KEY</code> on the
-        server, and falls back to native without it.
+        server and falls back to native without it.
       </FieldHint>
     </div>
   )
@@ -444,9 +443,9 @@ function BiasFields({ config, onPatch }: DetectorCardsProps) {
     })
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="space-y-4">
       <div className="space-y-2">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-baseline gap-x-2">
           <FieldLabel>Categories</FieldLabel>
           <FieldHint>None selected scores every category</FieldHint>
         </div>
@@ -456,12 +455,12 @@ function BiasFields({ config, onPatch }: DetectorCardsProps) {
           onToggle={toggleCategory}
         />
       </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <NumberField
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <ThresholdField
           label="Threshold (0–100)"
           ariaLabel="Bias threshold"
           value={config.bias.threshold}
-          min={0}
           max={100}
           onCommit={(threshold) => onPatch('bias', { threshold })}
         />
@@ -476,7 +475,7 @@ function BiasFields({ config, onPatch }: DetectorCardsProps) {
   )
 }
 
-const BODY: Record<Section, (props: DetectorCardsProps) => React.ReactNode> = {
+const FIELDS: Record<Section, (props: DetectorCardsProps) => React.ReactNode> = {
   pii: (props) => <PiiFields {...props} />,
   injection: (props) => <InjectionFields {...props} />,
   topics: (props) => <TopicsFields {...props} />,
@@ -484,14 +483,17 @@ const BODY: Record<Section, (props: DetectorCardsProps) => React.ReactNode> = {
   bias: (props) => <BiasFields {...props} />,
 }
 
-/** The detector list: one collapsible row per detector, its switch on the
- * right. A row starts open when its detector is already enabled. */
+/**
+ * The detector list: one collapsible row per detector with its switch on the
+ * right, and the settings of that detector inline when the row is open. A row
+ * starts open when its detector is already on.
+ */
 export function DetectorCards({ config, onPatch }: DetectorCardsProps) {
   const [open, setOpen] = useState<Section[]>(() =>
     DETECTORS.filter((detector) => config[detector.key].enabled).map((detector) => detector.key)
   )
 
-  const toggle = (key: Section) =>
+  const toggleRow = (key: Section) =>
     setOpen((current) =>
       current.includes(key) ? current.filter((item) => item !== key) : [...current, key]
     )
@@ -501,17 +503,17 @@ export function DetectorCards({ config, onPatch }: DetectorCardsProps) {
       {DETECTORS.map((detector) => {
         const enabled = config[detector.key].enabled
         const expanded = open.includes(detector.key)
-        const panelId = `detector-${detector.key}`
+        const panelId = `guardrail-detector-${detector.key}`
 
         return (
           <li key={detector.key} className="border-b border-border last:border-0">
-            <div className="flex items-center gap-3 pr-4">
+            <div className="flex items-center gap-2 pr-3">
               <button
                 type="button"
                 aria-expanded={expanded}
                 aria-controls={panelId}
-                onClick={() => toggle(detector.key)}
-                className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 px-3 py-2.5 text-left"
+                onClick={() => toggleRow(detector.key)}
+                className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 py-2.5 pl-3 text-left"
               >
                 <IconChevronRight
                   className={cn(
@@ -521,17 +523,20 @@ export function DetectorCards({ config, onPatch }: DetectorCardsProps) {
                   stroke={1.75}
                   aria-hidden
                 />
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                <span className="bg-muted text-muted-foreground flex size-7 shrink-0 items-center justify-center rounded-md">
                   <detector.icon className="size-4" stroke={1.75} aria-hidden />
                 </span>
                 <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-                  <span className="text-[13px] font-medium">{detector.label}</span>
+                  <span className="text-[13px] font-medium text-foreground">{detector.label}</span>
                   {detector.experimental ? (
                     <Badge variant="secondary" size="sm">
                       Experimental
                     </Badge>
                   ) : null}
-                  <span className="text-muted-foreground truncate text-xs">
+                  <span
+                    className="text-muted-foreground min-w-0 truncate text-xs"
+                    title={enabled ? detector.summary(config) : detector.hint}
+                  >
                     {enabled ? detector.summary(config) : detector.hint}
                   </span>
                 </span>
@@ -544,11 +549,8 @@ export function DetectorCards({ config, onPatch }: DetectorCardsProps) {
             </div>
 
             {expanded ? (
-              <div
-                id={panelId}
-                className="border-t border-border bg-muted/30 px-4 py-4 pl-[3.75rem]"
-              >
-                {BODY[detector.key]({ config, onPatch })}
+              <div id={panelId} className="bg-muted/30 border-t border-border px-4 py-4 sm:pl-14">
+                {FIELDS[detector.key]({ config, onPatch })}
               </div>
             ) : null}
           </li>
