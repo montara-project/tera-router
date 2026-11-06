@@ -15,8 +15,12 @@ import { DetectorCards } from '@/components/block/guardrails/detector-cards'
 import TemplateDialog, {
   type PartialPolicyConfig,
 } from '@/components/block/guardrails/policy-templates'
+import ChainModelPicker, {
+  useChainModelGroups,
+} from '@/components/block/traffic/chains/chain-model-picker'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { Textarea } from '@/components/ui/textarea'
 import { useAppForm } from '@/hooks/form'
 import { toastAxiosError } from '@/lib/api/axios-error'
@@ -76,11 +80,11 @@ const TARGET_LABELS: Record<Exclude<GuardrailsScope, 'global'>, string> = {
   key: 'API key',
 }
 
-const TARGET_PLACEHOLDERS: Record<Exclude<GuardrailsScope, 'global'>, string> = {
+// The model scope uses its own picker, which carries its own placeholder.
+const TARGET_PLACEHOLDERS: Record<Exclude<GuardrailsScope, 'global' | 'model'>, string> = {
   provider: 'Select a provider...',
-  model: 'openai/gpt-4o or an alias',
-  chain: '— select a chain —',
-  key: '— select an API key —',
+  chain: 'Select a chain...',
+  key: 'Select an API key...',
 }
 
 interface EditPolicyDialogProps {
@@ -286,26 +290,21 @@ function AbstractForm({
             name="target"
             children={(field) =>
               scope === 'model' ? (
-                <field.TextField
-                  label={TARGET_LABELS.model}
-                  placeholder={TARGET_PLACEHOLDERS.model}
-                  autoComplete="off"
-                  asterisk
-                />
-              ) : scope === 'provider' ? (
-                <field.ComboboxField
-                  label={TARGET_LABELS.provider}
-                  placeholder={TARGET_PLACEHOLDERS.provider}
-                  options={targetOptions}
-                  defaultValues={field.state.value ? [field.state.value] : []}
-                  asterisk
+                <ModelTargetField
+                  value={field.state.value}
+                  onChange={field.handleChange}
+                  errors={field.state.meta.errors}
                 />
               ) : (
-                <field.SelectField
+                <field.ComboboxField
+                  // Remount per scope so a provider's pick never shows under chains.
+                  key={scope}
                   label={TARGET_LABELS[targetScope]}
-                  placeholder={TARGET_PLACEHOLDERS[targetScope]}
-                  className="w-full"
+                  placeholder={
+                    TARGET_PLACEHOLDERS[targetScope as Exclude<typeof targetScope, 'model'>]
+                  }
                   options={targetOptions}
+                  defaultValues={field.state.value ? [field.state.value] : []}
                   asterisk
                 />
               )
@@ -434,5 +433,56 @@ function TestResult({ result }: { result: GuardrailsEvaluateResult }) {
         </div>
       )}
     </div>
+  )
+}
+
+/**
+ * Model target picked from the routable models, grouped by provider like a
+ * chain's route steps. It is stored as "provider/model", which the gateway
+ * matches against every candidate a request may reach. Mounted only for the
+ * model scope, so the model lists load only when needed.
+ */
+function ModelTargetField({
+  value,
+  onChange,
+  errors,
+}: {
+  value: string
+  onChange: (value: string) => void
+  errors: unknown[]
+}) {
+  const { groups, apiKinds, loading } = useChainModelGroups()
+  const slash = value.indexOf('/')
+  // Model ids can hold a slash too (openrouter's anthropic/claude-…), so only
+  // the first one splits off the provider.
+  const target =
+    slash > 0
+      ? { provider: value.slice(0, slash), model: value.slice(slash + 1) }
+      : { provider: '', model: '' }
+  const invalid = errors.length > 0
+
+  return (
+    <Field data-invalid={invalid}>
+      <FieldLabel htmlFor="guardrail-model-target" className="gap-1">
+        {TARGET_LABELS.model}
+        <span className="text-destructive">*</span>
+      </FieldLabel>
+      <ChainModelPicker
+        id="guardrail-model-target"
+        label={TARGET_LABELS.model}
+        value={target}
+        onChange={(next) => onChange(`${next.provider}/${next.model}`)}
+        groups={groups}
+        apiKinds={apiKinds}
+        loading={loading}
+      />
+      {value && slash <= 0 ? (
+        <p className="text-xs text-muted-foreground">
+          Current target <span className="font-mono">{value}</span> is an alias or bare model id.
+          Pick a model to replace it.
+        </p>
+      ) : null}
+      {invalid ? <FieldError errors={errors as { message?: string }[]} /> : null}
+    </Field>
   )
 }

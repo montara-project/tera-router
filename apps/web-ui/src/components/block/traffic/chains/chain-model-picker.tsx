@@ -79,6 +79,8 @@ interface ChainModelPickerProps {
   /** accessible name, e.g. "Step 2 model" */
   label: string
   className?: string
+  /** id for the trigger, so a field label can point at it */
+  id?: string
 }
 
 /** One combobox for a provider + model pair, grouped by provider. */
@@ -90,6 +92,7 @@ export default function ChainModelPicker({
   loading,
   label,
   className,
+  id,
 }: ChainModelPickerProps) {
   const [open, setOpen] = useState(false)
   const selected = value.provider && value.model ? `${value.provider}/${value.model}` : ''
@@ -100,6 +103,7 @@ export default function ChainModelPicker({
     <Popover modal open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
+          id={id}
           variant="outline"
           role="combobox"
           aria-expanded={open}
