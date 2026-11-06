@@ -354,10 +354,15 @@ func (h *backupHandler) DatabaseDownload(c fiber.Ctx) error {
 // current database is written first, and an older schema is migrated up
 // after the restore.
 func (h *backupHandler) DatabaseRestore(c fiber.Ctx) error {
-	fh, err := c.FormFile("file")
-	if err != nil {
+	// A database is often bigger than the server's BodyLimit, which fiber's
+	// FormFile would apply, so parse the streamed upload without a cap; files
+	// spill to temporary files rather than memory. The route sits behind
+	// RequireAuth, and middlewares.BodyLimit exempts it (cmd/api/server.go).
+	form, err := c.RequestCtx().Request.MultipartFormWithLimit(0)
+	if err != nil || len(form.File["file"]) == 0 {
 		return apperr.New(apperr.KindBadRequest, "upload the .db file in the multipart field \"file\"")
 	}
+	fh := form.File["file"][0]
 	ctx := c.Context()
 
 	tmp := h.siblingPath(fmt.Sprintf("restore-%d.db", time.Now().UnixNano()))
