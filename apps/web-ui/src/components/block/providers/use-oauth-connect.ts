@@ -21,6 +21,16 @@ interface PasteFlow {
   mode: 'code' | 'url'
 }
 
+/** A device sign-in (ZCode): the user approves on the provider's site while
+ * the dashboard polls the server until the grant is ready or expired. */
+interface PollFlow {
+  provider: string
+  name: string
+  state: string
+  popup: Window
+  intervalMs: number
+}
+
 /** Loopback hostnames the dashboard can be served from: only there does the
  * browser share the machine with the server's Codex callback listener. */
 const isLoopbackHost = (hostname: string): boolean =>
@@ -63,12 +73,18 @@ export function useOAuthConnect() {
   const [connecting, setConnecting] = useState<string | null>(null)
   const [pasteFlow, setPasteFlow] = useState<PasteFlow | null>(null)
   const [pastePending, setPastePending] = useState(false)
+  const [pollFlow, setPollFlow] = useState<PollFlow | null>(null)
+
+  const refreshConnected = async () => {
+    await queryClient.invalidateQueries({ queryKey: [ACCOUNT_QUERY_KEY] })
+    await queryClient.invalidateQueries({ queryKey: [PROVIDER_QUERY_KEY] })
+  }
 
   const connect = async (provider: string, name: string) => {
     setConnecting(provider)
-    // A paste flow hands control to the dialog, so `connecting` must survive
-    // this function's finally until the dialog resolves or cancels.
-    let paste = false
+    // A paste or poll flow hands control to its dialog/loop, so `connecting`
+    // must survive this function's finally until the flow resolves or cancels.
+    let deferred = false
     try {
       const res = await services.oauth.authorize(provider)
       const { authorize_url, state, completion } = res.data.data
@@ -79,8 +95,23 @@ export function useOAuthConnect() {
         return
       }
 
+      if (completion === 'poll') {
+        // Device sign-in: the user approves on the provider's site; this
+        // window polls the server until the grant lands. The popup is watched
+        // too — closing it before approving kills the flow at expiry.
+        deferred = true
+        setPollFlow({
+          provider,
+          name,
+          state,
+          popup,
+          intervalMs: Math.max(1000, (res.data.data.poll_interval_sec ?? 2) * 1000),
+        })
+        return
+      }
+
       if (completion === 'paste_code') {
-        paste = true
+        deferred = true
         setPasteFlow({ provider, name, state, popup, mode: 'code' })
         return
       }
@@ -88,7 +119,7 @@ export function useOAuthConnect() {
       // Codex's loopback listener only reports back to a browser on the same
       // machine; a remotely-served dashboard must paste the callback URL.
       if (!isLoopbackHost(window.location.hostname)) {
-        paste = true
+        deferred = true
         setPasteFlow({ provider, name, state, popup, mode: 'url' })
         return
       }
@@ -120,14 +151,13 @@ export function useOAuthConnect() {
       })
 
       if (succeeded) {
-        await queryClient.invalidateQueries({ queryKey: [ACCOUNT_QUERY_KEY] })
-        await queryClient.invalidateQueries({ queryKey: [PROVIDER_QUERY_KEY] })
+        await refreshConnected()
         toast.success(`${name} connected`)
       }
     } catch (error) {
       toastAxiosError(error)
     } finally {
-      if (!paste) {
+      if (!deferred) {
         setConnecting(null)
       }
     }
@@ -151,8 +181,7 @@ export function useOAuthConnect() {
         code: parsed.code,
         state: parsed.state ?? flow.state,
       })
-      await queryClient.invalidateQueries({ queryKey: [ACCOUNT_QUERY_KEY] })
-      await queryClient.invalidateQueries({ queryKey: [PROVIDER_QUERY_KEY] })
+      await refreshConnected()
       toast.success(`${flow.name} connected`)
       flow.popup.close()
       setPasteFlow(null)
@@ -170,5 +199,20 @@ export function useOAuthConnect() {
     setConnecting(null)
   }
 
-  return { connect, connecting, pasteFlow, pastePending, submitPasteCode, cancelPaste }
+  const cancelPoll = () => {
+    pollFlow?.popup.close()
+    setPollFlow(null)
+    setConnecting(null)
+  }
+
+  return {
+    connect,
+    connecting,
+    pasteFlow,
+    pastePending,
+    submitPasteCode,
+    cancelPaste,
+    pollFlow,
+    cancelPoll,
+  }
 }

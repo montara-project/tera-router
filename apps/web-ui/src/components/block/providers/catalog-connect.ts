@@ -10,6 +10,14 @@ export const CUSTOM_CONNECT_PRESETS: Record<string, { slug: string; api_kind: st
 export const OAUTH_FLOW_FOR: Record<string, string> = {
   openai: 'codex',
   anthropic: 'anthropic',
+  zcode: 'zcode',
+}
+
+/** Catalog tiles that connect ONLY through the official-website sign-in
+ * (no API key exists to paste): Connect starts the OAuth flow directly,
+ * skipping the auth-mode choice dialog. */
+export const OAUTH_ONLY_PROVIDERS: Record<string, { name: string }> = {
+  zcode: { name: 'ZCode' },
 }
 
 /** API-key providers wired end-to-end: Connect opens the key form, and the

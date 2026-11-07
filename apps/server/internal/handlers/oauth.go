@@ -49,6 +49,13 @@ func (h *oauthHandler) Authorize(c fiber.Ctx) error {
 		return apperr.New(apperr.KindBadRequest, "no OAuth config for provider: %s", provider)
 	}
 
+	// Device-flow providers (zcode) never redirect back: the server starts the
+	// flow and returns the authorize URL for the dashboard to open, then polls
+	// the poll endpoint until the grant is ready.
+	if cfg.DeviceFlow() {
+		return h.authorizeDevice(c, cfg)
+	}
+
 	// Fixed-port providers must advertise the port this server actually owns,
 	// so bind before resolving: Codex's OAuth app also allow-lists 1457,
 	// letting a busy 1455 fall back instead of failing the flow.
@@ -87,6 +94,83 @@ func (h *oauthHandler) Authorize(c fiber.Ctx) error {
 		"redirect_uri":  redirectURI,
 		"completion":    completion,
 	})
+}
+
+// authorizeDevice starts a device sign-in: it registers the upstream flow and
+// stores its poll credentials server-side, keyed by a fresh state. The
+// dashboard opens the authorize URL and polls the Poll endpoint with that
+// state until it reports ready.
+func (h *oauthHandler) authorizeDevice(c fiber.Ctx, cfg oauth.ProviderConfig) error {
+	flow, err := cfg.DeviceInit(c.Context())
+	if err != nil {
+		return apperr.New(apperr.KindUnprocessable, "%s", err.Error())
+	}
+
+	state, err := oauth.GeneratePKCE()
+	if err != nil {
+		return err
+	}
+	h.sessions.Put(state.State, &oauth.Session{
+		Provider:         cfg.Provider,
+		State:            state.State,
+		DeviceFlowID:     flow.FlowID,
+		DevicePollToken:  flow.PollToken,
+		DeviceExpiresAt:  flow.ExpiresAt,
+		DeviceIntervalMs: int(flow.Interval.Milliseconds()),
+	})
+
+	return dtos.OK(c, fiber.Map{
+		"authorize_url":     flow.AuthorizeURL,
+		"state":             state.State,
+		"completion":        "poll",
+		"poll_interval_sec": int(flow.Interval.Seconds()),
+	})
+}
+
+// Poll advances a device sign-in by one step: it asks the upstream whether the
+// user approved yet. A ready grant is persisted immediately; pending answers
+// keep the session so the dashboard's polling loop can continue.
+func (h *oauthHandler) Poll(c fiber.Ctx) error {
+	provider := c.Params("provider")
+	cfg, ok := oauth.ConfigFor(provider)
+	if !ok || !cfg.DeviceFlow() {
+		return apperr.New(apperr.KindBadRequest, "no device sign-in flow for provider: %s", provider)
+	}
+
+	var req dtos.OAuthPoll
+	if err := lib.ValidateRequestBody(c, &req); err != nil {
+		return err
+	}
+	sess, ok := h.sessions.Get(req.State)
+	if !ok || sess.Provider != provider {
+		return apperr.New(apperr.KindBadRequest, "OAuth session not found or expired; restart the flow")
+	}
+
+	status, tokens, err := cfg.DevicePoll(c.Context(), sess.DeviceFlowID, sess.DevicePollToken)
+	if err != nil {
+		return apperr.New(apperr.KindUnprocessable, "%s", err.Error())
+	}
+	switch status {
+	case "ready":
+		h.sessions.Delete(req.State)
+		id, email, perr := h.persistAccount(c.Context(), actorFrom(c), cfg.Provider, tokens)
+		if perr != nil {
+			return perr
+		}
+		return dtos.Created(c, fiber.Map{"id": id, "provider": cfg.Provider, "email": email, "status": "ready"}, "OAuth account connected")
+	case "expired":
+		h.sessions.Delete(req.State)
+		return apperr.New(apperr.KindBadRequest, "sign-in window expired; restart the flow")
+	case "failed":
+		h.sessions.Delete(req.State)
+		return apperr.New(apperr.KindBadRequest, "the sign-in was rejected; restart the flow")
+	default:
+		if sess.DeviceExpiresAt.After(time.Now()) {
+			return dtos.OK(c, fiber.Map{"status": "pending"})
+		}
+		h.sessions.Delete(req.State)
+		return apperr.New(apperr.KindBadRequest, "sign-in window expired; restart the flow")
+	}
 }
 
 // Exchange completes an authorization-code flow: it exchanges the (pasted or

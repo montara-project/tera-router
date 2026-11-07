@@ -26,7 +26,16 @@ func (c *connector) endpoint(creds core.Credentials) string {
 }
 
 // headers returns the upstream auth and identification headers for an attempt.
-func (c *connector) headers(creds core.Credentials) map[string]string {
+// req carries the caller's routing metadata (API key, client address) so
+// providers that key per-caller identification on it (zcode's correlation
+// headers) can derive stable values.
+func (c *connector) headers(req *core.ChatRequest, creds core.Credentials) map[string]string {
+	if c.id == "zcode" {
+		// ZCode's plan lane requires the desktop client's identification
+		// header set on top of the Bearer token, and ignores x-api-key
+		// entirely — its own headers, not the generic anthropic ones.
+		return mergeHeaders(ZCodeHeaders(creds.Token(), creds, req), creds.Headers)
+	}
 	switch c.dialect {
 	case core.DialectAnthropic:
 		return c.anthropicHeaders(creds)

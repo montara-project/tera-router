@@ -13,3 +13,13 @@ func (d *OAuthExchange) Validate(v *validator.MapValidator) {
 	v.Field("code").Required().String()
 	v.Field("state").Required().String()
 }
+
+// OAuthPoll is the request body of POST /v1/oauth/:provider/poll. The state
+// identifies the device sign-in the dashboard is waiting on.
+type OAuthPoll struct {
+	State string `json:"state"`
+}
+
+func (d *OAuthPoll) Validate(v *validator.MapValidator) {
+	v.Field("state").Required().String()
+}

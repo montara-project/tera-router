@@ -54,7 +54,7 @@ func (c *connector) Chat(ctx context.Context, req *core.ChatRequest, creds core.
 	if err != nil {
 		return nil, cl.internal(err)
 	}
-	resp, err := doJSON(ctx, cl, c.endpoint(creds), body, c.headers(creds))
+	resp, err := doJSON(ctx, cl, c.endpoint(creds), body, c.headers(req, creds))
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +100,7 @@ func (c *connector) chatViaStream(ctx context.Context, req *core.ChatRequest, cr
 	if err != nil {
 		return nil, cl.internal(err)
 	}
-	resp, err := openStream(ctx, cl, c.endpoint(creds), body, c.headers(creds))
+	resp, err := openStream(ctx, cl, c.endpoint(creds), body, c.headers(req, creds))
 	if err != nil {
 		return nil, err
 	}
@@ -159,7 +159,7 @@ func (c *connector) Stream(ctx context.Context, req *core.ChatRequest, creds cor
 	if err != nil {
 		return nil, cl.internal(err)
 	}
-	resp, err := openStream(ctx, cl, c.endpoint(creds), body, c.headers(creds))
+	resp, err := openStream(ctx, cl, c.endpoint(creds), body, c.headers(req, creds))
 	if err != nil {
 		return nil, err
 	}
@@ -252,7 +252,7 @@ func (c *connector) StreamRaw(ctx context.Context, req *core.ChatRequest, creds 
 	if err != nil {
 		return nil, nil, cl.internal(err)
 	}
-	resp, err := openStream(ctx, cl, c.endpoint(creds), body, c.headers(creds))
+	resp, err := openStream(ctx, cl, c.endpoint(creds), body, c.headers(req, creds))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -262,13 +262,26 @@ func (c *connector) StreamRaw(ctx context.Context, req *core.ChatRequest, creds 
 // render encodes the canonical request for this dialect. The caller's request
 // is never mutated: the stream flag and any credential-specific preamble (the
 // Claude Code system prompt Anthropic OAuth tokens require) go on a copy.
+// ZCode goes one step further: its plan lane rejects requests that do not open
+// with the captured client identity, so the rendered body is reshaped into the
+// canonical three-block system prompt (connectors/zcode.go).
 func (c *connector) render(req *core.ChatRequest, stream bool, creds core.Credentials) ([]byte, error) {
 	clone := *req
 	clone.Stream = stream
-	if c.dialect == core.DialectAnthropic && anthropicOAuth(creds) {
+	if c.dialect == core.DialectAnthropic && anthropicOAuth(creds) && c.id != "zcode" {
 		clone.SystemPreamble = ClaudeCodeSystemPrompt
 	}
-	return c.codec.RenderRequest(&clone, c.id)
+	body, err := c.codec.RenderRequest(&clone, c.id)
+	if err != nil {
+		return nil, err
+	}
+	if c.id == "zcode" {
+		body, err = zcodeShapeBody(body, &clone, creds)
+		if err != nil {
+			return nil, call{provider: c.id, model: clone.Model, accountID: creds.AccountID, creds: creds}.internal(err)
+		}
+	}
+	return body, nil
 }
 
 // requiresStream reports whether unary calls must be served from the
