@@ -248,6 +248,8 @@ func mergeZcodePlanRows(plans, balances []any) []ZcodePlanRow {
 		ent  map[string]any
 	}
 	entLookup := map[string]entMeta{}
+	// entOrder keeps first-seen plan order so grant-only rows come out stable.
+	var entOrder []string
 	for _, p := range plans {
 		pm, ok := p.(map[string]any)
 		if !ok {
@@ -261,18 +263,23 @@ func mergeZcodePlanRows(plans, balances []any) []ZcodePlanRow {
 			}
 			id, _ := em["entitlement_id"].(string)
 			if id != "" {
+				if _, seen := entLookup[id]; !seen {
+					entOrder = append(entOrder, id)
+				}
 				entLookup[id] = entMeta{plan: pm, ent: em}
 			}
 		}
 	}
 
 	var rows []ZcodePlanRow
+	inBalances := map[string]bool{}
 	for _, b := range balances {
 		bm, ok := b.(map[string]any)
 		if !ok {
 			continue
 		}
 		id, _ := bm["entitlement_id"].(string)
+		inBalances[id] = true
 		meta, hasMeta := entLookup[id]
 		planID, _ := bm["plan_id"].(string)
 		row := ZcodePlanRow{
@@ -312,17 +319,11 @@ func mergeZcodePlanRows(plans, balances []any) []ZcodePlanRow {
 		rows = append(rows, row)
 	}
 	// Entitlements defined but missing from the usage list: show the grant.
-	for id, m := range entLookup {
-		found := false
-		for _, b := range balances {
-			if bm, ok := b.(map[string]any); ok && stringOf(bm["entitlement_id"]) == id {
-				found = true
-				break
-			}
-		}
-		if found {
+	for _, id := range entOrder {
+		if inBalances[id] {
 			continue
 		}
+		m := entLookup[id]
 		planID, _ := m.plan["plan_id"].(string)
 		rows = append(rows, ZcodePlanRow{
 			Model:         stringOf(m.ent["show_name"]),

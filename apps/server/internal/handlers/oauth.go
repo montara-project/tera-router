@@ -116,14 +116,14 @@ func (h *oauthHandler) authorizeDevice(c fiber.Ctx, cfg oauth.ProviderConfig) er
 		DeviceFlowID:     flow.FlowID,
 		DevicePollToken:  flow.PollToken,
 		DeviceExpiresAt:  flow.ExpiresAt,
-		DeviceIntervalMs: int(flow.Interval.Milliseconds()),
+		DeviceIntervalMs: int(flow.PollInterval().Milliseconds()),
 	})
 
 	return dtos.OK(c, fiber.Map{
 		"authorize_url":     flow.AuthorizeURL,
 		"state":             state.State,
 		"completion":        "poll",
-		"poll_interval_sec": int(flow.Interval.Seconds()),
+		"poll_interval_sec": int(flow.PollInterval().Seconds()),
 	})
 }
 

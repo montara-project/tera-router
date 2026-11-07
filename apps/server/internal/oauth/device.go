@@ -143,12 +143,21 @@ func (c ProviderConfig) DevicePoll(ctx context.Context, flowID, pollToken string
 
 	rawBody, status, err := doJSONRequestStatus(ctx, req)
 	if err != nil {
-		return "", nil, err
+		// A transport blip must not end a healthy sign-in: keep waiting and let
+		// the flow's expiry bound the retries. A cancelled caller still fails.
+		if ctx.Err() != nil {
+			return "", nil, err
+		}
+		return "pending", nil, nil
 	}
 	// The flow is gone server-side: a gone/not-found answer means the
 	// five-minute sign-in window closed before the user approved.
 	if status == http.StatusNotFound || status == http.StatusGone {
 		return "expired", nil, nil
+	}
+	// An upstream outage is transient too; only other 4xx answers are terminal.
+	if status >= 500 {
+		return "pending", nil, nil
 	}
 	if status >= 400 {
 		return "", nil, fmt.Errorf("oauth: device poll returned %d: %s", status, truncate(rawBody, 300))

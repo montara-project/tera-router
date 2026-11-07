@@ -276,10 +276,8 @@ func (c *connector) render(req *core.ChatRequest, stream bool, creds core.Creden
 		return nil, err
 	}
 	if c.id == "zcode" {
-		body, err = zcodeShapeBody(body, &clone, creds)
-		if err != nil {
-			return nil, call{provider: c.id, model: clone.Model, accountID: creds.AccountID, creds: creds}.internal(err)
-		}
+		// Callers wrap render errors, so return it as is.
+		return zcodeShapeBody(body, &clone, creds)
 	}
 	return body, nil
 }

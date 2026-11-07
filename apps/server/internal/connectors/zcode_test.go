@@ -158,7 +158,7 @@ func TestZcodeChatShape(t *testing.T) {
 	if body.OutputConfig == nil || body.OutputConfig.Effort != "high" {
 		t.Errorf("output_config = %+v, want {effort: high}", body.OutputConfig)
 	}
-	if req.SystemPreamble != "" {
+	if strings.Contains(string(raw), ClaudeCodeSystemPrompt) {
 		t.Error("zcode must not inject the Claude Code preamble")
 	}
 	if strings.Contains(string(raw), "budget_tokens") {
@@ -204,15 +204,9 @@ func TestZcodeChatShapeNoReasoning(t *testing.T) {
 // TestZcodeEndpointJoin pins the plan-lane URL: the catalog base already ends
 // at the anthropic mount, so the connector appends "messages".
 func TestZcodeEndpointJoin(t *testing.T) {
-	c := &connector{id: "zcode", dialect: core.DialectAnthropic}
-	got := c.endpoint(core.Credentials{})
-	if got != "messages" || !strings.HasSuffix(got, "messages") {
-		// joinURL with an empty base yields "messages" — pin the join logic
-		// with the real catalog base instead.
-		c2 := &connector{id: "zcode", dialect: core.DialectAnthropic, defaultBase: "https://zcode.z.ai/api/v1/zcode-plan/anthropic"}
-		if got := c2.endpoint(core.Credentials{}); got != "https://zcode.z.ai/api/v1/zcode-plan/anthropic/messages" {
-			t.Errorf("endpoint = %q", got)
-		}
+	c := &connector{id: "zcode", dialect: core.DialectAnthropic, defaultBase: "https://zcode.z.ai/api/v1/zcode-plan/anthropic"}
+	if got := c.endpoint(core.Credentials{}); got != "https://zcode.z.ai/api/v1/zcode-plan/anthropic/messages" {
+		t.Errorf("endpoint = %q", got)
 	}
 }
 

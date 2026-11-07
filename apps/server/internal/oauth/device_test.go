@@ -34,6 +34,13 @@ func testZcodeConfig(t *testing.T, pollStatus string, pollToken *string) Provide
 			}
 			io.WriteString(w, pollStatus)
 		case strings.HasSuffix(r.URL.Path, "/oauth/token"):
+			// ZCode's token endpoint wants JSON with the provider body field.
+			var body map[string]string
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body["provider"] != "zai" || body["grant_type"] != "refresh_token" {
+				w.WriteHeader(http.StatusBadRequest)
+				io.WriteString(w, `{"code":1,"msg":"bad token request"}`)
+				return
+			}
 			io.WriteString(w, `{"code":0,"data":{"token":{"access_token":"new-at","refresh_token":"new-rt"}}}`)
 		default:
 			w.WriteHeader(http.StatusNotFound)
@@ -137,16 +144,6 @@ func TestZcodeConfigEndpoints(t *testing.T) {
 	if cfg.TokenBodyProvider != "zai" || !cfg.TokenResponseWrapped {
 		t.Errorf("zcode token quirks = (%q, %v)", cfg.TokenBodyProvider, cfg.TokenResponseWrapped)
 	}
-	// Refresh must send the provider body field as JSON — build the same form
-	// Refresh does and check the values survive the JSON encoding.
-	form := map[string]string{"grant_type": "refresh_token", "refresh_token": "x"}
-	if cfg.TokenBodyProvider != "" {
-		form["provider"] = cfg.TokenBodyProvider
-	}
-	raw, _ := json.Marshal(form)
-	if !strings.Contains(string(raw), `"provider":"zai"`) {
-		t.Errorf("refresh body = %s", raw)
-	}
 }
 
 // ZCode may answer data.token as the bare access token string, with the
@@ -159,5 +156,29 @@ func TestZcodeDevicePollStringToken(t *testing.T) {
 	}
 	if tokens.AccessToken != "at" || tokens.RefreshToken != "rt" || tokens.ExpiresIn != 3600 || tokens.Email != "a@b.c" {
 		t.Errorf("tokens = %+v", tokens)
+	}
+}
+
+// An upstream outage or a transport blip keeps the sign-in waiting; the
+// flow's expiry ends the retries, not one bad poll.
+func TestZcodeDevicePollTransientIsPending(t *testing.T) {
+	cfg := testZcodeConfig(t, `{}`, nil)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadGateway)
+	}))
+	cfg.DevicePollURL = srv.URL + "/cli/poll"
+	if status, _, err := cfg.DevicePoll(context.Background(), "flow-1", "tok"); err != nil || status != "pending" {
+		t.Fatalf("5xx poll = (%q, %v), want pending", status, err)
+	}
+
+	srv.Close()
+	if status, _, err := cfg.DevicePoll(context.Background(), "flow-1", "tok"); err != nil || status != "pending" {
+		t.Fatalf("unreachable poll = (%q, %v), want pending", status, err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, _, err := cfg.DevicePoll(ctx, "flow-1", "tok"); err == nil {
+		t.Fatal("cancelled poll must return the error")
 	}
 }
