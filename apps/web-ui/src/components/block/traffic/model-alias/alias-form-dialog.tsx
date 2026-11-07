@@ -291,7 +291,7 @@ function AliasForm({ open, alias, onOpenChange }: AliasFormProps) {
                 {rows.map((row, i) => (
                   // The array field re-renders only when rows are added or
                   // removed, so the row's active flag comes from a subscription.
-                  <form.Subscribe
+                  <form.Subscribe<boolean>
                     key={`target-${i}`}
                     selector={(s) => s.values.targets[i]?.active ?? true}
                   >
@@ -325,7 +325,7 @@ function AliasForm({ open, alias, onOpenChange }: AliasFormProps) {
                         </form.AppField>
                         <span className="text-muted-foreground/60 hidden sm:inline">/</span>
                         {/* `row` goes stale between add/remove; subscribe to the provider. */}
-                        <form.Subscribe
+                        <form.Subscribe<string>
                           selector={(s) => s.values.targets[i]?.provider.trim() ?? ''}
                         >
                           {(provider: string) => (
