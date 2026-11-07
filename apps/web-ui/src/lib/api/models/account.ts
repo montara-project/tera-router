@@ -54,7 +54,7 @@ export type ZcodePlanQuotaRow = {
   period_end?: unknown
   expires_at?: unknown
   priority?: unknown
-  total_units?: number | null
+  total_units?: unknown
   used_units?: number | null
   remaining_units?: number | null
   available_units?: number | null
@@ -70,7 +70,7 @@ export type AccountQuota = {
   windows: QuotaWindow[]
   /** ZCode Plan: the billing source answered and its merged grant rows. */
   source?: 'balance' | 'current'
-  rows?: ZcodePlanQuotaRow[]
+  rows?: ZcodePlanQuotaRow[] | null
   errors?: string[]
   fetched_at?: string
 }

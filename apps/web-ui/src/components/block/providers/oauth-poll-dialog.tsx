@@ -56,17 +56,20 @@ export default function OAuthPollDialog({ flow, onCancel }: OAuthPollDialogProps
     }
 
     const tick = async () => {
-      // The user closed the popup before approving: nothing will land, stop
-      // burning requests (the flow expires server-side on its own).
-      if (flow.popup.isClosed()) {
-        stop()
-        onCancel()
-        return
-      }
+      // Read before polling: the popup may close itself right after approval,
+      // so one last poll decides whether the grant landed.
+      const popupClosed = flow.popup.isClosed()
       try {
         const res = await services.oauth.poll(flow.provider, flow.state)
         if (stopped) return
         if (res.data.data.status !== 'ready') {
+          // The user closed the popup without approving: stop burning
+          // requests (the flow expires server-side on its own).
+          if (popupClosed) {
+            stop()
+            onCancel()
+            return
+          }
           setAttempt((n) => n + 1)
           timer = window.setTimeout(tick, flow.intervalMs)
           return
