@@ -111,16 +111,13 @@ func (c ProviderConfig) DeviceInit(ctx context.Context) (*DeviceFlow, error) {
 }
 
 // devicePollResponse is the parsed body of one flow poll. Only "ready" carries
-// the token grant; "failed" and "expired" are terminal, anything else (an
+// the token grant (data.token); "failed" and "expired" are terminal, anything else (an
 // empty status, or an upstream that answers 200 with code != 0) means the user
 // has not approved yet.
 type devicePollResponse struct {
 	Data struct {
 		Status string `json:"status"`
-		Token  *struct {
-			AccessToken  string `json:"access_token"`
-			RefreshToken string `json:"refresh_token"`
-		} `json:"token"`
+		// The token grant (object or bare string) is read by envelopeToken.
 		User *struct {
 			Email       string `json:"email"`
 			Name        string `json:"name"`
@@ -163,12 +160,9 @@ func (c ProviderConfig) DevicePoll(ctx context.Context, flowID, pollToken string
 	}
 	switch strings.ToLower(strings.TrimSpace(parsed.Data.Status)) {
 	case "ready":
-		if parsed.Data.Token == nil || parsed.Data.Token.AccessToken == "" {
+		tokens, err := mapTokenResponse(envelopeToken(rawBody))
+		if err != nil {
 			return "failed", nil, nil
-		}
-		tokens := &Tokens{
-			AccessToken:  parsed.Data.Token.AccessToken,
-			RefreshToken: parsed.Data.Token.RefreshToken,
 		}
 		if u := parsed.Data.User; u != nil {
 			tokens.Email = u.Email

@@ -148,3 +148,16 @@ func TestZcodeConfigEndpoints(t *testing.T) {
 		t.Errorf("refresh body = %s", raw)
 	}
 }
+
+// ZCode may answer data.token as the bare access token string, with the
+// refresh token beside it in data.
+func TestZcodeDevicePollStringToken(t *testing.T) {
+	cfg := testZcodeConfig(t, `{"code":0,"data":{"status":"ready","token":"at","refresh_token":"rt","expires_in":3600,"user":{"email":"a@b.c"}}}`, nil)
+	status, tokens, err := cfg.DevicePoll(context.Background(), "flow-1", "tok")
+	if err != nil || status != "ready" {
+		t.Fatalf("poll = (%q, %v)", status, err)
+	}
+	if tokens.AccessToken != "at" || tokens.RefreshToken != "rt" || tokens.ExpiresIn != 3600 || tokens.Email != "a@b.c" {
+		t.Errorf("tokens = %+v", tokens)
+	}
+}
