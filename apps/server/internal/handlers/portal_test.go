@@ -91,6 +91,14 @@ func TestPortalShowsOnlyItsKey(t *testing.T) {
 	if _, leaked := d.Recent[0]["client_ip"]; leaked {
 		t.Fatal("recent requests expose the client IP")
 	}
+	if d.Recent[0]["api_kind"] != "openai" {
+		t.Errorf("recent api_kind = %v, want openai so the avatar matches /providers", d.Recent[0]["api_kind"])
+	}
+	for _, field := range []string{"id", "cached_tokens", "cache_write_tokens", "reasoning_tokens", "token_consumption_rate"} {
+		if _, ok := d.Recent[0][field]; !ok {
+			t.Errorf("recent request is missing %q for the detail dialog", field)
+		}
+	}
 	if len(d.Limits) != 1 || d.Limits[0].Used != 165 || d.Limits[0].Limit != 1000 || d.Limits[0].Label != "Monthly tokens" {
 		t.Fatalf("limits = %+v, want key-1's monthly token budget at 165 of 1000", d.Limits)
 	}

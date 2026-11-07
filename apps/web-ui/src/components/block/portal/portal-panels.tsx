@@ -2,16 +2,21 @@ import { IconCpu, IconGauge, IconHistory } from '@tabler/icons-react'
 import { useState } from 'react'
 
 import type { PortalLimit, PortalModel, PortalRequest } from '@/lib/api/models/portal'
+import type { UsageTerminalRequestRow } from '@/lib/api/models/usage'
 
+import EmptyState from '@/components/block/common/empty-state'
+import ReactTable from '@/components/block/common/react-table'
 import SectionCardPanel from '@/components/block/common/section-card-panel'
-import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
-import { Button } from '@/components/ui/button'
+import RequestDetailDialog from '@/components/block/cost-analytics/usage/request-detail-dialog'
+import { usePaginationQuery } from '@/hooks/use-pagination-query'
 import { formatMicrosUsd } from '@/lib/currency'
 import { formatDateTime, formatResetsIn } from '@/lib/date'
-import { formatCompact, formatCount, formatKb, formatMs } from '@/lib/format'
-import { cn } from '@/lib/utils'
+import { formatCompact, formatCount } from '@/lib/format'
 
-const PAGE_SIZE = 15
+import ModelName from './model-name'
+import { PortalRecentColumn } from './recent/column'
+
+const PAGE_SIZES = [15, 30, 50]
 
 function CountPill({ children }: { children: React.ReactNode }) {
   return (
@@ -28,20 +33,6 @@ function Bar({ pct }: { pct: number }) {
         className="bg-primary block h-full rounded-full"
         style={{ width: `${Math.min(Math.max(pct, 0), 100)}%` }}
       />
-    </span>
-  )
-}
-
-function ModelName({ provider, model }: { provider: string; model: string }) {
-  return (
-    <span className="flex min-w-0 items-center gap-2.5">
-      <ProviderAvatar slug={provider} size="xs" className="size-5" />
-      <span className="min-w-0">
-        <span className="block truncate font-mono text-[12.5px]" title={model}>
-          {model}
-        </span>
-        <span className="block truncate text-[11.5px] text-muted-foreground">{provider}</span>
-      </span>
     </span>
   )
 }
@@ -152,7 +143,7 @@ export function PortalModels({ models }: { models: PortalModel[] }) {
                 return (
                   <tr key={`${m.provider}/${m.model}`} className="border-b border-border">
                     <td className="max-w-0 px-4 py-2.5">
-                      <ModelName provider={m.provider} model={m.model} />
+                      <ModelName provider={m.provider} apiKind={m.api_kind} model={m.model} />
                     </td>
                     <td className="px-4 py-2.5">
                       <span className="flex items-center gap-2.5 tabular-nums">
@@ -214,36 +205,42 @@ export function PortalModels({ models }: { models: PortalModel[] }) {
   )
 }
 
-function Tag({
-  tone = 'muted',
-  children,
-  title,
-}: {
-  tone?: 'muted' | 'bad'
-  children: string
-  title?: string
-}) {
-  return (
-    <span
-      title={title}
-      className={cn(
-        'rounded-sm px-1.5 py-0.5 text-[11px] font-medium',
-        tone === 'bad'
-          ? 'bg-destructive/10 text-destructive'
-          : 'border border-border bg-muted/40 text-muted-foreground'
-      )}
-    >
-      {children}
-    </span>
-  )
+/** Shapes a portal attempt for the request detail dialog shared with /usage.
+ * A failed attempt has no billable usage, as on /usage. */
+function toDetailRow(r: PortalRequest): UsageTerminalRequestRow {
+  const tokens = r.prompt_tokens + r.completion_tokens
+  return {
+    id: String(r.id),
+    status: r.failed ? 'failed' : 'success',
+    usage: !r.failed && tokens > 0 ? 'provider' : 'none',
+    model: r.model,
+    provider: r.provider,
+    api_kind: r.api_kind,
+    inputTokens: Math.max(r.prompt_tokens - r.cached_tokens - r.cache_write_tokens, 0),
+    inputCacheRead: r.cached_tokens,
+    inputCacheWrite: r.cache_write_tokens,
+    outputTokens: r.completion_tokens,
+    reasoningTokens: r.reasoning_tokens,
+    costMicros: r.failed ? null : r.cost_micros,
+    costNote: r.failed ? 'No billable usage' : null,
+    tokenConsumptionRate: r.token_consumption_rate,
+    // Only total latency is recorded, so upstream reads the same, as on /usage.
+    latencyMs: r.latency_ms,
+    upstreamMs: r.latency_ms,
+    time: formatDateTime(r.created_at),
+    createdAt: r.created_at,
+    client: '',
+    providerName: '',
+    keyName: '',
+  }
 }
 
 /** The key's newest attempts, a page at a time. */
 export function PortalRecent({ recent, requests }: { recent: PortalRequest[]; requests: number }) {
-  const [page, setPage] = useState(0)
-  const pages = Math.max(1, Math.ceil(recent.length / PAGE_SIZE))
-  const current = Math.min(page, pages - 1)
-  const rows = recent.slice(current * PAGE_SIZE, (current + 1) * PAGE_SIZE)
+  const [selected, setSelected] = useState<PortalRequest | null>(null)
+  // The list arrives whole (capped by the server), so paging runs here.
+  const { offset, limit, pageIndex } = usePaginationQuery({ defaultLimit: PAGE_SIZES[0] })
+  const columns = PortalRecentColumn({ onOpen: setSelected })
 
   return (
     <SectionCardPanel
@@ -253,108 +250,31 @@ export function PortalRecent({ recent, requests }: { recent: PortalRequest[]; re
           Recent requests <CountPill>{formatCount(recent.length)}</CountPill>
         </>
       }
+      description={
+        recent.length < requests
+          ? `Latest ${formatCount(recent.length)} of ${formatCount(requests)}`
+          : undefined
+      }
     >
-      {recent.length === 0 ? (
-        <p className="px-4 py-6 text-center text-[13px] text-muted-foreground">
-          No requests in this period.
-        </p>
-      ) : (
-        <>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[52rem] text-[13px]">
-              <thead className="border-b border-border bg-muted/40 text-xs text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-2 text-left font-medium">Time</th>
-                  <th className="w-[34%] px-4 py-2 text-left font-medium">Model</th>
-                  <th className="px-4 py-2 text-right font-medium">Tokens in → out</th>
-                  <th className="px-4 py-2 text-right font-medium">Cost</th>
-                  <th className="px-4 py-2 text-right font-medium">Latency</th>
-                  <th className="px-4 py-2 text-left font-medium">Optimizations</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r, i) => {
-                  const tags = [
-                    r.failed && (
-                      <Tag key="f" tone="bad">
-                        Failed
-                      </Tag>
-                    ),
-                    r.cache_hit && <Tag key="c">Cache hit</Tag>,
-                    r.prompt_reduced_bytes > 0 && (
-                      <Tag key="p" title={`Prompt shrunk by ${formatKb(r.prompt_reduced_bytes)}`}>
-                        Compressed
-                      </Tag>
-                    ),
-                    r.output_shaped && <Tag key="o">Output shaped</Tag>,
-                  ].filter(Boolean)
-                  return (
-                    <tr
-                      key={`${r.created_at}-${i}`}
-                      className="border-b border-border last:border-0"
-                    >
-                      <td className="px-4 py-2.5 whitespace-nowrap text-muted-foreground tabular-nums">
-                        {formatDateTime(r.created_at)}
-                      </td>
-                      <td className="max-w-0 px-4 py-2.5">
-                        <ModelName provider={r.provider} model={r.model} />
-                      </td>
-                      <td className="px-4 py-2.5 text-right whitespace-nowrap text-muted-foreground tabular-nums">
-                        {formatCompact(r.prompt_tokens)} → {formatCompact(r.completion_tokens)}
-                      </td>
-                      <td className="px-4 py-2.5 text-right text-muted-foreground tabular-nums">
-                        {formatMicrosUsd(r.cost_micros)}
-                      </td>
-                      <td className="px-4 py-2.5 text-right text-muted-foreground tabular-nums">
-                        {formatMs(r.latency_ms)}
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <span className="flex flex-wrap gap-1">
-                          {tags.length > 0 ? (
-                            tags
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </span>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-          <nav
-            aria-label="Request pages"
-            className="flex items-center justify-between gap-2 border-t border-border bg-muted/40 px-4 py-2"
-          >
-            <span className="text-xs text-muted-foreground tabular-nums">
-              {recent.length < requests
-                ? `Latest ${formatCount(recent.length)} of ${formatCount(requests)}`
-                : `${formatCount(recent.length)} total`}
-            </span>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={current === 0}
-                onClick={() => setPage(current - 1)}
-              >
-                Previous
-              </Button>
-              <span className="px-3 text-xs font-medium tabular-nums">
-                {current + 1} / {pages}
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={current >= pages - 1}
-                onClick={() => setPage(current + 1)}
-              >
-                Next
-              </Button>
-            </div>
-          </nav>
-        </>
+      <ReactTable
+        data={recent.slice(offset, offset + limit)}
+        total={recent.length}
+        pageIndex={pageIndex}
+        pageSize={limit}
+        pageSizes={PAGE_SIZES}
+        columns={columns}
+        tableClassName="min-w-[52rem]"
+        emptyMessage={
+          <EmptyState
+            icon={IconHistory}
+            title="No requests"
+            description="No requests in this period."
+            className="py-8"
+          />
+        }
+      />
+      {selected && (
+        <RequestDetailDialog open onClose={() => setSelected(null)} row={toDetailRow(selected)} />
       )}
     </SectionCardPanel>
   )

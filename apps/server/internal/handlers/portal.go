@@ -81,6 +81,17 @@ func (h *portalHandler) Show(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
+	// The api kind picks the provider avatar, as on /providers.
+	_, kinds, _, err := (&usageHandler{app: h.app}).providerMeta(ctx)
+	if err != nil {
+		return err
+	}
+	for i := range byModel {
+		byModel[i].APIKind = kinds[byModel[i].Provider]
+	}
+	for i := range recent {
+		recent[i].APIKind = kinds[recent[i].Provider]
+	}
 
 	var plan *models.Plan
 	if key.PlanID != nil {

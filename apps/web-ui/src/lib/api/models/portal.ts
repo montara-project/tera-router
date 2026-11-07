@@ -9,6 +9,8 @@ export type PortalDay = {
 
 export type PortalModel = {
   provider: string
+  /** provider wire dialect; picks the avatar like /providers */
+  api_kind?: string
   model: string
   requests: number
   prompt_tokens: number
@@ -18,12 +20,20 @@ export type PortalModel = {
 
 /** One attempt in the key's request log. */
 export type PortalRequest = {
+  id: number
   created_at: string
   provider: string
+  /** provider wire dialect; picks the avatar like /providers */
+  api_kind?: string
   model: string
   prompt_tokens: number
   completion_tokens: number
+  cached_tokens: number
+  cache_write_tokens: number
+  reasoning_tokens: number
   cost_micros: number
+  /** budget-drain multiplier at request time; null = 1:1 */
+  token_consumption_rate: number | null
   latency_ms: number
   failed: boolean
   cache_hit: boolean
