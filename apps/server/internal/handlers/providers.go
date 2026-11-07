@@ -634,6 +634,22 @@ var modelsSyncProviders = map[string]bool{
 	"groq":         true,
 	"deepgram":     true,
 	"elevenlabs":   true,
+	"zcode":        true,
+}
+
+// zcodeKnownModels is the GLM model list the ZCode plan lane serves. It has
+// no model-list endpoint, so this list is what the dashboard's sync action
+// stores as the provider's model catalog. The official client's builtin
+// config (zai-org/ZCode, config/provider/zcode-builtin.json) pins the Start
+// Plan lane to GLM-5.3-Flash, GLM-5.2, and GLM-5-Turbo; the plan token also
+// serves glm-5.3 (the reference proxy's default for deep reasoning). Ids are
+// lowercase, the public GLM API convention most clients speak — upstream
+// accepts either casing (the official client sends CamelCase).
+var zcodeKnownModels = []string{
+	"glm-5.3",
+	"glm-5.3-flash",
+	"glm-5.2",
+	"glm-5-turbo",
 }
 
 // syncProviderModels fetches a provider's upstream model list through its
@@ -684,6 +700,18 @@ func (h *providersHandler) syncProviderModels(ctx context.Context, slug string) 
 		// the auth headers (x-api-key, or Bearer + oauth beta for an OAuth
 		// token) — the response envelope is the same {"data":[{id}]} shape.
 		return h.app.Services.Upstream.ListModels(ctx, services.V1Join(spec.BaseURL, "models"), slug == "anthropic", oauth, apiKey)
+	case "zcode":
+		// The plan lane has no model-list endpoint: the served GLM ids are
+		// fixed, so sync returns the known list (an OAuth account is still
+		// required, matching the other providers).
+		if apiKey == "" && !oauth {
+			return nil, apperr.New(apperr.KindUnprocessable, "no usable credential for this provider; connect a ZCode account first")
+		}
+		models := make([]services.UpstreamModel, 0, len(zcodeKnownModels))
+		for _, id := range zcodeKnownModels {
+			models = append(models, services.UpstreamModel{ID: id})
+		}
+		return models, nil
 	}
 	return nil, apperr.New(apperr.KindUnprocessable, "provider %s does not support model sync", slug)
 }

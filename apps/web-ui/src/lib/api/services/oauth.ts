@@ -22,6 +22,10 @@ const resources = (): OAuthResources => {
       const url = `${path}/${provider}/exchange`
       return api.post(url, payload)
     },
+    poll: (provider, state) => {
+      const url = `${path}/${provider}/poll`
+      return api.post(url, { state })
+    },
   }
 }
 

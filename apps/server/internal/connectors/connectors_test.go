@@ -1064,7 +1064,7 @@ func TestCodexChatUsesStream(t *testing.T) {
 
 func TestCodexOmitsAccountIDHeaderWhenAbsent(t *testing.T) {
 	c := &connector{id: "codex", dialect: core.DialectOpenAIResponses}
-	h := c.headers(core.Credentials{AccessToken: "tok"})
+	h := c.headers(nil, core.Credentials{AccessToken: "tok"})
 	if _, ok := h["chatgpt-account-id"]; ok {
 		t.Error("chatgpt-account-id must be omitted when the credential has none")
 	}
@@ -1075,7 +1075,7 @@ func TestCodexOmitsAccountIDHeaderWhenAbsent(t *testing.T) {
 
 func TestEmptyTokenSendsNoAuthHeader(t *testing.T) {
 	c := &connector{id: "vllm", dialect: core.DialectOpenAI}
-	if h := c.headers(core.Credentials{}); h["Authorization"] != "" {
+	if h := c.headers(nil, core.Credentials{}); h["Authorization"] != "" {
 		t.Errorf("Authorization = %q, want empty for an AuthNone provider", h["Authorization"])
 	}
 }

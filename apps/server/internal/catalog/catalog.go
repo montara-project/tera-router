@@ -56,6 +56,10 @@ func All() []dtos.CatalogProvider {
 		// backend, not the public API, so the account stays attributed to
 		// this separate (hidden) provider instead of the openai tile.
 		{Slug: "codex", Name: "OpenAI Codex", BaseURL: "https://chatgpt.com/backend-api/codex/responses", Dialect: dialectOpenAIResponses, Capabilities: llmCaps("image"), AuthKind: "oauth", AuthModes: []string{"oauth"}, Official: false, Hidden: true, Notice: "Uses a ChatGPT/OAuth subscription session not licensed for proxy use. Account may be restricted. Use at your own risk."},
+		// ZCode speaks the Anthropic wire format on its plan lane and signs in
+		// through a device flow (see internal/oauth): like codex, the account
+		// is a subscription session, so it is its own catalog provider.
+		{Slug: "zcode", Name: "ZCode", BaseURL: "https://zcode.z.ai/api/v1/zcode-plan/anthropic", Dialect: dialectAnthropic, Capabilities: llmCaps(), AuthKind: "oauth", AuthModes: []string{"oauth"}, Official: false, Notice: "Uses a ZCode Plan subscription session not licensed for proxy use. Account may be restricted. Use at your own risk."},
 	}
 }
 
@@ -89,6 +93,10 @@ var seedable = map[string]bool{
 	"cline":      true,
 	"cloudflare": true,
 	"muse":       true,
+	// ZCode: connecting persists the custom_providers row so the synced GLM
+	// catalog powers bare-name routing (catalogResult only matches custom
+	// providers) and the provider is addressable by uuid.
+	"zcode": true,
 }
 
 // Seedable reports whether connecting the catalog provider (creating an

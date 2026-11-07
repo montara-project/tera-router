@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
 	"braces.dev/errtrace"
@@ -47,7 +48,9 @@ func (r *UsageRepository) DailyForKey(ctx context.Context, keyID string, from ti
 
 // KeyModelUsage is one provider/model of one key's traffic.
 type KeyModelUsage struct {
-	Provider         string `json:"provider"`
+	Provider string `json:"provider"`
+	// APIKind is not a column: the portal handler fills it so the avatar matches /providers.
+	APIKind          string `json:"api_kind,omitempty"`
 	Model            string `json:"model"`
 	Requests         int64  `json:"requests"`
 	PromptTokens     int64  `json:"prompt_tokens"`
@@ -83,23 +86,32 @@ func (r *UsageRepository) ByModelForKey(ctx context.Context, keyID string, from 
 // KeyRequest is one attempt in a key's request log. It leaves out the client
 // IP and error text: the usage portal shows it to whoever holds the link.
 type KeyRequest struct {
-	CreatedAt          time.Time `json:"created_at"`
-	Provider           string    `json:"provider"`
-	Model              string    `json:"model"`
-	PromptTokens       int64     `json:"prompt_tokens"`
-	CompletionTokens   int64     `json:"completion_tokens"`
-	CostMicros         int64     `json:"cost_micros"`
-	LatencyMS          int64     `json:"latency_ms"`
-	Failed             bool      `json:"failed"`
-	CacheHit           bool      `json:"cache_hit"`
-	PromptReducedBytes int64     `json:"prompt_reduced_bytes"`
-	OutputShaped       bool      `json:"output_shaped"`
+	ID        int64     `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	Provider  string    `json:"provider"`
+	// APIKind is not a column: the portal handler fills it so the avatar matches /providers.
+	APIKind          string `json:"api_kind,omitempty"`
+	Model            string `json:"model"`
+	PromptTokens     int64  `json:"prompt_tokens"`
+	CompletionTokens int64  `json:"completion_tokens"`
+	CachedTokens     int64  `json:"cached_tokens"`
+	CacheWriteTokens int64  `json:"cache_write_tokens"`
+	ReasoningTokens  int64  `json:"reasoning_tokens"`
+	CostMicros       int64  `json:"cost_micros"`
+	// TokenConsumptionRate is the budget-drain multiplier at request time (nil = 1:1).
+	TokenConsumptionRate *float64 `json:"token_consumption_rate"`
+	LatencyMS            int64    `json:"latency_ms"`
+	Failed               bool     `json:"failed"`
+	CacheHit             bool     `json:"cache_hit"`
+	PromptReducedBytes   int64    `json:"prompt_reduced_bytes"`
+	OutputShaped         bool     `json:"output_shaped"`
 }
 
 // RecentForKey returns one key's newest attempts since from, newest first.
 func (r *UsageRepository) RecentForKey(ctx context.Context, keyID string, from time.Time, limit int) ([]KeyRequest, error) {
 	rows, err := r.queryContext(ctx, r.DB, `
-		SELECT created_at, provider, model, prompt_tokens, completion_tokens, cost_micros,
+		SELECT id, created_at, provider, model, prompt_tokens, completion_tokens,
+		       cached_tokens, cache_write_tokens, reasoning_tokens, cost_micros, token_consumption_rate,
 		       latency_ms, failed, cache_hit, prompt_reduced_bytes, output_shaped
 		FROM usage_records WHERE api_key_id = $1 AND created_at >= $2
 		ORDER BY created_at DESC, id DESC LIMIT $3`, keyID, from, limit)
@@ -111,9 +123,14 @@ func (r *UsageRepository) RecentForKey(ctx context.Context, keyID string, from t
 	out := []KeyRequest{}
 	for rows.Next() {
 		var q KeyRequest
-		if err := rows.Scan(&q.CreatedAt, &q.Provider, &q.Model, &q.PromptTokens, &q.CompletionTokens,
-			&q.CostMicros, &q.LatencyMS, &q.Failed, &q.CacheHit, &q.PromptReducedBytes, &q.OutputShaped); err != nil {
+		var rate sql.Null[float64]
+		if err := rows.Scan(&q.ID, &q.CreatedAt, &q.Provider, &q.Model, &q.PromptTokens, &q.CompletionTokens,
+			&q.CachedTokens, &q.CacheWriteTokens, &q.ReasoningTokens, &q.CostMicros, &rate,
+			&q.LatencyMS, &q.Failed, &q.CacheHit, &q.PromptReducedBytes, &q.OutputShaped); err != nil {
 			return nil, errtrace.Wrap(err)
+		}
+		if rate.Valid {
+			q.TokenConsumptionRate = &rate.V
 		}
 		out = append(out, q)
 	}

@@ -17,6 +17,7 @@ import {
   CUSTOM_CONNECT_PRESETS,
   KEY_ONLY_PROVIDERS,
   OAUTH_FLOW_FOR,
+  OAUTH_ONLY_PROVIDERS,
 } from '@/components/block/providers/catalog-connect'
 import { ProvidersColumn } from '@/components/block/providers/column'
 import ConnectModeDialog from '@/components/block/providers/connect-mode-dialog'
@@ -25,6 +26,7 @@ import FilterProviders from '@/components/block/providers/filter'
 import { AddCustomProviderForm } from '@/components/block/providers/form'
 import { AddCustomProviderApiKeyForm } from '@/components/block/providers/form-provider-api-key'
 import OAuthPasteCodeDialog from '@/components/block/providers/oauth-paste-code-dialog'
+import OAuthPollDialog from '@/components/block/providers/oauth-poll-dialog'
 import { useOAuthConnect } from '@/components/block/providers/use-oauth-connect'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -80,6 +82,8 @@ function RouteComponent() {
     pastePending,
     submitPasteCode,
     cancelPaste,
+    pollFlow,
+    cancelPoll,
   } = useOAuthConnect()
   const queryClient = useQueryClient()
 
@@ -137,6 +141,12 @@ function RouteComponent() {
     if (preset) {
       setCreatePreset(preset)
       setCreateOpen(true)
+      return
+    }
+    // ZCode has no API key to paste: Connect starts its device sign-in
+    // directly instead of offering the auth-mode choice first.
+    if (OAUTH_ONLY_PROVIDERS[provider.slug]) {
+      void connectOAuth(OAUTH_FLOW_FOR[provider.slug], provider.name)
       return
     }
     // OpenAI and Anthropic support both paths: official-website sign-in or a
@@ -318,6 +328,8 @@ function RouteComponent() {
         onCancel={cancelPaste}
         onSubmit={(code) => void submitPasteCode(code)}
       />
+
+      <OAuthPollDialog flow={pollFlow} onCancel={cancelPoll} />
     </>
   )
 }

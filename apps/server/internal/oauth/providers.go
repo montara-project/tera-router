@@ -44,11 +44,32 @@ type ProviderConfig struct {
 	// is attempted and the account label falls back to the provider name.
 	UserInfoURL string
 
+	// Device flow (ZCode): instead of redirecting back with a code, the
+	// provider hands out an authorize_url the user visits while the server
+	// polls a flow endpoint until the grant is ready. DeviceInitURL starts the
+	// flow, DevicePollURL (plus "/" + flow id) is polled for the result.
+	DeviceInitURL string
+	DevicePollURL string
+	// TokenBodyProvider is the value of the "provider" field the provider's
+	// token endpoints require in the request body (ZCode: "zai"). Empty means
+	// no such field.
+	TokenBodyProvider string
+	// TokenResponseWrapped reports a token endpoint that wraps the standard
+	// token object in {"data":{"token":…}} instead of answering at the top
+	// level (ZCode does).
+	TokenResponseWrapped bool
+
 	// EchoState includes the OAuth state in the token-exchange body. The
 	// Anthropic token endpoint answers 400 invalid_request "Invalid request
 	// format" without it; the echoed state prefers the "#state" fragment of
 	// a pasted code and falls back to the state the flow started with.
 	EchoState bool
+}
+
+// DeviceFlow reports whether this provider signs in through the device flow
+// (init + authorize_url + poll) instead of the authorization-code redirect.
+func (c ProviderConfig) DeviceFlow() bool {
+	return c.DeviceInitURL != ""
 }
 
 // ResolveRedirectURI returns the redirect URI registered for a flow: the
@@ -101,6 +122,21 @@ var configs = map[string]ProviderConfig{
 		FallbackPorts:     []int{1457},
 		LoopbackHost:      "localhost",
 		UserInfoURL:       "https://auth.openai.com/oauth/userinfo",
+	},
+	// ZCode signs in through a device flow rather than a code redirect: the
+	// server opens the flow, the user approves on zcode.z.ai, and the server
+	// polls the flow until it reports ready. Token endpoints want a "provider"
+	// body field and wrap the token object in {"data":{"token":…}}. The plan
+	// access token carries no exp claim — it is valid until revoked, and a
+	// 401 upstream means re-login (token_version bump), not refresh.
+	"zcode": {
+		Provider:             "zcode",
+		TokenURL:             "https://zcode.z.ai/api/v1/oauth/token",
+		DeviceInitURL:        "https://zcode.z.ai/api/v1/oauth/cli/init",
+		DevicePollURL:        "https://zcode.z.ai/api/v1/oauth/cli/poll",
+		TokenContentType:     "json",
+		TokenBodyProvider:    "zai",
+		TokenResponseWrapped: true,
 	},
 }
 

@@ -100,9 +100,15 @@ function requestColumns(onOpen: (row: Row) => void): ColumnType[] {
             className="size-5 rounded-[4px]"
           />
           <div className="min-w-0">
-            <p className="truncate font-mono text-[12.5px]" title={row.model}>
+            <button
+              type="button"
+              onClick={() => onOpen(row)}
+              title={row.model}
+              aria-label={`Open request #${row.id} for ${row.model}`}
+              className="block max-w-full truncate text-left font-mono text-[12.5px] underline-offset-2 hover:underline"
+            >
               {row.model}
-            </p>
+            </button>
             <p className="text-muted-foreground truncate text-[11.5px]">
               {row.providerName || row.provider}
               {row.keyName && ` · ${row.keyName}`}

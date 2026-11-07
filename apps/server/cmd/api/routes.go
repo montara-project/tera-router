@@ -158,13 +158,15 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	accounts.Post("/:id/test", h.Accounts.Test)
 	accounts.Get("/:id/quota", h.Accounts.Quota)
 
-	// OAuth connection flows (anthropic, codex): start a PKCE flow against
-	// the provider's official web, then exchange the returned code for sealed
-	// tokens. Codex additionally captures its fixed loopback redirect on
-	// localhost:1455/1457 via an in-process listener.
+	// OAuth connection flows (anthropic, codex, zcode): start a PKCE flow
+	// against the provider's official web, then exchange the returned code for
+	// sealed tokens. Codex additionally captures its fixed loopback redirect on
+	// localhost:1455/1457 via an in-process listener; zcode runs a device flow
+	// the dashboard polls instead of exchanging a code.
 	oauthFlows := protected.Group("/oauth/:provider")
 	oauthFlows.Post("/authorize", h.OAuth.Authorize)
 	oauthFlows.Post("/exchange", h.OAuth.Exchange)
+	oauthFlows.Post("/poll", h.OAuth.Poll)
 
 	// Budgets & usage
 	budgets := protected.Group("/budgets")

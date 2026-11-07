@@ -15,6 +15,14 @@ type Session struct {
 	Verifier    string
 	RedirectURI string
 
+	// Device flow state (ZCode): the upstream flow id and the server-side
+	// poll token that authorizes polling it. DeviceIntervalMs carries the
+	// provider-advertised poll cadence for the dashboard's polling loop.
+	DeviceFlowID     string
+	DevicePollToken  string
+	DeviceExpiresAt  time.Time
+	DeviceIntervalMs int
+
 	ExpiresAt time.Time
 }
 

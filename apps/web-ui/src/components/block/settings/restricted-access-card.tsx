@@ -154,8 +154,8 @@ function RestrictedAccessForm({ stored }: { stored: RestrictedAccess }) {
             )}
           </form.AppField>
           <RangeArrow />
-          <form.Subscribe selector={(s) => s.values.start_date}>
-            {(startDate) => (
+          <form.Subscribe<string> selector={(s) => s.values.start_date}>
+            {(startDate: string) => (
               <form.AppField name="end_date">
                 {(field) => (
                   <DatePickerInput

@@ -118,8 +118,15 @@ func (c ProviderConfig) Refresh(ctx context.Context, refreshToken string) (*Toke
 	}
 	form := url.Values{}
 	form.Set("grant_type", "refresh_token")
-	form.Set("client_id", c.ClientID)
+	if c.ClientID != "" {
+		form.Set("client_id", c.ClientID)
+	}
 	form.Set("refresh_token", refreshToken)
+	// ZCode's token endpoints require a "provider" body field naming the
+	// upstream identity the grant belongs to.
+	if c.TokenBodyProvider != "" {
+		form.Set("provider", c.TokenBodyProvider)
+	}
 
 	raw, status, err := c.tokenRequestStatus(ctx, c.TokenURL, form)
 	if err != nil {
@@ -128,7 +135,7 @@ func (c ProviderConfig) Refresh(ctx context.Context, refreshToken string) (*Toke
 	if status >= 400 {
 		return nil, classifyRefreshError(raw, status)
 	}
-	t, err := mapTokenResponse(raw)
+	t, err := mapTokenResponse(c.unwrapTokenResponse(raw))
 	if err != nil {
 		return nil, err
 	}
@@ -246,6 +253,41 @@ func (c ProviderConfig) tokenRequestStatus(ctx context.Context, endpoint string,
 		return nil, resp.StatusCode, fmt.Errorf("oauth: read token response: %w", err)
 	}
 	return body, resp.StatusCode, nil
+}
+
+// unwrapTokenResponse digs the token object out of an envelope-wrapped token
+// response: ZCode's endpoints answer {"data":{"token":{…}}} where the standard
+// OAuth shape would sit at the top level. A response without the envelope
+// passes through unchanged so the caller's error path still sees it.
+func (c ProviderConfig) unwrapTokenResponse(raw []byte) []byte {
+	if !c.TokenResponseWrapped {
+		return raw
+	}
+	return envelopeToken(raw)
+}
+
+// envelopeToken returns the grant inside a {"data":{"token":...}} envelope as
+// a standard OAuth token object, or raw unchanged when there is none.
+// data.token is either that object, or the bare access token string with
+// refresh_token / expires_in beside it in data.
+func envelopeToken(raw []byte) []byte {
+	var env struct {
+		Data map[string]json.RawMessage `json:"data"`
+	}
+	if err := json.Unmarshal(raw, &env); err != nil || len(env.Data["token"]) == 0 {
+		return raw
+	}
+	tok := env.Data["token"]
+	if tok[0] != '"' {
+		return tok
+	}
+	env.Data["access_token"] = tok
+	delete(env.Data, "token")
+	out, err := json.Marshal(env.Data)
+	if err != nil {
+		return raw
+	}
+	return out
 }
 
 // mapTokenResponse normalizes a standard OAuth token JSON body into Tokens.

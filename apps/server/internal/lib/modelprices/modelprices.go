@@ -217,6 +217,17 @@ func buildTable() map[string]cost.Rates {
 		{[]string{"glm"}, "glm-4-plus", rates(0.6, 0.6, 0, 0)},
 		{[]string{"glm"}, "glm-4-flash", rates(0, 0, 0, 0)},
 		{[]string{"glm"}, "codegeex-4", rates(0.6, 0.6, 0, 0)},
+
+		// ZCode is subscription-based rather than per-token, so its rates are
+		// retail-equivalent estimates of the underlying GLM models (same
+		// rationale as Kiro above), surfaced so usage statistics can display an
+		// approximate cost. The list mirrors the plan lane's served models
+		// (official builtin config: GLM-5.3-Flash, GLM-5.2, GLM-5-Turbo; the
+		// plan token also serves glm-5.3).
+		{[]string{"zcode"}, "glm-5.3", rates(0.6, 2.2, 0, 0)},
+		{[]string{"zcode"}, "glm-5.3-flash", rates(0.2, 1.1, 0, 0)},
+		{[]string{"zcode"}, "glm-5.2", rates(0.6, 2.2, 0, 0)},
+		{[]string{"zcode"}, "glm-5-turbo", rates(0.6, 2.2, 0, 0)},
 	}
 
 	// Kiro is subscription/credit-based rather than per-token, so its rates

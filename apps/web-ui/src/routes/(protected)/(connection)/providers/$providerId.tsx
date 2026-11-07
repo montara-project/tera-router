@@ -106,11 +106,14 @@ function CustomProviderDetailRoute() {
     () => (accountQuery.data?.data ?? []).filter((account) => account.provider === slug),
     [accountQuery.data, slug]
   )
-  // Claude subscription (OAuth) accounts expose live session/weekly limits.
+  // Subscription (OAuth) accounts expose live upstream limits: Claude
+  // session/weekly windows and ZCode plan grants.
   const quotaAccounts = useMemo(
     () =>
       accounts.filter(
-        (account) => account.provider === 'anthropic' && account.auth_kind === 'oauth'
+        (account) =>
+          (account.provider === 'anthropic' || account.provider === 'zcode') &&
+          account.auth_kind === 'oauth'
       ),
     [accounts]
   )
