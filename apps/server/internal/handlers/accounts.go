@@ -445,7 +445,8 @@ func (h *accountsHandler) probe(ctx context.Context, providerSlug, metadataRaw, 
 
 // Quota reports an account's quota snapshot. Claude subscription (anthropic
 // OAuth) accounts read their live session (5-hour) and weekly windows from
-// Anthropic; every other account is usage-only.
+// Anthropic; ZCode Plan (zcode OAuth) accounts read their plan grants from
+// the zcode.z.ai billing endpoints; every other account is usage-only.
 func (h *accountsHandler) Quota(c fiber.Ctx) error {
 	id, err := lib.ContextParamUUID(c, "id")
 	if err != nil {
@@ -456,11 +457,19 @@ func (h *accountsHandler) Quota(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	if account.Provider != "anthropic" || account.AuthKind != models.AuthOAuth {
+	if account.Provider != "anthropic" && account.Provider != "zcode" {
 		return dtos.OK(c, fiber.Map{
 			"account_id":       id.String(),
 			"quota_visibility": "usage-only",
 			"quota_note":       "Provider does not expose upstream limits.",
+			"windows":          []oauth.UsageWindow{},
+		})
+	}
+	if account.AuthKind != models.AuthOAuth {
+		return dtos.OK(c, fiber.Map{
+			"account_id":       id.String(),
+			"quota_visibility": "usage-only",
+			"quota_note":       "Upstream limits are only reported for OAuth accounts.",
 			"windows":          []oauth.UsageWindow{},
 		})
 	}
@@ -473,6 +482,24 @@ func (h *accountsHandler) Quota(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
+
+	if account.Provider == "zcode" {
+		quota, qerr := oauth.FetchZcodePlanQuota(c.Context(), token, oauth.ZcodeDeviceMid(account.ID))
+		if qerr != nil {
+			return apperr.New(apperr.KindUnprocessable, "%s", qerr.Error())
+		}
+		return dtos.OK(c, fiber.Map{
+			"account_id":       id.String(),
+			"quota_visibility": "upstream",
+			"quota_note":       "ZCode Plan grants reported by zcode.z.ai.",
+			"source":           quota.Source,
+			"server_time":      quota.ServerTime,
+			"rows":             quota.Rows,
+			"errors":           quota.Errors,
+			"fetched_at":       time.Now().UTC(),
+		})
+	}
+
 	windows, err := oauth.FetchClaudeUsage(c.Context(), token)
 	if err != nil {
 		return apperr.New(apperr.KindUnprocessable, "%s", err.Error())
