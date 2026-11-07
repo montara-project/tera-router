@@ -295,7 +295,7 @@ function AliasForm({ open, alias, onOpenChange }: AliasFormProps) {
                     key={`target-${i}`}
                     selector={(s) => s.values.targets[i]?.active ?? true}
                   >
-                    {(active) => (
+                    {(active: boolean) => (
                       <div
                         className={`group flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 transition-colors hover:bg-muted/30 ${
                           active ? 'border-border' : 'border-dashed border-border/60 opacity-70'
@@ -328,7 +328,7 @@ function AliasForm({ open, alias, onOpenChange }: AliasFormProps) {
                         <form.Subscribe
                           selector={(s) => s.values.targets[i]?.provider.trim() ?? ''}
                         >
-                          {(provider) => (
+                          {(provider: string) => (
                             <form.AppField name={`targets[${i}].model`}>
                               {(subField) => (
                                 <div className="min-w-0 flex-[1.4] basis-48">

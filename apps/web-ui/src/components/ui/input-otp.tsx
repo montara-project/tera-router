@@ -39,7 +39,14 @@ function InputOTPSlot({
   className,
   ...props
 }: React.ComponentProps<'div'> & { index: number }) {
-  const { char, hasFakeCaret, isActive } = React.useContext(OTPInputContext).slots[index] ?? {}
+  // input-otp bundles its own React types, so the context value resolves to
+  // unknown against this app's React types — pin the slot shape locally.
+  const { char, hasFakeCaret, isActive } =
+    (
+      React.useContext(OTPInputContext) as {
+        slots: Array<{ char: string | null; hasFakeCaret: boolean; isActive: boolean }>
+      }
+    ).slots[index] ?? {}
 
   return (
     <div

@@ -227,7 +227,7 @@ export default function LoginSection({
                 <InputOTP
                   id="otp"
                   value={otp}
-                  onChange={(value) => {
+                  onChange={(value: string) => {
                     setOtp(value)
                     // Editing the code clears the last attempt's error and aria-invalid.
                     setError(null)
