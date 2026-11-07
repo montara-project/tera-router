@@ -3,6 +3,25 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [1.20.0](https://github.com/montara-project/tera-router/compare/v1.19.0...v1.20.0) (2026-11-07)
+
+### Features
+
+* connect ZCode as an AI provider ([3a77eed](https://github.com/montara-project/tera-router/commit/3a77eed1094dad7292606f0bb02e9e6fdd422e0d))
+* **portal:** request details and provider icons on recent requests ([26431bc](https://github.com/montara-project/tera-router/commit/26431bc976b9f7f3a5d3ef5c7fcca69a87da7f1f))
+* **web-ui:** open request details from the model name on /usage ([4b56b0b](https://github.com/montara-project/tera-router/commit/4b56b0bee8e1f61c68c333f5a216a7fda051d1ca))
+* zcode plan quota on the provider detail page ([13e1107](https://github.com/montara-project/tera-router/commit/13e1107e00edc567e5b0ce8c54cdc71cdcad8a53))
+
+### Bug Fixes
+
+* **oauth:** accept zcode token grant as a bare string ([2c10dfc](https://github.com/montara-project/tera-router/commit/2c10dfc88c11401a1ae299c03082c49004aa91cd))
+* **oauth:** keep zcode device sign-in alive through transient poll failures ([ba0ef6e](https://github.com/montara-project/tera-router/commit/ba0ef6ebb7df95504363a8c6032db373b39d5be8))
+* update design ([2803469](https://github.com/montara-project/tera-router/commit/280346984abf0bdce256ba0287e93f4f3fd0deae))
+* **web-ui:** close the zcode sign-in dialog once connected ([06faeef](https://github.com/montara-project/tera-router/commit/06faeef268e989bf905fa147cbb41d65f431a378))
+* **web-ui:** finish a zcode sign-in whose popup closed after approval ([e6c9aae](https://github.com/montara-project/tera-router/commit/e6c9aaeab57d076d149d7092ee088686d785f801))
+* **web-ui:** pin form.Subscribe selected types ([a8d0d3b](https://github.com/montara-project/tera-router/commit/a8d0d3b82651376077bdc1279d82a26860172db7))
+* **web-ui:** resolve type errors blocking the build ([218d3a8](https://github.com/montara-project/tera-router/commit/218d3a88d80a993c64bbc9548ddb1fbd3b0e88e1))
+
 ## [1.19.0](https://github.com/montara-project/tera-router/compare/v1.18.0...v1.19.0) (2026-11-06)
 
 ### Features
