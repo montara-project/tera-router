@@ -1,6 +1,6 @@
 import { IconLoader2 } from '@tabler/icons-react'
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -17,13 +17,15 @@ import { ACCOUNT_QUERY_KEY } from '@/lib/api/queries/account'
 import { PROVIDER_QUERY_KEY } from '@/lib/api/queries/provider'
 import { services } from '@/lib/api/services'
 
+import type { PopupHandle } from './use-oauth-connect'
+
 interface OAuthPollDialogProps {
   /** The device sign-in the dashboard is waiting on, or null when closed. */
   flow: {
     provider: string
     name: string
     state: string
-    popup: Window
+    popup: PopupHandle
     intervalMs: number
   } | null
   onCancel: () => void
@@ -38,50 +40,53 @@ interface OAuthPollDialogProps {
 export default function OAuthPollDialog({ flow, onCancel }: OAuthPollDialogProps) {
   const queryClient = useQueryClient()
   const [attempt, setAttempt] = useState(0)
-  // The interval id and popup reference survive re-renders so the loop can be
-  // stopped exactly once from either the cancel path or the finish path.
-  const timer = useRef<number | null>(null)
 
   useEffect(() => {
     if (!flow) return
     setAttempt(0)
 
+    // One request at a time: the next poll is scheduled only after the
+    // previous answer lands, so a slow poll never overlaps the one that
+    // consumes the server session (the overlap came back as a 400 toast).
+    let stopped = false
+    let timer: number | undefined
     const stop = () => {
-      if (timer.current !== null) {
-        window.clearInterval(timer.current)
-        timer.current = null
-      }
+      stopped = true
+      window.clearTimeout(timer)
     }
 
-    timer.current = window.setInterval(async () => {
+    const tick = async () => {
       // The user closed the popup before approving: nothing will land, stop
       // burning requests (the flow expires server-side on its own).
-      if (flow.popup.closed) {
+      if (flow.popup.isClosed()) {
         stop()
         onCancel()
         return
       }
       try {
         const res = await services.oauth.poll(flow.provider, flow.state)
-        const { status } = res.data.data
-        if (status !== 'ready') {
+        if (stopped) return
+        if (res.data.data.status !== 'ready') {
           setAttempt((n) => n + 1)
+          timer = window.setTimeout(tick, flow.intervalMs)
           return
         }
         stop()
-        await queryClient.invalidateQueries({ queryKey: [ACCOUNT_QUERY_KEY] })
-        await queryClient.invalidateQueries({ queryKey: [PROVIDER_QUERY_KEY] })
-        toast.success(`${flow.name} connected`)
         flow.popup.close()
         onCancel()
+        toast.success(`${flow.name} connected`)
+        void queryClient.invalidateQueries({ queryKey: [ACCOUNT_QUERY_KEY] })
+        void queryClient.invalidateQueries({ queryKey: [PROVIDER_QUERY_KEY] })
       } catch (error) {
+        if (stopped) return
         // Expired / rejected come back as 4xx: terminal, tell the user why.
         stop()
         toastAxiosError(error)
         flow.popup.close()
         onCancel()
       }
-    }, flow.intervalMs)
+    }
+    timer = window.setTimeout(tick, flow.intervalMs)
 
     return stop
     // onCancel is stable enough for a flow's lifetime; re-running on its

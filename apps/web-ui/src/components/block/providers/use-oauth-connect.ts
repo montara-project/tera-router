@@ -21,13 +21,21 @@ interface PasteFlow {
   mode: 'code' | 'url'
 }
 
+/** The popup as plain functions. A cross-origin Window must never sit in React
+ * props: React's dev prop diffing reads `$$typeof` on it, which throws a
+ * SecurityError mid-commit and leaves the dialog stuck open. */
+export interface PopupHandle {
+  isClosed: () => boolean
+  close: () => void
+}
+
 /** A device sign-in (ZCode): the user approves on the provider's site while
  * the dashboard polls the server until the grant is ready or expired. */
 interface PollFlow {
   provider: string
   name: string
   state: string
-  popup: Window
+  popup: PopupHandle
   intervalMs: number
 }
 
@@ -104,7 +112,7 @@ export function useOAuthConnect() {
           provider,
           name,
           state,
-          popup,
+          popup: { isClosed: () => popup.closed, close: () => popup.close() },
           intervalMs: Math.max(1000, (res.data.data.poll_interval_sec ?? 2) * 1000),
         })
         return
