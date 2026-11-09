@@ -25,7 +25,7 @@ interface KeySecretDialogProps {
 /** One-shot usage snippet a client needs to reach the gateway. The full key is
  * only ever shown in this dialog, so the snippet embeds it verbatim. */
 function setupMessage(fullKey: string) {
-  const base = `${env.VITE_API_URL.replace(/\/+$/, '')}/v1`
+  const base = `${env.API_URL.replace(/\/+$/, '')}/v1`
   return [
     `Base URL: ${base}`,
     '',

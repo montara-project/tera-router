@@ -72,7 +72,7 @@ export default function CliToolDetail({ toolId }: { toolId: string }) {
 
 function ToolSetup({ tool }: { tool: CliTool }) {
   const queryClient = useQueryClient()
-  const [baseUrl, setBaseUrl] = useState(env.VITE_API_URL)
+  const [baseUrl, setBaseUrl] = useState(env.API_URL)
   const [keyMode, setKeyMode] = useState<KeyMode>('create')
   const [keyName, setKeyName] = useState(`${tool.name} (CLI)`)
   const [pastedKey, setPastedKey] = useState('')

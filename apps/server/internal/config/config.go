@@ -19,6 +19,9 @@ type ConfigApp struct {
 	Name               string
 	Secret             string
 	CORSAllowedOrigins string
+	// APIURL is injected into the served web UI as its API base URL. Empty
+	// means same-origin — the usual setup where this server serves the UI.
+	APIURL string
 	// RateLimitExemptIPs is a comma-separated list of client IPs that skip the
 	// dashboard rate limiter entirely.
 	RateLimitExemptIPs string

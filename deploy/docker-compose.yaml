@@ -9,7 +9,6 @@ services:
       args:
         APP_VERSION: ${APP_VERSION:-dev}
         VITE_APP_NAME: ${VITE_APP_NAME:-Tera Router}
-        VITE_API_URL: ${VITE_API_URL:-}
       platforms:
         - linux/amd64
     restart: unless-stopped
@@ -22,6 +21,9 @@ services:
       APP_MACHINE_ID: ${APP_MACHINE_ID:?APP_MACHINE_ID is required}
       APP_SECRET: ${APP_SECRET:?APP_SECRET is required}
       APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS:-*}
+      # Injected into the served web UI at runtime; set only when the API
+      # lives on a different origin than the dashboard.
+      API_URL: ${API_URL:-}
       # Default Headroom proxy for Settings > Token Saving; a URL saved in the
       # dashboard overrides it. Headroom still has to be switched on there.
       HEADROOM_URL: ${HEADROOM_URL:-http://headroom:8787}

@@ -23,7 +23,7 @@ const TWO_FACTOR_FEATURES = [
 ]
 
 /** The gateway this console talks to, as shown under the sign-in form. */
-export const gatewayHost = new URL(String(env.VITE_API_URL)).host
+export const gatewayHost = new URL(String(env.API_URL)).host
 
 /** Server version and reachability from the public /health endpoint. */
 export function useGatewayHealth() {

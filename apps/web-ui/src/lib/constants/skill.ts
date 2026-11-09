@@ -101,7 +101,7 @@ export function agentPrompt(url: string): string {
  */
 export function skillUrl(slug: string): string {
   // Served by the API server, which is not the page origin in a split setup.
-  return `${env.VITE_API_URL}/skills/${slug}/SKILL.md`
+  return `${env.API_URL}/skills/${slug}/SKILL.md`
 }
 
 export const DIALECT_OPTIONS = [

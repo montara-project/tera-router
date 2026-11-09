@@ -17,7 +17,7 @@ export const Route = createFileRoute('/(protected)/(traffic)/endpoints/')({
 
 function RouteComponent() {
   const { data: catalog, isError } = useQuery(queries.endpoints.catalog())
-  const baseUrl = catalog?.base_url ?? String(env.VITE_API_URL)
+  const baseUrl = catalog?.base_url ?? String(env.API_URL)
 
   return (
     <div className="flex flex-col gap-6">
