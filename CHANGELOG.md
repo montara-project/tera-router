@@ -3,6 +3,18 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [1.21.0](https://github.com/montara-project/tera-router/compare/v1.20.0...v1.21.0) (2026-11-09)
+
+### Features
+
+* serve the dashboard API_URL from the server at runtime ([61fa5ca](https://github.com/montara-project/tera-router/commit/61fa5ca959bd98267c015c57c3a851308d179eae))
+* **web-ui:** paginate the security settings lists ([b82b1fb](https://github.com/montara-project/tera-router/commit/b82b1fbec4671c968d264096d91e02bde324165a))
+
+### Bug Fixes
+
+* **server:** name the request origin in the passkey host error ([6b351d3](https://github.com/montara-project/tera-router/commit/6b351d336246dd8644640720c7b274bd0250ebbd))
+* update error ([59610c9](https://github.com/montara-project/tera-router/commit/59610c90f69226af536ecb8f8dfdb7042028ef71))
+
 ## [1.20.0](https://github.com/montara-project/tera-router/compare/v1.19.0...v1.20.0) (2026-11-07)
 
 ### Features
