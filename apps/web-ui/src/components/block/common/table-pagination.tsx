@@ -85,6 +85,7 @@ export default function TablePagination({
           <PaginationContent>
             <PaginationItem>
               <Button
+                type="button"
                 variant="ghost"
                 mode="icon"
                 size="sm"
@@ -104,6 +105,7 @@ export default function TablePagination({
               ) : (
                 <PaginationItem key={item}>
                   <Button
+                    type="button"
                     variant={item === page ? 'outline' : 'ghost'}
                     mode="icon"
                     size="sm"
