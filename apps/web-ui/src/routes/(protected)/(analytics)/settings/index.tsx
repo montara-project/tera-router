@@ -1,7 +1,6 @@
 import { IconSettings } from '@tabler/icons-react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
-import { toast } from 'sonner'
 
 import type { AppSettings } from '@/lib/api/models/settings'
 
@@ -19,6 +18,7 @@ import SystemTab from '@/components/block/settings/system-tab'
 import TokenSavingTab from '@/components/block/settings/token-saving-tab'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { toastAxiosError } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
 
 export const Route = createFileRoute('/(protected)/(analytics)/settings/')({
@@ -61,7 +61,7 @@ function RouteComponent() {
 
   const handleUpdate = (patch: Partial<AppSettings>) => {
     updateMutation.mutate(patch, {
-      onError: () => toast.error('Failed to update settings'),
+      onError: toastAxiosError,
     })
   }
 
