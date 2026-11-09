@@ -31,6 +31,9 @@ func parseFlag(cfg *config.Config) {
 	// arguments, which any local user can read with ps.
 	flag.StringVar(&cfg.App.Secret, "app-secret", os.Getenv("APP_SECRET"), "App Secret (also read from APP_SECRET)")
 	flag.StringVar(&cfg.App.CORSAllowedOrigins, "cors-allowed-origins", "*", "CORS Allowed Origins")
+	// API_URL in the environment reaches the served web UI at runtime — no
+	// rebuild — when the dashboard API lives on a different origin.
+	flag.StringVar(&cfg.App.APIURL, "api-url", os.Getenv("API_URL"), "Public API base URL for the served web UI (also read from API_URL)")
 	flag.StringVar(&cfg.App.RateLimitExemptIPs, "rate-limit-exempt-ips", "", "Comma-separated client IPs exempt from the rate limiter")
 	flag.StringVar(&cfg.App.TrustedProxies, "trusted-proxies", "", "Comma-separated IPs/CIDRs trusted to supply X-Forwarded-For (e.g. the reverse proxy's address)")
 

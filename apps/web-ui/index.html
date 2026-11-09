@@ -3,6 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <script>
+      // Replaced by tera-server with the runtime config when it serves this
+      // bundle (see cmd/api/index_html.go). Empty in dev and on static hosts.
+      window.__APP_ENV__ = {}
+    </script>
+    <script>
       // Apply the saved color palette before first paint to avoid a flash of
       // the default palette. Keep in sync with ThemePaletteProvider.
       try {

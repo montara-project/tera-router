@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 
 import IconBadge from '@/components/block/common/icon-badge'
+import TablePagination, { usePagedRows } from '@/components/block/common/table-pagination'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -18,9 +19,12 @@ import { Input } from '@/components/ui/input'
 import { toastAxiosError } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
 
+const PAGE_SIZE = 10
+
 export default function IPBlockCard() {
   const { data, isLoading } = useQuery(queries.ipBlocks.list())
   const blocks = data?.data ?? []
+  const paged = usePagedRows(blocks, PAGE_SIZE)
 
   const createMutation = useMutation(queries.ipBlocks.create())
   const removeMutation = useMutation(queries.ipBlocks.remove())
@@ -92,39 +96,49 @@ export default function IPBlockCard() {
             No blocked addresses.
           </p>
         ) : (
-          <ul className="divide-y divide-border border-t border-border">
-            {blocks.map((block) => (
-              <li key={block.id} className="flex items-center justify-between gap-4 px-4 py-3">
-                <div className="min-w-0">
-                  <p className="font-mono text-[12.5px] font-medium text-foreground">
-                    {block.cidr}
-                  </p>
-                  <p className="text-muted-foreground mt-0.5 truncate text-xs">
-                    {block.expires_at
-                      ? `Lifts ${formatDistanceToNow(new Date(block.expires_at), { addSuffix: true })}`
-                      : 'Permanent'}
-                    {block.reason && ` · ${block.reason}`}
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  aria-label={`Unblock ${block.cidr}`}
-                  disabled={removeMutation.isPending}
-                  onClick={() =>
-                    removeMutation.mutate(block.id, {
-                      onSuccess: () => toast.success('Block removed'),
-                      onError: toastAxiosError,
-                    })
-                  }
-                >
-                  <IconTrash className="h-4 w-4" />
-                  Unblock
-                </Button>
-              </li>
-            ))}
-          </ul>
+          <>
+            <ul className="divide-y divide-border border-t border-border">
+              {paged.rows.map((block) => (
+                <li key={block.id} className="flex items-center justify-between gap-4 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="font-mono text-[12.5px] font-medium text-foreground">
+                      {block.cidr}
+                    </p>
+                    <p className="text-muted-foreground mt-0.5 truncate text-xs">
+                      {block.expires_at
+                        ? `Lifts ${formatDistanceToNow(new Date(block.expires_at), { addSuffix: true })}`
+                        : 'Permanent'}
+                      {block.reason && ` · ${block.reason}`}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    aria-label={`Unblock ${block.cidr}`}
+                    disabled={removeMutation.isPending}
+                    onClick={() =>
+                      removeMutation.mutate(block.id, {
+                        onSuccess: () => toast.success('Block removed'),
+                        onError: toastAxiosError,
+                      })
+                    }
+                  >
+                    <IconTrash className="h-4 w-4" />
+                    Unblock
+                  </Button>
+                </li>
+              ))}
+            </ul>
+            <TablePagination
+              className="px-4"
+              page={paged.page}
+              pageCount={paged.pageCount}
+              pageSize={PAGE_SIZE}
+              total={blocks.length}
+              onPageChange={paged.setPage}
+            />
+          </>
         )}
       </CardContent>
     </Card>

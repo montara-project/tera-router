@@ -16,14 +16,12 @@ RUN corepack enable && pnpm install --frozen-lockfile --filter @tera/web
 
 COPY apps/web-ui apps/web-ui
 
-# Vite inlines VITE_* into the bundle at build time — .env is docker-ignored and
-# runtime env vars can't reach the static dist. Empty VITE_API_URL falls back to
-# the page origin at runtime (UI and API share one origin); pass --build-arg
-# VITE_API_URL=... only when the API lives on a different origin.
+# Vite inlines VITE_*/API_* into the bundle at build time — .env is
+# docker-ignored. API_URL is the exception: tera-server injects it into
+# index.html at runtime, so the container's API_URL env repoints the UI at a
+# split API origin without a rebuild. Empty means same-origin, the usual setup.
 ARG VITE_APP_NAME="Tera Router"
-ARG VITE_API_URL=""
-ENV VITE_APP_NAME=$VITE_APP_NAME \
-    VITE_API_URL=$VITE_API_URL
+ENV VITE_APP_NAME=$VITE_APP_NAME
 
 # `exec` bypasses the package.json lifecycle, so prebuild (format/lint/typecheck)
 # and `tsc -b` don't run — image builds only bundle; checks belong to CI/dev.

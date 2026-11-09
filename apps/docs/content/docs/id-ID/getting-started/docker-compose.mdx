@@ -26,8 +26,10 @@ services:
       - ADMIN_EMAIL=${ADMIN_EMAIL}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
 
-      - VITE_APP_NAME=${VITE_APP_NAME}
-      - VITE_API_URL=${VITE_API_URL}
+      # Opsional: arahkan dashboard ke API di origin lain. Kosongkan untuk
+      # setup same-origin biasa — server menginject-nya ke UI saat runtime,
+      # tanpa rebuild.
+      - API_URL=${API_URL}
 
     command:
       - '--machine-id=${MACHINE_ID:-1}'
@@ -74,8 +76,8 @@ PORT=8080
 APP_NAME=tera-router-server
 APP_SECRET=generate_from_openssl_rand_base32
 
-VITE_APP_NAME=Tera Router
-VITE_API_URL=https://yourdomain.com
+# Isi hanya bila API berada di origin lain dari dashboard
+API_URL=https://yourdomain.com
 
 CORS_ALLOWED_ORIGINS=*
 RATE_LIMIT_EXEMPT_IPS=your_private_network_ip

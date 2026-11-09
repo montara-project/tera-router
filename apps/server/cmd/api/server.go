@@ -137,6 +137,11 @@ func serve(app *app.Application) error {
 		app.Services.Tunnel.Running,
 	))
 
+	// index.html carries the runtime config (window.__APP_ENV__), so the two
+	// paths that serve it directly are registered before the static middleware.
+	indexHandler := newIndexHandler("./public", app.Config.App.APIURL, app.Logger)
+	server.Get("/", indexHandler)
+	server.Get("/index.html", indexHandler)
 	server.Use(static.New("./public"))
 
 	// Initial Routes
@@ -157,7 +162,7 @@ func serve(app *app.Application) error {
 			strings.Contains(path.Base(p), ".") {
 			return fiber.ErrNotFound
 		}
-		return c.SendFile("./public/index.html")
+		return indexHandler(c)
 	}
 	server.Get("/*", spaFallback)
 	server.Head("/*", spaFallback)

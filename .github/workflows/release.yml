@@ -80,14 +80,13 @@ jobs:
           platforms: ${{ env.PLATFORMS }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          # Vite bakes the VITE_* values into the web UI inside the server
-          # image and APP_VERSION goes into the Go binary; the docs image
-          # ignores them. VITE_API_URL stays empty for the usual setup, where
-          # the server serves the UI itself: set the repo Variable only when
+          # Vite bakes VITE_* values into the web UI inside the server image
+          # and APP_VERSION goes into the Go binary; the docs image ignores
+          # them. API_URL needs no build-arg: the server injects it into the
+          # served index.html at runtime — set it on the container env when
           # the API lives on another origin than the UI.
           build-args: |
             VITE_APP_NAME=${{ vars.VITE_APP_NAME || 'Tera Router' }}
-            VITE_API_URL=${{ vars.VITE_API_URL || '' }}
             APP_VERSION=${{ github.ref_name }}
           push: true
           # One cache scope per image, or the builds evict each other.

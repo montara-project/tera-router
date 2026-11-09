@@ -35,12 +35,20 @@ const (
 )
 
 var (
-	errPasskeyHost = apperr.New(apperr.KindBadRequest,
-		"passkeys need the dashboard on https (or localhost) under a host name, not an IP address")
 	// Registration failures are 422, not 401: the web client treats any 401
 	// as an expired session and signs the user out.
 	errPasskeyRejected = apperr.New(apperr.KindUnprocessable, "the passkey could not be verified")
 )
+
+// errPasskeyHost names the origin the server saw, so a proxy that drops or
+// rewrites the Origin header is visible from the dashboard.
+func errPasskeyHost(origin string) error {
+	if origin == "" {
+		origin = "(none)"
+	}
+	return apperr.New(apperr.KindBadRequest,
+		"passkeys need the dashboard on https (or localhost) under a host name, not an IP address (request origin: %s)", origin)
+}
 
 // passkeysHandler serves passkey registration (signed in) and passkey
 // sign-in (public). A passkey sign-in stands in for password and TOTP: the
@@ -122,11 +130,11 @@ func (s *ceremonyStore) take(id string) (ceremony, bool) {
 func (h *passkeysHandler) relyingParty(origin string) (*webauthn.WebAuthn, error) {
 	u, err := url.Parse(origin)
 	if err != nil || u.Host == "" || u.Path != "" {
-		return nil, errPasskeyHost
+		return nil, errPasskeyHost(origin)
 	}
 	host := u.Hostname()
 	if net.ParseIP(host) != nil || (u.Scheme != "https" && !(u.Scheme == "http" && host == "localhost")) {
-		return nil, errPasskeyHost
+		return nil, errPasskeyHost(origin)
 	}
 
 	timeout := webauthn.TimeoutConfig{Enforce: true, Timeout: passkeyCeremonyTTL, TimeoutUVD: passkeyCeremonyTTL}

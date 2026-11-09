@@ -10,7 +10,7 @@ import { SettingsSchema } from '../dtos/settings/schema'
 const path = '/v1/settings'
 
 const api = new ClientFetchApi({
-  baseURL: String(env.VITE_API_URL),
+  baseURL: String(env.API_URL),
   storageKey: AUTH_STORAGE_KEYS.AUTH_STORAGE,
 }).default
 

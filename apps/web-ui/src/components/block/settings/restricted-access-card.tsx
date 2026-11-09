@@ -1,4 +1,5 @@
 import { IconArrowRight, IconClockShield, IconPlus, IconX } from '@tabler/icons-react'
+import { useSelector } from '@tanstack/react-form'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { format, parse } from 'date-fns'
 import { toast } from 'sonner'
@@ -7,6 +8,7 @@ import type { RestrictedAccess } from '@/lib/api/models/restricted-access'
 
 import DatePickerInput from '@/components/block/common/date-picker-input'
 import IconBadge from '@/components/block/common/icon-badge'
+import TablePagination, { usePagedRows } from '@/components/block/common/table-pagination'
 import TimePickerInput from '@/components/block/common/time-picker-input'
 import SettingRow from '@/components/block/settings/setting-row'
 import { Button } from '@/components/ui/button'
@@ -71,6 +73,7 @@ export default function RestrictedAccessCard() {
 }
 
 const DATE_FORMAT = 'yyyy-MM-dd'
+const IP_PAGE_SIZE = 15
 
 // Stored dates are plain calendar days; parse them as local midnight so the
 // picker shows the same day in every browser timezone.
@@ -111,6 +114,15 @@ function RestrictedAccessForm({ stored }: { stored: RestrictedAccess }) {
       }
     },
   })
+
+  // Page over field indexes — the array field binds by position (allowed_ips[i]).
+  // form.state isn't reactive here (useForm doesn't subscribe), so subscribe to
+  // the count: push/remove must re-render or the changed rows never appear.
+  const ipCount = useSelector(form.store, (s) => s.values.allowed_ips.length)
+  const pagedIps = usePagedRows(
+    Array.from({ length: ipCount }, (_, i) => i),
+    IP_PAGE_SIZE
+  )
 
   return (
     <form
@@ -212,15 +224,31 @@ function RestrictedAccessForm({ stored }: { stored: RestrictedAccess }) {
       <form.AppField name="allowed_ips" mode="array">
         {(field) => (
           <div className="flex flex-col gap-3 px-4 py-3">
-            <div>
-              <p className="text-[12.5px] font-medium text-foreground">Allowed IPs</p>
-              <p className="text-muted-foreground mt-0.5 text-xs">
-                An address or CIDR range per field. Your own address must be on the list to enable.
-              </p>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-[12.5px] font-medium text-foreground">Allowed IPs</p>
+                <p className="text-muted-foreground mt-0.5 text-xs">
+                  An address or CIDR range per field. Your own address must be on the list to
+                  enable.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="shrink-0"
+                onClick={() => {
+                  // Newest field goes first — back to page 1 where it lands.
+                  field.insertValue(0, '')
+                  pagedIps.setPage(1)
+                }}
+              >
+                <IconPlus /> Add IP
+              </Button>
             </div>
-            {/* Fields fill the row first, then wrap. */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-              {field.state.value.map((_, i) => (
+            {/* Three columns of input+remove pairs; collapses on narrow views. */}
+            <div className="grid items-center gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {pagedIps.rows.map((i) => (
                 <div key={`allowed-ip-${i}`} className="flex items-center gap-1">
                   <form.AppField name={`allowed_ips[${i}]`}>
                     {(subField) => (
@@ -230,7 +258,7 @@ function RestrictedAccessForm({ stored }: { stored: RestrictedAccess }) {
                         onBlur={subField.handleBlur}
                         aria-label={`Allowed IP ${i + 1}`}
                         placeholder="203.0.113.7 or 10.0.0.0/8"
-                        className="w-62.5 font-mono"
+                        className="min-w-0 flex-1 font-mono"
                       />
                     )}
                   </form.AppField>
@@ -246,10 +274,17 @@ function RestrictedAccessForm({ stored }: { stored: RestrictedAccess }) {
                   </Button>
                 </div>
               ))}
-              <Button type="button" variant="outline" onClick={() => field.pushValue('')}>
-                <IconPlus /> Add IP
-              </Button>
             </div>
+            {field.state.value.length > IP_PAGE_SIZE && (
+              <TablePagination
+                className="border-t-0 px-0 py-0"
+                page={pagedIps.page}
+                pageCount={pagedIps.pageCount}
+                pageSize={IP_PAGE_SIZE}
+                total={field.state.value.length}
+                onPageChange={pagedIps.setPage}
+              />
+            )}
           </div>
         )}
       </form.AppField>

@@ -27,7 +27,7 @@ const RANGES = [
 
 type OverviewRange = (typeof RANGES)[number]['value']
 
-const BASE_URL = `${env.VITE_API_URL.replace(/\/+$/, '')}/v1`
+const BASE_URL = `${env.API_URL.replace(/\/+$/, '')}/v1`
 
 function RouteComponent() {
   const queryClient = useQueryClient()

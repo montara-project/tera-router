@@ -16,7 +16,7 @@ const path = '/v1/providers'
 const customPath = '/v1/custom-providers'
 
 const api = new ClientFetchApi({
-  baseURL: String(env.VITE_API_URL),
+  baseURL: String(env.API_URL),
   storageKey: AUTH_STORAGE_KEYS.AUTH_STORAGE,
 }).default
 
