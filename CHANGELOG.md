@@ -3,6 +3,15 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [1.22.0](https://github.com/montara-project/tera-router/compare/v1.21.0...v1.22.0) (2026-11-11)
+
+### Bug Fixes
+
+* **deps:** patch RSC RCE and Go net/http advisory ([78df4ca](https://github.com/montara-project/tera-router/commit/78df4cab0d56bb44ac740e6a1282203d3fc99845))
+* rename design pen ([140de15](https://github.com/montara-project/tera-router/commit/140de15cbe160b610c0e1de8f8c81da890a49296))
+* update issues found ([d99cc51](https://github.com/montara-project/tera-router/commit/d99cc51c65464d88397b30d57de8fdd8738a64c8))
+* update skills lock ([f535708](https://github.com/montara-project/tera-router/commit/f535708c33af9db605484ace15c79ba29e00a1f2))
+
 ## [1.21.0](https://github.com/montara-project/tera-router/compare/v1.20.0...v1.21.0) (2026-11-09)
 
 ### Features
