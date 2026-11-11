@@ -21,9 +21,9 @@
   },
   "dependencies": {
     "lucide-react": "^1.41.0",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
-    "react-server-dom-webpack": "^19.3.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-server-dom-webpack": "^19.3.1",
     "vinext": "^1.0.0"
   },
   "devDependencies": {

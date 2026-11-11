@@ -1,6 +1,6 @@
 module tera-router/server
 
-go 1.27.3
+go 1.27.4
 
 require (
 	braces.dev/errtrace v0.4.0
