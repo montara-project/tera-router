@@ -72,7 +72,7 @@ func (p *PortableSealer) Salt() string { return p.salt }
 
 // Seal encrypts plaintext, returning base64(nonce || ct).
 func (p *PortableSealer) Seal(plaintext string) (string, error) {
-	ct, err := encrypt(p.gcm, []byte(plaintext))
+	ct, err := encrypt(p.gcm, []byte(plaintext), nil)
 	if err != nil {
 		return "", fmt.Errorf("encrypt portable: %w", err)
 	}
@@ -86,7 +86,7 @@ func (p *PortableSealer) Open(ciphertext string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("%w: %v", ErrMalformedCiphertext, err)
 	}
-	pt, err := decrypt(p.gcm, ct)
+	pt, err := decrypt(p.gcm, ct, nil)
 	if err != nil {
 		return "", err
 	}

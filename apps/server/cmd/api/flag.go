@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"flag"
+	"io/fs"
 	"log"
 	"net/netip"
 	"os"
@@ -57,7 +59,7 @@ func parseFlag(cfg *config.Config) {
 	validateFlag(cfg)
 }
 
-// minSecretLen is the shortest app secret accepted without a warning.
+// minSecretLen is the shortest app secret a new install may start with.
 const minSecretLen = 32
 
 func validateFlag(cfg *config.Config) {
@@ -72,17 +74,23 @@ func validateFlag(cfg *config.Config) {
 	if cfg.App.Secret == "" {
 		log.Fatal("flag app-secret must be provided")
 	}
-	// The secret signs session tokens (HS256) and derives the key sealing
-	// every stored credential, so a short one can be brute-forced offline from
-	// a single leaked token. It only warns: rotating the secret makes every
-	// sealed credential unreadable, so refusing to boot would strand existing
-	// installs.
-	if len(cfg.App.Secret) < minSecretLen {
-		log.Printf("WARNING: app-secret is %d characters; use at least %d random characters (openssl rand -base64 48) on a new install", len(cfg.App.Secret), minSecretLen)
-	}
-
 	if cfg.Database.Path == "" {
 		log.Fatal("flag database-path must not be empty")
+	}
+
+	// The secret signs session tokens (HS256) and derives the key sealing
+	// every stored credential, so a short one can be brute-forced offline from
+	// a single leaked token. A new install — no database yet — refuses to
+	// start with one. An existing install only gets the warning: rotating the
+	// secret makes every sealed credential unreadable, so refusing to boot
+	// would strand it.
+	// ponytail: "no database file" is the new-install signal, so a database
+	// created beforehand by cmd/migrate skips the refusal and gets the warning.
+	if len(cfg.App.Secret) < minSecretLen {
+		if _, err := os.Stat(cfg.Database.Path); errors.Is(err, fs.ErrNotExist) {
+			log.Fatalf("flag app-secret is %d characters; a new install needs at least %d random characters (openssl rand -base64 48)", len(cfg.App.Secret), minSecretLen)
+		}
+		log.Printf("WARNING: app-secret is %d characters; it can be brute-forced offline. Move to a secret of at least %d random characters (openssl rand -base64 48): export a portable configuration backup, start a fresh install with the new secret and import it there", len(cfg.App.Secret), minSecretLen)
 	}
 
 	// Entries feed fiber.TrustProxyConfig.Proxies — a malformed one panics in

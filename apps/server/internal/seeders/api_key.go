@@ -40,7 +40,7 @@ func (s SampleKeySeeder) Seed() {
 	if err != nil {
 		log.Fatalf("generate sample key: %v", err)
 	}
-	sealed, err := s.Secrets.SealString(gen.Plaintext)
+	sealed, err := s.Secrets.SealString(gen.Plaintext, sealer.PurposeAPIKey)
 	if err != nil {
 		log.Fatalf("seal sample key: %v", err)
 	}

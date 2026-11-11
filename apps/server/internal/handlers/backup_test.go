@@ -144,7 +144,7 @@ func openAccountKey(t *testing.T, h backupHarness, id string) string {
 	if err != nil {
 		t.Fatalf("get account %s: %v", id, err)
 	}
-	key, err := h.app.Secrets.OpenString(acc.Secret)
+	key, err := h.app.Secrets.OpenString(acc.Secret, sealer.PurposeAccountSecret)
 	if err != nil {
 		t.Fatalf("open account secret: %v", err)
 	}
@@ -248,6 +248,11 @@ func TestDatabaseDownloadRestoreRoundTrip(t *testing.T) {
 
 func multipartUpload(t *testing.T, path, filename string, content []byte) *http.Request {
 	t.Helper()
+	return multipartUploadAs(t, path, filename, content, backupAdminPassword)
+}
+
+func multipartUploadAs(t *testing.T, path, filename string, content []byte, password string) *http.Request {
+	t.Helper()
 	var buf bytes.Buffer
 	w := multipart.NewWriter(&buf)
 	part, err := w.CreateFormFile("file", filename)
@@ -255,6 +260,7 @@ func multipartUpload(t *testing.T, path, filename string, content []byte) *http.
 		t.Fatal(err)
 	}
 	_, _ = part.Write(content)
+	_ = w.WriteField("password", password)
 	_ = w.Close()
 	req := httptest.NewRequest(http.MethodPost, path, &buf)
 	req.Header.Set("Content-Type", w.FormDataContentType())
@@ -380,7 +386,7 @@ func TestImport9RouterBackup(t *testing.T) {
 	if err != nil || len(keys) != 1 || keys[0].Name != "Laptop" {
 		t.Fatalf("imported keys = %+v (%v), want one key named Laptop", keys, err)
 	}
-	plaintext, err := h.app.Secrets.OpenString(keys[0].Secret)
+	plaintext, err := h.app.Secrets.OpenString(keys[0].Secret, sealer.PurposeAPIKey)
 	if err != nil || !strings.HasPrefix(plaintext, apikey.Prefix) {
 		t.Fatalf("revealed key = %q (%v), want a fresh %s key", plaintext, err, apikey.Prefix)
 	}
@@ -446,6 +452,86 @@ func TestImportOmniRouteBackup(t *testing.T) {
 	}
 	if _, err := h.app.Repos.APIKeys.GetByLookup(context.Background(), apikey.LookupHash("sk-9router-client-key-xyz")); err == nil {
 		t.Error("OmniRoute API keys must not be imported")
+	}
+}
+
+// A restore swaps in the upload's own users and credentials, so a session
+// without the password must not get one through — and the live data stays.
+func TestDatabaseRestoreRequiresReauth(t *testing.T) {
+	h := newBackupHarness(t, "secret")
+	h.seedAccount(t, "openai", "sk-live-key-123456")
+	_, snapshot := h.postJSON(t, "/backup/database/download", map[string]string{"password": backupAdminPassword})
+	if err := h.app.Repos.Accounts.Delete(context.Background(), "acc-openai"); err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+
+	for _, pw := range []string{"", "wrong"} {
+		status, body := h.do(t, multipartUploadAs(t, "/backup/database/restore", "snapshot.db", snapshot, pw))
+		if status != http.StatusUnprocessableEntity {
+			t.Fatalf("restore with password %q = %d, want 422: %s", pw, status, body)
+		}
+	}
+	if _, err := h.app.Repos.Accounts.Get(context.Background(), "acc-openai"); err == nil {
+		t.Fatal("a refused restore still replaced the database")
+	}
+}
+
+// A database from another APP_SECRET, or one nobody could sign in to, is
+// refused before it replaces the live one.
+func TestDatabaseRestoreRefusesUnusableDatabase(t *testing.T) {
+	foreign := newBackupHarness(t, "another-secret")
+	foreign.seedAccount(t, "openai", "sk-foreign-key-123456")
+	_, foreignDB := foreign.postJSON(t, "/backup/database/download", map[string]string{"password": backupAdminPassword})
+
+	empty := newBackupHarness(t, "secret")
+	if _, err := empty.app.DB.Exec(`DELETE FROM users`); err != nil {
+		t.Fatalf("delete users: %v", err)
+	}
+	emptyDB := filepath.Join(t.TempDir(), "empty.db")
+	if err := empty.app.Repos.Backup.VacuumInto(context.Background(), emptyDB); err != nil {
+		t.Fatalf("snapshot: %v", err)
+	}
+	noUsers, err := os.ReadFile(emptyDB)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	h := newBackupHarness(t, "secret")
+	for name, db := range map[string][]byte{"foreign secret": foreignDB, "no users": noUsers} {
+		status, body := h.do(t, multipartUpload(t, "/backup/database/restore", "snapshot.db", db))
+		if status != http.StatusUnprocessableEntity {
+			t.Errorf("%s: restore = %d, want 422: %s", name, status, body)
+		}
+	}
+}
+
+// Secrets stored before sealing was bound to a column open again once the
+// boot/restore upgrade pass has rewritten them.
+func TestResealLegacyBindsStoredSecrets(t *testing.T) {
+	h := newBackupHarness(t, "secret")
+	acc := h.seedAccount(t, "openai", "sk-legacy-key-123456")
+	legacy, err := h.app.Secrets.SealString("sk-legacy-key-123456", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := h.app.DB.Exec(`UPDATE accounts SET secret_wrapped_dek = ?, secret_ciphertext = ? WHERE id = ?`,
+		legacy.WrappedDEK, legacy.Ciphertext, acc.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	// The pre-upgrade hook runs once, and only when there is something to rewrite.
+	hooks := 0
+	for want := 1; want >= 0; want-- {
+		n, err := repositories.ResealLegacy(context.Background(), h.app.DB, h.app.Secrets, func() error { hooks++; return nil })
+		if err != nil || n != want {
+			t.Fatalf("ResealLegacy = %d, %v; want %d", n, err, want)
+		}
+	}
+	if hooks != 1 {
+		t.Fatalf("pre-upgrade hook ran %d times, want 1", hooks)
+	}
+	if got := openAccountKey(t, h, acc.ID); got != "sk-legacy-key-123456" {
+		t.Errorf("resealed key = %q", got)
 	}
 }
 

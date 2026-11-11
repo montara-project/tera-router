@@ -7,7 +7,7 @@ import { getQueryClient } from '@/lib/providers/react-query'
 
 import type { ReauthDto, ReauthResult } from '../dtos/auth/schema'
 import type { ConfigExportDto, ConfigImportDto, LegacyBackupDto } from '../dtos/backup/schema'
-import type { LegacyImportSource } from '../models/backup'
+import type { DatabaseRestoreResult, LegacyImportSource } from '../models/backup'
 
 import { services } from '../services'
 
@@ -99,12 +99,16 @@ const restoreDatabase = () => {
   const qc = getQueryClient()
 
   return mutationOptions({
-    mutationFn: async (file: File) => {
-      const res = await services.backup.restoreDatabase(file)
-      return res.data
+    mutationFn: async ({
+      file,
+      ...creds
+    }: ReauthDto & { file: File }): Promise<ReauthResult<DatabaseRestoreResult>> => {
+      const { data } = (await services.backup.restoreDatabase(file, creds)).data
+      if ('totp_required' in data) return { totpRequired: true }
+      return { value: data }
     },
-    onSuccess: () => {
-      qc.invalidateQueries()
+    onSuccess: (result) => {
+      if ('value' in result) qc.invalidateQueries()
     },
   })
 }

@@ -15,6 +15,7 @@ import {
   CardHeading,
   CardTitle,
 } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import { toastAxiosError } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
 import { cn } from '@/lib/utils'
@@ -28,23 +29,44 @@ export default function SecurityTab() {
   const disableMutation = useMutation(queries.auth.totpDisable())
 
   const [code, setCode] = useState('')
+  // Turning two-factor on or off changes how the account signs in, so the
+  // server asks for the password again on both.
+  const [password, setPassword] = useState('')
   const [disabling, setDisabling] = useState(false)
   const setup = setupMutation.data?.data
 
-  const startSetup = () => {
+  const resetFields = () => {
     setCode('')
+    setPassword('')
+  }
+
+  const passwordInput = (id: string) => (
+    <Input
+      id={id}
+      type="password"
+      autoComplete="current-password"
+      placeholder="Password"
+      aria-label="Password"
+      className="w-44"
+      value={password}
+      onChange={(e) => setPassword(e.target.value)}
+    />
+  )
+
+  const startSetup = () => {
+    resetFields()
     setupMutation.mutate(undefined, { onError: toastAxiosError })
   }
 
   const confirmEnable = () => {
     if (!setup) return
     enableMutation.mutate(
-      { secret: setup.secret, code },
+      { password, secret: setup.secret, code },
       {
         onSuccess: () => {
           toast.success('Two-factor authentication enabled')
           setupMutation.reset()
-          setCode('')
+          resetFields()
         },
         onError: (error) => {
           setCode('')
@@ -56,12 +78,12 @@ export default function SecurityTab() {
 
   const confirmDisable = () => {
     disableMutation.mutate(
-      { code },
+      { password, code },
       {
         onSuccess: () => {
           toast.success('Two-factor authentication disabled')
           setDisabling(false)
-          setCode('')
+          resetFields()
         },
         onError: (error) => {
           setCode('')
@@ -79,13 +101,14 @@ export default function SecurityTab() {
       return (
         <div className="flex flex-wrap items-center gap-3">
           <p className="text-muted-foreground text-sm">
-            Enter a current code to turn two-factor authentication off.
+            Enter your password and a current code to turn two-factor authentication off.
           </p>
+          {passwordInput('totp-disable-password')}
           <TotpCodeInput id="totp-disable" value={code} onChange={setCode} />
           <Button
             type="button"
             variant="destructive"
-            disabled={code.length !== 6 || disableMutation.isPending}
+            disabled={!password || code.length !== 6 || disableMutation.isPending}
             onClick={confirmDisable}
           >
             Disable
@@ -95,7 +118,7 @@ export default function SecurityTab() {
             variant="ghost"
             onClick={() => {
               setDisabling(false)
-              setCode('')
+              resetFields()
             }}
           >
             Cancel
@@ -110,7 +133,14 @@ export default function SecurityTab() {
           <p className="text-muted-foreground text-sm">
             Sign-in asks for a code from your authenticator app.
           </p>
-          <Button type="button" variant="outline" onClick={() => setDisabling(true)}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              resetFields()
+              setDisabling(true)
+            }}
+          >
             Turn off
           </Button>
         </div>
@@ -125,7 +155,8 @@ export default function SecurityTab() {
           </div>
           <div className="flex min-w-0 flex-col gap-3">
             <p className="text-sm">
-              Scan the QR code with your authenticator app, then enter the 6-digit code it shows.
+              Scan the QR code with your authenticator app, then enter your password and the 6-digit
+              code it shows.
             </p>
             <div>
               <p className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">
@@ -136,15 +167,23 @@ export default function SecurityTab() {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
+              {passwordInput('totp-enable-password')}
               <TotpCodeInput id="totp-enable" value={code} onChange={setCode} />
               <Button
                 type="button"
-                disabled={code.length !== 6 || enableMutation.isPending}
+                disabled={!password || code.length !== 6 || enableMutation.isPending}
                 onClick={confirmEnable}
               >
                 Enable
               </Button>
-              <Button type="button" variant="ghost" onClick={() => setupMutation.reset()}>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setupMutation.reset()
+                  resetFields()
+                }}
+              >
                 Cancel
               </Button>
             </div>

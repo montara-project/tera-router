@@ -48,23 +48,23 @@ Pagination memakai query `offset` (0-based) dan `limit` (default 10, maks 100).
 
 ### Auth
 
-| Method | Path                                | Keterangan                                                    |
-| ------ | ----------------------------------- | ------------------------------------------------------------- |
-| POST   | `/v1/auth/sign-in`                  | Masuk, terima token                                           |
-| POST   | `/v1/auth/refresh`                  | Rotasi refresh token                                          |
-| GET    | `/v1/auth/me`                       | Profil user saat ini                                          |
-| POST   | `/v1/auth/sign-out`                 | Cabut semua token sesi                                        |
-| POST   | `/v1/auth/totp/setup`               | Terbitkan secret TOTP baru untuk pendaftaran (belum disimpan) |
-| POST   | `/v1/auth/totp/enable`              | Nyalakan autentikasi dua faktor dengan kode dari secret itu   |
-| POST   | `/v1/auth/totp/disable`             | Matikan dengan kode yang berlaku                              |
-| GET    | `/v1/auth/sessions`                 | Sesi login aktif; `current` menandai sesi pemanggil           |
-| DELETE | `/v1/auth/sessions/:id`             | Cabut satu sesi; tokennya langsung tidak berlaku              |
-| GET    | `/v1/auth/passkeys`                 | Passkey milikmu                                               |
-| POST   | `/v1/auth/passkeys/register/begin`  | Mulai menambah passkey; perlu password (+ TOTP)               |
-| POST   | `/v1/auth/passkeys/register/finish` | Verifikasi dan simpan credential baru dari browser            |
-| DELETE | `/v1/auth/passkeys/:id`             | Hapus passkey                                                 |
-| POST   | `/v1/auth/passkey/begin`            | Publik: mulai login dengan passkey                            |
-| POST   | `/v1/auth/passkey/finish`           | Publik: verifikasi passkey, terima token                      |
+| Method | Path                                | Keterangan                                                             |
+| ------ | ----------------------------------- | ---------------------------------------------------------------------- |
+| POST   | `/v1/auth/sign-in`                  | Masuk, terima token                                                    |
+| POST   | `/v1/auth/refresh`                  | Rotasi refresh token                                                   |
+| GET    | `/v1/auth/me`                       | Profil user saat ini                                                   |
+| POST   | `/v1/auth/sign-out`                 | Cabut semua token sesi                                                 |
+| POST   | `/v1/auth/totp/setup`               | Terbitkan secret TOTP baru untuk pendaftaran (belum disimpan)          |
+| POST   | `/v1/auth/totp/enable`              | Nyalakan autentikasi dua faktor; perlu password + kode dari secret itu |
+| POST   | `/v1/auth/totp/disable`             | Matikan; perlu password + kode yang berlaku                            |
+| GET    | `/v1/auth/sessions`                 | Sesi login aktif; `current` menandai sesi pemanggil                    |
+| DELETE | `/v1/auth/sessions/:id`             | Cabut satu sesi; tokennya langsung tidak berlaku                       |
+| GET    | `/v1/auth/passkeys`                 | Passkey milikmu                                                        |
+| POST   | `/v1/auth/passkeys/register/begin`  | Mulai menambah passkey; perlu password (+ TOTP)                        |
+| POST   | `/v1/auth/passkeys/register/finish` | Verifikasi dan simpan credential baru dari browser                     |
+| DELETE | `/v1/auth/passkeys/:id`             | Hapus passkey                                                          |
+| POST   | `/v1/auth/passkey/begin`            | Publik: mulai login dengan passkey                                     |
+| POST   | `/v1/auth/passkey/finish`           | Publik: verifikasi passkey, terima token                               |
 
 Panggilan passkey membaca header `Origin`: RP ID passkey adalah host origin itu, jadi dashboard harus di `https` atau `http://localhost`, dengan nama host (bukan IP), dan passkey hanya berlaku di host tempat ia ditambahkan. Setiap `begin` mengembalikan `ceremony_id` dan `options` (JSON WebAuthn untuk `PublicKeyCredential.parseCreationOptionsFromJSON` / `parseRequestOptionsFromJSON`); kirim `finish` dengan `ceremony_id` yang sama dan `credential` (hasil `credential.toJSON()` browser) dalam 5 menit. Login dengan passkey melewati password dan kode TOTP.
 
@@ -192,16 +192,16 @@ Body: `enabled`, `start_date` / `end_date` (`YYYY-MM-DD`, inklusif), `start_time
 
 ### Backup & impor
 
-| Method | Path                           | Keterangan                                                                        |
-| ------ | ------------------------------ | --------------------------------------------------------------------------------- |
-| POST   | `/v1/backup/config/export`     | Backup konfigurasi JSON; perlu password (+ TOTP)                                  |
-| POST   | `/v1/backup/config/import`     | Pulihkan backup konfigurasi; tiap tabel di dalamnya menggantikan tabel yang aktif |
-| GET    | `/v1/backup/database`          | Info file database yang aktif                                                     |
-| POST   | `/v1/backup/database/download` | Snapshot SQLite; perlu password (+ TOTP)                                          |
-| POST   | `/v1/backup/database/restore`  | Ganti database dengan file SQLite yang diunggah (field multipart `file`)          |
-| POST   | `/v1/import/:source`           | Impor backup JSON `9router` atau `omniroute`                                      |
+| Method | Path                           | Keterangan                                                                                        |
+| ------ | ------------------------------ | ------------------------------------------------------------------------------------------------- |
+| POST   | `/v1/backup/config/export`     | Backup konfigurasi JSON; perlu password (+ TOTP)                                                  |
+| POST   | `/v1/backup/config/import`     | Pulihkan backup konfigurasi; tiap tabel di dalamnya menggantikan tabel yang aktif                 |
+| GET    | `/v1/backup/database`          | Info file database yang aktif                                                                     |
+| POST   | `/v1/backup/database/download` | Snapshot SQLite; perlu password (+ TOTP)                                                          |
+| POST   | `/v1/backup/database/restore`  | Ganti database dengan file SQLite yang diunggah (field multipart `file`); perlu password (+ TOTP) |
+| POST   | `/v1/import/:source`           | Impor backup JSON `9router` atau `omniroute`                                                      |
 
-Kedua restore menulis salinan pengaman database saat ini lebih dulu. Database yang dipulihkan harus lolos cek integritas dan skemanya tidak boleh lebih baru dari server; skema yang lebih lama dimigrasikan naik. Impor bersifat aditif: baris yang sudah ada dipertahankan dan salinan dari backup dilewati, jadi menjalankan impor ulang itu aman.
+Kedua restore menulis salinan pengaman database saat ini lebih dulu. Database yang dipulihkan harus lolos cek integritas dan skemanya tidak boleh lebih baru dari server; skema yang lebih lama dimigrasikan naik. Restore database meminta autentikasi ulang seperti download: kirim field multipart `password` dan, setelah server menjawab `{ "totp_required": true }`, `otp` di samping `file`. File tanpa akun user, dengan referensi rusak, atau yang kredensialnya disegel dengan `APP_SECRET` lain ditolak. Impor bersifat aditif: baris yang sudah ada dipertahankan dan salinan dari backup dilewati, jadi menjalankan impor ulang itu aman.
 
 ### Tunnels
 

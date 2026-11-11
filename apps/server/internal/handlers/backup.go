@@ -78,14 +78,6 @@ var configOmit = map[string][]string{
 	"api_keys": {"user_id"},
 }
 
-// sealedColumns lists, per table, the envelope-sealed secret prefixes
-// (<prefix>_wrapped_dek + <prefix>_ciphertext). A portable backup replaces
-// each pair with <prefix>_portable.
-var sealedColumns = map[string][]string{
-	"accounts": {"secret", "token", "refresh"},
-	"api_keys": {"secret"},
-}
-
 type portableHeader struct {
 	KDF   string `json:"kdf"`
 	Salt  string `json:"salt"`
@@ -162,14 +154,14 @@ func (h *backupHandler) ConfigExport(c fiber.Ctx) error {
 // rekeyForExport opens every sealed credential with the master key and
 // re-seals it under the portable key, blanking the master-key blobs.
 func (h *backupHandler) rekeyForExport(tables map[string][]repositories.BackupRow, ps *sealer.PortableSealer) error {
-	for table, prefixes := range sealedColumns {
+	for table, prefixes := range repositories.SealedColumns {
 		for _, row := range tables[table] {
 			for _, p := range prefixes {
 				sealed := sealedFrom(row, p)
 				if sealed.Empty() {
 					continue
 				}
-				plain, err := h.app.Secrets.OpenString(sealed)
+				plain, err := h.app.Secrets.OpenString(sealed, table+"."+p)
 				if err != nil {
 					return apperr.New(apperr.KindInternal, "cannot open %s credential of %s %v: %s", p, table, row["id"], err.Error())
 				}
@@ -263,7 +255,7 @@ func (h *backupHandler) rekeyForImport(doc configBackup, passphrase string) erro
 		}
 	}
 
-	for table, prefixes := range sealedColumns {
+	for table, prefixes := range repositories.SealedColumns {
 		for _, row := range doc.Tables[table] {
 			for _, p := range prefixes {
 				if ps != nil {
@@ -276,7 +268,7 @@ func (h *backupHandler) rekeyForImport(doc configBackup, passphrase string) erro
 					if err != nil {
 						return apperr.New(apperr.KindUnprocessable, "cannot decrypt %s credential of %s %v", p, table, row["id"])
 					}
-					sealed, err := h.app.Secrets.SealString(plain)
+					sealed, err := h.app.Secrets.SealString(plain, table+"."+p)
 					if err != nil {
 						return err
 					}
@@ -288,8 +280,15 @@ func (h *backupHandler) rekeyForImport(doc configBackup, passphrase string) erro
 				if sealed.Empty() {
 					continue
 				}
-				if _, err := h.app.Secrets.Open(sealed); err != nil {
+				// A backup exported before secrets were bound to their column
+				// is bound here, on its way in.
+				bound, changed, err := h.app.Secrets.Reseal(sealed, table+"."+p)
+				if err != nil {
 					return apperr.New(apperr.KindUnprocessable, "the backup's credentials were sealed with a different APP_SECRET; export it again with a passphrase (portable mode)")
+				}
+				if changed {
+					row[p+"_wrapped_dek"] = bound.WrappedDEK
+					row[p+"_ciphertext"] = bound.Ciphertext
 				}
 			}
 		}
@@ -365,6 +364,12 @@ func (h *backupHandler) DatabaseDownload(c fiber.Ctx) error {
 // a Tera Router schema no newer than this server's; a safety copy of the
 // current database is written first, and an older schema is migrated up
 // after the restore.
+//
+// The upload brings its own users and credentials, so a session alone is not
+// enough: the multipart fields "password" and, once the server answers
+// totp_required, "otp" re-authenticate the caller.
+// ponytail: a TOTP account uploads the file once per answer; move the
+// credentials to a preflight call if large restores make that hurt.
 func (h *backupHandler) DatabaseRestore(c fiber.Ctx) error {
 	// Refusing before the body is read leaves it on the connection; close it
 	// so those bytes are not parsed as the next request.
@@ -396,6 +401,20 @@ func (h *backupHandler) DatabaseRestore(c fiber.Ctx) error {
 	fh := form.File["file"][0]
 	ctx := c.Context()
 
+	field := func(name string) string {
+		if v := form.Value[name]; len(v) > 0 {
+			return v[0]
+		}
+		return ""
+	}
+	needsCode, err := reauthenticate(c, h.app, field("password"), field("otp"))
+	if err != nil {
+		return err
+	}
+	if needsCode {
+		return totpRequired(c)
+	}
+
 	tmp := h.siblingPath(fmt.Sprintf("restore-%d.db", time.Now().UnixNano()))
 	defer func() {
 		for _, p := range []string{tmp, tmp + "-wal", tmp + "-shm"} {
@@ -406,7 +425,7 @@ func (h *backupHandler) DatabaseRestore(c fiber.Ctx) error {
 		return err
 	}
 
-	version, err := inspectDatabase(ctx, tmp)
+	version, err := inspectDatabase(ctx, tmp, h.app.Secrets)
 	if err != nil {
 		return apperr.New(apperr.KindUnprocessable, "not a valid Tera Router database: %s", err.Error())
 	}
@@ -429,6 +448,11 @@ func (h *backupHandler) DatabaseRestore(c fiber.Ctx) error {
 		if err := migrator.Up(h.app.DB, migrator.DefaultDir); err != nil {
 			return apperr.New(apperr.KindInternal, "restored, but migrating v%d → v%d failed (safety copy at %s): %s", version, live, safety, err.Error())
 		}
+	}
+	// A snapshot taken before secrets were bound to their column still carries
+	// unbound ones.
+	if _, err := repositories.ResealLegacy(ctx, h.app.DB, h.app.Secrets, nil); err != nil {
+		return apperr.New(apperr.KindInternal, "restored, but upgrading its credentials failed (safety copy at %s): %s", safety, err.Error())
 	}
 	// Every in-memory mirror of the old database is stale now.
 	h.app.KeysChanged()
@@ -459,9 +483,11 @@ func saveUpload(fh *multipart.FileHeader, dst string) error {
 	return out.Close()
 }
 
-// inspectDatabase opens an uploaded file as SQLite, checks its integrity and
-// that it carries the Tera Router schema, and returns its schema version.
-func inspectDatabase(ctx context.Context, path string) (int64, error) {
+// inspectDatabase opens an uploaded file as SQLite and returns its schema
+// version once it is safe to put live: intact, carrying the Tera Router
+// schema, with someone able to sign in and credentials this install's
+// APP_SECRET can open.
+func inspectDatabase(ctx context.Context, path string, secrets *sealer.Sealer) (int64, error) {
 	db, err := database.Open(path)
 	if err != nil {
 		return 0, errors.New("the file is not a SQLite database")
@@ -478,11 +504,41 @@ func inspectDatabase(ctx context.Context, path string) (int64, error) {
 	var tables int
 	if err := db.QueryRowContext(ctx, `
 		SELECT count(*) FROM sqlite_master
-		WHERE type = 'table' AND name IN ('schema_migrations', 'settings', 'accounts', 'api_keys')`).Scan(&tables); err != nil {
+		WHERE type = 'table' AND name IN ('schema_migrations', 'settings', 'accounts', 'api_keys', 'roles', 'users')`).Scan(&tables); err != nil {
 		return 0, err
 	}
-	if tables != 4 {
+	if tables != 6 {
 		return 0, errors.New("the Tera Router tables are missing")
+	}
+
+	var broken, users int
+	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM pragma_foreign_key_check`).Scan(&broken); err != nil {
+		return 0, err
+	}
+	if broken > 0 {
+		return 0, fmt.Errorf("%d rows reference rows that do not exist", broken)
+	}
+	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM users`).Scan(&users); err != nil {
+		return 0, err
+	}
+	if users == 0 {
+		return 0, errors.New("it has no user accounts, so nobody could sign in after the restore")
+	}
+
+	// One secret that opens proves the file came from this APP_SECRET; a
+	// single unreadable row is not a reason to refuse the rest.
+	sealed, opened := 0, 0
+	if err := repositories.EachSealed(ctx, db, func(table, prefix, _ string, s sealer.Sealed) error {
+		sealed++
+		if _, _, err := secrets.Reseal(s, table+"."+prefix); err == nil {
+			opened++
+		}
+		return nil
+	}); err != nil {
+		return 0, err
+	}
+	if sealed > 0 && opened == 0 {
+		return 0, errors.New("its credentials were sealed with a different APP_SECRET")
 	}
 	return repositories.SchemaVersionOf(ctx, db)
 }

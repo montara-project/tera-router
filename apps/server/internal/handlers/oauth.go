@@ -7,6 +7,7 @@ import (
 	"html"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -16,6 +17,7 @@ import (
 	"tera-router/server/internal/dtos"
 	"tera-router/server/internal/lib"
 	"tera-router/server/internal/lib/apperr"
+	"tera-router/server/internal/lib/sealer"
 	"tera-router/server/internal/models"
 	"tera-router/server/internal/oauth"
 
@@ -86,6 +88,7 @@ func (h *oauthHandler) Authorize(c fiber.Ctx) error {
 		State:       pkce.State,
 		Verifier:    pkce.Verifier,
 		RedirectURI: redirectURI,
+		Origin:      loopbackOrigin(c.Get(fiber.HeaderOrigin)),
 	})
 
 	return dtos.OK(c, fiber.Map{
@@ -253,13 +256,13 @@ func (h *oauthHandler) persistAccount(ctx context.Context, actor, provider strin
 	acc.Metadata = string(rawMeta)
 	acc.TokenExpiresAt = expiresAt
 
-	sealedAccess, serr := h.app.Secrets.SealString(tokens.AccessToken)
+	sealedAccess, serr := h.app.Secrets.SealString(tokens.AccessToken, sealer.PurposeAccountToken)
 	if serr != nil {
 		return "", "", apperr.New(apperr.KindInternal, "seal access token: %s", serr.Error())
 	}
 	acc.Token = sealedAccess
 	if tokens.RefreshToken != "" {
-		sealedRefresh, serr := h.app.Secrets.SealString(tokens.RefreshToken)
+		sealedRefresh, serr := h.app.Secrets.SealString(tokens.RefreshToken, sealer.PurposeAccountRefresh)
 		if serr != nil {
 			return "", "", apperr.New(apperr.KindInternal, "seal refresh token: %s", serr.Error())
 		}
@@ -325,7 +328,7 @@ func (h *oauthHandler) findExistingOAuthAccount(ctx context.Context, provider st
 		if acc.AuthKind != models.AuthOAuth || acc.Refresh.Empty() {
 			continue
 		}
-		stored, err := h.app.Secrets.OpenString(acc.Refresh)
+		stored, err := h.app.Secrets.OpenString(acc.Refresh, sealer.PurposeAccountRefresh)
 		if err != nil {
 			continue
 		}
@@ -421,10 +424,12 @@ func (h *oauthHandler) loopbackCallback(w http.ResponseWriter, r *http.Request) 
 	code := r.URL.Query().Get("code")
 	state := r.URL.Query().Get("state")
 
+	// Until the session is found there is no dashboard to report to.
+	origin := ""
 	writeResult := func(status, msg string) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
-		_, _ = w.Write([]byte(renderOAuthPopupResult(status, msg)))
+		_, _ = w.Write([]byte(renderOAuthPopupResult(status, msg, origin)))
 	}
 
 	if code == "" || state == "" {
@@ -436,6 +441,7 @@ func (h *oauthHandler) loopbackCallback(w http.ResponseWriter, r *http.Request) 
 		writeResult("error", "session expired or invalid; please restart the sign-in flow")
 		return
 	}
+	origin = sess.Origin
 
 	cfg, ok := oauth.ConfigFor(sess.Provider)
 	if !ok {
@@ -456,14 +462,40 @@ func (h *oauthHandler) loopbackCallback(w http.ResponseWriter, r *http.Request) 
 	writeResult("success", "")
 }
 
+// loopbackOrigin returns origin when it is an http(s) page served from this
+// machine, and "" otherwise. Only such a dashboard waits for the callback
+// page's postMessage; a remote one completes by pasting the callback URL.
+func loopbackOrigin(origin string) string {
+	u, err := url.Parse(origin)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
+		return ""
+	}
+	host := u.Hostname()
+	ip := net.ParseIP(host)
+	if host != "localhost" && !strings.HasSuffix(host, ".localhost") && (ip == nil || !ip.IsLoopback()) {
+		return ""
+	}
+	return u.Scheme + "://" + u.Host
+}
+
 // renderOAuthPopupResult renders the callback page shown inside the sign-in
-// popup. The inline script notifies the dashboard tab (window.opener) and
-// closes the popup on its own.
-func renderOAuthPopupResult(status, msg string) string {
+// popup. The inline script reports the result to the dashboard tab that opened
+// it — only to origin, never "*", so no other page that got hold of the popup
+// can read it — and closes the popup. Without an origin there is nobody to
+// report to: a failure then stays on screen instead of closing unread.
+func renderOAuthPopupResult(status, msg, origin string) string {
 	payload, _ := json.Marshal(map[string]string{"source": "tera-router-oauth", "status": status, "message": msg})
 	title := "Connected"
 	if status == "error" {
 		title = "Sign-in failed"
+	}
+	script := ""
+	if origin != "" {
+		target, _ := json.Marshal(origin)
+		script = fmt.Sprintf(`try { if (window.opener) window.opener.postMessage(%s, %s); } catch (e) {}
+setTimeout(function () { window.close(); }, 800);`, payload, target)
+	} else if status != "error" {
+		script = `setTimeout(function () { window.close(); }, 800);`
 	}
 	// The message can echo provider-controlled error strings, so it is
 	// escaped for the HTML text nodes; the JSON payload is embedded in the
@@ -478,9 +510,8 @@ func renderOAuthPopupResult(status, msg string) string {
 <p style="color: #71717a; font-size: 12px;">You can close this window.</p>
 </div>
 <script>
-try { if (window.opener) window.opener.postMessage(%s, "*"); } catch (e) {}
-setTimeout(function () { window.close(); }, 800);
+%s
 </script>
 </body>
-</html>`, html.EscapeString(title), html.EscapeString(title), html.EscapeString(msg), payload)
+</html>`, html.EscapeString(title), html.EscapeString(title), html.EscapeString(msg), script)
 }

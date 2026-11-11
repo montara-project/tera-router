@@ -24,6 +24,7 @@ import (
 	"tera-router/server/internal/autocombo"
 	"tera-router/server/internal/connectors"
 	"tera-router/server/internal/core"
+	"tera-router/server/internal/models"
 	"tera-router/server/internal/transform"
 
 	"github.com/gofiber/fiber/v3"
@@ -104,6 +105,9 @@ type Server struct {
 	inflight chan struct{}
 	// keyLimits enforces plan RPM and concurrency per API key.
 	keyLimits *keyLimiter
+	// reserved holds the estimated usage of requests not yet metered, so
+	// budget and TPM checks see a concurrent burst (see reserve.go).
+	reserved *reservations
 	// metering counts the asynchronous usage writes that have not reached the
 	// database yet, so a shutdown (or a test teardown) can wait for the
 	// accounting of already-served requests instead of racing it.
@@ -126,6 +130,7 @@ func New(a *app.Application) *Server {
 		auth:            newAuthCache(),
 		inflight:        make(chan struct{}, defaultMaxConcurrent),
 		keyLimits:       newKeyLimiter(),
+		reserved:        newReservations(),
 	}
 }
 
@@ -164,18 +169,23 @@ func (s *Server) acquire() (func(), bool) {
 func Register(r *fiber.App, a *app.Application) *Server {
 	s := New(a)
 
-	r.Post("/v1/chat/completions", s.traceMiddleware, s.authMiddleware, s.handleOpenAIChat)
-	r.Post("/v1/messages", s.traceMiddleware, s.authMiddleware, s.handleAnthropicMessages)
-	r.Post("/v1/messages/count_tokens", s.traceMiddleware, s.authMiddleware, s.handleAnthropicCountTokens)
-	r.Post("/v1/responses", s.traceMiddleware, s.authMiddleware, s.handleOpenAIResponses)
-	r.Post("/responses", s.traceMiddleware, s.authMiddleware, s.handleOpenAIResponses)
+	// The model listing is open to every valid key: it exposes names, not
+	// inference, and clients read it whatever they go on to call.
+	chat, web, audio := s.requireScope(models.KeyScopeChat), s.requireScope(models.KeyScopeWeb), s.requireScope(models.KeyScopeAudio)
+	images, embeddings := s.requireScope(models.KeyScopeImages), s.requireScope(models.KeyScopeEmbeddings)
+
+	r.Post("/v1/chat/completions", s.traceMiddleware, s.authMiddleware, chat, s.handleOpenAIChat)
+	r.Post("/v1/messages", s.traceMiddleware, s.authMiddleware, chat, s.handleAnthropicMessages)
+	r.Post("/v1/messages/count_tokens", s.traceMiddleware, s.authMiddleware, chat, s.handleAnthropicCountTokens)
+	r.Post("/v1/responses", s.traceMiddleware, s.authMiddleware, chat, s.handleOpenAIResponses)
+	r.Post("/responses", s.traceMiddleware, s.authMiddleware, chat, s.handleOpenAIResponses)
 	r.Get("/v1/models", s.traceMiddleware, s.authMiddleware, s.handleListModels)
-	r.Post("/v1/search", s.traceMiddleware, s.authMiddleware, s.handleWebSearch)
-	r.Post("/v1/web/fetch", s.traceMiddleware, s.authMiddleware, s.handleWebFetch)
-	r.Post("/v1/audio/speech", s.traceMiddleware, s.authMiddleware, s.handleSpeech)
-	r.Post("/v1/audio/transcriptions", s.traceMiddleware, s.authMiddleware, s.handleTranscription)
-	r.Post("/v1/images/generations", s.traceMiddleware, s.authMiddleware, s.handleImages)
-	r.Post("/v1/embeddings", s.traceMiddleware, s.authMiddleware, s.handleEmbeddings)
+	r.Post("/v1/search", s.traceMiddleware, s.authMiddleware, web, s.handleWebSearch)
+	r.Post("/v1/web/fetch", s.traceMiddleware, s.authMiddleware, web, s.handleWebFetch)
+	r.Post("/v1/audio/speech", s.traceMiddleware, s.authMiddleware, audio, s.handleSpeech)
+	r.Post("/v1/audio/transcriptions", s.traceMiddleware, s.authMiddleware, audio, s.handleTranscription)
+	r.Post("/v1/images/generations", s.traceMiddleware, s.authMiddleware, images, s.handleImages)
+	r.Post("/v1/embeddings", s.traceMiddleware, s.authMiddleware, embeddings, s.handleEmbeddings)
 	return s
 }
 

@@ -14,10 +14,10 @@ description: Jalankan API server dan dashboard Tera Router secara lokal.
 ```bash
 cd apps/server
 
-# siapkan .env minimal
-cat > .env <<'EOF'
+# siapkan .env minimal (instalasi baru butuh APP_SECRET 32+ karakter)
+cat > .env <<EOF
 MACHINE_ID=1
-APP_SECRET=ganti-dengan-secret-panjang
+APP_SECRET=$(openssl rand -hex 32)
 ADMIN_EMAIL=admin@tera.local
 ADMIN_PASSWORD=admin123
 EOF

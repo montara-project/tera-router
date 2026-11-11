@@ -98,17 +98,18 @@ export default function ImportExportTab() {
     toast.success('Database snapshot downloaded')
   }
 
-  const handleRestoreDatabase = () => {
-    if (!pendingDb) return
-    restoreDatabase.mutate(pendingDb, {
-      onSuccess: (res) => {
-        toast.success('Database restored', {
-          description: `Safety copy: ${res.data.safety_copy}`,
-        })
-      },
-      onError: toastAxiosError,
-    })
+  // The upload brings its own users and credentials, so it re-authenticates.
+  const handleRestoreDatabase = async () => {
+    const file = pendingDb
+    if (!file) return
     setPendingDb(null)
+    const restored = await confirm('restore the database', (creds) =>
+      restoreDatabase.mutateAsync({ file, ...creds })
+    )
+    if (!restored) return
+    toast.success('Database restored', {
+      description: `Safety copy: ${restored.safety_copy}`,
+    })
   }
 
   const sqliteActive = dbInfo?.data.driver === 'sqlite'
@@ -288,7 +289,7 @@ export default function ImportExportTab() {
         description="This replaces the entire database — configuration, users, and usage history. You may need to sign in again. A safety copy of the current database is written first."
         confirmText="Restore"
         variant="destructive"
-        onConfirm={handleRestoreDatabase}
+        onConfirm={() => void handleRestoreDatabase()}
       />
       {dialog}
     </div>

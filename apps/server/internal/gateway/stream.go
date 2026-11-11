@@ -492,6 +492,7 @@ func (sw *streamWriter) record(ctx context.Context) {
 		Chain:      sw.meta.Chain,
 		Saving:     sw.meta.Saving,
 		trace:      sw.meta.trace,
+		reserved:   sw.meta.reserved,
 		Usage:      usage,
 		CostMicros: cost,
 		TokenRate:  tokenRate,

@@ -14,6 +14,9 @@ type Session struct {
 	State       string
 	Verifier    string
 	RedirectURI string
+	// Origin is the dashboard origin that started a loopback flow, when it is
+	// served from this machine: the only window the callback page reports to.
+	Origin string
 
 	// Device flow state (ZCode): the upstream flow id and the server-side
 	// poll token that authorizes polling it. DeviceIntervalMs carries the

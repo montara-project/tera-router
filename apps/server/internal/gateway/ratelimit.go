@@ -87,7 +87,7 @@ func rateLimited(msg string, retry time.Duration) *core.ProviderError {
 // operator enabled "Enforce API key rate limits". On success the returned
 // release frees the concurrency slot and must be called once the request is
 // done; on a limit it returns an ErrRateLimit carrying Retry-After.
-func (s *Server) checkRateLimits(ctx context.Context, key models.APIKey, plan *models.Plan) (func(), error) {
+func (s *Server) checkRateLimits(ctx context.Context, key models.APIKey, plan *models.Plan, res *reservation) (func(), error) {
 	noop := func() {}
 	if plan == nil {
 		return noop, nil
@@ -107,14 +107,17 @@ func (s *Server) checkRateLimits(ctx context.Context, key models.APIKey, plan *m
 	now := time.Now()
 	if tpm > 0 {
 		// Tokens are only known once a request finishes, so TPM counts the
-		// raw tokens this key's finished requests used in the last minute.
-		// ponytail: requests already in flight are not counted; pair TPM with
-		// a concurrency cap when bursts matter.
+		// raw tokens this key's finished requests used in the last minute,
+		// plus the prompts of the requests admitted before this one that are
+		// still in flight (res; see reserve.go).
+		// ponytail: an in-flight request's completion is not counted; pair
+		// TPM with a concurrency cap when output-heavy bursts matter.
 		used, err := s.app.Repos.Usage.SumSince(ctx, models.ScopeAPIKey, key.ID, now.Add(-rateWindow))
 		if err != nil {
 			return noop, err
 		}
-		if used.PromptTokens+used.CompletionTokens >= int64(tpm) {
+		keyReserved, _ := res.earlier()
+		if used.PromptTokens+used.CompletionTokens+keyReserved.Raw >= int64(tpm) {
 			return noop, rateLimited(fmt.Sprintf("rate limit reached: %d tokens per minute for this API key", tpm), rateWindow)
 		}
 	}

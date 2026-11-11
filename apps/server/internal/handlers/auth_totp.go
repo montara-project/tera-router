@@ -31,7 +31,7 @@ var (
 // ponytail: the limit is per address, not per account; add a per-user lockout
 // if a distributed attack on one account shows up.
 func (h *authHandler) checkTOTP(ctx context.Context, user models.User, code string) error {
-	secret, err := h.app.Secrets.OpenString(sealer.Sealed{WrappedDEK: user.TOTPWrappedDEK, Ciphertext: user.TOTPCiphertext})
+	secret, err := h.app.Secrets.OpenString(sealer.Sealed{WrappedDEK: user.TOTPWrappedDEK, Ciphertext: user.TOTPCiphertext}, sealer.PurposeUserTOTP)
 	if err != nil {
 		return err
 	}
@@ -80,7 +80,9 @@ func (h *authHandler) TOTPSetup(c fiber.Ctx) error {
 }
 
 // TOTPEnable turns TOTP on once the user proves their app generates valid
-// codes for the secret (POST /v1/auth/totp/enable).
+// codes for the secret (POST /v1/auth/totp/enable). It asks for the password
+// again: a stolen session must not be able to enroll its own authenticator and
+// lock the owner out.
 func (h *authHandler) TOTPEnable(c fiber.Ctx) error {
 	var req dtos.TOTPEnable
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
@@ -93,6 +95,9 @@ func (h *authHandler) TOTPEnable(c fiber.Ctx) error {
 	if user.TOTPEnabled {
 		return apperr.New(apperr.KindConflict, "two-factor authentication is already enabled")
 	}
+	if _, err := reauthenticate(c, h.app, req.Password, ""); err != nil {
+		return err
+	}
 	if !totp.ValidSecret(req.Secret) {
 		return apperr.New(apperr.KindBadRequest, "invalid secret")
 	}
@@ -101,7 +106,7 @@ func (h *authHandler) TOTPEnable(c fiber.Ctx) error {
 	if !ok {
 		return ErrBadTOTP
 	}
-	sealed, err := h.app.Secrets.SealString(req.Secret)
+	sealed, err := h.app.Secrets.SealString(req.Secret, sealer.PurposeUserTOTP)
 	if err != nil {
 		return err
 	}
@@ -113,7 +118,8 @@ func (h *authHandler) TOTPEnable(c fiber.Ctx) error {
 	return dtos.Message(c, fiber.StatusOK, "Two-factor authentication enabled")
 }
 
-// TOTPDisable turns TOTP off after a current code (POST /v1/auth/totp/disable).
+// TOTPDisable turns TOTP off after the password and a current code
+// (POST /v1/auth/totp/disable).
 func (h *authHandler) TOTPDisable(c fiber.Ctx) error {
 	var req dtos.TOTPDisable
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
@@ -126,7 +132,7 @@ func (h *authHandler) TOTPDisable(c fiber.Ctx) error {
 	if !user.TOTPEnabled {
 		return apperr.New(apperr.KindConflict, "two-factor authentication is not enabled")
 	}
-	if err := h.checkTOTP(c.Context(), user, req.Code); err != nil {
+	if _, err := reauthenticate(c, h.app, req.Password, req.Code); err != nil {
 		return err
 	}
 	if err := h.app.Repos.Users.ClearTOTP(c.Context(), user.ID); err != nil {

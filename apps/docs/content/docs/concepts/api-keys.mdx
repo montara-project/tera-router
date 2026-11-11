@@ -50,6 +50,20 @@ The response contains `full_key` — save it now:
 
 If the key is bound to a plan, the allowed models are the **intersection** of the key's and plan's allowlists. A key can never loosen its plan's restrictions.
 
+## Scopes
+
+`scopes` limits which gateway endpoints a key may call. It is a space- or comma-separated list; leave it empty (or use `*`) for a key that may call everything.
+
+| Scope        | Endpoints                                                                            |
+| ------------ | ------------------------------------------------------------------------------------ |
+| `chat`       | `/v1/chat/completions`, `/v1/messages`, `/v1/messages/count_tokens`, `/v1/responses` |
+| `web`        | `/v1/search`, `/v1/web/fetch`                                                        |
+| `audio`      | `/v1/audio/speech`, `/v1/audio/transcriptions`                                       |
+| `images`     | `/v1/images/generations`                                                             |
+| `embeddings` | `/v1/embeddings`                                                                     |
+
+A request outside the key's scopes answers `403`. `GET /v1/models` is open to every valid key. Creating or updating a key with an unknown scope is rejected with `400`.
+
 ## Lifecycle
 
 - **Disable** — a disabled key starts rejecting requests with `401` immediately; the verification cache (5 minutes) does not apply to disabled keys.

@@ -58,18 +58,18 @@ func TestCheckRateLimits(t *testing.T) {
 	rpm, tpm := 1, 1000
 	plan := &models.Plan{Name: "pro", RPM: &rpm}
 
-	release, err := s.checkRateLimits(ctx, key, plan)
+	release, err := s.checkRateLimits(ctx, key, plan, nil)
 	if err != nil {
 		t.Fatalf("first request: %v", err)
 	}
 	release()
-	if _, err := s.checkRateLimits(ctx, key, plan); core.AsProviderError(err).Kind != core.ErrRateLimit {
+	if _, err := s.checkRateLimits(ctx, key, plan, nil); core.AsProviderError(err).Kind != core.ErrRateLimit {
 		t.Fatalf("second request in the minute = %v, want rate limit", err)
 	}
 
 	// The settings toggle switches enforcement off.
 	exec(t, a, `INSERT INTO settings (key, value) VALUES ('app', '{"enforce_rate_limits":false}')`)
-	if _, err := s.checkRateLimits(ctx, key, plan); err != nil {
+	if _, err := s.checkRateLimits(ctx, key, plan, nil); err != nil {
 		t.Fatalf("enforcement off must admit: %v", err)
 	}
 	exec(t, a, `UPDATE settings SET value = '{"enforce_rate_limits":true}' WHERE key = 'app'`)
@@ -79,18 +79,18 @@ func TestCheckRateLimits(t *testing.T) {
 	other := models.APIKey{ID: "key-2"}
 	exec(t, a, `INSERT INTO usage_records (api_key_id, provider, model, prompt_tokens, completion_tokens, created_at)
 		VALUES ('key-2', 'openai', 'gpt-4o', 800, 200, ?)`, time.Now().UTC())
-	if _, err := s.checkRateLimits(ctx, other, tpmPlan); core.AsProviderError(err).Kind != core.ErrRateLimit {
+	if _, err := s.checkRateLimits(ctx, other, tpmPlan, nil); core.AsProviderError(err).Kind != core.ErrRateLimit {
 		t.Fatalf("1000 tokens in the last minute = %v, want rate limit", err)
 	}
-	if _, err := s.checkRateLimits(ctx, models.APIKey{ID: "key-3"}, tpmPlan); err != nil {
+	if _, err := s.checkRateLimits(ctx, models.APIKey{ID: "key-3"}, tpmPlan, nil); err != nil {
 		t.Fatalf("a key without usage must pass TPM: %v", err)
 	}
 
 	// No plan, or a plan without limits, is never limited.
-	if _, err := s.checkRateLimits(ctx, key, nil); err != nil {
+	if _, err := s.checkRateLimits(ctx, key, nil, nil); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.checkRateLimits(ctx, key, &models.Plan{}); err != nil {
+	if _, err := s.checkRateLimits(ctx, key, &models.Plan{}, nil); err != nil {
 		t.Fatal(err)
 	}
 }

@@ -14,10 +14,10 @@ description: Run the Tera Router API server and dashboard locally.
 ```bash
 cd apps/server
 
-# prepare a minimal .env
-cat > .env <<'EOF'
+# prepare a minimal .env (a new install needs an APP_SECRET of 32+ characters)
+cat > .env <<EOF
 MACHINE_ID=1
-APP_SECRET=change-to-a-long-secret
+APP_SECRET=$(openssl rand -hex 32)
 ADMIN_EMAIL=admin@tera.local
 ADMIN_PASSWORD=admin123
 EOF

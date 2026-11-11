@@ -95,7 +95,7 @@ export function useOAuthConnect() {
     let deferred = false
     try {
       const res = await services.oauth.authorize(provider)
-      const { authorize_url, state, completion } = res.data.data
+      const { authorize_url, state, completion, redirect_uri } = res.data.data
 
       const popup = window.open(authorize_url, 'tera-oauth', 'width=560,height=760,popup=yes')
       if (!popup) {
@@ -138,7 +138,12 @@ export function useOAuthConnect() {
           window.clearInterval(poll)
           resolve(result)
         }
+        // Only the popup this flow opened, showing the server's own callback
+        // page, may report a result: any other window or origin could
+        // otherwise fake a finished sign-in.
+        const callbackOrigin = redirect_uri ? new URL(redirect_uri).origin : null
         const handler = (event: MessageEvent) => {
+          if (event.source !== popup || event.origin !== callbackOrigin) return
           const data = event.data as { source?: string; status?: string; message?: string }
           if (data?.source !== OAUTH_MESSAGE_SOURCE) return
           if (data.status === 'success') {
@@ -158,10 +163,10 @@ export function useOAuthConnect() {
         }, 500)
       })
 
-      if (succeeded) {
-        await refreshConnected()
-        toast.success(`${name} connected`)
-      }
+      // Refreshed either way: the account may be connected even when the
+      // popup closed before its result arrived.
+      await refreshConnected()
+      if (succeeded) toast.success(`${name} connected`)
     } catch (error) {
       toastAxiosError(error)
     } finally {

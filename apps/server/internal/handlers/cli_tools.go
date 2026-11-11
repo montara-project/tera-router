@@ -10,6 +10,7 @@ import (
 	"tera-router/server/internal/lib"
 	"tera-router/server/internal/lib/apikey"
 	"tera-router/server/internal/lib/apperr"
+	"tera-router/server/internal/lib/sealer"
 	"tera-router/server/internal/models"
 	"tera-router/server/internal/services"
 
@@ -109,7 +110,7 @@ func (h *cliToolsHandler) Apply(c fiber.Ctx) error {
 		if err != nil {
 			return err
 		}
-		sealed, err := h.app.Secrets.SealString(gen.Plaintext)
+		sealed, err := h.app.Secrets.SealString(gen.Plaintext, sealer.PurposeAPIKey)
 		if err != nil {
 			return err
 		}

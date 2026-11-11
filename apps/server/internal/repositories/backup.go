@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"tera-router/server/internal/lib/apperr"
+	"tera-router/server/internal/lib/sealer"
 
 	"braces.dev/errtrace"
 	"modernc.org/sqlite"
@@ -256,4 +257,94 @@ func (r *BackupRepository) RestoreFrom(ctx context.Context, srcPath string) erro
 		}
 		return bk.Finish()
 	}))
+}
+
+// SealedColumns lists, per table, the envelope-sealed secret prefixes
+// (<prefix>_wrapped_dek + <prefix>_ciphertext). A secret's sealer purpose is
+// "<table>.<prefix>". A portable configuration backup replaces each pair with
+// <prefix>_portable.
+var SealedColumns = map[string][]string{
+	"accounts": {"secret", "token", "refresh"},
+	"api_keys": {"secret"},
+	"users":    {"totp"},
+}
+
+// EachSealed calls fn for every stored secret in db with its row id and
+// purpose. A table or column the database's schema does not have yet (an
+// older backup) holds no secrets and is skipped.
+func EachSealed(ctx context.Context, db *sql.DB, fn func(table, prefix, id string, s sealer.Sealed) error) error {
+	type secret struct {
+		table, prefix, id string
+		sealed            sealer.Sealed
+	}
+	// Collected before fn runs, so fn may write to the rows it is handed.
+	var found []secret
+	for table, prefixes := range SealedColumns {
+		for _, prefix := range prefixes {
+			rows, err := db.QueryContext(ctx, fmt.Sprintf(
+				`SELECT id, %[2]s_wrapped_dek, %[2]s_ciphertext FROM %[1]s WHERE %[2]s_ciphertext <> ''`, table, prefix))
+			if err != nil {
+				if strings.Contains(err.Error(), "no such") {
+					continue
+				}
+				return errtrace.Wrap(err)
+			}
+			for rows.Next() {
+				s := secret{table: table, prefix: prefix}
+				if err := rows.Scan(&s.id, &s.sealed.WrappedDEK, &s.sealed.Ciphertext); err != nil {
+					_ = rows.Close()
+					return errtrace.Wrap(err)
+				}
+				found = append(found, s)
+			}
+			if err := rows.Close(); err != nil {
+				return errtrace.Wrap(err)
+			}
+		}
+	}
+	for _, s := range found {
+		if err := fn(s.table, s.prefix, s.id, s.sealed); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ResealLegacy binds every secret sealed before purposes existed to its
+// column and returns how many it rewrote. It runs on boot and after a restore
+// brings older rows in; secrets it cannot open at all are left as they are.
+//
+// before, when set, runs once ahead of the first rewrite and aborts the pass
+// on error: a release that predates purposes cannot open a rewritten secret,
+// so boot takes a copy of the database to roll back to.
+func ResealLegacy(ctx context.Context, db *sql.DB, secrets *sealer.Sealer, before func() error) (int, error) {
+	type rewrite struct {
+		table, prefix, id string
+		old, bound        sealer.Sealed
+	}
+	var pending []rewrite
+	err := EachSealed(ctx, db, func(table, prefix, id string, s sealer.Sealed) error {
+		if bound, changed, err := secrets.Reseal(s, table+"."+prefix); err == nil && changed {
+			pending = append(pending, rewrite{table, prefix, id, s, bound})
+		}
+		return nil
+	})
+	if err != nil || len(pending) == 0 {
+		return 0, err
+	}
+	if before != nil {
+		if err := before(); err != nil {
+			return 0, err
+		}
+	}
+	for _, w := range pending {
+		// Only while the row still holds what was read: a token refreshed in
+		// the meantime is already bound and must not be put back.
+		if _, err := db.ExecContext(ctx, fmt.Sprintf(
+			`UPDATE %[1]s SET %[2]s_wrapped_dek = $1, %[2]s_ciphertext = $2 WHERE id = $3 AND %[2]s_ciphertext = $4`, w.table, w.prefix),
+			w.bound.WrappedDEK, w.bound.Ciphertext, w.id, w.old.Ciphertext); err != nil {
+			return 0, errtrace.Wrap(err)
+		}
+	}
+	return len(pending), nil
 }

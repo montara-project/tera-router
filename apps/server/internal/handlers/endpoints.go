@@ -63,8 +63,8 @@ var apiReference = []endpointGroup{
 	}},
 }
 
-// Catalog serves GET /v1/endpoints. base_url is the origin the request arrived
-// on, so the page shows the address the browser is actually using.
+// Catalog serves GET /v1/endpoints. base_url is the configured API_URL, or the
+// origin the request arrived on when none is set.
 func (h *endpointsHandler) Catalog(c fiber.Ctx) error {
-	return dtos.OK(c, endpointCatalog{BaseURL: requestBaseURL(c), Groups: apiReference})
+	return dtos.OK(c, endpointCatalog{BaseURL: requestBaseURL(c, h.app), Groups: apiReference})
 }

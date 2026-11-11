@@ -57,6 +57,17 @@ func (s *Server) authMiddleware(c fiber.Ctx) error {
 	return c.Next()
 }
 
+// requireScope rejects a key whose scopes do not cover the route's endpoint
+// family with 403. It runs after authMiddleware.
+func (s *Server) requireScope(scope string) fiber.Handler {
+	return func(c fiber.Ctx) error {
+		if key, ok := authedKey(c); !ok || !key.HasScope(scope) {
+			return writeError(c, http.StatusForbidden, "access denied: this API key lacks the "+scope+" scope")
+		}
+		return c.Next()
+	}
+}
+
 // extractToken pulls the API key from the standard header locations.
 func extractToken(c fiber.Ctx) string {
 	if auth := c.Get("Authorization"); auth != "" {

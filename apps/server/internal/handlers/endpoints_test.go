@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	tera "tera-router/server/internal/app"
 	"tera-router/server/internal/gateway"
 
 	"github.com/gofiber/fiber/v3"
@@ -61,11 +62,11 @@ func TestAPIReferencePublicGroup(t *testing.T) {
 	}
 }
 
-// The catalog carries the origin the request arrived on, so the page shows
-// the address the browser is actually using.
+// With no API_URL configured the catalog carries the origin the request
+// arrived on, so the page shows the address the browser is actually using.
 func TestEndpointsCatalogBaseURL(t *testing.T) {
 	app := fiber.New()
-	app.Get("/endpoints", (&endpointsHandler{}).Catalog)
+	app.Get("/endpoints", (&endpointsHandler{app: &tera.Application{}}).Catalog)
 	req := httptest.NewRequest("GET", "http://router.example.com/endpoints", nil)
 	resp, err := app.Test(req)
 	if err != nil {

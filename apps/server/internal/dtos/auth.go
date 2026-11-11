@@ -21,25 +21,31 @@ func (d *SignIn) Validate(v *validator.MapValidator) {
 	v.Field("password").Required().String()
 }
 
-// TOTPEnable confirms enrollment (POST /v1/auth/totp/enable): the secret from
-// /totp/setup plus a code the authenticator app generated from it.
+// TOTPEnable confirms enrollment (POST /v1/auth/totp/enable): the account
+// password, the secret from /totp/setup and a code the authenticator app
+// generated from it.
 type TOTPEnable struct {
-	Secret string `json:"secret"`
-	Code   string `json:"code"`
+	Password string `json:"password"`
+	Secret   string `json:"secret"`
+	Code     string `json:"code"`
 }
 
 func (d *TOTPEnable) Validate(v *validator.MapValidator) {
+	v.Field("password").Required().String()
 	v.Field("secret").Required().String()
 	v.Field("code").Required().String()
 }
 
-// TOTPDisable turns TOTP off (POST /v1/auth/totp/disable); a current code
-// proves the caller still holds the authenticator.
+// TOTPDisable turns TOTP off (POST /v1/auth/totp/disable): the account
+// password plus a current code, which proves the caller still holds the
+// authenticator.
 type TOTPDisable struct {
-	Code string `json:"code"`
+	Password string `json:"password"`
+	Code     string `json:"code"`
 }
 
 func (d *TOTPDisable) Validate(v *validator.MapValidator) {
+	v.Field("password").Required().String()
 	v.Field("code").Required().String()
 }
 

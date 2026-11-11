@@ -9,6 +9,7 @@ import (
 	"tera-router/server/internal/lib"
 	"tera-router/server/internal/lib/apikey"
 	"tera-router/server/internal/lib/apperr"
+	"tera-router/server/internal/lib/sealer"
 	"tera-router/server/internal/models"
 	"tera-router/server/internal/repositories"
 
@@ -76,6 +77,15 @@ func (h *keysHandler) Index(c fiber.Ctx) error {
 	return dtos.List(c, out, dtos.ListMeta(total, q.Offset, q.Limit))
 }
 
+// checkKeyScopes rejects a scopes string naming a scope the gateway does not
+// enforce, which would otherwise silently grant nothing.
+func checkKeyScopes(scopes string) error {
+	if unknown := models.UnknownKeyScope(scopes); unknown != "" {
+		return apperr.New(apperr.KindBadRequest, "unknown scope %q: use chat, web, audio, images, embeddings or *", unknown)
+	}
+	return nil
+}
+
 // Store mints a new API key. Only hashes and the envelope-encrypted copy are
 // persisted; the plaintext is shown once and recoverable later only via
 // Reveal.
@@ -85,11 +95,15 @@ func (h *keysHandler) Store(c fiber.Ctx) error {
 		return err
 	}
 
+	if err := checkKeyScopes(req.Scopes); err != nil {
+		return err
+	}
+
 	gen, err := apikey.Generate()
 	if err != nil {
 		return err
 	}
-	sealed, err := h.app.Secrets.SealString(gen.Plaintext)
+	sealed, err := h.app.Secrets.SealString(gen.Plaintext, sealer.PurposeAPIKey)
 	if err != nil {
 		return err
 	}
@@ -279,6 +293,9 @@ func (h *keysHandler) Update(c fiber.Ctx) error {
 		}
 	}
 	if req.Scopes != nil {
+		if err := checkKeyScopes(*req.Scopes); err != nil {
+			return err
+		}
 		key.Scopes = *req.Scopes
 	}
 	if req.Disabled != nil {
@@ -346,7 +363,7 @@ func (h *keysHandler) Reveal(c fiber.Ctx) error {
 		return apperr.New(apperr.KindUnprocessable, "key has no recoverable secret")
 	}
 
-	plaintext, err := h.app.Secrets.OpenString(key.Secret)
+	plaintext, err := h.app.Secrets.OpenString(key.Secret, sealer.PurposeAPIKey)
 	if err != nil {
 		return err
 	}
@@ -384,7 +401,7 @@ func (h *keysHandler) Rotate(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	sealed, err := h.app.Secrets.SealString(gen.Plaintext)
+	sealed, err := h.app.Secrets.SealString(gen.Plaintext, sealer.PurposeAPIKey)
 	if err != nil {
 		return err
 	}

@@ -19,7 +19,7 @@ Plan _Default_ dibuat otomatis saat seeding. Kelola dari halaman **Plans**.
 
 ## Budgets — pemantauan per scope
 
-Budget bekerja di tiga scope, dan masing-masing hanya menghitung trafiknya sendiri: `tenant` (semua request), `api_key` (request yang memakai key itu), dan `account` (request yang dilayani provider account itu). Budget `tenant` atau `api_key` dengan `hard_cutoff` yang terlampaui menjawab `402`. Budget `account` dengan `hard_cutoff` yang terlampaui mengeluarkan account itu dari routing sampai periode reset, sehingga request fallback ke account lain dari provider itu atau ke target berikutnya. Budget tanpa `hard_cutoff` hanya memberi alert. Batas token dihitung dari token yang sudah diskala dengan token consumption rate model.
+Budget bekerja di tiga scope, dan masing-masing hanya menghitung trafiknya sendiri: `tenant` (semua request), `api_key` (request yang memakai key itu), dan `account` (request yang dilayani provider account itu). Budget `tenant` atau `api_key` dengan `hard_cutoff` yang terlampaui menjawab `402`. Budget `account` dengan `hard_cutoff` yang terlampaui mengeluarkan account itu dari routing sampai periode reset, sehingga request fallback ke account lain dari provider itu atau ke target berikutnya. Budget tanpa `hard_cutoff` hanya memberi alert. Batas token dihitung dari token yang sudah diskala dengan token consumption rate model. Batas menghitung usage yang sudah tercatat ditambah prompt dari request yang masih berjalan, jadi burst request bersamaan tidak bisa lolos bareng; output sebuah request baru dihitung setelah request itu selesai.
 
 ```bash
 curl -X POST http://localhost:8080/v1/budgets \
