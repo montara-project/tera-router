@@ -280,7 +280,7 @@ func TestCheckBudgets(t *testing.T) {
 	// Under the cap: allowed.
 	exec(t, a, `INSERT INTO budgets (id, scope_kind, scope_id, limit_micros, period, hard_cutoff)
 		VALUES ('b1', 'api_key', 'key-1', 1000000, 'monthly', true)`)
-	if err := s.checkBudgets(context.Background(), key, nil); err != nil {
+	if err := s.checkBudgets(context.Background(), key, nil, nil); err != nil {
 		t.Fatalf("under budget should pass: %v", err)
 	}
 
@@ -288,7 +288,7 @@ func TestCheckBudgets(t *testing.T) {
 	exec(t, a, `INSERT INTO usage_records (api_key_id, provider, model, cost_micros, created_at)
 		VALUES ('key-1', 'openai', 'gpt-4o', 1000000, ?)`, time.Now().UTC())
 
-	err := s.checkBudgets(context.Background(), key, nil)
+	err := s.checkBudgets(context.Background(), key, nil, nil)
 	if err == nil {
 		t.Fatal("expected the budget to block")
 	}
@@ -298,7 +298,7 @@ func TestCheckBudgets(t *testing.T) {
 
 	// A budget without hard_cutoff is advisory only.
 	exec(t, a, `UPDATE budgets SET hard_cutoff = false WHERE id = 'b1'`)
-	if err := s.checkBudgets(context.Background(), key, nil); err != nil {
+	if err := s.checkBudgets(context.Background(), key, nil, nil); err != nil {
 		t.Errorf("soft budget must not block: %v", err)
 	}
 }
@@ -313,7 +313,7 @@ func TestCheckBudgetsIgnoresOtherKeysSpend(t *testing.T) {
 	exec(t, a, `INSERT INTO usage_records (api_key_id, provider, model, cost_micros, created_at)
 		VALUES ('other-key', 'openai', 'gpt-4o', 99999999, ?)`, time.Now().UTC())
 
-	if err := s.checkBudgets(context.Background(), key, nil); err != nil {
+	if err := s.checkBudgets(context.Background(), key, nil, nil); err != nil {
 		t.Errorf("another key's spend must not block this one: %v", err)
 	}
 }
@@ -327,7 +327,7 @@ func TestCheckBudgetsTenantScopeCountsEveryKey(t *testing.T) {
 	exec(t, a, `INSERT INTO usage_records (api_key_id, provider, model, prompt_tokens, completion_tokens, created_at)
 		VALUES ('some-other-key', 'openai', 'gpt-4o', 60, 60, ?)`, time.Now().UTC())
 
-	err := s.checkBudgets(context.Background(), key, nil)
+	err := s.checkBudgets(context.Background(), key, nil, nil)
 	if err == nil {
 		t.Fatal("tenant-scoped budget must count every key's tokens")
 	}
@@ -341,14 +341,14 @@ func TestCheckBudgetsPlanLimits(t *testing.T) {
 		VALUES ('key-1', 'openai', 'gpt-4o', 2000000, ?)`, time.Now().UTC())
 
 	plan := &models.Plan{Name: "pro", LimitMicros: 1_000_000, HardCutoff: true, Period: "monthly"}
-	err := s.checkBudgets(context.Background(), key, plan)
+	err := s.checkBudgets(context.Background(), key, plan, nil)
 	if err == nil {
 		t.Fatal("plan cap must block")
 	}
 
 	// Without hard_cutoff the plan is advisory.
 	softPlan := &models.Plan{Name: "pro", LimitMicros: 1_000_000, HardCutoff: false, Period: "monthly"}
-	if err := s.checkBudgets(context.Background(), key, softPlan); err != nil {
+	if err := s.checkBudgets(context.Background(), key, softPlan, nil); err != nil {
 		t.Errorf("soft plan must not block: %v", err)
 	}
 }
@@ -364,7 +364,7 @@ func TestPeriodStartExcludesOlderSpend(t *testing.T) {
 	exec(t, a, `INSERT INTO usage_records (api_key_id, provider, model, cost_micros, created_at)
 		VALUES ('key-1', 'openai', 'gpt-4o', 999999, ?)`, old)
 
-	if err := s.checkBudgets(context.Background(), key, nil); err != nil {
+	if err := s.checkBudgets(context.Background(), key, nil, nil); err != nil {
 		t.Errorf("spend outside the period window must not block: %v", err)
 	}
 }
@@ -394,5 +394,59 @@ func TestExhaustedAccounts(t *testing.T) {
 	got := s.exhaustedAccounts(context.Background())
 	if !got["acc-1"] || got["acc-2"] || got["acc-3"] || len(got) != 1 {
 		t.Fatalf("exhausted = %v, want only acc-1", got)
+	}
+}
+
+// A burst must not slip under a hard cutoff together: each request counts the
+// reservations made before its own, and a reservation outlives the request
+// until its usage row is stored.
+func TestChecksCountEarlierReservations(t *testing.T) {
+	s, a := newTestServer(t)
+	ctx := context.Background()
+	key := models.APIKey{ID: "key-1", Name: "test"}
+	exec(t, a, `INSERT INTO budgets (id, scope_kind, scope_id, limit_micros, period, hard_cutoff)
+		VALUES ('b1', 'api_key', 'key-1', 1000, 'monthly', true)`)
+	exec(t, a, `INSERT INTO budgets (id, scope_kind, scope_id, limit_micros, period, hard_cutoff)
+		VALUES ('b2', 'tenant', '', 5000, 'monthly', true)`)
+	tpm := 100
+	plan := &models.Plan{Name: "pro", TPM: &tpm}
+
+	est := reservedUsage{usageTotals: usageTotals{Micros: 600}, Raw: 60}
+	first := s.reserved.reserve(key.ID, est)
+	second := s.reserved.reserve(key.ID, est)
+	third := s.reserved.reserve(key.ID, est)
+
+	// The first two fit (0 and 600 reserved ahead of them); the third finds
+	// 1200 micros and 120 tokens ahead and is refused on both limits.
+	for _, res := range []*reservation{first, second} {
+		if err := s.checkBudgets(ctx, key, nil, res); err != nil {
+			t.Fatalf("request %d should fit the budget: %v", res.seq, err)
+		}
+		if _, err := s.checkRateLimits(ctx, key, plan, res); err != nil {
+			t.Fatalf("request %d should fit the TPM limit: %v", res.seq, err)
+		}
+	}
+	if pe := core.AsProviderError(s.checkBudgets(ctx, key, nil, third)); pe.Kind != core.ErrBudgetBlocked {
+		t.Fatalf("third request kind = %q, want budget_blocked", pe.Kind)
+	}
+	if _, err := s.checkRateLimits(ctx, key, plan, third); core.AsProviderError(err).Kind != core.ErrRateLimit {
+		t.Fatalf("third request should hit the TPM limit, got %v", err)
+	}
+
+	// Another key is only bound by the tenant budget, which still has room.
+	otherKey := s.reserved.reserve("key-2", est)
+	if err := s.checkBudgets(ctx, models.APIKey{ID: "key-2"}, nil, otherKey); err != nil {
+		t.Fatalf("another key should pass: %v", err)
+	}
+
+	// A usage row in flight keeps the reservation after the request ends.
+	first.hold()
+	first.release()
+	if err := s.checkBudgets(ctx, key, nil, third); err == nil {
+		t.Fatal("a reservation with a pending usage row must still count")
+	}
+	first.release()
+	if err := s.checkBudgets(ctx, key, nil, third); err != nil {
+		t.Fatalf("after the first request settled the third fits: %v", err)
 	}
 }

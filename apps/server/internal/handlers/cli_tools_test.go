@@ -117,7 +117,7 @@ func TestCLIToolApply(t *testing.T) {
 	}
 
 	gen, _ := apikey.Generate()
-	sealed, _ := secrets.SealString(gen.Plaintext)
+	sealed, _ := secrets.SealString(gen.Plaintext, sealer.PurposeAPIKey)
 	if err := repos.APIKeys.Insert(context.Background(), models.APIKey{
 		ID: "pasted", Name: "mine", KeyHash: gen.Hash, LookupHash: gen.Lookup, Display: gen.Display, Secret: sealed,
 	}); err != nil {

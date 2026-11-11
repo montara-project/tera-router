@@ -18,8 +18,12 @@ export type AuthResources = {
   refresh: (reqBody: RefreshDto) => Promise<AxiosItemResponse<RefreshTokenResponse>>
   signOut: () => Promise<AxiosItemResponse<void>>
   totpSetup: () => Promise<AxiosItemResponse<TotpSetupResponse>>
-  totpEnable: (reqBody: { secret: string; code: string }) => Promise<AxiosItemResponse<void>>
-  totpDisable: (reqBody: { code: string }) => Promise<AxiosItemResponse<void>>
+  totpEnable: (reqBody: {
+    password: string
+    secret: string
+    code: string
+  }) => Promise<AxiosItemResponse<void>>
+  totpDisable: (reqBody: { password: string; code: string }) => Promise<AxiosItemResponse<void>>
   sessions: () => Promise<AxiosItemResponse<Models.Session[]>>
   revokeSession: (id: string) => Promise<AxiosItemResponse<void>>
   passkeys: () => Promise<AxiosItemResponse<Models.Passkey[]>>

@@ -35,7 +35,7 @@ const totpEnable = () => {
   const qc = getQueryClient()
 
   return mutationOptions({
-    mutationFn: async (reqBody: { secret: string; code: string }) => {
+    mutationFn: async (reqBody: { password: string; secret: string; code: string }) => {
       const res = await services.auth.totpEnable(reqBody)
       return res.data
     },
@@ -49,7 +49,7 @@ const totpDisable = () => {
   const qc = getQueryClient()
 
   return mutationOptions({
-    mutationFn: async (reqBody: { code: string }) => {
+    mutationFn: async (reqBody: { password: string; code: string }) => {
       const res = await services.auth.totpDisable(reqBody)
       return res.data
     },

@@ -103,6 +103,9 @@ type usageRecord struct {
 	Saving tokenSaving
 	// trace receives the attempt's outcome for the Console timeline.
 	trace *requestTrace
+	// reserved is the request's usage reservation, held until this row is
+	// stored so a budget check never misses usage that is between the two.
+	reserved *reservation
 }
 
 // recordUsage persists a metering row asynchronously. The write runs on a
@@ -142,8 +145,10 @@ func (s *Server) recordUsage(rec usageRecord) {
 	}
 
 	s.metering.Add(1)
+	rec.reserved.hold()
 	go func() {
 		defer s.metering.Done()
+		defer rec.reserved.release()
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if err := s.app.Repos.Usage.Insert(ctx, model); err != nil {
@@ -174,6 +179,7 @@ func (s *Server) recordFailure(meta requestMeta, at attempt, pe *core.ProviderEr
 		ErrorMessage: pe.Message,
 		Saving:       meta.Saving,
 		trace:        meta.trace,
+		reserved:     meta.reserved,
 	})
 }
 

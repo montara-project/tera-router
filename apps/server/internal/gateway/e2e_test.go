@@ -16,6 +16,7 @@ import (
 	"tera-router/server/internal/core"
 	"tera-router/server/internal/lib/apikey"
 	"tera-router/server/internal/lib/password"
+	"tera-router/server/internal/lib/sealer"
 	"tera-router/server/internal/transform"
 
 	"github.com/gofiber/fiber/v3"
@@ -41,7 +42,7 @@ func newGatewayApp(t *testing.T) (*fiber.App, *app.Application) {
 	if err != nil {
 		t.Fatalf("hash key: %v", err)
 	}
-	sealed, err := application.Secrets.SealString(testKeyPlaintext)
+	sealed, err := application.Secrets.SealString(testKeyPlaintext, sealer.PurposeAPIKey)
 	if err != nil {
 		t.Fatalf("seal: %v", err)
 	}
@@ -111,7 +112,7 @@ func registerProvider(t *testing.T, a *app.Application, slug, baseURL, accountKe
 	exec(t, a, `INSERT INTO custom_providers (id, name, slug, base_url, api_kind, enabled)
 		VALUES (?, ?, ?, ?, 'openai', true)`, "cp-"+slug, slug, slug, baseURL)
 
-	sealed, err := a.Secrets.SealString(accountKey)
+	sealed, err := a.Secrets.SealString(accountKey, sealer.PurposeAccountSecret)
 	if err != nil {
 		t.Fatalf("seal account key: %v", err)
 	}
@@ -938,7 +939,7 @@ func TestStreamPassthroughForSameDialect(t *testing.T) {
 	// A custom provider whose api_kind makes it speak Anthropic.
 	exec(t, a, `INSERT INTO custom_providers (id, name, slug, base_url, api_kind, enabled)
 		VALUES ('cp-anthropic', 'Anthropic-compatible', 'myclaude', ?, 'anthropic', true)`, upstream.server.URL)
-	sealed, err := a.Secrets.SealString("sk-anthropic")
+	sealed, err := a.Secrets.SealString("sk-anthropic", sealer.PurposeAccountSecret)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1087,4 +1088,31 @@ func mustCodec(t *testing.T, dialect core.Dialect) transform.Codec {
 		t.Fatalf("codec %q: %v", dialect, err)
 	}
 	return codec
+}
+
+// A key's scopes limit the endpoint families it may call; the model listing
+// stays open to every valid key.
+func TestKeyScopesAreEnforced(t *testing.T) {
+	app, a := newGatewayApp(t)
+	exec(t, a, `UPDATE api_keys SET scopes = 'embeddings' WHERE id = 'key-e2e'`)
+	auth := map[string]string{"Authorization": "Bearer " + testKeyPlaintext}
+
+	resp := do(t, app, http.MethodPost, "/v1/chat/completions",
+		`{"model":"openai/gpt-4o","messages":[{"role":"user","content":"hi"}]}`, auth)
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("chat with an embeddings-only key = %d, want 403 (body: %s)", resp.StatusCode, readBody(t, resp))
+	}
+	readBody(t, resp)
+
+	resp = do(t, app, http.MethodPost, "/v1/embeddings", `{"model":"openai/text-embedding-3-small","input":"hi"}`, auth)
+	if resp.StatusCode == http.StatusForbidden {
+		t.Fatalf("embeddings with an embeddings key was forbidden (body: %s)", readBody(t, resp))
+	}
+	readBody(t, resp)
+
+	resp = do(t, app, http.MethodGet, "/v1/models", "", auth)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("models = %d, want 200 (body: %s)", resp.StatusCode, readBody(t, resp))
+	}
+	readBody(t, resp)
 }

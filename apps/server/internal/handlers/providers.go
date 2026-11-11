@@ -17,6 +17,7 @@ import (
 	"tera-router/server/internal/dtos"
 	"tera-router/server/internal/lib"
 	"tera-router/server/internal/lib/apperr"
+	"tera-router/server/internal/lib/sealer"
 	"tera-router/server/internal/modelcatalog"
 	"tera-router/server/internal/models"
 	"tera-router/server/internal/services"
@@ -587,7 +588,7 @@ func (h *providersHandler) usableCredential(ctx context.Context, providerSlug st
 	}
 	for _, account := range accounts {
 		if !account.Secret.Empty() {
-			if key, err := h.app.Secrets.OpenString(account.Secret); err == nil && key != "" {
+			if key, err := h.app.Secrets.OpenString(account.Secret, sealer.PurposeAccountSecret); err == nil && key != "" {
 				return key, false
 			}
 		}
@@ -600,7 +601,7 @@ func (h *providersHandler) usableCredential(ctx context.Context, providerSlug st
 				continue // refresh failed; try the next account
 			}
 		}
-		if key, err := h.app.Secrets.OpenString(account.Token); err == nil && key != "" {
+		if key, err := h.app.Secrets.OpenString(account.Token, sealer.PurposeAccountToken); err == nil && key != "" {
 			return key, isOAuth
 		}
 	}

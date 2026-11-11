@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"log"
 	"log/slog"
 	"os"
@@ -95,6 +97,20 @@ func assemble(cfg config.Config, logger *slog.Logger) *app.Application {
 	}
 
 	repos := repositories.New(db, &cfg.App)
+
+	// Secrets sealed by a release that did not bind them to their column are
+	// bound now. An older release cannot open them afterwards, so a copy of
+	// the database is written first for a rollback to restore. Stopping here
+	// on a failure beats serving with credentials nothing can open.
+	ctx := context.Background()
+	preUpgrade := fmt.Sprintf("%s.pre-seal-upgrade-%s.bak", cfg.Database.Path, time.Now().UTC().Format("20060102-150405"))
+	n, err := repositories.ResealLegacy(ctx, db, secrets, func() error { return repos.Backup.VacuumInto(ctx, preUpgrade) })
+	if err != nil {
+		log.Fatalf("upgrade sealed credentials: %s", err)
+	}
+	if n > 0 {
+		logger.Info("sealed credentials bound to their columns; keep the copy to roll back to an older release", "count", n, "copy", preUpgrade)
+	}
 
 	logger.Info("dependencies assembled", "database", cfg.Database.Path)
 

@@ -15,7 +15,10 @@ import type {
 export type BackupResources = {
   databaseInfo: () => Promise<AxiosItemResponse<DatabaseInfo>>
   downloadDatabase: (reqBody: ReauthDto) => Promise<AxiosResponse<Blob>>
-  restoreDatabase: (file: File) => Promise<AxiosItemResponse<DatabaseRestoreResult>>
+  restoreDatabase: (
+    file: File,
+    creds: ReauthDto
+  ) => Promise<AxiosItemResponse<DatabaseRestoreResult | { totp_required: true }>>
   exportConfig: (reqBody: ConfigExportDto) => Promise<AxiosResponse<Blob>>
   importConfig: (reqBody: ConfigImportDto) => Promise<AxiosItemResponse<ConfigImportResult>>
   importLegacy: (

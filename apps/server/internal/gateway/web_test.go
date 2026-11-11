@@ -7,13 +7,14 @@ import (
 	"testing"
 
 	"tera-router/server/internal/app"
+	"tera-router/server/internal/lib/sealer"
 )
 
 // addWebAccount connects a catalog web provider to a fake upstream through the
 // account's base_url override.
 func addWebAccount(t *testing.T, a *app.Application, provider, baseURL, key string, priority int) {
 	t.Helper()
-	sealed, err := a.Secrets.SealString(key)
+	sealed, err := a.Secrets.SealString(key, sealer.PurposeAccountSecret)
 	if err != nil {
 		t.Fatalf("seal: %v", err)
 	}

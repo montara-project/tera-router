@@ -34,6 +34,9 @@ type requestMeta struct {
 	Saving tokenSaving
 	// trace is the request's Console entry (nil outside the trace middleware).
 	trace *requestTrace
+	// reserved is the request's usage reservation; every usage row it writes
+	// holds it until the row is stored.
+	reserved *reservation
 }
 
 // metaFrom extracts the request metadata from the Fiber context and the
@@ -202,7 +205,15 @@ func (s *Server) handleChat(c fiber.Ctx, dialect core.Dialect) error {
 	// served it ("" when the model string named an alias or provider/model).
 	meta.Chain = resolved.ChainName
 
-	if err := s.checkBudgets(routeCtx, key, plan); err != nil {
+	// Reserved before the checks, so requests racing this one count it.
+	meta.reserved = s.reserved.reserve(key.ID, s.estimateUsage(routeCtx, req, resolved.Targets[0]))
+	releaseSlot := release
+	release = func() {
+		meta.reserved.release()
+		releaseSlot()
+	}
+
+	if err := s.checkBudgets(routeCtx, key, plan, meta.reserved); err != nil {
 		routeCancel()
 		release()
 		pe := core.AsProviderError(err)
@@ -216,7 +227,7 @@ func (s *Server) handleChat(c fiber.Ctx, dialect core.Dialect) error {
 
 	// Plan rate limits: the key's slot is released together with the
 	// gateway's in-flight slot when the request (or its stream) ends.
-	releaseKey, err := s.checkRateLimits(routeCtx, key, plan)
+	releaseKey, err := s.checkRateLimits(routeCtx, key, plan, meta.reserved)
 	if err != nil {
 		routeCancel()
 		release()

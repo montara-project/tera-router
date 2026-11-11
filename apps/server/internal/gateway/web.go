@@ -144,7 +144,11 @@ func (s *Server) serveDirect(c fiber.Ctx, what string, resolve func(context.Cont
 	if targets, _ = narrowByAllowlist(key, targets, chainName, plan); len(targets) == 0 {
 		return writeError(c, http.StatusForbidden, "access denied: this API key is not permitted to use "+what)
 	}
-	if err := s.checkBudgets(routeCtx, key, plan); err != nil {
+	// These requests have no usage estimate, so they reserve nothing, but they
+	// still count the chat requests in flight ahead of them.
+	meta.reserved = s.reserved.reserve(key.ID, reservedUsage{})
+	defer meta.reserved.release()
+	if err := s.checkBudgets(routeCtx, key, plan, meta.reserved); err != nil {
 		pe := core.AsProviderError(err)
 		if pe.Kind == core.ErrBudgetBlocked {
 			return writeError(c, statusForError(pe), pe.Message)
@@ -152,7 +156,7 @@ func (s *Server) serveDirect(c fiber.Ctx, what string, resolve func(context.Cont
 		s.log.Error("gateway budget check failed", "key", meta.KeyName, "error", err)
 		return writeError(c, http.StatusInternalServerError, "budget check failed")
 	}
-	releaseKey, err := s.checkRateLimits(routeCtx, key, plan)
+	releaseKey, err := s.checkRateLimits(routeCtx, key, plan, meta.reserved)
 	if err != nil {
 		pe := core.AsProviderError(err)
 		if pe.Kind == core.ErrRateLimit {
@@ -183,7 +187,7 @@ func (s *Server) serveDirect(c fiber.Ctx, what string, resolve func(context.Cont
 			s.recordUsage(usageRecord{
 				APIKeyID: meta.APIKeyID, AccountID: at.AccountID,
 				Provider: at.Target.Provider, Model: at.Target.Model,
-				Client: meta.Client, ClientIP: meta.ClientIP, RequestID: meta.RequestID, Chain: meta.Chain, Saving: meta.Saving, trace: meta.trace,
+				Client: meta.Client, ClientIP: meta.ClientIP, RequestID: meta.RequestID, Chain: meta.Chain, Saving: meta.Saving, trace: meta.trace, reserved: meta.reserved,
 				Usage: usage, CostMicros: costMicros(rates, usage), TokenRate: tokenRate,
 				Latency: latency,
 			})

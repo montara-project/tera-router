@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"tera-router/server/internal/core"
+	"tera-router/server/internal/lib/sealer"
 	"tera-router/server/internal/models"
 )
 
@@ -117,14 +118,14 @@ func (s *Server) credentials(ctx context.Context, acc models.Account) (core.Cred
 	}
 
 	if !acc.Secret.Empty() {
-		key, err := s.app.Secrets.OpenString(acc.Secret)
+		key, err := s.app.Secrets.OpenString(acc.Secret, sealer.PurposeAccountSecret)
 		if err != nil {
 			return core.Credentials{}, err
 		}
 		creds.APIKey = key
 	}
 	if !acc.Token.Empty() {
-		token, err := s.app.Secrets.OpenString(acc.Token)
+		token, err := s.app.Secrets.OpenString(acc.Token, sealer.PurposeAccountToken)
 		if err != nil {
 			return core.Credentials{}, err
 		}

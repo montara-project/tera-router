@@ -133,14 +133,19 @@ func (s *Server) planForKey(ctx context.Context, key models.APIKey) (*models.Pla
 // hard-cutoff budgets scoped to this API key or the tenant as a whole, plus the
 // key's plan limits, computing current-period spend from usage_records.
 //
+// Spend counts what is recorded plus what the requests admitted before this
+// one have reserved (res; see reserve.go), so a concurrent burst cannot all
+// slip under a limit.
+//
 // A block is returned as a *core.ProviderError with Kind ErrBudgetBlocked, which
 // the caller maps to HTTP 402. Budgets without hard_cutoff never block — they
 // are advisory (the dashboard surfaces them as alerts).
-func (s *Server) checkBudgets(ctx context.Context, key models.APIKey, plan *models.Plan) error {
+func (s *Server) checkBudgets(ctx context.Context, key models.APIKey, plan *models.Plan, res *reservation) error {
 	budgets, err := s.app.Repos.Budgets.List(ctx)
 	if err != nil {
 		return err
 	}
+	keyReserved, tenantReserved := res.earlier()
 
 	now := time.Now()
 	for _, b := range budgets {
@@ -155,6 +160,11 @@ func (s *Server) checkBudgets(ctx context.Context, key models.APIKey, plan *mode
 		if err != nil {
 			return err
 		}
+		if b.ScopeKind == models.ScopeTenant {
+			spend = spend.plus(tenantReserved.usageTotals)
+		} else {
+			spend = spend.plus(keyReserved.usageTotals)
+		}
 		if blocked, reason := budgetExceeded(b, spend); blocked {
 			return &core.ProviderError{Kind: core.ErrBudgetBlocked, Message: reason}
 		}
@@ -166,7 +176,7 @@ func (s *Server) checkBudgets(ctx context.Context, key models.APIKey, plan *mode
 		if err != nil {
 			return err
 		}
-		if blocked, reason := planExceeded(*plan, spend); blocked {
+		if blocked, reason := planExceeded(*plan, spend.plus(keyReserved.usageTotals)); blocked {
 			return &core.ProviderError{Kind: core.ErrBudgetBlocked, Message: reason}
 		}
 	}

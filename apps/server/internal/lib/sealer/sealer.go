@@ -7,6 +7,10 @@
 // ciphertext are persisted. The KEK is derived from APP_SECRET via
 // HKDF-SHA256, so a leaked database is useless without the application
 // secret.
+//
+// Every sealed value is bound to the column it is stored in (its purpose) as
+// AES-GCM additional data, so a ciphertext copied into another column — a
+// provider credential moved into a revealable API key row — fails to open.
 package sealer
 
 import (
@@ -26,6 +30,16 @@ const KeySize = 32
 
 // hkdfInfo namespaces the KEK derivation for this application.
 const hkdfInfo = "tera:sealer:v1"
+
+// Purposes name the column a secret is sealed for, as "<table>.<prefix>" of
+// its <prefix>_wrapped_dek/<prefix>_ciphertext pair.
+const (
+	PurposeAPIKey         = "api_keys.secret"
+	PurposeAccountSecret  = "accounts.secret"
+	PurposeAccountToken   = "accounts.token"
+	PurposeAccountRefresh = "accounts.refresh"
+	PurposeUserTOTP       = "users.totp"
+)
 
 // ErrInvalidKeySize is returned when a key is not KeySize bytes.
 var ErrInvalidKeySize = fmt.Errorf("sealer: key must be %d bytes", KeySize)
@@ -71,8 +85,9 @@ func FromSecret(appSecret string) (*Sealer, error) {
 	return New(kek)
 }
 
-// Seal encrypts plaintext, returning its persisted Sealed form.
-func (s *Sealer) Seal(plaintext []byte) (Sealed, error) {
+// Seal encrypts plaintext for purpose, returning its persisted Sealed form.
+func (s *Sealer) Seal(plaintext []byte, purpose string) (Sealed, error) {
+	aad := []byte(purpose)
 	// Fresh DEK per secret.
 	dek := make([]byte, KeySize)
 	if _, err := io.ReadFull(rand.Reader, dek); err != nil {
@@ -84,11 +99,11 @@ func (s *Sealer) Seal(plaintext []byte) (Sealed, error) {
 		return Sealed{}, err
 	}
 
-	ct, err := encrypt(dataGCM, plaintext)
+	ct, err := encrypt(dataGCM, plaintext, aad)
 	if err != nil {
 		return Sealed{}, fmt.Errorf("encrypt secret: %w", err)
 	}
-	wrapped, err := encrypt(s.masterGCM, dek)
+	wrapped, err := encrypt(s.masterGCM, dek, aad)
 	if err != nil {
 		return Sealed{}, fmt.Errorf("wrap dek: %w", err)
 	}
@@ -99,8 +114,29 @@ func (s *Sealer) Seal(plaintext []byte) (Sealed, error) {
 	}, nil
 }
 
-// Open decrypts a Sealed secret back into plaintext.
-func (s *Sealer) Open(sealed Sealed) ([]byte, error) {
+// Open decrypts a Sealed secret back into plaintext. It fails unless the
+// secret was sealed for the same purpose.
+func (s *Sealer) Open(sealed Sealed, purpose string) ([]byte, error) {
+	return s.open(sealed, []byte(purpose))
+}
+
+// Reseal binds a secret sealed before purposes existed (no additional data) to
+// purpose. changed is false when it already opens for purpose. Only the boot
+// and import upgrade passes call it: Open itself never accepts an unbound
+// secret, or binding would protect nothing.
+func (s *Sealer) Reseal(sealed Sealed, purpose string) (out Sealed, changed bool, err error) {
+	if _, err := s.Open(sealed, purpose); err == nil {
+		return sealed, false, nil
+	}
+	plain, err := s.open(sealed, nil)
+	if err != nil {
+		return Sealed{}, false, err
+	}
+	out, err = s.Seal(plain, purpose)
+	return out, err == nil, err
+}
+
+func (s *Sealer) open(sealed Sealed, aad []byte) ([]byte, error) {
 	wrapped, err := base64.StdEncoding.DecodeString(sealed.WrappedDEK)
 	if err != nil {
 		return nil, fmt.Errorf("%w: wrapped dek: %v", ErrMalformedCiphertext, err)
@@ -110,7 +146,7 @@ func (s *Sealer) Open(sealed Sealed) ([]byte, error) {
 		return nil, fmt.Errorf("%w: ciphertext: %v", ErrMalformedCiphertext, err)
 	}
 
-	dek, err := decrypt(s.masterGCM, wrapped)
+	dek, err := decrypt(s.masterGCM, wrapped, aad)
 	if err != nil {
 		return nil, fmt.Errorf("unwrap dek: %w", err)
 	}
@@ -118,17 +154,17 @@ func (s *Sealer) Open(sealed Sealed) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return decrypt(dataGCM, ct)
+	return decrypt(dataGCM, ct, aad)
 }
 
 // SealString is a convenience wrapper around Seal for string secrets.
-func (s *Sealer) SealString(plaintext string) (Sealed, error) {
-	return s.Seal([]byte(plaintext))
+func (s *Sealer) SealString(plaintext, purpose string) (Sealed, error) {
+	return s.Seal([]byte(plaintext), purpose)
 }
 
 // OpenString is a convenience wrapper around Open returning a string.
-func (s *Sealer) OpenString(sealed Sealed) (string, error) {
-	b, err := s.Open(sealed)
+func (s *Sealer) OpenString(sealed Sealed, purpose string) (string, error) {
+	b, err := s.Open(sealed, purpose)
 	if err != nil {
 		return "", err
 	}
@@ -148,22 +184,22 @@ func newGCM(key []byte) (cipher.AEAD, error) {
 }
 
 // encrypt prepends a random nonce to the GCM ciphertext: nonce || ct.
-func encrypt(gcm cipher.AEAD, plaintext []byte) ([]byte, error) {
+func encrypt(gcm cipher.AEAD, plaintext, aad []byte) ([]byte, error) {
 	nonce := make([]byte, gcm.NonceSize())
 	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
 		return nil, err
 	}
-	return gcm.Seal(nonce, nonce, plaintext, nil), nil
+	return gcm.Seal(nonce, nonce, plaintext, aad), nil
 }
 
 // decrypt parses nonce || ct and authenticates+decrypts it.
-func decrypt(gcm cipher.AEAD, data []byte) ([]byte, error) {
+func decrypt(gcm cipher.AEAD, data, aad []byte) ([]byte, error) {
 	ns := gcm.NonceSize()
 	if len(data) < ns {
 		return nil, ErrMalformedCiphertext
 	}
 	nonce, ct := data[:ns], data[ns:]
-	pt, err := gcm.Open(nil, nonce, ct, nil)
+	pt, err := gcm.Open(nil, nonce, ct, aad)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrMalformedCiphertext, err)
 	}

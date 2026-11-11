@@ -17,6 +17,7 @@ import (
 	"tera-router/server/internal/dtos"
 	"tera-router/server/internal/lib"
 	"tera-router/server/internal/lib/apperr"
+	"tera-router/server/internal/lib/sealer"
 	"tera-router/server/internal/models"
 	"tera-router/server/internal/oauth"
 	"tera-router/server/internal/services"
@@ -85,7 +86,7 @@ func metadataBaseURL(raw string) string {
 // the dedup fingerprint/hash.
 func sealCredential(a *app.Application, account *models.Account, in accountInput) error {
 	if in.APIKey != "" {
-		sealed, err := a.Secrets.SealString(in.APIKey)
+		sealed, err := a.Secrets.SealString(in.APIKey, sealer.PurposeAccountSecret)
 		if err != nil {
 			return err
 		}
@@ -95,14 +96,14 @@ func sealCredential(a *app.Application, account *models.Account, in accountInput
 		account.KeyHash = hex.EncodeToString(sum[:])
 	}
 	if in.Token != "" {
-		sealed, err := a.Secrets.SealString(in.Token)
+		sealed, err := a.Secrets.SealString(in.Token, sealer.PurposeAccountToken)
 		if err != nil {
 			return err
 		}
 		account.Token = sealed
 	}
 	if in.Refresh != "" {
-		sealed, err := a.Secrets.SealString(in.Refresh)
+		sealed, err := a.Secrets.SealString(in.Refresh, sealer.PurposeAccountRefresh)
 		if err != nil {
 			return err
 		}
@@ -326,13 +327,13 @@ func (h *accountsHandler) Test(c fiber.Ctx) error {
 	apiKey := ""
 	oauth := false
 	if !account.Secret.Empty() {
-		apiKey, err = h.app.Secrets.OpenString(account.Secret)
+		apiKey, err = h.app.Secrets.OpenString(account.Secret, sealer.PurposeAccountSecret)
 		if err != nil {
 			return err
 		}
 	}
 	if apiKey == "" && !account.Token.Empty() {
-		apiKey, err = h.app.Secrets.OpenString(account.Token)
+		apiKey, err = h.app.Secrets.OpenString(account.Token, sealer.PurposeAccountToken)
 		if err != nil {
 			return err
 		}
@@ -478,7 +479,7 @@ func (h *accountsHandler) Quota(c fiber.Ctx) error {
 	if err != nil {
 		return apperr.New(apperr.KindUnprocessable, "%s", err.Error())
 	}
-	token, err := h.app.Secrets.OpenString(account.Token)
+	token, err := h.app.Secrets.OpenString(account.Token, sealer.PurposeAccountToken)
 	if err != nil {
 		return err
 	}

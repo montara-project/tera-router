@@ -12,6 +12,7 @@ import (
 	"tera-router/server/internal/legacyimport"
 	"tera-router/server/internal/lib/apikey"
 	"tera-router/server/internal/lib/apperr"
+	"tera-router/server/internal/lib/sealer"
 	"tera-router/server/internal/models"
 
 	"github.com/gofiber/fiber/v3"
@@ -259,7 +260,7 @@ func (h *legacyImportHandler) importKeys(ctx context.Context, keys []legacyimpor
 		if err != nil {
 			return err
 		}
-		sealed, err := h.app.Secrets.SealString(gen.Plaintext)
+		sealed, err := h.app.Secrets.SealString(gen.Plaintext, sealer.PurposeAPIKey)
 		if err != nil {
 			return err
 		}

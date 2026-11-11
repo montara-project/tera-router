@@ -55,7 +55,7 @@ func TestRevealRequiresReauth(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sealed, err := secrets.SealString(gen.Plaintext)
+	sealed, err := secrets.SealString(gen.Plaintext, sealer.PurposeAPIKey)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,7 +110,7 @@ func TestRevealRequiresReauth(t *testing.T) {
 	secret, _ := setup["secret"].(string)
 	now := time.Now()
 	prev, cur := totp.Code(secret, now.Add(-30*time.Second)), totp.Code(secret, now)
-	if status, _ := call("/totp/enable", `{"secret":"`+secret+`","code":"`+prev+`"}`); status != 200 {
+	if status, _ := call("/totp/enable", `{"password":"pw","secret":"`+secret+`","code":"`+prev+`"}`); status != 200 {
 		t.Fatalf("enable = %d", status)
 	}
 

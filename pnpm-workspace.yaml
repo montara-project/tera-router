@@ -53,5 +53,6 @@ overrides:
   fast-uri@<3.1.9: ^3.1.9
   fflate@<0.7.5: ^0.7.5
   follow-redirects@<1.16.2: ^1.16.2
+  react-server-dom-webpack@<19.3.1: ^19.3.1
   seroval@<1.6.11: ~1.6.12
   seroval-plugins@<1.6.11: ~1.6.12

@@ -100,7 +100,7 @@ func (m *Manager) refresh(ctx context.Context, acc models.Account) (models.Accou
 		return acc, fmt.Errorf("oauth: no refresh token for account %s", acc.ID)
 	}
 
-	refreshToken, err := m.Secrets.OpenString(acc.Refresh)
+	refreshToken, err := m.Secrets.OpenString(acc.Refresh, sealer.PurposeAccountRefresh)
 	if err != nil {
 		return acc, fmt.Errorf("oauth: open refresh token for account %s: %w", acc.ID, err)
 	}
@@ -129,11 +129,11 @@ func (m *Manager) refresh(ctx context.Context, acc models.Account) (models.Accou
 
 	// Seal the new tokens into the account. The refresh config keeps the old
 	// refresh token when the provider omits a new one, so it is always set.
-	sealedAccess, serr := m.Secrets.SealString(tokens.AccessToken)
+	sealedAccess, serr := m.Secrets.SealString(tokens.AccessToken, sealer.PurposeAccountToken)
 	if serr != nil {
 		return acc, fmt.Errorf("oauth: seal access token: %w", serr)
 	}
-	sealedRefresh, serr := m.Secrets.SealString(tokens.RefreshToken)
+	sealedRefresh, serr := m.Secrets.SealString(tokens.RefreshToken, sealer.PurposeAccountRefresh)
 	if serr != nil {
 		return acc, fmt.Errorf("oauth: seal refresh token: %w", serr)
 	}

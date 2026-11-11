@@ -25,10 +25,13 @@ const resources = (): BackupResources => {
       const url = `${path}/database/download`
       return api.post(url, parseDto(ReauthSchema, reqBody), { responseType: 'blob' })
     },
-    restoreDatabase: (file) => {
+    restoreDatabase: (file, creds) => {
       const url = `${path}/database/restore`
+      const { password, otp } = parseDto(ReauthSchema, creds)
       const form = new FormData()
       form.append('file', file)
+      form.append('password', password)
+      if (otp) form.append('otp', otp)
       return api.post(url, form)
     },
     exportConfig: (reqBody) => {
