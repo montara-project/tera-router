@@ -18,45 +18,58 @@ import (
 // .env) and the container (which sets env) need no argument list; an explicit
 // flag still wins over the environment.
 
+// envBad records env vars whose value failed to parse. The failure is only
+// fatal after flag.Parse() when the flag was not explicitly provided — a
+// flag always wins over the environment, even a malformed one.
+var envBad []envBadEntry
+
+type envBadEntry struct{ key, flagName string }
+
+// envString treats an env var that is set but empty as unset, so
+// DATABASE_PATH= cannot blank the default path; an intentionally empty value
+// needs the flag itself (e.g. --cors-allowed-origins=).
 func envString(key, fallback string) string {
-	if v, ok := os.LookupEnv(key); ok {
+	if v, ok := os.LookupEnv(key); ok && v != "" {
 		return v
 	}
 	return fallback
 }
 
-func envBool(key string, fallback bool) bool {
+func envBool(key, flagName string, fallback bool) bool {
 	v, ok := os.LookupEnv(key)
 	if !ok || v == "" {
 		return fallback
 	}
 	b, err := strconv.ParseBool(v)
 	if err != nil {
-		log.Fatalf("env %s: %q is not a boolean", key, v)
+		envBad = append(envBad, envBadEntry{key, flagName})
+		return fallback
 	}
 	return b
 }
 
-func envInt(key string, fallback int) int {
+func envInt(key, flagName string, fallback int) int {
 	v, ok := os.LookupEnv(key)
 	if !ok || v == "" {
 		return fallback
 	}
 	n, err := strconv.Atoi(v)
 	if err != nil {
-		log.Fatalf("env %s: %q is not an integer", key, v)
+		envBad = append(envBad, envBadEntry{key, flagName})
+		return fallback
 	}
 	return n
 }
 
-func envUint(key string, fallback uint) uint {
+func envUint(key, flagName string, fallback uint) uint {
 	v, ok := os.LookupEnv(key)
 	if !ok || v == "" {
 		return fallback
 	}
 	n, err := strconv.ParseUint(v, 10, 0)
 	if err != nil {
-		log.Fatalf("env %s: %q is not an unsigned integer", key, v)
+		envBad = append(envBad, envBadEntry{key, flagName})
+		return fallback
 	}
 	return uint(n)
 }
@@ -65,10 +78,10 @@ func parseFlag(cfg *config.Config) {
 	var machineID uint
 
 	// App
-	flag.UintVar(&machineID, "machine-id", envUint("MACHINE_ID", 0), "Machine ID")
+	flag.UintVar(&machineID, "machine-id", envUint("MACHINE_ID", "machine-id", 0), "Machine ID")
 	flag.StringVar(&cfg.App.Env, "env", envString("ENV", "development"), "Environment")
-	flag.BoolVar(&cfg.App.Debug, "debug", envBool("DEBUG", false), "Debug mode")
-	flag.IntVar(&cfg.App.Port, "port", envInt("PORT", 8080), "Port")
+	flag.BoolVar(&cfg.App.Debug, "debug", envBool("DEBUG", "debug", false), "Debug mode")
+	flag.IntVar(&cfg.App.Port, "port", envInt("PORT", "port", 8080), "Port")
 	flag.StringVar(&cfg.App.Name, "app-name", envString("APP_NAME", "tera-router-server"), "App Name")
 	// APP_SECRET in the environment keeps the secret out of the process
 	// arguments, which any local user can read with ps.
@@ -82,8 +95,8 @@ func parseFlag(cfg *config.Config) {
 
 	// Database
 	flag.StringVar(&cfg.Database.Path, "database-path", envString("DATABASE_PATH", database.DefaultPath), "SQLite database file path")
-	flag.BoolVar(&cfg.Database.MigrateOnBoot, "migrate-on-boot", envBool("MIGRATE_ON_BOOT", false), "Apply pending migrations before starting the server")
-	flag.BoolVar(&cfg.Database.SeedOnBoot, "seed-on-boot", envBool("SEED_ON_BOOT", false), "Run baseline seeders after migrating on boot")
+	flag.BoolVar(&cfg.Database.MigrateOnBoot, "migrate-on-boot", envBool("MIGRATE_ON_BOOT", "migrate-on-boot", false), "Apply pending migrations before starting the server")
+	flag.BoolVar(&cfg.Database.SeedOnBoot, "seed-on-boot", envBool("SEED_ON_BOOT", "seed-on-boot", false), "Run baseline seeders after migrating on boot")
 
 	// Sentry
 	flag.StringVar(&cfg.Sentry.Dsn, "sentry-dsn", envString("SENTRY_DSN", ""), "Sentry DSN")
@@ -96,6 +109,17 @@ func parseFlag(cfg *config.Config) {
 	flag.StringVar(&cfg.OIDC.RedirectURL, "oidc-redirect-url", envString("OIDC_REDIRECT_URL", ""), "OIDC callback URL registered at the provider; derived from the request when empty")
 
 	flag.Parse()
+
+	// A malformed env value is fatal unless the operator overrode it with a
+	// flag — the flag wins over the environment.
+	set := map[string]bool{}
+	flag.Visit(func(f *flag.Flag) { set[f.Name] = true })
+	for _, bad := range envBad {
+		if !set[bad.flagName] {
+			log.Fatalf("env %s: malformed value", bad.key)
+		}
+		log.Printf("env %s: malformed value ignored; --%s wins", bad.key, bad.flagName)
+	}
 
 	uint16Max := uint(1<<16 - 1)
 	if machineID > uint16Max {

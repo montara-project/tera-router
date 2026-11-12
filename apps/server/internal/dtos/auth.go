@@ -80,6 +80,9 @@ func (d *PasskeyFinish) Validate(v *validator.MapValidator) {
 // dashboard redirect for the session it opened (POST /v1/auth/oidc/exchange).
 type OIDCExchange struct {
 	Ticket string `json:"ticket"`
+	// Flow repeats the browser-generated id the login carried, when the
+	// sign-in was initiated with one; it binds the ticket to that browser.
+	Flow string `json:"flow"`
 }
 
 func (d *OIDCExchange) Validate(v *validator.MapValidator) {

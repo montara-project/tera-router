@@ -10,9 +10,11 @@ import (
 	"tera-router/server/internal/database"
 )
 
-// Flags fall back to their environment variable, matching cmd/api.
+// Flags fall back to their environment variable, matching cmd/api; an env
+// var set but empty counts as unset, so DATABASE_PATH= cannot blank the
+// default path.
 func envString(key, fallback string) string {
-	if v, ok := os.LookupEnv(key); ok {
+	if v, ok := os.LookupEnv(key); ok && v != "" {
 		return v
 	}
 	return fallback

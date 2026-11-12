@@ -114,12 +114,22 @@ func TestOIDCExchange(t *testing.T) {
 		t.Fatalf("unknown ticket = %d, want 401", status)
 	}
 
-	h.oidcTickets.put("good", fiber.Map{"access_token": "tok"}, time.Minute)
+	h.oidcTickets.put("good", ssoTicket{view: fiber.Map{"access_token": "tok"}}, time.Minute)
 	if status := call(`{"ticket":"good"}`); status != 200 {
 		t.Fatalf("stored ticket = %d, want 200", status)
 	}
 	if status := call(`{"ticket":"good"}`); status != 401 {
 		t.Fatalf("replayed ticket = %d, want 401", status)
+	}
+
+	// A bound ticket redeems only for the flow that began the sign-in.
+	h.oidcTickets.put("bound", ssoTicket{view: fiber.Map{"access_token": "tok"}, flow: "f1"}, time.Minute)
+	if status := call(`{"ticket":"bound","flow":"wrong"}`); status != 401 {
+		t.Fatalf("wrong flow = %d, want 401", status)
+	}
+	h.oidcTickets.put("bound2", ssoTicket{view: fiber.Map{"access_token": "tok"}, flow: "f1"}, time.Minute)
+	if status := call(`{"ticket":"bound2","flow":"f1"}`); status != 200 {
+		t.Fatalf("matching flow = %d, want 200", status)
 	}
 }
 
@@ -135,6 +145,35 @@ func TestUIOriginFromReferer(t *testing.T) {
 	} {
 		if got := uiOriginFromReferer(in); got != want {
 			t.Errorf("uiOriginFromReferer(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+// TestUIOriginAllowed pins which origins may receive the ticket redirect: the
+// request's own origin and CORS-declared origins, never a wildcard or an
+// undeclared site.
+func TestUIOriginAllowed(t *testing.T) {
+	const base = "https://api.example.com"
+	const cors = "https://dash.example.com, http://localhost:5173"
+
+	for _, tc := range []struct {
+		name   string
+		origin string
+		base   string
+		cors   string
+		want   bool
+	}{
+		{"same origin", base, base, cors, true},
+		{"cors origin", "https://dash.example.com", base, cors, true},
+		{"cors origin with spaces", "http://localhost:5173", base, cors, true},
+		{"undeclared origin", "https://evil.example.com", base, cors, false},
+		{"wildcard is not an origin", "https://evil.example.com", base, "*", false},
+		{"empty origin", "", base, cors, false},
+		{"cors with trailing path does not match", "https://dash.example.com.evil.com", base, cors, false},
+	} {
+		if got := uiOriginAllowed(tc.origin, tc.base, tc.cors); got != tc.want {
+			t.Errorf("%s: uiOriginAllowed(%q, %q, %q) = %v, want %v",
+				tc.name, tc.origin, tc.base, tc.cors, got, tc.want)
 		}
 	}
 }

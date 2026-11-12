@@ -44,7 +44,7 @@ type authHandler struct {
 	oidcMu      sync.Mutex
 	oidcProv    *oidc.Provider
 	oidcStates  ttlStore[oidcState]
-	oidcTickets ttlStore[fiber.Map]
+	oidcTickets ttlStore[ssoTicket]
 }
 
 // SignIn verifies credentials and returns the token pair the web client

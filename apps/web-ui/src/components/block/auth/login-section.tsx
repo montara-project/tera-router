@@ -26,6 +26,7 @@ import { SignInSchema } from '@/lib/api/dtos/auth/schema'
 import { queries } from '@/lib/api/queries'
 import { signInWithEmail } from '@/lib/auth/email-auth'
 import { passkeysSupported, signInWithPasskey } from '@/lib/auth/passkey'
+import { SSO_FLOW_KEY } from '@/lib/auth/sso'
 import { cn } from '@/lib/utils'
 
 import { BrandRow, useGatewayHealth } from './brand-panel'
@@ -376,17 +377,20 @@ export default function LoginSection({
                   variant="outline"
                   className="h-9 w-full gap-2 bg-muted/40 text-[12.5px] font-medium"
                   disabled={isLoading}
-                  asChild
+                  type="button"
+                  onClick={() => {
+                    // Bind the coming ticket to this tab: the flow id lives
+                    // in sessionStorage and must be repeated at exchange.
+                    const flow = crypto.randomUUID()
+                    sessionStorage.setItem(SSO_FLOW_KEY, flow)
+                    window.location.href = `${String(env.API_URL)}/v1/auth/oidc/login?flow=${flow}`
+                  }}
                 >
-                  {/* A plain navigation: the server takes it from here and
-                      redirects back with a ticket or an error code. */}
-                  <a href={`${String(env.API_URL)}/v1/auth/oidc/login`}>
-                    <IconWorld
-                      className="size-3.5 text-orange-600 dark:text-orange-400"
-                      aria-hidden
-                    />
-                    Continue with {ssoConfig.data?.provider_name || 'SSO'}
-                  </a>
+                  <IconWorld
+                    className="size-3.5 text-orange-600 dark:text-orange-400"
+                    aria-hidden
+                  />
+                  Continue with {ssoConfig.data?.provider_name || 'SSO'}
                 </Button>
               )}
               {passkeysSupported() && (

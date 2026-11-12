@@ -43,4 +43,6 @@ export interface SSOConfigResponse {
 /** POST /v1/auth/oidc/exchange body: the one-time ticket from the callback redirect. */
 export interface SSOExchangeDto {
   ticket: string
+  /** Repeats the id the SSO button generated, binding the ticket to this browser. */
+  flow?: string
 }

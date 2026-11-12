@@ -14,11 +14,11 @@ dan mengoper flag eksplisit, yang tetap menang atas environment.
 | `MACHINE_ID`            | — (wajib)               | ID unik mesin (angka 16-bit, tidak boleh 0)                                                                                        |
 | `APP_SECRET`            | — (wajib)               | Menandatangani JWT dan menurunkan kunci enkripsi kredensial; instalasi baru menolak kurang dari 32 karakter                        |
 | `PORT`                  | `8080`                  | Port gateway + dashboard API                                                                                                       |
-| `ENV`                   | `production`            | `development` mengaktifkan perilaku dev (seed key contoh)                                                                          |
+| `ENV`                   | `development`           | `development` mengaktifkan perilaku dev (seed key contoh); image rilis dan contoh Compose menset `production` lewat env container    |
 | `DEBUG`                 | `false`                 | `true`/`1` mengaktifkan mode debug                                                                                                 |
 | `DATABASE_PATH`         | `terarouter.db`         | Lokasi file SQLite                                                                                                                 |
-| `MIGRATE_ON_BOOT`       | `true`                  | Jalankan migrasi saat start                                                                                                        |
-| `SEED_ON_BOOT`          | `true`                  | Seed data awal (role, admin, plan Default)                                                                                         |
+| `MIGRATE_ON_BOOT`       | `false`                 | Jalankan migrasi saat start; contoh Compose mengoper `true`                                                                        |
+| `SEED_ON_BOOT`          | `false`                 | Seed data awal (role, admin, plan Default); contoh Compose mengoper `true`                                                         |
 | `ADMIN_EMAIL`           | `admin@tera.local`      | Email admin; perubahan mengganti email admin yang ada saat seed berikutnya                                                         |
 | `ADMIN_PASSWORD`        | `admin123` (dev)        | Password admin — wajib diset di produksi; perubahan disinkronkan ke admin saat seed berikutnya                                     |
 | `ADMIN_TOTP_RESET`      | —                       | Set `true` untuk mematikan two-factor auth admin saat seed berikutnya; hapus lagi setelah login                                    |

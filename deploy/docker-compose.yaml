@@ -1,16 +1,6 @@
 services:
   app:
-    image: tera-router:latest
-    build:
-      context: ..
-      dockerfile: deploy/Dockerfile
-      # Compose substitutes these from deploy/.env (the file next to this
-      # compose file) at build time; falls back to the Dockerfile defaults.
-      args:
-        APP_VERSION: ${APP_VERSION:-dev}
-        VITE_APP_NAME: ${VITE_APP_NAME:-Tera Router}
-      platforms:
-        - linux/amd64
+    image: ghcr.io/montara-project/tera-router:v1.23.0
     restart: unless-stopped
     # APP_PORT is the host port; the container always listens on 8080 so the
     # published mapping, the healthcheck, and EXPOSE stay in agreement.
@@ -22,6 +12,10 @@ services:
       ENV: ${APP_ENV:-production}
       MACHINE_ID: ${APP_MACHINE_ID:?APP_MACHINE_ID is required}
       APP_SECRET: ${APP_SECRET:?APP_SECRET is required}
+      DEBUG: ${APP_DEBUG:-false}
+      # Seeded dashboard admin; a change is synced on the next SEED_ON_BOOT.
+      ADMIN_EMAIL: ${APP_ADMIN_EMAIL:-admin@tera.local}
+      ADMIN_PASSWORD: ${APP_ADMIN_PASSWORD:?APP_ADMIN_PASSWORD is required}
       APP_NAME: ${APP_NAME:-tera-router-server}
       CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS:-*}
       RATE_LIMIT_EXEMPT_IPS: ${RATE_LIMIT_EXEMPT_IPS:-}
@@ -33,6 +27,13 @@ services:
       MIGRATE_ON_BOOT: "true"
       SEED_ON_BOOT: ${SEED_ON_BOOT:-true}
       SENTRY_DSN: ${SENTRY_DSN:-}
+      # Dashboard SSO via any OIDC provider (Pocket ID, Keycloak, …); the
+      # login button appears only when issuer + client id + secret are set.
+      OIDC_ISSUER: ${OIDC_ISSUER:-}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      OIDC_PROVIDER_NAME: ${OIDC_PROVIDER_NAME:-}
+      OIDC_REDIRECT_URL: ${OIDC_REDIRECT_URL:-}
       # Default Headroom proxy for Settings > Token Saving; a URL saved in the
       # dashboard overrides it. Headroom still has to be switched on there.
       HEADROOM_URL: ${HEADROOM_URL:-http://headroom:8787}

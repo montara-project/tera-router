@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -35,6 +36,9 @@ type oidcState struct {
 	nonce    string
 	verifier string
 	uiOrigin string
+	// flow binds the issued ticket to the browser tab that began this
+	// sign-in; the web client generates it and must repeat it at exchange.
+	flow string
 }
 
 // ttlEntry is one stored value with its deadline.
@@ -100,6 +104,45 @@ func uiOriginFromReferer(referer string) string {
 		return ""
 	}
 	return u.Scheme + "://" + u.Host
+}
+
+// uiOriginAllowed reports whether origin may receive the ticket redirect: the
+// request's own origin always may, plus every origin the operator declared in
+// CORS_ALLOWED_ORIGINS. A Referer pointing anywhere else is ignored — a login
+// link planted on a foreign site must not redirect the ticket to an origin
+// the operator did not declare. The wildcard "*" is not an origin and never
+// matches.
+func uiOriginAllowed(origin, baseURL, corsOrigins string) bool {
+	if origin == "" {
+		return false
+	}
+	if origin == baseURL {
+		return true
+	}
+	for _, o := range strings.Split(corsOrigins, ",") {
+		if strings.TrimSpace(o) == origin {
+			return true
+		}
+	}
+	return false
+}
+
+// uiOrigin returns the Referer origin when it is allowed, "" otherwise —
+// the callback then redirects to a relative path on the API's own origin.
+func (h *authHandler) uiOrigin(c fiber.Ctx) string {
+	ref := uiOriginFromReferer(c.Get(fiber.HeaderReferer))
+	if !uiOriginAllowed(ref, c.BaseURL(), h.app.Config.App.CORSAllowedOrigins) {
+		return ""
+	}
+	return ref
+}
+
+// ssoTicket is the one-time redemption for the session the callback opened:
+// flow binds it to the browser that began the sign-in when the initiation
+// carried one; an empty flow means the ticket is unbound.
+type ssoTicket struct {
+	view fiber.Map
+	flow string
 }
 
 // oidcEnabled reports whether dashboard SSO is configured: all three OIDC
@@ -179,7 +222,8 @@ func (h *authHandler) OIDCLogin(c fiber.Ctx) error {
 	h.oidcStates.put(state, oidcState{
 		nonce:    nonce,
 		verifier: verifier,
-		uiOrigin: uiOriginFromReferer(c.Get(fiber.HeaderReferer)),
+		uiOrigin: h.uiOrigin(c),
+		flow:     c.Query("flow"),
 	}, oidcStateTTL)
 
 	authURL := h.oidcOAuth2Config(c, provider).AuthCodeURL(
@@ -272,7 +316,7 @@ func (h *authHandler) OIDCCallback(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	h.oidcTickets.put(ticket, sessionView(session), oidcTicketTTL)
+	h.oidcTickets.put(ticket, ssoTicket{view: sessionView(session), flow: st.flow}, oidcTicketTTL)
 
 	consoleInfof("sign-in · %s (sso)", user.Email)
 	lib.ContextSetSID(c, session.SessionID)
@@ -289,9 +333,14 @@ func (h *authHandler) OIDCExchange(c fiber.Ctx) error {
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
 	}
-	view, ok := h.oidcTickets.take(req.Ticket)
+	t, ok := h.oidcTickets.take(req.Ticket)
 	if !ok {
 		return apperr.ErrUnauthorized
 	}
-	return dtos.OK(c, view)
+	// A bound ticket only redeems for the browser that began the sign-in: it
+	// must repeat the flow id it generated in its session storage.
+	if t.flow != "" && t.flow != req.Flow {
+		return apperr.ErrUnauthorized
+	}
+	return dtos.OK(c, t.view)
 }

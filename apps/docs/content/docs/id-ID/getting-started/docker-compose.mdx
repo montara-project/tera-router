@@ -12,93 +12,136 @@ di-upgrade.
 
 - Docker dengan plugin Compose.
 - Mesin yang bisa diakses dari browser (langsung atau di belakang reverse proxy).
-- Tag release untuk di-pin, mis. `v0.4.0` — hindari `latest` agar upgrade bisa direproduksi.
 
-## 1. Buat `docker-compose.yml`
+## 1. Ambil file compose
+
+Repo menyertakan `deploy/docker-compose.yaml` siap pakai: satu service `app` — API server yang
+menyajikan dashboard hasil build di port yang sama — plus sidecar Headroom opsional di balik
+profile. Setiap flag server jatuh ke environment variable-nya, jadi file ini tidak butuh daftar
+`command:`; blok `environment:` di bawah adalah seluruh konfigurasi.
 
 ```yaml
 services:
-  tera-router-llm:
-    image: ghcr.io/montara-project/tera-router:v0.4.0
-    container_name: tera-router-llm
-    # Setiap flag jatuh ke environment variable-nya, jadi tidak perlu daftar
-    # command — environment container adalah seluruh konfigurasi.
-    environment:
-      - APP_SECRET=${APP_SECRET:?APP_SECRET wajib diisi di Dokploy env}
-      - ADMIN_EMAIL=${ADMIN_EMAIL}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
-
-      - MACHINE_ID=${MACHINE_ID:-1}
-      - DEBUG=${DEBUG:-false}
-      - ENV=${ENV:-production}
-      - PORT=${PORT:-8080}
-      - APP_NAME=${APP_NAME:-tera-router-server}
-      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-*}
-
-      - RATE_LIMIT_EXEMPT_IPS=${RATE_LIMIT_EXEMPT_IPS}
-      - TRUSTED_PROXIES=${TRUSTED_PROXIES}
-
-      - DATABASE_PATH=${DATABASE_PATH:-/app/data/terarouter.db}
-      - MIGRATE_ON_BOOT=${MIGRATE_ON_BOOT:-true}
-      - SEED_ON_BOOT=${SEED_ON_BOOT:-true}
-      - SENTRY_DSN=${SENTRY_DSN:-}
-
-      # Opsional: arahkan dashboard ke API di origin lain. Kosongkan untuk
-      # setup same-origin biasa — server menginject-nya ke UI saat runtime,
-      # tanpa rebuild.
-      - API_URL=${API_URL}
+  app:
+    image: ghcr.io/montara-project/tera-router:v1.23.0
     restart: unless-stopped
+    # APP_PORT adalah port host; container selalu listen di 8080.
+    ports:
+      - '${APP_PORT:-8080}:8080'
+    environment:
+      ENV: ${APP_ENV:-production}
+      MACHINE_ID: ${APP_MACHINE_ID:?APP_MACHINE_ID is required}
+      APP_SECRET: ${APP_SECRET:?APP_SECRET is required}
+      DEBUG: ${APP_DEBUG:-false}
+      ADMIN_EMAIL: ${APP_ADMIN_EMAIL:-admin@tera.local}
+      ADMIN_PASSWORD: ${APP_ADMIN_PASSWORD:?APP_ADMIN_PASSWORD is required}
+      APP_NAME: ${APP_NAME:-tera-router-server}
+      CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS:-*}
+      RATE_LIMIT_EXEMPT_IPS: ${RATE_LIMIT_EXEMPT_IPS:-}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
+      # Diinject ke web UI yang diserve saat runtime; isi hanya bila API
+      # berada di origin lain dari dashboard.
+      API_URL: ${API_URL:-}
+      DATABASE_PATH: /app/data/terarouter.db
+      MIGRATE_ON_BOOT: 'true'
+      SEED_ON_BOOT: ${SEED_ON_BOOT:-true}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      # SSO dashboard lewat provider OIDC apa pun (Pocket ID, Keycloak, …).
+      OIDC_ISSUER: ${OIDC_ISSUER:-}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      OIDC_PROVIDER_NAME: ${OIDC_PROVIDER_NAME:-}
+      OIDC_REDIRECT_URL: ${OIDC_REDIRECT_URL:-}
+      HEADROOM_URL: ${HEADROOM_URL:-http://headroom:8787}
+      HEADROOM_PROXY_TOKEN: ${HEADROOM_PROXY_TOKEN:-}
     healthcheck:
-      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:8080/health || exit 1']
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:8080/health', '||', 'exit', '1']
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 10s
     volumes:
       - tera-data:/app/data
+    depends_on:
+      headroom:
+        condition: service_started
+        required: false
+
+  # Aktifkan dengan `docker compose --profile headroom up` dan
+  # HEADROOM_PROXY_TOKEN yang sama di kedua service.
+  headroom:
+    image: ghcr.io/headroomlabs-ai/headroom:${HEADROOM_VERSION:-0.41.0}
+    profiles: [headroom]
+    restart: unless-stopped
+    environment:
+      HEADROOM_HOST: '0.0.0.0'
+      HEADROOM_PORT: '8787'
+      HEADROOM_COMPRESS_ALLOW_REMOTE: '1'
+      HEADROOM_PROXY_TOKEN: ${HEADROOM_PROXY_TOKEN:-}
+      HEADROOM_DISABLE_KOMPRESS: ${HEADROOM_DISABLE_KOMPRESS:-1}
+      HEADROOM_DISABLE_KOMPRESS_FALLBACK: ${HEADROOM_DISABLE_KOMPRESS_FALLBACK:-1}
 
 volumes:
   tera-data:
 ```
 
+Dua cara menjalankannya:
+
+- **Dari checkout repo** — `docker compose -f deploy/docker-compose.yaml up -d` mem-build image dari
+  `deploy/Dockerfile` lalu menjalankan stack.
+- **Standalone** — salin filenya, hapus blok `build:`, dan arahkan `image:` ke tag release, mis.
+  `ghcr.io/montara-project/tera-router:v1.22.0`.
+
+<Callout type="warn" title="Konfigurasi env-only butuh image terbaru">
+  Membaca konfigurasi dari environment saja baru tersedia di release setelah `v1.22.0`. Untuk pin
+  `v1.22.0` hari ini, pertahankan blok `environment:` yang sama tapi tambahkan `command:` yang
+  meneruskan nilainya sebagai flag (`--machine-id`, `--app-secret`, …) — nama flag-nya sama dengan
+  env versi kebab-case.
+</Callout>
+
 ## 2. Buat `.env`
 
-Letakkan di samping `docker-compose.yml` lalu isi nilainya:
+Letakkan di samping file compose (`deploy/.env` bila dijalankan dari repo) lalu isi nilainya:
 
 ```bash
-# Machine
-MACHINE_ID=1
+# Wajib — Compose menolak interpolasi tanpa ini
+APP_MACHINE_ID=1
+APP_SECRET=generate_from_openssl_rand_base64_48
+APP_ADMIN_PASSWORD=your_password
+
+# Akun admin yang diseed
+APP_ADMIN_EMAIL=your@email.com
 
 # App
-DEBUG=false
-ENV=production
-PORT=8080
+APP_ENV=production
+APP_DEBUG=false
+APP_PORT=8080
 APP_NAME=tera-router-server
-APP_SECRET=generate_from_openssl_rand_base32
+APP_CORS_ALLOWED_ORIGINS=*
+
+# IP klien yang bebas dari rate limit dashboard (dipisah koma)
+RATE_LIMIT_EXEMPT_IPS=
+# Proxy yang dipercaya menyuplai X-Forwarded-For (IP/CIDR dipisah koma)
+TRUSTED_PROXIES=
 
 # Isi hanya bila API berada di origin lain dari dashboard
-API_URL=https://yourdomain.com
+API_URL=
 
-CORS_ALLOWED_ORIGINS=*
-RATE_LIMIT_EXEMPT_IPS=your_private_network_ip
-TRUSTED_PROXIES=your_private_network_ip
-
-# SQLite database file (created on first run)
-DATABASE_PATH=/app/data/terarouter.db
-
-# Seeded admin account (used by `make seed` / `make seed/dev`)
-ADMIN_EMAIL=your@email.com
-ADMIN_PASSWORD=your_password
-
-# Apply pending SQL migrations on server boot (true/false)
-MIGRATE_ON_BOOT=true
-
-# Run baseline seeders on server boot after migrating (true/false).
-# With ENV=development, this also mints the sample API key.
+# Seed data awal saat boot (role, admin, plan Default)
 SEED_ON_BOOT=true
-
-# Sentry DSN for error tracking
 SENTRY_DSN=
+
+# SSO dashboard lewat provider OIDC (Pocket ID, Keycloak, …); tombol login
+# muncul hanya bila issuer + client id + secret semuanya terisi
+OIDC_ISSUER=
+OIDC_CLIENT_ID=
+OIDC_CLIENT_SECRET=
+OIDC_PROVIDER_NAME=Pocket ID
+OIDC_REDIRECT_URL=
+
+# Sidecar Headroom (--profile headroom)
+HEADROOM_PROXY_TOKEN=
+HEADROOM_VERSION=0.41.0
 ```
 
 <Callout type="error" title="APP_SECRET adalah kunci utama">
@@ -111,8 +154,8 @@ SENTRY_DSN=
 ## 3. Jalankan stack
 
 ```bash
-docker compose up -d
-docker compose logs -f tera-router-llm
+docker compose -f deploy/docker-compose.yaml up -d
+docker compose -f deploy/docker-compose.yaml logs -f app
 ```
 
 Saat boot, container akan:
@@ -129,7 +172,7 @@ Compose melaporkan `healthy` setelah healthcheck bawaan lulus
 
 ## Catatan produksi
 
-- **Trusted proxies** — `--trusted-proxies=your_private_network_ip` harus cocok dengan subnet tempat reverse
+- **Trusted proxies** — `TRUSTED_PROXIES` harus cocok dengan subnet tempat reverse
   proxy atau load balancer kamu benar-benar berada, supaya server membaca IP klien asli untuk rate
   limiting dan log. Sesuaikan nilainya sebelum deploy. Di belakang Cloudflare dan Traefik, lihat
   [di bawah](#di-belakang-cloudflare-dan-traefik-dokploy).
