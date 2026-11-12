@@ -107,6 +107,9 @@ func parseFlag(cfg *config.Config) {
 	flag.StringVar(&cfg.OIDC.ClientSecret, "oidc-client-secret", envString("OIDC_CLIENT_SECRET", ""), "OIDC client secret")
 	flag.StringVar(&cfg.OIDC.ProviderName, "oidc-provider-name", envString("OIDC_PROVIDER_NAME", ""), "OIDC provider display name on the login button (e.g. \"Pocket ID\")")
 	flag.StringVar(&cfg.OIDC.RedirectURL, "oidc-redirect-url", envString("OIDC_REDIRECT_URL", ""), "OIDC callback URL registered at the provider; derived from the request when empty")
+	flag.BoolVar(&cfg.OIDC.RequireEmailVerified, "oidc-require-email-verified", envBool("OIDC_REQUIRE_EMAIL_VERIFIED", "oidc-require-email-verified", true), "Refuse OIDC sign-ins whose email the provider has not verified")
+	flag.BoolVar(&cfg.OIDC.DisablePasswordLogin, "oidc-disable-password-login", envBool("OIDC_DISABLE_PASSWORD_LOGIN", "oidc-disable-password-login", false), "Refuse password sign-in while OIDC SSO is enabled")
+	flag.BoolVar(&cfg.OIDC.LinkExistingAccounts, "oidc-link-existing-accounts", envBool("OIDC_LINK_EXISTING_ACCOUNTS", "oidc-link-existing-accounts", true), "Let an OIDC sign-in link itself to an existing account with the same email")
 
 	flag.Parse()
 

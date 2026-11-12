@@ -22,4 +22,7 @@ type User struct {
 	TOTPCiphertext string `json:"-"`
 	TOTPLastStep   int64  `json:"-"`
 	TOTPEnabled    bool   `json:"totp_enabled"`
+	// OIDCSub is the linked identity provider's subject claim; "" means the
+	// account has no SSO identity bound to it.
+	OIDCSub string `json:"-"`
 }

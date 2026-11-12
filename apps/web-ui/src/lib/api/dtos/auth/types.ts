@@ -38,6 +38,8 @@ export interface SSOConfigResponse {
   enabled: boolean
   /** Display name from OIDC_PROVIDER_NAME ("Pocket ID"), for the login button. */
   provider_name: string
+  /** False when OIDC_DISABLE_PASSWORD_LOGIN makes SSO the only way in. */
+  password_login: boolean
 }
 
 /** POST /v1/auth/oidc/exchange body: the one-time ticket from the callback redirect. */

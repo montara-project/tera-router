@@ -33,6 +33,9 @@ passes explicit flags, which still win over the environment.
 | `OIDC_CLIENT_SECRET`    | —                       | OIDC client secret                                                                                                                      |
 | `OIDC_PROVIDER_NAME`    | `SSO`                   | Provider display name on the login button ("Continue with Pocket ID")                                                                   |
 | `OIDC_REDIRECT_URL`     | derived                 | Callback URL registered at the provider (`{public URL}/v1/auth/oidc/callback`); set it when a proxy hides the public scheme or host     |
+| `OIDC_REQUIRE_EMAIL_VERIFIED` | `true`            | Refuse sign-ins whose `email_verified` claim is false or absent                                                                          |
+| `OIDC_DISABLE_PASSWORD_LOGIN` | `false`           | Hide and refuse password sign-in so SSO is the only way in; applies only while OIDC is enabled                                            |
+| `OIDC_LINK_EXISTING_ACCOUNTS` | `true`            | Let an OIDC sign-in link itself to an existing account with the same email; off means only provisioned or already-linked accounts use SSO |
 | `HEADROOM_URL`          | `http://localhost:8787` | Default Headroom proxy for **Settings → Token Saving**; a URL saved in the dashboard overrides it                                       |
 | `HEADROOM_PROXY_TOKEN`  | —                       | Bearer token sent to a Headroom proxy bound beyond loopback (e.g. a compose sidecar)                                                    |
 

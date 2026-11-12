@@ -51,6 +51,11 @@ type authHandler struct {
 // SignIn verifies credentials and returns the token pair the web client
 // stores in cookies. Shaped after the web UI SignInResponse.
 func (h *authHandler) SignIn(c fiber.Ctx) error {
+	// OIDC_DISABLE_PASSWORD_LOGIN makes SSO the only way in — but only while
+	// SSO is actually configured, so a lone flag cannot lock everyone out.
+	if h.oidcEnabled() && h.app.Config.OIDC.DisablePasswordLogin {
+		return apperr.New(apperr.KindForbidden, "password sign-in is disabled; sign in with SSO")
+	}
 	var req dtos.SignIn
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err

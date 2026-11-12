@@ -13,9 +13,12 @@ import (
 	"tera-router/server/internal/dtos"
 	"tera-router/server/internal/lib"
 	"tera-router/server/internal/lib/apperr"
+	"tera-router/server/internal/lib/password"
+	"tera-router/server/internal/models"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 	"golang.org/x/oauth2"
 )
 
@@ -235,12 +238,13 @@ func (h *authHandler) oidcOAuth2Config(c fiber.Ctx, provider *oidc.Provider) *oa
 	}
 }
 
-// OIDCConfig tells the login page whether to render the SSO button (GET
-// /v1/auth/oidc/config).
+// OIDCConfig tells the login page whether to render the SSO button and
+// whether the password form stays (GET /v1/auth/oidc/config).
 func (h *authHandler) OIDCConfig(c fiber.Ctx) error {
 	return dtos.OK(c, fiber.Map{
-		"enabled":       h.oidcEnabled(),
-		"provider_name": h.app.Config.OIDC.ProviderName,
+		"enabled":        h.oidcEnabled(),
+		"provider_name":  h.app.Config.OIDC.ProviderName,
+		"password_login": !(h.oidcEnabled() && h.app.Config.OIDC.DisablePasswordLogin),
 	})
 }
 
@@ -329,7 +333,9 @@ func (h *authHandler) OIDCCallback(c fiber.Ctx) error {
 	var claims struct {
 		Email         string `json:"email"`
 		EmailVerified bool   `json:"email_verified"`
+		Name          string `json:"name"`
 		Nonce         string `json:"nonce"`
+		Sub           string `json:"sub"`
 	}
 	if err := idToken.Claims(&claims); err != nil {
 		return fail("invalid_id_token", "")
@@ -337,23 +343,50 @@ func (h *authHandler) OIDCCallback(c fiber.Ctx) error {
 	if claims.Nonce != st.nonce {
 		return fail("invalid_nonce", "")
 	}
+	if claims.Sub == "" {
+		// sub is the one claim every compliant provider must send; without
+		// it the identity cannot be bound to an account.
+		return fail("invalid_id_token", "")
+	}
 	if claims.Email == "" {
 		return fail("no_email", "")
 	}
-	if !claims.EmailVerified {
+	if h.app.Config.OIDC.RequireEmailVerified && !claims.EmailVerified {
 		// Only an email the provider vouches for may match a dashboard
 		// account — otherwise anyone controlling an IdP account could claim
 		// an address they do not own.
 		return fail("email_unverified", claims.Email)
 	}
 
-	user, err := h.app.Repos.Users.GetByEmail(ctx, claims.Email)
-	if err != nil {
-		if errors.Is(err, apperr.ErrNotFound) {
-			// SSO never provisions accounts: the email must already exist as
-			// an active, unblocked dashboard user.
-			return fail("no_account", claims.Email)
+	// The linked subject identifies the account first: it survives email
+	// changes at the provider, where an email match would not.
+	user, err := h.app.Repos.Users.GetByOIDCSub(ctx, claims.Sub)
+	if errors.Is(err, apperr.ErrNotFound) {
+		user, err = h.app.Repos.Users.GetByEmail(ctx, claims.Email)
+		switch {
+		case err == nil:
+			// A known account with no OIDC identity yet: attach the subject
+			// when the operator allows linking, so the next sign-in matches
+			// by sub before email.
+			if !h.app.Config.OIDC.LinkExistingAccounts {
+				return fail("not_linked", claims.Email)
+			}
+			if lerr := h.app.Repos.Users.LinkOIDC(ctx, user.ID, claims.Sub); lerr != nil {
+				return fail("internal", claims.Email)
+			}
+			auditRecord(c, user.ID, "user.oidc_link", user.ID, nil)
+		case errors.Is(err, apperr.ErrNotFound):
+			// SSO provisions on first use: an email the provider vouches for
+			// mints a dashboard account with the least-privileged "user" role.
+			user, err = h.provisionOIDCUser(c, claims.Email, claims.Name, claims.Sub)
 		}
+	}
+	if errors.Is(err, apperr.ErrNotFound) {
+		// The email resolves to no live account — e.g. it belongs to a
+		// deleted user, which stays refused rather than resurrected.
+		return fail("no_account", claims.Email)
+	}
+	if err != nil {
 		return fail("internal", claims.Email)
 	}
 	if !user.IsActive || user.IsBlocked {
@@ -388,6 +421,49 @@ func (h *authHandler) OIDCCallback(c fiber.Ctx) error {
 	lib.ContextSetSID(c, session.SessionID)
 	auditRecord(c, user.ID, "auth.sso_sign_in", user.ID, fiber.Map{"method": "oidc"})
 	return c.Redirect().Status(fiber.StatusFound).To(st.uiOrigin + "/?sso_ticket=" + ticket)
+}
+
+// provisionOIDCUser mints a dashboard account for an IdP-verified email. The
+// password hash is of a throwaway secret: the account authenticates at the
+// provider, no password ever verifies — but a password attempt still spends
+// the argon2 work every account costs. An insert can lose a race to a
+// concurrent sign-in for the same new email or hit a deleted account still
+// holding it; either way the live row the email resolves to decides.
+func (h *authHandler) provisionOIDCUser(c fiber.Ctx, email, fullname, sub string) (models.User, error) {
+	ctx := c.Context()
+	roleID, err := h.app.Repos.Users.RoleIDByName(ctx, "user")
+	if err != nil {
+		return models.User{}, err
+	}
+	raw, err := randHex(32)
+	if err != nil {
+		return models.User{}, err
+	}
+	hash, err := password.Hash(raw)
+	if err != nil {
+		return models.User{}, err
+	}
+	u := models.User{
+		ID:           uuid.NewString(),
+		Fullname:     fullname,
+		Email:        email,
+		PasswordHash: hash,
+		IsActive:     true,
+		RoleID:       roleID,
+		OIDCSub:      sub,
+	}
+	if err := h.app.Repos.Users.Insert(ctx, u); err != nil {
+		user, rerr := h.app.Repos.Users.GetByEmail(ctx, email)
+		if rerr == nil {
+			return user, nil
+		}
+		if errors.Is(rerr, apperr.ErrNotFound) {
+			return models.User{}, rerr
+		}
+		return models.User{}, err
+	}
+	auditRecord(c, u.ID, "user.create", u.ID, fiber.Map{"method": "oidc"})
+	return h.app.Repos.Users.Get(ctx, u.ID)
 }
 
 // OIDCExchange redeems the ticket the callback appended to its redirect for

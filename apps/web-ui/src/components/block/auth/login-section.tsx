@@ -73,6 +73,8 @@ const SSO_ERRORS: Record<string, string> = {
     'The identity provider has not verified this email. Verify it there first, then try again.',
   no_account:
     'No dashboard account exists for this identity. Ask an administrator to create one first.',
+  not_linked:
+    'This account is not linked to the identity provider. Sign in with your password instead.',
   internal: 'The sign-in failed on the server. Try again.',
 }
 
@@ -114,6 +116,8 @@ export default function LoginSection({
 
   const ssoConfig = useQuery(queries.auth.ssoConfig())
   const ssoEnabled = ssoConfig.data?.enabled === true
+  // The server can make SSO the only way in; absent the field it stays on.
+  const passwordLogin = ssoConfig.data?.password_login !== false
   const ssoExchange = useMutation(queries.auth.ssoExchange())
   const ssoVerifyTotp = useMutation(queries.auth.ssoVerifyTotp())
 
@@ -356,7 +360,7 @@ export default function LoginSection({
                 </button>
               )}
             </>
-          ) : (
+          ) : passwordLogin ? (
             <>
               <form.AppField
                 name="email"
@@ -385,29 +389,33 @@ export default function LoginSection({
                 )}
               />
             </>
-          )}
+          ) : null}
 
           {error && <FieldError>{error}</FieldError>}
 
-          <Button
-            type="submit"
-            className="h-[38px] w-full gap-[7px] bg-[#0a59b8] text-[13px] font-medium text-white hover:bg-[#0a59b8]/90"
-            disabled={isLoading || (showCode && otp.length !== 6)}
-          >
-            {isLoading && <IconLoader2 className="size-4 animate-spin" aria-hidden />}
-            {submitLabel}
-            {!isLoading && <IconArrowRight className="size-3.5" aria-hidden />}
-          </Button>
+          {(showCode || passwordLogin) && (
+            <Button
+              type="submit"
+              className="h-[38px] w-full gap-[7px] bg-[#0a59b8] text-[13px] font-medium text-white hover:bg-[#0a59b8]/90"
+              disabled={isLoading || (showCode && otp.length !== 6)}
+            >
+              {isLoading && <IconLoader2 className="size-4 animate-spin" aria-hidden />}
+              {submitLabel}
+              {!isLoading && <IconArrowRight className="size-3.5" aria-hidden />}
+            </Button>
+          )}
 
           {!showCode && (ssoEnabled || passkeysSupported()) && (
             <>
-              <div className="flex items-center gap-2.5" aria-hidden>
-                <span className="h-px flex-1 bg-border" />
-                <span className="font-mono text-[10.5px] tracking-[0.6px] text-muted-foreground/80">
-                  OR
-                </span>
-                <span className="h-px flex-1 bg-border" />
-              </div>
+              {passwordLogin && (
+                <div className="flex items-center gap-2.5" aria-hidden>
+                  <span className="h-px flex-1 bg-border" />
+                  <span className="font-mono text-[10.5px] tracking-[0.6px] text-muted-foreground/80">
+                    OR
+                  </span>
+                  <span className="h-px flex-1 bg-border" />
+                </div>
+              )}
               {ssoEnabled && (
                 <Button
                   variant="outline"
@@ -453,7 +461,9 @@ export default function LoginSection({
           <p className="text-[11.5px] text-muted-foreground">
             {showCode
               ? `Code expires in 00:${String(secondsLeft).padStart(2, '0')}`
-              : 'TOTP is asked after this step when it is on'}
+              : passwordLogin
+                ? 'TOTP is asked after this step when it is on'
+                : 'Your identity provider handles sign-in'}
           </p>
         </footer>
       </section>

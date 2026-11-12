@@ -18,6 +18,7 @@ import (
 	"tera-router/server/internal/config"
 	"tera-router/server/internal/database"
 	"tera-router/server/internal/lib"
+	"tera-router/server/internal/lib/password"
 	"tera-router/server/internal/lib/sealer"
 	"tera-router/server/internal/lib/totp"
 	"tera-router/server/internal/middlewares"
@@ -79,8 +80,20 @@ func TestOIDCConfig(t *testing.T) {
 		ProviderName: "Pocket ID",
 	}}
 	if status, data := call(newApp(full)); status != 200 || data["enabled"] != true ||
-		data["provider_name"] != "Pocket ID" {
-		t.Fatalf("fully configured = %d %v, want 200 enabled:true provider_name:Pocket ID", status, data)
+		data["provider_name"] != "Pocket ID" || data["password_login"] != true {
+		t.Fatalf("fully configured = %d %v, want 200 enabled:true provider_name:Pocket ID password_login:true", status, data)
+	}
+
+	// OIDC_DISABLE_PASSWORD_LOGIN reports password_login:false — but only
+	// while SSO is actually enabled.
+	noPassword := full
+	noPassword.OIDC.DisablePasswordLogin = true
+	if status, data := call(newApp(noPassword)); status != 200 || data["password_login"] != false {
+		t.Fatalf("password login disabled = %d %v, want 200 password_login:false", status, data)
+	}
+	noPasswordNoOIDC := config.Config{OIDC: config.ConfigOIDC{DisablePasswordLogin: true}}
+	if status, data := call(newApp(noPasswordNoOIDC)); status != 200 || data["password_login"] != true {
+		t.Fatalf("flag without OIDC = %d %v, want 200 password_login:true", status, data)
 	}
 
 	// A partial configuration cannot sign in, so the button must stay hidden.
@@ -330,10 +343,13 @@ func TestOIDCVerifyTOTP(t *testing.T) {
 // metadata, a token endpoint that hands back a freshly signed id_token, and
 // the JWKS the verifier fetches for it.
 type fakeIdP struct {
-	srv   *httptest.Server
-	key   *rsa.PrivateKey
-	nonce string
-	email string
+	srv           *httptest.Server
+	key           *rsa.PrivateKey
+	nonce         string
+	email         string
+	name          string
+	sub           string
+	emailVerified bool
 }
 
 func newFakeIdP(t *testing.T, nonce, email string) *fakeIdP {
@@ -342,7 +358,7 @@ func newFakeIdP(t *testing.T, nonce, email string) *fakeIdP {
 	if err != nil {
 		t.Fatalf("generate key: %v", err)
 	}
-	f := &fakeIdP{key: key, nonce: nonce, email: email}
+	f := &fakeIdP{key: key, nonce: nonce, email: email, sub: "idp-user", emailVerified: true}
 	f.srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Path {
@@ -373,9 +389,10 @@ func newFakeIdP(t *testing.T, nonce, email string) *fakeIdP {
 
 func (f *fakeIdP) idToken() string {
 	tok := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.MapClaims{
-		"iss": f.srv.URL, "sub": "idp-user", "aud": "id",
+		"iss": f.srv.URL, "sub": f.sub, "aud": "id",
 		"iat": time.Now().Unix(), "exp": time.Now().Add(time.Hour).Unix(),
-		"nonce": f.nonce, "email": f.email, "email_verified": true,
+		"nonce": f.nonce, "email": f.email, "email_verified": f.emailVerified,
+		"name": f.name,
 	})
 	tok.Header["kid"] = "k1"
 	signed, err := tok.SignedString(f.key)
@@ -434,7 +451,10 @@ func TestOIDCCallbackPendingTOTP(t *testing.T) {
 	}
 
 	idp := newFakeIdP(t, "n1", "admin@tera.local")
-	h.app.Config.OIDC = config.ConfigOIDC{Issuer: idp.srv.URL, ClientID: "id", ClientSecret: "secret"}
+	h.app.Config.OIDC = config.ConfigOIDC{
+		Issuer: idp.srv.URL, ClientID: "id", ClientSecret: "secret",
+		RequireEmailVerified: true, LinkExistingAccounts: true,
+	}
 	h.oidcStates.put("st", oidcState{nonce: "n1", verifier: oauth2.GenerateVerifier(), uiOrigin: "", flow: "f1"}, oidcStateTTL)
 
 	f := fiber.New(fiber.Config{ErrorHandler: middlewares.ErrorHandler})
@@ -474,5 +494,248 @@ func TestOIDCCallbackPendingTOTP(t *testing.T) {
 	}
 	if rows, err := h.app.Repos.Refresh.ListActive(ctx, admin.ID); err != nil || len(rows) != 1 {
 		t.Fatalf("sessions after totp = %d %v, want 1", len(rows), err)
+	}
+}
+
+// TestOIDCCallbackProvisionsUser drives the callback for an email the IdP
+// vouches for but no account holds: the user is created with the "user" role,
+// a session ticket is issued, and no password ever signs the account in.
+func TestOIDCCallbackProvisionsUser(t *testing.T) {
+	db, err := database.Open(filepath.Join(t.TempDir(), "sso_provision_test.db"))
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if err := migrator.Up(db, "../../migrations"); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	seeders.RoleSeeder{DB: db}.Seed()
+
+	cfg := config.Config{App: config.ConfigApp{Secret: "test-secret"}}
+	h := &authHandler{app: &app.Application{Config: cfg, DB: db, Repos: repositories.New(db, &cfg.App)}}
+
+	idp := newFakeIdP(t, "n1", "new@example.com")
+	idp.name = "New Person"
+	idp.sub = "sub-new"
+	h.app.Config.OIDC = config.ConfigOIDC{
+		Issuer: idp.srv.URL, ClientID: "id", ClientSecret: "secret",
+		RequireEmailVerified: true, LinkExistingAccounts: true,
+	}
+	h.oidcStates.put("st", oidcState{nonce: "n1", verifier: oauth2.GenerateVerifier(), uiOrigin: "", flow: "f1"}, oidcStateTTL)
+
+	f := fiber.New(fiber.Config{ErrorHandler: middlewares.ErrorHandler})
+	f.Get("/oidc/callback", h.OIDCCallback)
+	f.Post("/oidc/exchange", h.OIDCExchange)
+
+	resp, err := f.Test(httptest.NewRequest("GET", "/oidc/callback?state=st&code=whatever", nil))
+	if err != nil {
+		t.Fatalf("GET /oidc/callback: %v", err)
+	}
+	loc, err := url.Parse(resp.Header.Get("Location"))
+	if err != nil {
+		t.Fatalf("parse redirect: %v", err)
+	}
+	if resp.StatusCode != 302 || loc.Query().Get("sso_ticket") == "" {
+		t.Fatalf("callback = %d %q, want 302 with sso_ticket", resp.StatusCode, loc.String())
+	}
+
+	ctx := t.Context()
+	user, err := h.app.Repos.Users.GetByEmail(ctx, "new@example.com")
+	if err != nil {
+		t.Fatalf("provisioned user: %v", err)
+	}
+	if user.Role.Name != "user" || !user.IsActive || user.IsBlocked || user.Fullname != "New Person" ||
+		user.OIDCSub != "sub-new" {
+		t.Fatalf("provisioned user = %+v, want active user role named New Person linked to sub-new", user)
+	}
+	if ok, err := password.Verify("new@example.com", user.PasswordHash); err != nil || ok {
+		t.Fatalf("provisioned password verified: ok=%v err=%v", ok, err)
+	}
+
+	// The ticket redeems for a session of the provisioned account.
+	req := httptest.NewRequest("POST", "/oidc/exchange", strings.NewReader(
+		`{"ticket":"`+loc.Query().Get("sso_ticket")+`","flow":"f1"}`))
+	req.Header.Set("Content-Type", "application/json")
+	xresp, err := f.Test(req)
+	if err != nil {
+		t.Fatalf("POST /oidc/exchange: %v", err)
+	}
+	var out map[string]any
+	_ = json.NewDecoder(xresp.Body).Decode(&out)
+	data, _ := out["data"].(map[string]any)
+	if xresp.StatusCode != 200 || data["access_token"] == nil || data["email"] != "new@example.com" {
+		t.Fatalf("exchange = %d %v, want 200 with session", xresp.StatusCode, out)
+	}
+
+	// A second sign-in for the same email reuses the account instead of
+	// provisioning another one.
+	h.oidcStates.put("st2", oidcState{nonce: "n1", verifier: oauth2.GenerateVerifier(), uiOrigin: "", flow: "f1"}, oidcStateTTL)
+	resp2, err := f.Test(httptest.NewRequest("GET", "/oidc/callback?state=st2&code=whatever", nil))
+	if err != nil {
+		t.Fatalf("GET /oidc/callback (2): %v", err)
+	}
+	loc2, _ := url.Parse(resp2.Header.Get("Location"))
+	if resp2.StatusCode != 302 || loc2.Query().Get("sso_ticket") == "" {
+		t.Fatalf("second callback = %d %q, want 302 with sso_ticket", resp2.StatusCode, loc2.String())
+	}
+	again, err := h.app.Repos.Users.GetByEmail(ctx, "new@example.com")
+	if err != nil || again.ID != user.ID {
+		t.Fatalf("second sign-in user = %v %v, want same account %s", again.ID, err, user.ID)
+	}
+}
+
+// ssoCallbackFixture bundles the shared callback-test plumbing: a migrated
+// database with roles seeded, a wired handler, and the fiber app serving
+// /oidc/callback.
+type ssoCallbackFixture struct {
+	h *authHandler
+	f *fiber.App
+}
+
+func newSSOCallbackFixture(t *testing.T, oidc config.ConfigOIDC) *ssoCallbackFixture {
+	t.Helper()
+	db, err := database.Open(filepath.Join(t.TempDir(), "sso_link_test.db"))
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if err := migrator.Up(db, "../../migrations"); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	seeders.RoleSeeder{DB: db}.Seed()
+
+	cfg := config.Config{App: config.ConfigApp{Secret: "test-secret"}, OIDC: oidc}
+	h := &authHandler{app: &app.Application{Config: cfg, DB: db, Repos: repositories.New(db, &cfg.App)}}
+	f := fiber.New(fiber.Config{ErrorHandler: middlewares.ErrorHandler})
+	f.Get("/oidc/callback", h.OIDCCallback)
+	return &ssoCallbackFixture{h: h, f: f}
+}
+
+// callCallback drives one provider round-trip against the fake IdP and
+// returns the redirect's query values.
+func (fx *ssoCallbackFixture) callCallback(t *testing.T, state string) url.Values {
+	t.Helper()
+	fx.h.oidcStates.put(state, oidcState{nonce: "n1", verifier: oauth2.GenerateVerifier(), uiOrigin: "", flow: "f1"}, oidcStateTTL)
+	resp, err := fx.f.Test(httptest.NewRequest("GET", "/oidc/callback?state="+state+"&code=whatever", nil))
+	if err != nil {
+		t.Fatalf("GET /oidc/callback: %v", err)
+	}
+	loc, err := url.Parse(resp.Header.Get("Location"))
+	if err != nil {
+		t.Fatalf("parse redirect: %v", err)
+	}
+	if resp.StatusCode != 302 {
+		t.Fatalf("callback = %d, want 302", resp.StatusCode)
+	}
+	return loc.Query()
+}
+
+// TestOIDCCallbackLinksExistingAccount pins OIDC_LINK_EXISTING_ACCOUNTS: an
+// IdP-verified email matching a pre-existing account binds the subject to it
+// (audit-logged), and later sign-ins match by sub even when the email moved.
+func TestOIDCCallbackLinksExistingAccount(t *testing.T) {
+	fx := newSSOCallbackFixture(t, config.ConfigOIDC{})
+	t.Setenv("ADMIN_PASSWORD", "pw")
+	seeders.AdminUserSeeder{DB: fx.h.app.DB}.Seed()
+
+	idp := newFakeIdP(t, "n1", "admin@tera.local")
+	idp.sub = "admin-sub"
+	fx.h.app.Config.OIDC = config.ConfigOIDC{
+		Issuer: idp.srv.URL, ClientID: "id", ClientSecret: "secret",
+		RequireEmailVerified: true, LinkExistingAccounts: true,
+	}
+
+	if q := fx.callCallback(t, "st"); q.Get("sso_ticket") == "" {
+		t.Fatalf("callback = %v, want sso_ticket", q)
+	}
+	admin, err := fx.h.app.Repos.Users.GetByEmail(t.Context(), "admin@tera.local")
+	if err != nil || admin.OIDCSub != "admin-sub" {
+		t.Fatalf("linked admin: sub=%q err=%v", admin.OIDCSub, err)
+	}
+
+	// The email may later change at the provider; the subject still resolves.
+	idp.email = "renamed@tera.local"
+	if q := fx.callCallback(t, "st2"); q.Get("sso_ticket") == "" {
+		t.Fatalf("second callback = %v, want sso_ticket via sub match", q)
+	}
+}
+
+// TestOIDCCallbackLinkDisabled pins the off side: an existing account that
+// carries no linked subject is refused instead of being silently linked.
+func TestOIDCCallbackLinkDisabled(t *testing.T) {
+	fx := newSSOCallbackFixture(t, config.ConfigOIDC{})
+	t.Setenv("ADMIN_PASSWORD", "pw")
+	seeders.AdminUserSeeder{DB: fx.h.app.DB}.Seed()
+
+	idp := newFakeIdP(t, "n1", "admin@tera.local")
+	idp.sub = "admin-sub"
+	fx.h.app.Config.OIDC = config.ConfigOIDC{
+		Issuer: idp.srv.URL, ClientID: "id", ClientSecret: "secret",
+		RequireEmailVerified: true, LinkExistingAccounts: false,
+	}
+
+	if q := fx.callCallback(t, "st"); q.Get("sso_error") != "not_linked" {
+		t.Fatalf("callback = %v, want sso_error=not_linked", q)
+	}
+	// A brand-new email still provisions — linking governs existing rows only.
+	idp.email, idp.sub = "new@example.com", "sub-new"
+	if q := fx.callCallback(t, "st2"); q.Get("sso_ticket") == "" {
+		t.Fatalf("new email callback = %v, want sso_ticket", q)
+	}
+}
+
+// TestOIDCCallbackEmailVerifiedFlag gates the email_verified requirement:
+// the flag on refuses unverified emails, off lets them provision.
+func TestOIDCCallbackEmailVerifiedFlag(t *testing.T) {
+	fx := newSSOCallbackFixture(t, config.ConfigOIDC{})
+	idp := newFakeIdP(t, "n1", "unverified@example.com")
+	idp.emailVerified = false
+	fx.h.app.Config.OIDC = config.ConfigOIDC{
+		Issuer: idp.srv.URL, ClientID: "id", ClientSecret: "secret",
+		RequireEmailVerified: true, LinkExistingAccounts: true,
+	}
+
+	if q := fx.callCallback(t, "st"); q.Get("sso_error") != "email_unverified" {
+		t.Fatalf("required callback = %v, want sso_error=email_unverified", q)
+	}
+
+	fx.h.app.Config.OIDC.RequireEmailVerified = false
+	if q := fx.callCallback(t, "st2"); q.Get("sso_ticket") == "" {
+		t.Fatalf("optional callback = %v, want sso_ticket", q)
+	}
+}
+
+// TestSignInDisabledWithOIDCFlag pins OIDC_DISABLE_PASSWORD_LOGIN: with a
+// working provider the password endpoint refuses; without one the flag is
+// inert so nobody gets locked out.
+func TestSignInDisabledWithOIDCFlag(t *testing.T) {
+	newApp := func(oidc config.ConfigOIDC) *fiber.App {
+		h := &authHandler{app: &app.Application{Config: config.Config{OIDC: oidc}}}
+		f := fiber.New(fiber.Config{ErrorHandler: middlewares.ErrorHandler})
+		f.Post("/sign-in", h.SignIn)
+		return f
+	}
+	call := func(f *fiber.App) int {
+		t.Helper()
+		req := httptest.NewRequest("POST", "/sign-in", strings.NewReader(`{"email":"a@b.c","password":"x"}`))
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := f.Test(req)
+		if err != nil {
+			t.Fatalf("POST /sign-in: %v", err)
+		}
+		return resp.StatusCode
+	}
+
+	disabled := config.ConfigOIDC{
+		Issuer: "https://id.example.com", ClientID: "id", ClientSecret: "secret",
+		DisablePasswordLogin: true,
+	}
+	if status := call(newApp(disabled)); status != 403 {
+		t.Fatalf("disabled sign-in = %d, want 403", status)
+	}
+	// The flag alone cannot lock the dashboard: no provider, no refusal.
+	// The request falls through to validation, which 422s the bad body.
+	if status := call(newApp(config.ConfigOIDC{DisablePasswordLogin: true})); status != 422 {
+		t.Fatalf("flag without provider = %d, want 422", status)
 	}
 }

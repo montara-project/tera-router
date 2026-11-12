@@ -17,7 +17,8 @@ const userColumns = `
 	u.password_hash, u.is_active, u.is_blocked, u.role_id,
 	r.id AS role_id2, r.name AS role_name, r.created_at AS role_created_at, r.updated_at AS role_updated_at,
 	u.created_at, u.updated_at, u.deleted_at,
-	u.totp_wrapped_dek, u.totp_ciphertext, u.totp_last_step`
+	u.totp_wrapped_dek, u.totp_ciphertext, u.totp_last_step,
+	COALESCE(u.oidc_sub, '')`
 
 const userFrom = ` FROM users u JOIN roles r ON r.id = u.role_id`
 
@@ -32,6 +33,7 @@ func scanUser(row rowScanner) (models.User, error) {
 		&rid, &u.Role.Name, &u.Role.CreatedAt, &u.Role.UpdatedAt,
 		&u.CreatedAt, &u.UpdatedAt, &u.DeletedAt,
 		&u.TOTPWrappedDEK, &u.TOTPCiphertext, &u.TOTPLastStep,
+		&u.OIDCSub,
 	)
 	if err != nil {
 		return models.User{}, translateNotFound(err)
@@ -45,6 +47,45 @@ func scanUser(row rowScanner) (models.User, error) {
 func (r *UserRepository) GetByEmail(ctx context.Context, email string) (models.User, error) {
 	row := r.queryRowContext(ctx, r.DB, `SELECT`+userColumns+userFrom+` WHERE u.email = $1 AND u.deleted_at IS NULL`, email)
 	return scanUser(row)
+}
+
+// GetByOIDCSub resolves a live user by its linked identity provider subject.
+func (r *UserRepository) GetByOIDCSub(ctx context.Context, sub string) (models.User, error) {
+	row := r.queryRowContext(ctx, r.DB, `SELECT`+userColumns+userFrom+` WHERE u.oidc_sub = $1 AND u.deleted_at IS NULL`, sub)
+	return scanUser(row)
+}
+
+// RoleIDByName resolves a role's id by its unique name.
+func (r *UserRepository) RoleIDByName(ctx context.Context, name string) (string, error) {
+	var id string
+	err := r.queryRowContext(ctx, r.DB, `SELECT id FROM roles WHERE name = $1`, name).Scan(&id)
+	if err != nil {
+		return "", translateNotFound(err)
+	}
+	return id, nil
+}
+
+// LinkOIDC binds an identity provider subject to the account, so later
+// sign-ins match by sub before email.
+func (r *UserRepository) LinkOIDC(ctx context.Context, id, sub string) error {
+	_, err := r.execContext(ctx, r.DB,
+		`UPDATE users SET oidc_sub = $2, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now') WHERE id = $1`,
+		id, sub)
+	return translateUnique(err, "OIDC subject already linked to another account")
+}
+
+// Insert creates a dashboard account. A conflicting email surfaces as a 409
+// via translateUnique.
+func (r *UserRepository) Insert(ctx context.Context, u models.User) error {
+	return r.insertExec(ctx, r.DB, u)
+}
+
+func (r *UserRepository) insertExec(ctx context.Context, ex Executor, u models.User) error {
+	_, err := r.execContext(ctx, ex,
+		`INSERT INTO users (id, fullname, email, password_hash, is_active, is_blocked, role_id, oidc_sub)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8, ''))`,
+		u.ID, u.Fullname, u.Email, u.PasswordHash, u.IsActive, u.IsBlocked, u.RoleID, u.OIDCSub)
+	return translateUnique(err, "email already registered")
 }
 
 // Get resolves a live user by id.
