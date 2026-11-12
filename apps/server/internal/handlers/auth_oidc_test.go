@@ -101,6 +101,25 @@ func TestOIDCLoginDisabled(t *testing.T) {
 	}
 }
 
+// TestOIDCLoginRequiresFlow checks a login with no flow id is refused before
+// the provider round-trip: a missing flow would mint an unbound ticket any
+// browser could redeem.
+func TestOIDCLoginRequiresFlow(t *testing.T) {
+	h := &authHandler{app: &app.Application{Config: config.Config{OIDC: config.ConfigOIDC{
+		Issuer: "https://id.example.com", ClientID: "id", ClientSecret: "secret",
+	}}}}
+	f := fiber.New(fiber.Config{ErrorHandler: middlewares.ErrorHandler})
+	f.Get("/oidc/login", h.OIDCLogin)
+
+	resp, err := f.Test(httptest.NewRequest("GET", "/oidc/login", nil))
+	if err != nil {
+		t.Fatalf("GET /oidc/login: %v", err)
+	}
+	if resp.StatusCode != 400 {
+		t.Fatalf("login without flow = %d, want 400", resp.StatusCode)
+	}
+}
+
 // TestOIDCExchange pins the ticket redemption: an unknown ticket is refused
 // and a stored session payload comes back exactly once.
 func TestOIDCExchange(t *testing.T) {

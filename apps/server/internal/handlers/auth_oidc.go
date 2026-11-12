@@ -230,6 +230,13 @@ func (h *authHandler) OIDCLogin(c fiber.Ctx) error {
 	if !h.oidcEnabled() {
 		return apperr.ErrNotFound
 	}
+	// Every accepted sign-in must carry the flow id the login page generated:
+	// without one the callback would mint a ticket no browser is bound to,
+	// redeemable by whoever the link is handed to.
+	flow := c.Query("flow")
+	if flow == "" {
+		return apperr.ErrBadRequest
+	}
 	provider, err := h.oidcProvider(c.Context())
 	if err != nil {
 		return apperr.New(apperr.KindUnprocessable, "OIDC provider discovery failed: %s", err.Error())
@@ -247,7 +254,7 @@ func (h *authHandler) OIDCLogin(c fiber.Ctx) error {
 		nonce:    nonce,
 		verifier: verifier,
 		uiOrigin: h.uiOrigin(c),
-		flow:     c.Query("flow"),
+		flow:     flow,
 	}, oidcStateTTL)
 
 	authURL := h.oidcOAuth2Config(c, provider).AuthCodeURL(
