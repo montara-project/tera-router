@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"tera-router/server/internal/lib/apperr"
 	"tera-router/server/internal/models"
 )
 
@@ -17,7 +18,8 @@ const userColumns = `
 	u.password_hash, u.is_active, u.is_blocked, u.role_id,
 	r.id AS role_id2, r.name AS role_name, r.created_at AS role_created_at, r.updated_at AS role_updated_at,
 	u.created_at, u.updated_at, u.deleted_at,
-	u.totp_wrapped_dek, u.totp_ciphertext, u.totp_last_step`
+	u.totp_wrapped_dek, u.totp_ciphertext, u.totp_last_step,
+	COALESCE(u.oidc_iss, ''), COALESCE(u.oidc_sub, '')`
 
 const userFrom = ` FROM users u JOIN roles r ON r.id = u.role_id`
 
@@ -32,12 +34,14 @@ func scanUser(row rowScanner) (models.User, error) {
 		&rid, &u.Role.Name, &u.Role.CreatedAt, &u.Role.UpdatedAt,
 		&u.CreatedAt, &u.UpdatedAt, &u.DeletedAt,
 		&u.TOTPWrappedDEK, &u.TOTPCiphertext, &u.TOTPLastStep,
+		&u.OIDCIss, &u.OIDCSub,
 	)
 	if err != nil {
 		return models.User{}, translateNotFound(err)
 	}
 	u.Role.ID = rid
 	u.TOTPEnabled = u.TOTPCiphertext != ""
+	u.SSOLinked = u.OIDCSub != ""
 	return u, nil
 }
 
@@ -45,6 +49,126 @@ func scanUser(row rowScanner) (models.User, error) {
 func (r *UserRepository) GetByEmail(ctx context.Context, email string) (models.User, error) {
 	row := r.queryRowContext(ctx, r.DB, `SELECT`+userColumns+userFrom+` WHERE u.email = $1 AND u.deleted_at IS NULL`, email)
 	return scanUser(row)
+}
+
+// GetByEmailFold resolves the single live user whose email matches
+// case-insensitively — the shape identity providers expect, since the local
+// part's case cannot be assumed. No match is ErrNotFound; several matches —
+// pre-existing case variants, possible because the email unique index is
+// case-sensitive — are a conflict rather than an arbitrary pick, so an
+// ambiguous sign-in can never bind the wrong account.
+func (r *UserRepository) GetByEmailFold(ctx context.Context, email string) (models.User, error) {
+	rows, err := r.queryContext(ctx, r.DB, `SELECT`+userColumns+userFrom+` WHERE LOWER(u.email) = LOWER($1) AND u.deleted_at IS NULL`, email)
+	if err != nil {
+		return models.User{}, err
+	}
+	defer rows.Close()
+
+	var out []models.User
+	for rows.Next() {
+		u, err := scanUser(rows)
+		if err != nil {
+			return models.User{}, err
+		}
+		out = append(out, u)
+	}
+	if err := rows.Err(); err != nil {
+		return models.User{}, err
+	}
+	switch len(out) {
+	case 0:
+		return models.User{}, apperr.ErrNotFound
+	case 1:
+		return out[0], nil
+	default:
+		return models.User{}, apperr.New(apperr.KindConflict, "multiple accounts share this email")
+	}
+}
+
+// GetByOIDCIdentity resolves a live user by its linked identity provider
+// issuer and subject — the pair, since a sub is only unique within its
+// issuer.
+func (r *UserRepository) GetByOIDCIdentity(ctx context.Context, iss, sub string) (models.User, error) {
+	row := r.queryRowContext(ctx, r.DB, `SELECT`+userColumns+userFrom+` WHERE u.oidc_iss = $1 AND u.oidc_sub = $2 AND u.deleted_at IS NULL`, iss, sub)
+	return scanUser(row)
+}
+
+// RoleIDByName resolves a role's id by its unique name.
+func (r *UserRepository) RoleIDByName(ctx context.Context, name string) (string, error) {
+	var id string
+	err := r.queryRowContext(ctx, r.DB, `SELECT id FROM roles WHERE name = $1`, name).Scan(&id)
+	if err != nil {
+		return "", translateNotFound(err)
+	}
+	return id, nil
+}
+
+// LinkOIDC binds an issuer-subject pair to the account, so later sign-ins
+// match by the pair before email. The UPDATE only touches an unlinked row,
+// so a racing callback cannot silently overwrite another identity: when no
+// row changed, the stored pair is read back — the same pair reads as a
+// successful idempotent link (healing a NULL issuer left by an earlier
+// schema), anything else is a conflict.
+func (r *UserRepository) LinkOIDC(ctx context.Context, id, iss, sub string) error {
+	res, err := r.execContext(ctx, r.DB,
+		`UPDATE users SET oidc_iss = $2, oidc_sub = $3,
+		 updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now')
+		 WHERE id = $1 AND oidc_sub IS NULL AND deleted_at IS NULL`, id, iss, sub)
+	if err != nil {
+		return translateUnique(err, "OIDC subject already linked to another account")
+	}
+	if n, _ := res.RowsAffected(); n == 1 {
+		return nil
+	}
+	var gotIss, gotSub string
+	err = r.queryRowContext(ctx, r.DB,
+		`SELECT COALESCE(oidc_iss, ''), COALESCE(oidc_sub, '') FROM users WHERE id = $1 AND deleted_at IS NULL`, id).
+		Scan(&gotIss, &gotSub)
+	if err != nil {
+		return translateNotFound(err)
+	}
+	if gotSub != sub || (gotIss != "" && gotIss != iss) {
+		return apperr.New(apperr.KindConflict, "account already linked to a different identity")
+	}
+	if gotIss == "" {
+		_, err = r.execContext(ctx, r.DB, `UPDATE users SET oidc_iss = $2 WHERE id = $1 AND oidc_iss IS NULL`, id, iss)
+		return err
+	}
+	return nil
+}
+
+// Insert creates a dashboard account. A conflicting email surfaces as a 409
+// via translateUnique.
+func (r *UserRepository) Insert(ctx context.Context, u models.User) error {
+	return r.insertExec(ctx, r.DB, u)
+}
+
+// InsertIfEmailFree creates the account only when no live row folds-matches
+// its email: the email unique index is case-sensitive, so a plain insert
+// would let two concurrent sign-ins create "a@x" and "A@x" as separate
+// accounts. Checking inside the INSERT keeps lookup and write atomic.
+// inserted=false means a folded match already exists — the caller resolves
+// that row; an error still covers a deleted row holding the exact email.
+func (r *UserRepository) InsertIfEmailFree(ctx context.Context, u models.User) (inserted bool, err error) {
+	res, err := r.execContext(ctx, r.DB,
+		`INSERT INTO users (id, fullname, email, password_hash, is_active, is_blocked, role_id, oidc_iss, oidc_sub)
+		 SELECT $1, $2, $3, $4, $5, $6, $7, NULLIF($8, ''), NULLIF($9, '')
+		 WHERE NOT EXISTS (
+			 SELECT 1 FROM users WHERE LOWER(email) = LOWER($3) AND deleted_at IS NULL)`,
+		u.ID, u.Fullname, u.Email, u.PasswordHash, u.IsActive, u.IsBlocked, u.RoleID, u.OIDCIss, u.OIDCSub)
+	if err != nil {
+		return false, translateUnique(err, "email already registered")
+	}
+	n, _ := res.RowsAffected()
+	return n == 1, nil
+}
+
+func (r *UserRepository) insertExec(ctx context.Context, ex Executor, u models.User) error {
+	_, err := r.execContext(ctx, ex,
+		`INSERT INTO users (id, fullname, email, password_hash, is_active, is_blocked, role_id, oidc_iss, oidc_sub)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8, ''), NULLIF($9, ''))`,
+		u.ID, u.Fullname, u.Email, u.PasswordHash, u.IsActive, u.IsBlocked, u.RoleID, u.OIDCIss, u.OIDCSub)
+	return translateUnique(err, "email already registered")
 }
 
 // Get resolves a live user by id.

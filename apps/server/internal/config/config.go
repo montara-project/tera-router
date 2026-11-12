@@ -53,4 +53,17 @@ type ConfigOIDC struct {
 	ClientSecret string
 	ProviderName string
 	RedirectURL  string
+	// RequireEmailVerified refuses id_tokens whose email the provider has not
+	// verified. Keep it on unless the provider never sends email_verified.
+	RequireEmailVerified bool
+	// DisablePasswordLogin refuses every non-SSO sign-in — POST /auth/sign-in
+	// and the public passkey endpoints — so SSO is the only way in. It only
+	// applies while SSO itself is enabled — without a working provider it
+	// would lock every account out.
+	DisablePasswordLogin bool
+	// LinkExistingAccounts lets an OIDC sign-in attach its subject to an
+	// existing account with the same email. Off means only accounts that
+	// already carry an oidc_sub (provisioned or previously linked) may use
+	// SSO; the rest keep password/passkey sign-in.
+	LinkExistingAccounts bool
 }

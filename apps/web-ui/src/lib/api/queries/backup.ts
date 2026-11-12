@@ -7,7 +7,11 @@ import { getQueryClient } from '@/lib/providers/react-query'
 
 import type { ReauthDto, ReauthResult } from '../dtos/auth/schema'
 import type { ConfigExportDto, ConfigImportDto, LegacyBackupDto } from '../dtos/backup/schema'
-import type { DatabaseRestoreResult, LegacyImportSource } from '../models/backup'
+import type {
+  ConfigImportResult,
+  DatabaseRestoreResult,
+  LegacyImportSource,
+} from '../models/backup'
 
 import { services } from '../services'
 
@@ -117,12 +121,13 @@ const importConfig = () => {
   const qc = getQueryClient()
 
   return mutationOptions({
-    mutationFn: async (reqBody: ConfigImportDto) => {
-      const res = await services.backup.importConfig(reqBody)
-      return res.data
+    mutationFn: async (reqBody: ConfigImportDto): Promise<ReauthResult<ConfigImportResult>> => {
+      const { data } = (await services.backup.importConfig(reqBody)).data
+      if ('totp_required' in data) return { totpRequired: true }
+      return { value: data }
     },
-    onSuccess: () => {
-      qc.invalidateQueries()
+    onSuccess: (result) => {
+      if ('value' in result) qc.invalidateQueries()
     },
   })
 }

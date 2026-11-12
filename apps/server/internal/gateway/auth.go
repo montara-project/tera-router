@@ -101,6 +101,22 @@ func (s *Server) authenticate(ctx context.Context, plaintext string) (models.API
 		return rec, nil
 	}
 
+	// Concurrent misses for one key share a single verification; without the
+	// flight, a burst after a cold cache fans out into one argon2 run each.
+	// The work runs detached from the first caller's context so its early
+	// cancel does not fail every request waiting on the shared result.
+	v, err, _ := s.authFlight.Do(lookup, func() (any, error) {
+		return s.verifyKey(context.WithoutCancel(ctx), plaintext, lookup, version)
+	})
+	if err != nil {
+		return models.APIKey{}, err
+	}
+	return v.(models.APIKey), nil
+}
+
+// verifyKey performs the cache-miss path: one DB read, one argon2 verify, and
+// a last-used stamp for the key that just authenticated.
+func (s *Server) verifyKey(ctx context.Context, plaintext, lookup string, version int64) (models.APIKey, error) {
 	rec, err := s.app.Repos.APIKeys.GetByLookup(ctx, lookup)
 	if err != nil {
 		if errors.Is(err, apperr.ErrNotFound) {

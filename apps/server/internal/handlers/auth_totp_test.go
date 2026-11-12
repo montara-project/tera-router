@@ -34,7 +34,7 @@ func TestTOTPFlow(t *testing.T) {
 	if err := migrator.Up(db, "../../migrations"); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
-	t.Setenv("ADMIN_PASSWORD", "pw")
+	t.Setenv("ADMIN_PASSWORD", "test-password")
 	seeders.RoleSeeder{DB: db}.Seed()
 	seeders.AdminUserSeeder{DB: db}.Seed()
 
@@ -67,7 +67,7 @@ func TestTOTPFlow(t *testing.T) {
 		return resp.StatusCode, data
 	}
 	signIn := func(otp string) (int, map[string]any) {
-		return call("/sign-in", `{"email":"admin@tera.local","password":"pw","otp":"`+otp+`"}`)
+		return call("/sign-in", `{"email":"admin@tera.local","password":"test-password","otp":"`+otp+`"}`)
 	}
 
 	// Without TOTP a password alone signs in.
@@ -85,14 +85,14 @@ func TestTOTPFlow(t *testing.T) {
 	now := time.Now()
 	prev, cur, next := totp.Code(secret, now.Add(-30*time.Second)), totp.Code(secret, now), totp.Code(secret, now.Add(30*time.Second))
 
-	if status, _ := call("/totp/enable", `{"password":"pw","secret":"`+secret+`","code":"abcdef"}`); status != 401 {
+	if status, _ := call("/totp/enable", `{"password":"test-password","secret":"`+secret+`","code":"abcdef"}`); status != 401 {
 		t.Fatalf("enable with a wrong code = %d, want 401", status)
 	}
 	// A session alone must not enroll an authenticator.
 	if status, _ := call("/totp/enable", `{"password":"nope","secret":"`+secret+`","code":"`+prev+`"}`); status != 422 {
 		t.Fatalf("enable with a wrong password = %d, want 422", status)
 	}
-	if status, _ := call("/totp/enable", `{"password":"pw","secret":"`+secret+`","code":"`+prev+`"}`); status != 200 {
+	if status, _ := call("/totp/enable", `{"password":"test-password","secret":"`+secret+`","code":"`+prev+`"}`); status != 200 {
 		t.Fatalf("enable = %d", status)
 	}
 
@@ -112,7 +112,7 @@ func TestTOTPFlow(t *testing.T) {
 	if status, _ := call("/totp/disable", `{"password":"nope","code":"`+next+`"}`); status != 422 {
 		t.Fatalf("disable with a wrong password = %d, want 422", status)
 	}
-	if status, _ := call("/totp/disable", `{"password":"pw","code":"`+next+`"}`); status != 200 {
+	if status, _ := call("/totp/disable", `{"password":"test-password","code":"`+next+`"}`); status != 200 {
 		t.Fatalf("disable = %d", status)
 	}
 	if status, data := signIn(""); status != 200 || data["access_token"] == nil {

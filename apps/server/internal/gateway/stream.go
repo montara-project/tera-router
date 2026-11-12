@@ -302,6 +302,8 @@ func (sw *streamWriter) run(ctx context.Context, w *bufio.Writer) {
 // relay, and same-dialect clients already sent the name they expect back.
 func (sw *streamWriter) runDirect(ctx context.Context, w *bufio.Writer) {
 	defer sw.raw.Close()
+	stopProbe := sw.startProbe(ctx, w)
+	defer stopProbe()
 
 	// Every byte read is teed into the capture buffer so usage can be parsed
 	// after the fact: the passthrough path never parses the stream inline.
@@ -345,35 +347,8 @@ func (sw *streamWriter) runDirect(ctx context.Context, w *bufio.Writer) {
 // the client's dialect, and writes it. A heartbeat comment keeps the connection
 // alive while the upstream produces nothing.
 func (sw *streamWriter) runRendered(ctx context.Context, w *bufio.Writer) {
-	heartbeat := time.NewTicker(heartbeatInterval)
-	defer heartbeat.Stop()
-	stopHeartbeat := make(chan struct{})
-	var heartbeatDone sync.WaitGroup
-	heartbeatDone.Add(1)
-	go func() {
-		defer heartbeatDone.Done()
-		for {
-			select {
-			case <-heartbeat.C:
-				// Only before the first chunk: once content flows the client
-				// sees progress anyway.
-				sw.writeMu.Lock()
-				sent := sw.chunksSent
-				sw.writeMu.Unlock()
-				if sent == 0 {
-					sw.writeRaw(w, []byte(": ping\n\n"))
-				}
-			case <-stopHeartbeat:
-				return
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
-	defer func() {
-		close(stopHeartbeat)
-		heartbeatDone.Wait()
-	}()
+	stopProbe := sw.startProbe(ctx, w)
+	defer stopProbe()
 
 	for chunk := range sw.chunks {
 		if ctx.Err() != nil || sw.failed() {
@@ -408,6 +383,47 @@ func (sw *streamWriter) runRendered(ctx context.Context, w *bufio.Writer) {
 	// seen, so no synthetic finish is needed here.
 	for _, ev := range sw.codec.RenderStreamDone(sw.state) {
 		sw.writeRaw(w, ev)
+	}
+}
+
+// startProbe launches the connection probe shared by both stream paths: while
+// the upstream produces nothing (bytesWritten stalls), it writes an SSE
+// comment to keep the connection alive and — more importantly — to learn
+// whether the client is still there. A failed probe latches writeErr and
+// cancels the stream context, so a dead client stops consuming the account
+// slot and the upstream request instead of lingering until the provider
+// speaks again. The returned stop func blocks until the probe goroutine has
+// exited, so it can never write to w after the stream function returns.
+func (sw *streamWriter) startProbe(ctx context.Context, w *bufio.Writer) func() {
+	tick := time.NewTicker(heartbeatInterval)
+	done := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer tick.Stop()
+		var last int64
+		for {
+			select {
+			case <-tick.C:
+				sw.writeMu.Lock()
+				cur := sw.bytesWritten
+				sw.writeMu.Unlock()
+				if cur == last && !sw.writeRaw(w, []byte(": ping\n\n")) {
+					sw.cancel()
+					return
+				}
+				last = cur
+			case <-done:
+				return
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+	return func() {
+		close(done)
+		wg.Wait()
 	}
 }
 

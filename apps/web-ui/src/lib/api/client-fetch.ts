@@ -1,7 +1,7 @@
-import axios, { AxiosError, type AxiosInstance } from 'axios'
+import axios, { AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios'
 
 import { getAccessToken } from '../auth/auth-client'
-import { clearAuthTokens } from '../auth/token-storage'
+import { clearAuthTokens, getStoredRefreshToken, setAuthTokens } from '../auth/token-storage'
 import { AUTH_STORAGE_KEYS } from '../constants/auth'
 import { ms } from '../date'
 
@@ -10,6 +10,10 @@ const timeout = ms('5m')
 /** Requests made while signing in; their 401 is a refused attempt, not an ended session. */
 const SIGN_IN_ATTEMPT =
   /\/v1\/auth\/(sign-in|passkey\/(begin|finish)|oidc\/(exchange|verify-totp))$/
+
+const REFRESH_PATH = '/v1/auth/refresh'
+
+type RetriedConfig = InternalAxiosRequestConfig & { __authRetried?: boolean }
 
 interface CreateAxiosProps {
   baseURL: string
@@ -45,6 +49,33 @@ function createAxios({ baseURL, storageKey }: CreateAxiosProps) {
   }
 
   // Interceptor Response
+  // Concurrent 401s share one refresh: the server rotates the refresh token,
+  // so a second call with the old one fails and signs everyone out.
+  let refreshing: Promise<boolean> | null = null
+  const refreshOnce = (): Promise<boolean> => {
+    refreshing ??= (async () => {
+      try {
+        const refreshToken = getStoredRefreshToken()
+        if (!refreshToken) return false
+        const res = await axiosInstance.post(REFRESH_PATH, { refresh_token: refreshToken })
+        const tokens = res.data?.data
+        if (!tokens?.access_token) return false
+        setAuthTokens({
+          accessToken: tokens.access_token,
+          refreshToken: tokens.refresh_token,
+          idToken: tokens.id_token,
+          expiresIn: tokens.expires_in,
+        })
+        return true
+      } catch {
+        return false
+      } finally {
+        refreshing = null
+      }
+    })()
+    return refreshing
+  }
+
   axiosInstance.interceptors.response.use(
     (response) => response,
     async (error: AxiosError) => {
@@ -54,9 +85,16 @@ function createAxios({ baseURL, storageKey }: CreateAxiosProps) {
 
       // A sign-in attempt's 401 (wrong password, refused passkey) belongs to the
       // form: pass it on with the server's message. Any other 401 means the
-      // session ended, so sign out and go to the login page.
-      if (error.response?.status === 401 && !SIGN_IN_ATTEMPT.test(error.config?.url ?? '')) {
+      // access token expired: renew it with the refresh token and retry once.
+      // Only a failed refresh, or a retry that still 401s, ends the session.
+      const url = error.config?.url ?? ''
+      if (error.response?.status === 401 && !SIGN_IN_ATTEMPT.test(url)) {
         if (storageKey === AUTH_STORAGE_KEYS.AUTH_STORAGE) {
+          const config = error.config as RetriedConfig | undefined
+          if (config && !config.__authRetried && url !== REFRESH_PATH && (await refreshOnce())) {
+            config.__authRetried = true
+            return axiosInstance.request(config)
+          }
           clearAuthTokens()
           window.location.href = '/'
         }

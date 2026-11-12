@@ -86,7 +86,16 @@ func parseFlag(cfg *config.Config) {
 	// APP_SECRET in the environment keeps the secret out of the process
 	// arguments, which any local user can read with ps.
 	flag.StringVar(&cfg.App.Secret, "app-secret", envString("APP_SECRET", ""), "App Secret")
-	flag.StringVar(&cfg.App.CORSAllowedOrigins, "cors-allowed-origins", envString("CORS_ALLOWED_ORIGINS", "*"), "CORS Allowed Origins")
+	// Wildcard CORS is a development convenience: everywhere else the default
+	// stays empty so browsers enforce same-origin until origins are listed.
+	// (cfg.App.Env is already populated — flag defaults bind in order — but
+	// --env on the command line is parsed later, so only the ENV var steers
+	// this default.)
+	corsDefault := ""
+	if cfg.App.Env == "development" {
+		corsDefault = "*"
+	}
+	flag.StringVar(&cfg.App.CORSAllowedOrigins, "cors-allowed-origins", envString("CORS_ALLOWED_ORIGINS", corsDefault), "CORS Allowed Origins")
 	// API_URL in the environment reaches the served web UI at runtime — no
 	// rebuild — when the dashboard API lives on a different origin.
 	flag.StringVar(&cfg.App.APIURL, "api-url", envString("API_URL", ""), "Public API base URL for the served web UI")
@@ -107,6 +116,9 @@ func parseFlag(cfg *config.Config) {
 	flag.StringVar(&cfg.OIDC.ClientSecret, "oidc-client-secret", envString("OIDC_CLIENT_SECRET", ""), "OIDC client secret")
 	flag.StringVar(&cfg.OIDC.ProviderName, "oidc-provider-name", envString("OIDC_PROVIDER_NAME", ""), "OIDC provider display name on the login button (e.g. \"Pocket ID\")")
 	flag.StringVar(&cfg.OIDC.RedirectURL, "oidc-redirect-url", envString("OIDC_REDIRECT_URL", ""), "OIDC callback URL registered at the provider; derived from the request when empty")
+	flag.BoolVar(&cfg.OIDC.RequireEmailVerified, "oidc-require-email-verified", envBool("OIDC_REQUIRE_EMAIL_VERIFIED", "oidc-require-email-verified", true), "Refuse OIDC sign-ins whose email the provider has not verified")
+	flag.BoolVar(&cfg.OIDC.DisablePasswordLogin, "oidc-disable-password-login", envBool("OIDC_DISABLE_PASSWORD_LOGIN", "oidc-disable-password-login", false), "Refuse password sign-in while OIDC SSO is enabled")
+	flag.BoolVar(&cfg.OIDC.LinkExistingAccounts, "oidc-link-existing-accounts", envBool("OIDC_LINK_EXISTING_ACCOUNTS", "oidc-link-existing-accounts", true), "Let an OIDC sign-in link itself to an existing account with the same email")
 
 	flag.Parse()
 

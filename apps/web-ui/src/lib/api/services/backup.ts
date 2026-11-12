@@ -27,11 +27,12 @@ const resources = (): BackupResources => {
     },
     restoreDatabase: (file, creds) => {
       const url = `${path}/database/restore`
-      const { password, otp } = parseDto(ReauthSchema, creds)
+      const { password, otp, reauth_ticket } = parseDto(ReauthSchema, creds)
       const form = new FormData()
       form.append('file', file)
-      form.append('password', password)
+      form.append('password', password ?? '')
       if (otp) form.append('otp', otp)
+      if (reauth_ticket) form.append('reauth_ticket', reauth_ticket)
       return api.post(url, form)
     },
     exportConfig: (reqBody) => {

@@ -52,6 +52,27 @@ func TestSafeBufferKeepsHeadAndTail(t *testing.T) {
 		}
 	})
 
+	t.Run("stream just past the tail window keeps its head", func(t *testing.T) {
+		var buf safeBuffer
+		// A stream in the (tail, head+tail] band: the tail rolled the first
+		// bytes out, so they must come back from the head — dropping them
+		// loses the leading usage events (Anthropic's message_start).
+		head := strings.Repeat("H", captureHeadSize)
+		middle := strings.Repeat("M", captureTailSize)
+		if _, err := buf.Write([]byte(head)); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := buf.Write([]byte(middle)); err != nil {
+			t.Fatal(err)
+		}
+
+		got := string(buf.Bytes())
+		want := head + middle
+		if got != want {
+			t.Errorf("capture = %d bytes starting %q, want the whole %d-byte stream", len(got), got[:16], len(want))
+		}
+	})
+
 	t.Run("stream exactly at the head boundary is not duplicated", func(t *testing.T) {
 		var buf safeBuffer
 		payload := strings.Repeat("X", captureHeadSize)

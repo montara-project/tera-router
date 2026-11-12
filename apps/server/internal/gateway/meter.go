@@ -151,10 +151,26 @@ func (s *Server) recordUsage(rec usageRecord) {
 		defer rec.reserved.release()
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		if err := s.app.Repos.Usage.Insert(ctx, model); err != nil {
-			s.log.Error("gateway record usage failed",
-				"provider", model.Provider, "model", model.Model, "error", err)
+		// A transient insert failure (lock contention during a restore, a
+		// rolled-back tx) used to drop the row outright, which under-reports
+		// billable traffic. Two cheap retries inside the same deadline cover
+		// the fast-failure cases; a lock-blocked insert still expires with ctx.
+		var err error
+		for attempt := 0; ; attempt++ {
+			if err = s.app.Repos.Usage.Insert(ctx, model); err == nil {
+				return
+			}
+			if attempt == 2 {
+				break
+			}
+			select {
+			case <-time.After(150 * time.Millisecond):
+			case <-ctx.Done():
+			}
 		}
+		s.log.Error("gateway record usage failed",
+			"provider", model.Provider, "model", model.Model,
+			"dropped_total", s.droppedUsage.Add(1), "error", err)
 	}()
 }
 

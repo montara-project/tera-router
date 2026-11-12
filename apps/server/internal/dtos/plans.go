@@ -22,4 +22,12 @@ type Plan struct {
 func (d *Plan) Validate(v *validator.MapValidator) {
 	v.Field("name").String()
 	v.Field("period").WithinS("daily", "weekly", "monthly")
+	// Same bounds as budgets: a negative or int64-overflowing spend limit
+	// silently means "no cap" everywhere it is read.
+	v.Field("budget_spend").Range(0, 9e12)
+	v.Field("budget_tokens").Range(0, 9e18)
+	v.Field("alert_at_percent").Range(0, 100)
+	v.Field("rpm").Range(0, 1e9)
+	v.Field("tpm").Range(0, 1e9)
+	v.Field("concurrent").Range(0, 1e9)
 }

@@ -48,9 +48,19 @@ type authHandler struct {
 	oidcPending ttlStore[ssoPending]
 }
 
+// ssoOnly reports whether OIDC_DISABLE_PASSWORD_LOGIN makes SSO the only way
+// in — but only while SSO is actually configured, so a lone flag cannot lock
+// everyone out. It gates every non-SSO sign-in: password and passkey alike.
+func ssoOnly(a *app.Application) bool {
+	return a.Config.OIDC.DisablePasswordLogin && (&authHandler{app: a}).oidcEnabled()
+}
+
 // SignIn verifies credentials and returns the token pair the web client
 // stores in cookies. Shaped after the web UI SignInResponse.
 func (h *authHandler) SignIn(c fiber.Ctx) error {
+	if ssoOnly(h.app) {
+		return apperr.New(apperr.KindForbidden, "password sign-in is disabled; sign in with SSO")
+	}
 	var req dtos.SignIn
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
@@ -90,7 +100,7 @@ func (h *authHandler) signIn(ctx context.Context, email, plainPassword, otp stri
 	if err := h.verifyFactors(ctx, user, plainPassword, otp); err != nil {
 		return dtos.Session{}, err
 	}
-	return h.openSession(ctx, user, cl)
+	return h.openSession(ctx, user, cl, "password")
 }
 
 // verifyFactors checks the password, and the TOTP code when the user enabled
@@ -100,6 +110,13 @@ func (h *authHandler) verifyFactors(ctx context.Context, user models.User, plain
 	if err != nil || !ok || !user.IsActive || user.IsBlocked {
 		return ErrBadCredentials
 	}
+	return h.verifyTOTP(ctx, user, otp)
+}
+
+// verifyTOTP enforces the account's second factor when one is enabled, on its
+// own — reauthentication paths that establish the first factor differently
+// still owe this one.
+func (h *authHandler) verifyTOTP(ctx context.Context, user models.User, otp string) error {
 	if !user.TOTPEnabled {
 		return nil
 	}
@@ -249,18 +266,21 @@ func clientOf(c fiber.Ctx) client {
 }
 
 // openSession stores a new session for user and signs its first token pair.
-func (h *authHandler) openSession(ctx context.Context, user models.User, cl client) (dtos.Session, error) {
+// method records what opened it ("password", "sso", "passkey") for the
+// session list — it is informational; reauthentication never trusts it.
+func (h *authHandler) openSession(ctx context.Context, user models.User, cl client, method string) (dtos.Session, error) {
 	refreshRaw, refreshHash, err := token.NewRefresh()
 	if err != nil {
 		return dtos.Session{}, err
 	}
 	rt := models.RefreshToken{
-		ID:        uuid.NewString(),
-		UserID:    user.ID,
-		TokenHash: refreshHash,
-		UserAgent: cl.userAgent,
-		IPAddress: cl.ip,
-		ExpiresAt: time.Now().Add(refreshTTL),
+		ID:         uuid.NewString(),
+		UserID:     user.ID,
+		TokenHash:  refreshHash,
+		AuthMethod: method,
+		UserAgent:  cl.userAgent,
+		IPAddress:  cl.ip,
+		ExpiresAt:  time.Now().Add(refreshTTL),
 	}
 	if err := h.app.Repos.Refresh.Insert(ctx, rt); err != nil {
 		return dtos.Session{}, err

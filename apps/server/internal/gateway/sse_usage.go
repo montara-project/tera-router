@@ -73,13 +73,21 @@ func (b *safeBuffer) Write(p []byte) (int, error) {
 // to fit, otherwise the head window followed by the tail window.
 //
 // A stream that fit entirely in the tail window is returned from tail alone —
-// appending the head would duplicate its first 4 KiB.
+// appending the head would duplicate its first 4 KiB. One just past it needs
+// the head too: the tail rolled the first bytes out, and usage events at the
+// stream's start (Anthropic's message_start) must not be dropped.
 func (b *safeBuffer) Bytes() []byte {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	if b.total <= captureHeadSize+captureTailSize {
+	if b.total <= captureTailSize {
 		return b.tail.Bytes()
+	}
+	if b.total <= captureHeadSize+captureTailSize {
+		out := make([]byte, 0, b.total)
+		out = append(out, b.head.Bytes()[:b.total-captureTailSize]...)
+		out = append(out, b.tail.Bytes()...)
+		return out
 	}
 	out := make([]byte, 0, b.head.Len()+b.tail.Len())
 	out = append(out, b.head.Bytes()...)

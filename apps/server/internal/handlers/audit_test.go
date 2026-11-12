@@ -32,7 +32,7 @@ func TestAuditTrailRecordsRequest(t *testing.T) {
 	if err := migrator.Up(db, "../../migrations"); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
-	t.Setenv("ADMIN_PASSWORD", "pw")
+	t.Setenv("ADMIN_PASSWORD", "test-password")
 	seeders.RoleSeeder{DB: db}.Seed()
 	seeders.AdminUserSeeder{DB: db}.Seed()
 
@@ -60,7 +60,7 @@ func TestAuditTrailRecordsRequest(t *testing.T) {
 	if s := signIn("wrong"); s != 401 {
 		t.Fatalf("bad sign-in = %d, want 401", s)
 	}
-	if s := signIn("pw"); s != 200 {
+	if s := signIn("test-password"); s != 200 {
 		t.Fatalf("sign-in = %d, want 200", s)
 	}
 

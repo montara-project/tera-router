@@ -60,3 +60,40 @@ func TestAccountBaseURLChangeRequiresReauth(t *testing.T) {
 		t.Fatalf("resending the same base_url = %d, want 200 without password", status)
 	}
 }
+
+// TestAccountPatchPointerFields pins that a PATCH can apply zero and empty
+// values: priority 0, an empty label, and "" detach the proxy pool — before
+// the fields became pointers those requests were accepted but did nothing.
+func TestAccountPatchPointerFields(t *testing.T) {
+	h := newBackupHarness(t, "test-secret")
+	pool := models.ProxyPool{ID: uuid.NewString(), Name: "pool", URL: "relay+https://h", Mode: "inherit"}
+	if err := h.app.Repos.ProxyPools.Insert(context.Background(), pool); err != nil {
+		t.Fatal(err)
+	}
+	acc := models.Account{
+		ID: uuid.NewString(), Provider: "openai", Label: "keep-me",
+		AuthKind: models.AuthAPIKey, Metadata: `{"base_url":"https://up.example/v1"}`,
+		Priority: 7, ProxyPoolID: &pool.ID,
+	}
+	if err := sealCredential(h.app, &acc, accountInput{APIKey: "sk-pointer-fields-1"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.app.Repos.Accounts.Insert(context.Background(), acc); err != nil {
+		t.Fatal(err)
+	}
+	h.fiber.Patch("/accounts/:id", (&accountsHandler{app: h.app}).Update)
+
+	req := httptest.NewRequest(http.MethodPatch, "/accounts/"+acc.ID,
+		strings.NewReader(`{"provider":"openai","priority":0,"label":"","proxy_pool_id":"","metadata":{"base_url":"https://up.example/v1"}}`))
+	req.Header.Set("Content-Type", "application/json")
+	if status, _ := h.do(t, req); status != http.StatusOK {
+		t.Fatalf("patch = %d, want 200", status)
+	}
+	got, err := h.app.Repos.Accounts.Get(context.Background(), acc.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Priority != 0 || got.Label != "" || got.ProxyPoolID != nil {
+		t.Fatalf("zero/empty patch not applied: %+v", got)
+	}
+}

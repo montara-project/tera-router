@@ -30,7 +30,7 @@ func TestSessionsRevoke(t *testing.T) {
 	if err := migrator.Up(db, "../../migrations"); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
-	t.Setenv("ADMIN_PASSWORD", "pw")
+	t.Setenv("ADMIN_PASSWORD", "test-password")
 	seeders.RoleSeeder{DB: db}.Seed()
 	seeders.AdminUserSeeder{DB: db}.Seed()
 
@@ -63,7 +63,7 @@ func TestSessionsRevoke(t *testing.T) {
 	}
 	signIn := func(ua string) (access, refresh string) {
 		t.Helper()
-		status, data := call("POST", "/sign-in", "", ua, `{"email":"admin@tera.local","password":"pw"}`)
+		status, data := call("POST", "/sign-in", "", ua, `{"email":"admin@tera.local","password":"test-password"}`)
 		m, _ := data.(map[string]any)
 		if status != 200 || m["access_token"] == nil {
 			t.Fatalf("sign-in = %d %v", status, data)

@@ -52,7 +52,9 @@ func (r *AccountRepository) insertExec(ctx context.Context, ex Executor, a model
 		a.Token.WrappedDEK, a.Token.Ciphertext, a.Refresh.WrappedDEK, a.Refresh.Ciphertext,
 		a.TokenExpiresAt, a.Metadata, a.Priority, a.Disabled, a.ProxyPoolID, a.NeedsReconnect,
 	)
-	return err
+	// The precheck in the create handler cannot see a concurrent insert; the
+	// unique index on key_hash turns that race into the same conflict.
+	return translateUnique(err, "an account with this key already exists")
 }
 
 // BulkInsert inserts many accounts in a single transaction, aborting on the
@@ -137,7 +139,9 @@ func (r *AccountRepository) GetByKeyHash(ctx context.Context, keyHash string) (m
 	return scanAccount(row)
 }
 
-// Update rewrites an account row.
+// Update rewrites an account row. Callers that only mean to change part of
+// it should prefer the scoped variants below: a whole-row write copies the
+// caller's stale snapshot over any column a concurrent writer just changed.
 func (r *AccountRepository) Update(ctx context.Context, a models.Account) error {
 	res, err := r.execContext(ctx, r.DB, `
 		UPDATE accounts
@@ -153,6 +157,46 @@ func (r *AccountRepository) Update(ctx context.Context, a models.Account) error 
 		a.Token.WrappedDEK, a.Token.Ciphertext,
 		a.Refresh.WrappedDEK, a.Refresh.Ciphertext,
 		a.TokenExpiresAt, a.Metadata, a.Priority, a.Disabled, a.ProxyPoolID, a.NeedsReconnect,
+	)
+	if err != nil {
+		// Re-sealing to a credential another account already owns is the same
+		// conflict a duplicate create hits.
+		return translateUnique(err, "an account with this key already exists")
+	}
+	return requireAffected(res, "account")
+}
+
+// UpdateProfile rewrites only the operator-editable columns. A PATCH that
+// carries no new credential material uses this so it cannot roll back token
+// blobs a background OAuth refresh sealed after the row was read.
+func (r *AccountRepository) UpdateProfile(ctx context.Context, a models.Account) error {
+	res, err := r.execContext(ctx, r.DB, `
+		UPDATE accounts
+		SET label = $2, auth_kind = $3, metadata = $4, priority = $5,
+		    disabled = $6, proxy_pool_id = $7, needs_reconnect = $8,
+		    updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now')
+		WHERE id = $1`,
+		a.ID, a.Label, a.AuthKind, a.Metadata, a.Priority, a.Disabled, a.ProxyPoolID, a.NeedsReconnect,
+	)
+	if err != nil {
+		return err
+	}
+	return requireAffected(res, "account")
+}
+
+// UpdateTokens persists a refreshed OAuth grant: only the token and refresh
+// blobs plus the new expiry. The refresh spans a provider round trip, so the
+// snapshot behind it is seconds old — touching operator columns here would
+// silently undo any PATCH that landed in the meantime.
+func (r *AccountRepository) UpdateTokens(ctx context.Context, a models.Account) error {
+	res, err := r.execContext(ctx, r.DB, `
+		UPDATE accounts
+		SET token_wrapped_dek = $2, token_ciphertext = $3,
+		    refresh_wrapped_dek = $4, refresh_ciphertext = $5, token_expires_at = $6,
+		    updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now')
+		WHERE id = $1`,
+		a.ID, a.Token.WrappedDEK, a.Token.Ciphertext,
+		a.Refresh.WrappedDEK, a.Refresh.Ciphertext, a.TokenExpiresAt,
 	)
 	if err != nil {
 		return err

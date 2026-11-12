@@ -72,13 +72,20 @@ func (r *ProxyPoolRepository) UpdateTestedAt(ctx context.Context, id string, at 
 	return requireAffected(res, "proxy pool")
 }
 
-// Delete removes one proxy pool.
+// Delete removes one proxy pool and detaches the accounts that referenced
+// it: accounts.proxy_pool_id carries no foreign key, so a bare delete would
+// leave a dangling pool id the gateway can no longer resolve.
 func (r *ProxyPoolRepository) Delete(ctx context.Context, id string) error {
-	res, err := r.execContext(ctx, r.DB, `DELETE FROM proxy_pools WHERE id = $1`, id)
-	if err != nil {
-		return err
-	}
-	return requireAffected(res, "proxy pool")
+	return r.withTx(ctx, func(tx Executor) error {
+		if _, err := r.execContext(ctx, tx, `UPDATE accounts SET proxy_pool_id = NULL, updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now') WHERE proxy_pool_id = $1`, id); err != nil {
+			return err
+		}
+		res, err := r.execContext(ctx, tx, `DELETE FROM proxy_pools WHERE id = $1`, id)
+		if err != nil {
+			return err
+		}
+		return requireAffected(res, "proxy pool")
+	})
 }
 
 // InsertMany persists several pools atomically: a batch import lands whole or

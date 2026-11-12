@@ -103,7 +103,7 @@ func (h *backupHandler) ConfigExport(c fiber.Ctx) error {
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
 	}
-	needsCode, err := reauthenticate(c, h.app, req.Password, req.OTP)
+	needsCode, err := reauthenticate(c, h.app, req.Password, req.OTP, req.ReauthTicket)
 	if err != nil {
 		return err
 	}
@@ -185,8 +185,11 @@ func sealedFrom(row repositories.BackupRow, prefix string) sealer.Sealed {
 }
 
 type configImportRequest struct {
-	Passphrase string       `json:"passphrase"`
-	Backup     configBackup `json:"backup"`
+	Password     string       `json:"password"`
+	OTP          string       `json:"otp"`
+	ReauthTicket string       `json:"reauth_ticket"`
+	Passphrase   string       `json:"passphrase"`
+	Backup       configBackup `json:"backup"`
 }
 
 // ConfigImport restores a configuration backup: every table present in the
@@ -198,6 +201,16 @@ func (h *backupHandler) ConfigImport(c fiber.Ctx) error {
 	dec.UseNumber()
 	if err := dec.Decode(&req); err != nil {
 		return apperr.New(apperr.KindBadRequest, "invalid backup JSON: %s", err.Error())
+	}
+	// Importing replaces every credential-bearing table — a stolen session
+	// must not do it on a bearer token alone, same as export and restore.
+	// Reauthenticate before the document is even inspected.
+	needsCode, err := reauthenticate(c, h.app, req.Password, req.OTP, req.ReauthTicket)
+	if err != nil {
+		return err
+	}
+	if needsCode {
+		return totpRequired(c)
 	}
 	doc := req.Backup
 	if doc.Format != configBackupFormat {
@@ -328,7 +341,7 @@ func (h *backupHandler) DatabaseDownload(c fiber.Ctx) error {
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
 	}
-	needsCode, err := reauthenticate(c, h.app, req.Password, req.OTP)
+	needsCode, err := reauthenticate(c, h.app, req.Password, req.OTP, req.ReauthTicket)
 	if err != nil {
 		return err
 	}
@@ -407,7 +420,7 @@ func (h *backupHandler) DatabaseRestore(c fiber.Ctx) error {
 		}
 		return ""
 	}
-	needsCode, err := reauthenticate(c, h.app, field("password"), field("otp"))
+	needsCode, err := reauthenticate(c, h.app, field("password"), field("otp"), field("reauth_ticket"))
 	if err != nil {
 		return err
 	}
@@ -437,22 +450,33 @@ func (h *backupHandler) DatabaseRestore(c fiber.Ctx) error {
 		return apperr.New(apperr.KindUnprocessable, "the backup's schema (v%d) is newer than this server's (v%d); upgrade Tera Router first", version, live)
 	}
 
+	// Migrate and reseal the uploaded file, not the live database: a failure
+	// anywhere here leaves the install running on its old data instead of a
+	// swapped-in schema this server cannot read.
+	up, err := database.Open(tmp)
+	if err != nil {
+		return err
+	}
+	if version < live {
+		if err := migrator.Up(up, migrator.DefaultDir); err != nil {
+			_ = up.Close()
+			return apperr.New(apperr.KindInternal, "migrating the backup v%d → v%d failed; the live database is untouched: %s", version, live, err.Error())
+		}
+	}
+	// A snapshot taken before secrets were bound to their column still
+	// carries unbound ones.
+	if _, err := repositories.ResealLegacy(ctx, up, h.app.Secrets, nil); err != nil {
+		_ = up.Close()
+		return apperr.New(apperr.KindInternal, "upgrading the backup's credentials failed; the live database is untouched: %s", err.Error())
+	}
+	_ = up.Close()
+
 	safety, err := h.safetyCopy(ctx, "pre-restore")
 	if err != nil {
 		return err
 	}
 	if err := h.app.Repos.Backup.RestoreFrom(ctx, tmp); err != nil {
 		return apperr.New(apperr.KindInternal, "restore failed (safety copy at %s): %s", safety, err.Error())
-	}
-	if version < live {
-		if err := migrator.Up(h.app.DB, migrator.DefaultDir); err != nil {
-			return apperr.New(apperr.KindInternal, "restored, but migrating v%d → v%d failed (safety copy at %s): %s", version, live, safety, err.Error())
-		}
-	}
-	// A snapshot taken before secrets were bound to their column still carries
-	// unbound ones.
-	if _, err := repositories.ResealLegacy(ctx, h.app.DB, h.app.Secrets, nil); err != nil {
-		return apperr.New(apperr.KindInternal, "restored, but upgrading its credentials failed (safety copy at %s): %s", safety, err.Error())
 	}
 	// Every in-memory mirror of the old database is stale now.
 	h.app.KeysChanged()

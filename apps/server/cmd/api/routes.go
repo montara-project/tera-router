@@ -78,6 +78,9 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	auth.Post("/totp/setup", h.Auth.TOTPSetup)
 	auth.Post("/totp/enable", h.Auth.TOTPEnable)
 	auth.Post("/totp/disable", h.Auth.TOTPDisable)
+	// Step-up ceremony for OIDC-linked accounts: redirects to the provider
+	// for a fresh authentication; the callback mints a reauth ticket.
+	auth.Get("/oidc/reauth", h.Auth.OIDCReauth)
 
 	// IP blocklist
 	ipBlocks := protected.Group("/ip-blocks")

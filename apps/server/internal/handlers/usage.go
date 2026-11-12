@@ -16,10 +16,12 @@ type usageHandler struct {
 // rangeStart resolves the window start for a named range
 // (today, 24h, 7d, 30d, 90d). Unknown ranges mean the last 30 days.
 func rangeStart(rng string) time.Time {
-	now := time.Now()
+	now := time.Now().UTC()
 	switch rng {
 	case "today":
-		return time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+		// Rows are timestamped in UTC, so "today" means the UTC day — a local
+		// midnight would shift the window by the server's timezone offset.
+		return time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 	case "7d":
 		return now.Add(-7 * 24 * time.Hour)
 	case "24h":

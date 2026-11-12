@@ -26,7 +26,7 @@ import { SignInSchema } from '@/lib/api/dtos/auth/schema'
 import { queries } from '@/lib/api/queries'
 import { signInWithEmail } from '@/lib/auth/email-auth'
 import { passkeysSupported, signInWithPasskey } from '@/lib/auth/passkey'
-import { SSO_FLOW_KEY } from '@/lib/auth/sso'
+import { SSO_FLOW_KEY, SSO_REAUTH_TICKET_KEY } from '@/lib/auth/sso'
 import { cn } from '@/lib/utils'
 
 import { BrandRow, useGatewayHealth } from './brand-panel'
@@ -73,6 +73,8 @@ const SSO_ERRORS: Record<string, string> = {
     'The identity provider has not verified this email. Verify it there first, then try again.',
   no_account:
     'No dashboard account exists for this identity. Ask an administrator to create one first.',
+  not_linked:
+    'This account is not linked to the identity provider. Sign in with your password instead.',
   internal: 'The sign-in failed on the server. Try again.',
 }
 
@@ -85,6 +87,8 @@ interface LoginSectionProps extends React.ComponentProps<'div'> {
   ssoTotp?: string
   /** Error code the OIDC callback sent back instead of a ticket. */
   ssoError?: string
+  /** One-use reauthentication ticket a step-up ceremony appended to its redirect. */
+  ssoReauth?: string
 }
 
 export default function LoginSection({
@@ -93,6 +97,7 @@ export default function LoginSection({
   ssoTicket,
   ssoTotp,
   ssoError,
+  ssoReauth,
   ...props
 }: LoginSectionProps) {
   const { navigate } = useRouter()
@@ -101,9 +106,11 @@ export default function LoginSection({
   // A ticket from the OIDC callback is being redeemed right away; an error
   // code is translated into a readable message.
   const [isLoading, setIsLoading] = useState(() => !!ssoTicket)
-  const [error, setError] = useState<string | null>(() =>
-    ssoError ? (SSO_ERRORS[ssoError] ?? 'SSO sign-in failed. Try again.') : null
-  )
+  const [error, setError] = useState<string | null>(null)
+  // The callback's error code, kept until the user retries so its message can
+  // be resolved at render — not_linked depends on the server config, which
+  // loads after the code arrives.
+  const [ssoErr, setSsoErr] = useState(() => ssoError ?? null)
   // Set once the password checked out on an account with two-factor auth on.
   const [needsCode, setNeedsCode] = useState(false)
   // A verified SSO identity that still owes the account's TOTP code.
@@ -114,8 +121,26 @@ export default function LoginSection({
 
   const ssoConfig = useQuery(queries.auth.ssoConfig())
   const ssoEnabled = ssoConfig.data?.enabled === true
+  // The server can make SSO the only way in; absent the field it stays on.
+  const passwordLogin = ssoConfig.data?.password_login !== false
   const ssoExchange = useMutation(queries.auth.ssoExchange())
   const ssoVerifyTotp = useMutation(queries.auth.ssoVerifyTotp())
+
+  // The right not_linked recovery depends on whether password sign-in is
+  // still offered, which only the server config knows.
+  const ssoErrMessage = (code: string): string => {
+    if (code === 'not_linked') {
+      return passwordLogin
+        ? 'This account is not linked to the identity provider. Sign in with your password instead.'
+        : 'This account is not linked to the identity provider. Ask an administrator for help.'
+    }
+    return SSO_ERRORS[code] ?? 'SSO sign-in failed. Try again.'
+  }
+  const shownError = error ?? (ssoErr ? ssoErrMessage(ssoErr) : null)
+  const clearErrors = () => {
+    setError(null)
+    setSsoErr(null)
+  }
 
   // Consume the OIDC callback's search params once: the params are stripped
   // first so a refresh cannot replay the single-use ticket (or re-show the
@@ -124,8 +149,20 @@ export default function LoginSection({
   useEffect(() => {
     if (handledSSO.current) return
     handledSSO.current = true
-    if (ssoError || ssoTicket || ssoTotp) {
+    if (ssoError || ssoTicket || ssoTotp || ssoReauth) {
       void navigate({ to: '/', search: {}, replace: true })
+    }
+    if (ssoReauth) {
+      // The step-up ticket belongs to the dashboard origin's localStorage:
+      // park it for the waiting reauth dialog, then close the popup the
+      // ceremony usually runs in — a plain navigation returns to the app.
+      localStorage.setItem(SSO_REAUTH_TICKET_KEY, ssoReauth)
+      if (window.opener) {
+        window.close()
+      } else {
+        void navigate({ to: '/dashboard', replace: true })
+      }
+      return
     }
     if (ssoTotp) {
       onTwoFactorChange?.('your SSO account')
@@ -138,7 +175,7 @@ export default function LoginSection({
         setIsLoading(false)
       },
     })
-  }, [ssoTicket, ssoTotp, ssoError, navigate, ssoExchange, onTwoFactorChange])
+  }, [ssoTicket, ssoTotp, ssoError, ssoReauth, navigate, ssoExchange, onTwoFactorChange])
 
   const form = useAppForm({
     defaultValues: {
@@ -152,7 +189,7 @@ export default function LoginSection({
     },
     onSubmit: async ({ value }) => {
       setIsLoading(true)
-      setError(null)
+      clearErrors()
 
       try {
         const res = await signInWithEmail({ ...value, otp: needsCode ? otp : undefined })
@@ -180,7 +217,7 @@ export default function LoginSection({
   // submits outside the form's validation like the passkey button does.
   const submitSSOTOTP = async () => {
     setIsLoading(true)
-    setError(null)
+    clearErrors()
     try {
       await ssoVerifyTotp.mutateAsync({ ticket: ssoTOTPTicket, otp })
       navigate({ to: '/dashboard' })
@@ -194,7 +231,7 @@ export default function LoginSection({
 
   const passkeySignIn = async () => {
     setIsLoading(true)
-    setError(null)
+    clearErrors()
     try {
       await signInWithPasskey()
       navigate({ to: '/dashboard' })
@@ -209,7 +246,7 @@ export default function LoginSection({
     setNeedsCode(false)
     setSsoTOTPTicket('')
     setOtp('')
-    setError(null)
+    clearErrors()
     form.setFieldValue('password', '', { dontValidate: true })
     onTwoFactorChange?.(null)
   }
@@ -327,7 +364,7 @@ export default function LoginSection({
                   }}
                   maxLength={6}
                   pattern={REGEXP_ONLY_DIGITS}
-                  aria-invalid={!!error}
+                  aria-invalid={!!shownError}
                   autoFocus
                   autoComplete="one-time-code"
                   containerClassName="w-full"
@@ -356,7 +393,7 @@ export default function LoginSection({
                 </button>
               )}
             </>
-          ) : (
+          ) : passwordLogin ? (
             <>
               <form.AppField
                 name="email"
@@ -385,29 +422,33 @@ export default function LoginSection({
                 )}
               />
             </>
+          ) : null}
+
+          {shownError && <FieldError>{shownError}</FieldError>}
+
+          {(showCode || passwordLogin) && (
+            <Button
+              type="submit"
+              className="h-[38px] w-full gap-[7px] bg-[#0a59b8] text-[13px] font-medium text-white hover:bg-[#0a59b8]/90"
+              disabled={isLoading || (showCode && otp.length !== 6)}
+            >
+              {isLoading && <IconLoader2 className="size-4 animate-spin" aria-hidden />}
+              {submitLabel}
+              {!isLoading && <IconArrowRight className="size-3.5" aria-hidden />}
+            </Button>
           )}
 
-          {error && <FieldError>{error}</FieldError>}
-
-          <Button
-            type="submit"
-            className="h-[38px] w-full gap-[7px] bg-[#0a59b8] text-[13px] font-medium text-white hover:bg-[#0a59b8]/90"
-            disabled={isLoading || (showCode && otp.length !== 6)}
-          >
-            {isLoading && <IconLoader2 className="size-4 animate-spin" aria-hidden />}
-            {submitLabel}
-            {!isLoading && <IconArrowRight className="size-3.5" aria-hidden />}
-          </Button>
-
-          {!showCode && (ssoEnabled || passkeysSupported()) && (
+          {!showCode && (ssoEnabled || (passwordLogin && passkeysSupported())) && (
             <>
-              <div className="flex items-center gap-2.5" aria-hidden>
-                <span className="h-px flex-1 bg-border" />
-                <span className="font-mono text-[10.5px] tracking-[0.6px] text-muted-foreground/80">
-                  OR
-                </span>
-                <span className="h-px flex-1 bg-border" />
-              </div>
+              {passwordLogin && (
+                <div className="flex items-center gap-2.5" aria-hidden>
+                  <span className="h-px flex-1 bg-border" />
+                  <span className="font-mono text-[10.5px] tracking-[0.6px] text-muted-foreground/80">
+                    OR
+                  </span>
+                  <span className="h-px flex-1 bg-border" />
+                </div>
+              )}
               {ssoEnabled && (
                 <Button
                   variant="outline"
@@ -429,7 +470,7 @@ export default function LoginSection({
                   Continue with {ssoConfig.data?.provider_name || 'SSO'}
                 </Button>
               )}
-              {passkeysSupported() && (
+              {passwordLogin && passkeysSupported() && (
                 <Button
                   type="button"
                   variant="outline"
@@ -453,7 +494,9 @@ export default function LoginSection({
           <p className="text-[11.5px] text-muted-foreground">
             {showCode
               ? `Code expires in 00:${String(secondsLeft).padStart(2, '0')}`
-              : 'TOTP is asked after this step when it is on'}
+              : passwordLogin
+                ? 'TOTP is asked after this step when it is on'
+                : 'Your identity provider handles sign-in'}
           </p>
         </footer>
       </section>

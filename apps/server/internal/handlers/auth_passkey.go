@@ -209,7 +209,7 @@ func (h *passkeysHandler) RegisterBegin(c fiber.Ctx) error {
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
 	}
-	needsCode, err := reauthenticate(c, h.app, req.Password, req.OTP)
+	needsCode, err := reauthenticate(c, h.app, req.Password, req.OTP, req.ReauthTicket)
 	if err != nil {
 		return err
 	}
@@ -319,8 +319,13 @@ func (h *passkeysHandler) Delete(c fiber.Ctx) error {
 }
 
 // SignInBegin starts a usernameless passkey sign-in (POST
-// /v1/auth/passkey/begin).
+// /v1/auth/passkey/begin). When OIDC_DISABLE_PASSWORD_LOGIN makes SSO the
+// only way in, passkey sign-in is refused too — the operator asked for the
+// IdP to hold authentication, so no non-SSO credential may open a session.
 func (h *passkeysHandler) SignInBegin(c fiber.Ctx) error {
+	if ssoOnly(h.app) {
+		return apperr.New(apperr.KindForbidden, "passkey sign-in is disabled; sign in with SSO")
+	}
 	origin := c.Get(fiber.HeaderOrigin)
 	rp, err := h.relyingParty(origin)
 	if err != nil {
@@ -338,8 +343,13 @@ func (h *passkeysHandler) SignInBegin(c fiber.Ctx) error {
 }
 
 // SignInFinish verifies the passkey assertion and opens a session (POST
-// /v1/auth/passkey/finish). Every failure is the same 401.
+// /v1/auth/passkey/finish). Every failure is the same 401 — except the
+// SSO-only guard, which also covers ceremonies begun before the flag took
+// effect.
 func (h *passkeysHandler) SignInFinish(c fiber.Ctx) error {
+	if ssoOnly(h.app) {
+		return apperr.New(apperr.KindForbidden, "passkey sign-in is disabled; sign in with SSO")
+	}
 	var req dtos.PasskeyFinish
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
@@ -388,7 +398,7 @@ func (h *passkeysHandler) SignInFinish(c fiber.Ctx) error {
 	}
 
 	auth := &authHandler{app: h.app}
-	session, err := auth.openSession(ctx, user, clientOf(c))
+	session, err := auth.openSession(ctx, user, clientOf(c), "passkey")
 	if err != nil {
 		return err
 	}

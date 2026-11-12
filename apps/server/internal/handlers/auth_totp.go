@@ -95,7 +95,7 @@ func (h *authHandler) TOTPEnable(c fiber.Ctx) error {
 	if user.TOTPEnabled {
 		return apperr.New(apperr.KindConflict, "two-factor authentication is already enabled")
 	}
-	if _, err := reauthenticate(c, h.app, req.Password, ""); err != nil {
+	if _, err := reauthenticate(c, h.app, req.Password, "", req.ReauthTicket); err != nil {
 		return err
 	}
 	if !totp.ValidSecret(req.Secret) {
@@ -132,7 +132,7 @@ func (h *authHandler) TOTPDisable(c fiber.Ctx) error {
 	if !user.TOTPEnabled {
 		return apperr.New(apperr.KindConflict, "two-factor authentication is not enabled")
 	}
-	if _, err := reauthenticate(c, h.app, req.Password, req.Code); err != nil {
+	if _, err := reauthenticate(c, h.app, req.Password, req.Code, req.ReauthTicket); err != nil {
 		return err
 	}
 	if err := h.app.Repos.Users.ClearTOTP(c.Context(), user.ID); err != nil {

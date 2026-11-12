@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -64,7 +65,7 @@ func (h *proxyPoolsHandler) Store(c fiber.Ctx) error {
 	if err := h.app.Repos.ProxyPools.Insert(c.Context(), pool); err != nil {
 		return err
 	}
-	auditRecord(c, actorFrom(c), "proxy_pool.create", pool.ID, map[string]string{"url": pool.URL})
+	auditRecord(c, actorFrom(c), "proxy_pool.create", pool.ID, map[string]string{"url": auditPoolURL(pool.URL)})
 	return dtos.Created(c, poolView(pool), "Proxy pool created")
 }
 
@@ -135,8 +136,20 @@ func (h *proxyPoolsHandler) Update(c fiber.Ctx) error {
 	if err := h.app.Repos.ProxyPools.Update(c.Context(), pool); err != nil {
 		return err
 	}
-	auditRecord(c, actorFrom(c), "proxy_pool.update", pool.ID, map[string]string{"url": pool.URL})
+	auditRecord(c, actorFrom(c), "proxy_pool.update", pool.ID, map[string]string{"url": auditPoolURL(pool.URL)})
 	return dtos.Item(c, fiber.StatusOK, poolView(pool), "Proxy pool updated")
+}
+
+// auditPoolURL strips credentials before a pool URL enters the audit log:
+// relay URLs carry the shared secret as userinfo, and the log travels far
+// wider than the secret should.
+func auditPoolURL(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return ""
+	}
+	u.User = nil
+	return u.String()
 }
 
 // maxProxyPoolBatch caps one batch import or bulk delete.

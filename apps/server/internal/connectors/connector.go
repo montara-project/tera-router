@@ -226,18 +226,25 @@ func (c *connector) Stream(ctx context.Context, req *core.ChatRequest, creds cor
 		case readErr != nil && !errors.Is(readErr, errStopStream):
 			// A read killed by the context deadline is promoted to ErrTimeout
 			// by readError, so a stalled upstream is classified as such rather
-			// than as a clean end of stream.
-			out <- core.StreamChunk{Type: core.ChunkError, Err: cl.readError(ctx, readErr)}
+			// than as a clean end of stream. A dead consumer must not wedge
+			// the send: this goroutine owns the upstream body.
+			select {
+			case out <- core.StreamChunk{Type: core.ChunkError, Err: cl.readError(ctx, readErr)}:
+			case <-ctx.Done():
+			}
 		case errored:
 			// A terminal error chunk was already delivered.
 		case meaningful == 0 && !finished:
-			out <- core.StreamChunk{Type: core.ChunkError, Err: &core.ProviderError{
+			select {
+			case out <- core.StreamChunk{Type: core.ChunkError, Err: &core.ProviderError{
 				Kind:      core.ErrEmptyStream,
 				Provider:  c.id,
 				Model:     req.Model,
 				AccountID: creds.AccountID,
 				Message:   "upstream closed the stream without any content",
-			}}
+			}}:
+			case <-ctx.Done():
+			}
 		}
 	}()
 	return out, nil

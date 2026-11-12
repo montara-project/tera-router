@@ -48,17 +48,24 @@ type accountInput struct {
 // the metadata map as JSON. Credential plaintext never leaves this scope
 // unsealed.
 func accountInputFrom(d dtos.Account) accountInput {
-	return accountInput{
-		Provider:    d.Provider,
-		Label:       d.Label,
-		AuthKind:    models.AuthKind(cmp.Or(d.AuthKind, "api_key")),
-		APIKey:      d.APIKey,
-		Token:       d.Token,
-		Refresh:     d.Refresh,
-		Metadata:    encodeMetadata(d.Metadata),
-		Priority:    d.Priority,
-		ProxyPoolID: d.ProxyPoolID,
+	in := accountInput{
+		Provider: d.Provider,
+		AuthKind: models.AuthKind(cmp.Or(d.AuthKind, "api_key")),
+		APIKey:   d.APIKey,
+		Token:    d.Token,
+		Refresh:  d.Refresh,
+		Metadata: encodeMetadata(d.Metadata),
 	}
+	if d.Label != nil {
+		in.Label = *d.Label
+	}
+	if d.Priority != nil {
+		in.Priority = *d.Priority
+	}
+	if d.ProxyPoolID != nil {
+		in.ProxyPoolID = *d.ProxyPoolID
+	}
+	return in
 }
 
 func encodeMetadata(meta map[string]any) string {
@@ -254,7 +261,7 @@ func (h *accountsHandler) Update(c fiber.Ctx) error {
 	// The next test or dispatch sends the stored credential to base_url, so
 	// pointing it somewhere new needs the same re-authentication as a reveal.
 	if u := metadataBaseURL(in.Metadata); u != "" && u != metadataBaseURL(account.Metadata) {
-		needsCode, err := reauthenticate(c, h.app, req.Password, req.OTP)
+		needsCode, err := reauthenticate(c, h.app, req.Password, req.OTP, req.ReauthTicket)
 		if err != nil {
 			return err
 		}
@@ -262,35 +269,46 @@ func (h *accountsHandler) Update(c fiber.Ctx) error {
 			return totpRequired(c)
 		}
 	}
-	if in.Label != "" {
-		account.Label = in.Label
+	// Branch on the raw request's pointer fields: nil keeps the stored value
+	// while a present value — including zero/empty — is applied, so a PATCH
+	// can zero the priority, empty the label, or detach the proxy pool.
+	if req.Label != nil {
+		account.Label = *req.Label
 	}
-	// Branch on the raw request: accountInputFrom applies the "api_key"
-	// default for creates, so in.AuthKind is never empty and would otherwise
-	// overwrite an oauth/none account on every update.
+	// accountInputFrom applies the "api_key" default for creates, so
+	// in.AuthKind is never empty and would overwrite an oauth/none account on
+	// every update.
 	if req.AuthKind != "" {
 		account.AuthKind = models.AuthKind(req.AuthKind)
 	}
-	if in.Metadata != "" {
-		account.Metadata = in.Metadata
+	if req.Metadata != nil {
+		account.Metadata = encodeMetadata(req.Metadata)
 	}
-	if in.Priority != 0 {
-		account.Priority = in.Priority
+	if req.Priority != nil {
+		account.Priority = *req.Priority
 	}
-	if in.ProxyPoolID != "" {
-		poolID := in.ProxyPoolID
-		account.ProxyPoolID = &poolID
+	if req.ProxyPoolID != nil {
+		if *req.ProxyPoolID == "" {
+			account.ProxyPoolID = nil
+		} else {
+			poolID := *req.ProxyPoolID
+			account.ProxyPoolID = &poolID
+		}
 	}
 	if req.Disabled != nil {
 		account.Disabled = *req.Disabled
 	}
+	// Scoped writes keep a racing OAuth refresh safe in both directions: a
+	// credential-carrying PATCH deliberately re-seals the whole row, while a
+	// profile-only PATCH must not overwrite token blobs sealed mid-request.
+	update := h.app.Repos.Accounts.UpdateProfile
 	if in.APIKey != "" || in.Token != "" || in.Refresh != "" {
 		if err := sealCredential(h.app, &account, in); err != nil {
 			return err
 		}
+		update = h.app.Repos.Accounts.Update
 	}
-
-	if err := h.app.Repos.Accounts.Update(c.Context(), account); err != nil {
+	if err := update(c.Context(), account); err != nil {
 		return err
 	}
 	auditRecord(c, actorFrom(c), "account.update", id.String(), nil)

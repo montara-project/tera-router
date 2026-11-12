@@ -33,7 +33,7 @@ func TestPasskeyFlow(t *testing.T) {
 	if err := migrator.Up(db, "../../migrations"); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
-	t.Setenv("ADMIN_PASSWORD", "pw")
+	t.Setenv("ADMIN_PASSWORD", "test-password")
 	seeders.RoleSeeder{DB: db}.Seed()
 	seeders.AdminUserSeeder{DB: db}.Seed()
 
@@ -81,11 +81,11 @@ func TestPasskeyFlow(t *testing.T) {
 	if status, _, _ := call("POST", "/passkeys/register/begin", origin, `{"password":"wrong"}`); status != 422 {
 		t.Fatalf("register with wrong password = %d, want 422", status)
 	}
-	if status, _, _ := call("POST", "/passkeys/register/begin", "http://127.0.0.1:8080", `{"password":"pw"}`); status != 400 {
+	if status, _, _ := call("POST", "/passkeys/register/begin", "http://127.0.0.1:8080", `{"password":"test-password"}`); status != 400 {
 		t.Fatalf("register on an IP origin = %d, want 400", status)
 	}
 
-	status, begin, _ := call("POST", "/passkeys/register/begin", origin, `{"password":"pw"}`)
+	status, begin, _ := call("POST", "/passkeys/register/begin", origin, `{"password":"test-password"}`)
 	if status != 200 {
 		t.Fatalf("register begin = %d %v", status, begin)
 	}

@@ -16,9 +16,9 @@ type RefreshTokenRepository struct {
 // Insert persists a new refresh token.
 func (r *RefreshTokenRepository) Insert(ctx context.Context, t models.RefreshToken) error {
 	_, err := r.execContext(ctx, r.DB, `
-		INSERT INTO refresh_tokens (id, user_id, token_hash, user_agent, ip_address, expires_at)
-		VALUES ($1, $2, $3, $4, $5, $6)`,
-		t.ID, t.UserID, t.TokenHash, t.UserAgent, t.IPAddress, t.ExpiresAt,
+		INSERT INTO refresh_tokens (id, user_id, token_hash, auth_method, user_agent, ip_address, expires_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		t.ID, t.UserID, t.TokenHash, t.AuthMethod, t.UserAgent, t.IPAddress, t.ExpiresAt,
 	)
 	return err
 }
@@ -55,7 +55,7 @@ func (r *RefreshTokenRepository) Rotate(ctx context.Context, id, oldHash, newHas
 // ListActive returns the user's unrevoked, unexpired sessions, newest first.
 func (r *RefreshTokenRepository) ListActive(ctx context.Context, userID string) ([]models.RefreshToken, error) {
 	rows, err := r.queryContext(ctx, r.DB, `
-		SELECT id, user_id, user_agent, ip_address, expires_at, created_at
+		SELECT id, user_id, auth_method, user_agent, ip_address, expires_at, created_at
 		FROM refresh_tokens
 		WHERE user_id = $1 AND revoked_at IS NULL AND expires_at > strftime('%Y-%m-%d %H:%M:%f+00:00', 'now')
 		ORDER BY created_at DESC`, userID)
@@ -67,7 +67,7 @@ func (r *RefreshTokenRepository) ListActive(ctx context.Context, userID string) 
 	out := []models.RefreshToken{}
 	for rows.Next() {
 		var t models.RefreshToken
-		if err := rows.Scan(&t.ID, &t.UserID, &t.UserAgent, &t.IPAddress, &t.ExpiresAt, &t.CreatedAt); err != nil {
+		if err := rows.Scan(&t.ID, &t.UserID, &t.AuthMethod, &t.UserAgent, &t.IPAddress, &t.ExpiresAt, &t.CreatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, t)

@@ -46,6 +46,32 @@ func TestSumSinceScalesTokensByConsumptionRate(t *testing.T) {
 	}
 }
 
+// A fractional rate turns the token sum into a REAL: the query must cast it
+// back — scanning a float into the int64 field used to fail the whole budget
+// and rate-limit check with a 500.
+func TestSumSinceFractionalConsumptionRate(t *testing.T) {
+	repo := newUsageRepo(t)
+	from := time.Now().Add(-time.Hour)
+	ctx := context.Background()
+
+	rate := 1.5
+	insert(t, repo, models.UsageRecord{
+		Provider: "openai", Model: "o3", PromptTokens: 11,
+		TokenConsumptionRate: &rate,
+	})
+	insert(t, repo, models.UsageRecord{
+		Provider: "openai", Model: "gpt-4o", PromptTokens: 10,
+	})
+
+	spend, err := repo.SumSince(ctx, models.ScopeTenant, "", from)
+	if err != nil {
+		t.Fatalf("sum since with fractional rate: %v", err)
+	}
+	if spend.BudgetTokens != 26 {
+		t.Fatalf("BudgetTokens = %d, want 26 (CAST truncates 11×1.5+10 = 26.5)", spend.BudgetTokens)
+	}
+}
+
 func TestUsageRecordRoundtripsConsumptionRate(t *testing.T) {
 	repo := newUsageRepo(t)
 	ctx := context.Background()

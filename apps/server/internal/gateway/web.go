@@ -200,9 +200,10 @@ func (s *Server) serveDirect(c fiber.Ctx, what string, resolve func(context.Cont
 		s.logFailure(last)
 		s.noteFailure(last)
 		s.recordFailure(meta, at.attempt, last, latency)
-		// The same input fails identically everywhere; stop on a bad request
-		// or once the client's deadline is gone.
-		if last.Kind == core.ErrBadRequest || ctx.Err() != nil {
+		// The same input fails identically everywhere; stop on any error the
+		// dispatcher marks non-fallbackable or once the client's deadline is
+		// gone, matching the attempt loops in unary.go and stream.go.
+		if !last.Fallbackable() || ctx.Err() != nil {
 			break
 		}
 	}

@@ -8,6 +8,37 @@ import { setAuthTokens } from './token-storage'
  * to the tab that began the sign-in. */
 export const SSO_FLOW_KEY = 'sso_flow'
 
+/** localStorage key the reauth callback's landing page parks the one-use
+ * reauthentication ticket under. localStorage — not sessionStorage — because
+ * the ceremony usually runs in a separate tab/popup while the pending action
+ * waits in this one. The server page writes the same literal key. */
+export const SSO_REAUTH_TICKET_KEY = 'sso_reauth_ticket'
+
+/**
+ * Take the ticket a fresh /oidc/reauth ceremony left for this browser. The
+ * server accepts it once, so it is consumed from storage as it is read — the
+ * next reauthentication needs a new ceremony.
+ */
+export function takeSSOReauthTicket(): string {
+  const ticket = localStorage.getItem(SSO_REAUTH_TICKET_KEY) ?? ''
+  localStorage.removeItem(SSO_REAUTH_TICKET_KEY)
+  return ticket
+}
+
+/**
+ * Send the browser through the step-up ceremony the reauth ticket comes
+ * from. It opens in a popup so the pending action stays on screen; when
+ * popups are blocked it navigates this tab instead — the ticket survives in
+ * localStorage either way, and the action can be retried on return.
+ */
+export function startSSOReauth(apiURL: string) {
+  const url = `${apiURL}/v1/auth/oidc/reauth`
+  const popup = window.open(url, 'sso_reauth', 'popup,width=520,height=720')
+  if (!popup) {
+    window.location.href = url
+  }
+}
+
 /**
  * Redeem the one-time ticket the OIDC callback appended to its redirect for
  * the session it opened; stores the tokens like email sign-in. The ticket is

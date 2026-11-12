@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"cmp"
+	"math"
 	"time"
 
 	"tera-router/server/internal/app"
@@ -28,7 +29,7 @@ func budgetFromRequest(d dtos.Budget) models.Budget {
 		AlertPct:  80,
 	}
 	if d.BudgetSpend != nil {
-		b.LimitMicros = int64(*d.BudgetSpend * 1_000_000)
+		b.LimitMicros = int64(math.Round(*d.BudgetSpend * 1_000_000))
 	}
 	if d.LimitTokens != nil {
 		b.LimitTokens = *d.LimitTokens
@@ -69,7 +70,7 @@ func applyBudgetPatch(b *models.Budget, d dtos.Budget) {
 		b.Period = d.Period
 	}
 	if d.BudgetSpend != nil {
-		b.LimitMicros = int64(*d.BudgetSpend * 1_000_000)
+		b.LimitMicros = int64(math.Round(*d.BudgetSpend * 1_000_000))
 	}
 	if d.LimitTokens != nil {
 		b.LimitTokens = *d.LimitTokens
