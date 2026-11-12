@@ -28,7 +28,7 @@ function RouteComponent() {
     <div className="flex min-h-svh bg-background">
       <BrandPanel
         twoFactorEmail={twoFactorEmail}
-        className="hidden lg:flex lg:w-[480px] lg:shrink-0 xl:w-[600px]"
+        className="hidden lg:flex lg:w-120 lg:shrink-0 xl:w-150"
       />
       <main className="flex flex-1 items-center justify-center p-6 md:p-12">
         <LoginSection
