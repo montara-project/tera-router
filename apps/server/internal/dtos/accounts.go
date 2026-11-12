@@ -5,15 +5,18 @@ import "tera-router/server/internal/lib/validator"
 // Account is the account create/update request body
 // (POST/PATCH /v1/accounts). Credential fields are sealed at rest.
 type Account struct {
-	Provider    string         `json:"provider"`
-	Label       string         `json:"label"`
-	AuthKind    string         `json:"auth_kind"`
-	APIKey      string         `json:"api_key"`
-	Token       string         `json:"token"`
-	Refresh     string         `json:"refresh"`
+	Provider string `json:"provider"`
+	AuthKind string `json:"auth_kind"`
+	APIKey   string `json:"api_key"`
+	Token    string `json:"token"`
+	Refresh  string `json:"refresh"`
+	// Pointer fields distinguish "absent" from "explicitly cleared" on PATCH:
+	// only nil keeps the stored value, so an update can set priority 0,
+	// empty the label, or detach the proxy pool with "".
+	Label       *string        `json:"label"`
 	Metadata    map[string]any `json:"metadata"`
-	Priority    int            `json:"priority"`
-	ProxyPoolID string         `json:"proxy_pool_id"`
+	Priority    *int           `json:"priority"`
+	ProxyPoolID *string        `json:"proxy_pool_id"`
 	Disabled    *bool          `json:"disabled"`
 	// Password and OTP re-authenticate an update that points the stored
 	// credential at a new metadata.base_url; see Reauth.

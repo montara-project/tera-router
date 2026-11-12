@@ -31,6 +31,9 @@ const ChainNamePattern = `^[A-Za-z0-9._-]+$`
 
 func (d *Chain) Validate(v *validator.MapValidator) {
 	v.Field("name").Required().String().Regex(ChainNamePattern)
+	// Unknown strategies silently route as "priority" at read time, so a typo
+	// would change routing without any error; reject it at write time.
+	v.Field("strategy").WithinS("", "priority", "round-robin", "load-balanced")
 }
 
 // AliasTarget is one ordered candidate inside an Alias request.

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"cmp"
+	"math"
 	"time"
 
 	"tera-router/server/internal/app"
@@ -139,7 +140,7 @@ func planFromRequest(req dtos.Plan) models.Plan {
 		plan.AllowedModels = *req.AllowedModels
 	}
 	if req.BudgetSpend != nil {
-		plan.LimitMicros = int64(*req.BudgetSpend * 1_000_000)
+		plan.LimitMicros = int64(math.Round(*req.BudgetSpend * 1_000_000))
 	}
 	if req.BudgetTokens != nil {
 		plan.LimitTokens = *req.BudgetTokens
@@ -180,7 +181,7 @@ func applyPlanPatch(plan *models.Plan, req dtos.Plan) {
 		plan.Concurrent = req.Concurrent
 	}
 	if req.BudgetSpend != nil {
-		plan.LimitMicros = int64(*req.BudgetSpend * 1_000_000)
+		plan.LimitMicros = int64(math.Round(*req.BudgetSpend * 1_000_000))
 	}
 	if req.BudgetTokens != nil {
 		plan.LimitTokens = *req.BudgetTokens

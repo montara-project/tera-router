@@ -173,13 +173,15 @@ func serve(app *app.Application) error {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 
-	// Start server in a goroutine
+	// Start server in a goroutine; a bind failure must not leave a running
+	// process that serves nothing, so the error is reported to the wait below.
+	listenErr := make(chan error, 1)
 	go func() {
 		app.Logger.Info("server started on port", "port", app.Config.App.Port)
 		listenAddr := fmt.Sprintf(":%d", app.Config.App.Port)
 
 		if err := server.Listen(listenAddr); err != nil {
-			app.Logger.Error("failed to start server", "error", err)
+			listenErr <- err
 		}
 	}()
 
@@ -198,9 +200,13 @@ func serve(app *app.Application) error {
 		app.Logger.Info("cloudflare tunnel restored", "url", status.URL)
 	}()
 
-	// Wait for interrupt signal
-	<-c
-	app.Logger.Info("Received interrupt signal, shutting down...")
+	// Wait for interrupt signal, or give up if the listener never came up.
+	select {
+	case <-c:
+		app.Logger.Info("Received interrupt signal, shutting down...")
+	case err := <-listenErr:
+		return fmt.Errorf("server listen failed: %w", err)
+	}
 
 	// The tunnel is a child process; it must not outlive the server.
 	app.Services.Tunnel.Stop()

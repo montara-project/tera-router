@@ -86,7 +86,16 @@ func parseFlag(cfg *config.Config) {
 	// APP_SECRET in the environment keeps the secret out of the process
 	// arguments, which any local user can read with ps.
 	flag.StringVar(&cfg.App.Secret, "app-secret", envString("APP_SECRET", ""), "App Secret")
-	flag.StringVar(&cfg.App.CORSAllowedOrigins, "cors-allowed-origins", envString("CORS_ALLOWED_ORIGINS", "*"), "CORS Allowed Origins")
+	// Wildcard CORS is a development convenience: everywhere else the default
+	// stays empty so browsers enforce same-origin until origins are listed.
+	// (cfg.App.Env is already populated — flag defaults bind in order — but
+	// --env on the command line is parsed later, so only the ENV var steers
+	// this default.)
+	corsDefault := ""
+	if cfg.App.Env == "development" {
+		corsDefault = "*"
+	}
+	flag.StringVar(&cfg.App.CORSAllowedOrigins, "cors-allowed-origins", envString("CORS_ALLOWED_ORIGINS", corsDefault), "CORS Allowed Origins")
 	// API_URL in the environment reaches the served web UI at runtime — no
 	// rebuild — when the dashboard API lives on a different origin.
 	flag.StringVar(&cfg.App.APIURL, "api-url", envString("API_URL", ""), "Public API base URL for the served web UI")

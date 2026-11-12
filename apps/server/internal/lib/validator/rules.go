@@ -2,6 +2,7 @@ package validator
 
 import (
 	"fmt"
+	"math"
 	"regexp"
 	"slices"
 	"strings"
@@ -64,6 +65,23 @@ func (v *FieldValidator) WithinS(vals ...string) *FieldValidator {
 	v.registerRule(func(key string, data interface{}) (string, bool) {
 		if s, ok := data.(string); ok && !slices.Contains(vals, s) {
 			return fmt.Sprintf("%s may only contain %s", key, strings.Join(vals, ", ")), false
+		}
+		return "", true
+	})
+	return v
+}
+
+// Range bounds a JSON number to [min, max]; a missing field passes, and
+// non-finite values (NaN, infinities — unreachable from encoding/json but not
+// from a constructed dict) fail rather than slipping through the comparison.
+func (v *FieldValidator) Range(min, max float64) *FieldValidator {
+	v.registerRule(func(key string, data interface{}) (string, bool) {
+		if data == nil {
+			return "", true
+		}
+		n, ok := data.(float64)
+		if !ok || math.IsNaN(n) || math.IsInf(n, 0) || n < min || n > max {
+			return fmt.Sprintf("%s must be between %g and %g", key, min, max), false
 		}
 		return "", true
 	})

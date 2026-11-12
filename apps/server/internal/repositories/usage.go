@@ -88,7 +88,7 @@ func (r *UsageRepository) SumSince(ctx context.Context, scope models.BudgetScope
 	query := `
 		SELECT COALESCE(SUM(cost_micros), 0),
 		       COALESCE(SUM(prompt_tokens), 0), COALESCE(SUM(completion_tokens), 0),
-		       COALESCE(SUM((prompt_tokens + completion_tokens) * COALESCE(token_consumption_rate, 1)), 0)
+		       COALESCE(CAST(SUM((prompt_tokens + completion_tokens) * COALESCE(token_consumption_rate, 1)) AS INTEGER), 0)
 		FROM usage_records WHERE created_at >= $1`
 	args := []any{from}
 	switch scope {

@@ -243,7 +243,7 @@ func TestOIDCVerifyTOTP(t *testing.T) {
 	if err := migrator.Up(db, "../../migrations"); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
-	t.Setenv("ADMIN_PASSWORD", "pw")
+	t.Setenv("ADMIN_PASSWORD", "test-password")
 	seeders.RoleSeeder{DB: db}.Seed()
 	seeders.AdminUserSeeder{DB: db}.Seed()
 
@@ -294,7 +294,7 @@ func TestOIDCVerifyTOTP(t *testing.T) {
 	secret, _ := setup["secret"].(string)
 	now := time.Now()
 	prev, cur := totp.Code(secret, now.Add(-30*time.Second)), totp.Code(secret, now)
-	if status, _ := post("/totp/enable", `{"password":"pw","secret":"`+secret+`","code":"`+prev+`"}`); status != 200 {
+	if status, _ := post("/totp/enable", `{"password":"test-password","secret":"`+secret+`","code":"`+prev+`"}`); status != 200 {
 		t.Fatalf("enable = %d", status)
 	}
 	user, err := h.app.Repos.Users.Get(t.Context(), admin.String())
@@ -418,7 +418,7 @@ func TestOIDCCallbackPendingTOTP(t *testing.T) {
 	if err := migrator.Up(db, "../../migrations"); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
-	t.Setenv("ADMIN_PASSWORD", "pw")
+	t.Setenv("ADMIN_PASSWORD", "test-password")
 	seeders.RoleSeeder{DB: db}.Seed()
 	seeders.AdminUserSeeder{DB: db}.Seed()
 
@@ -639,7 +639,7 @@ func (fx *ssoCallbackFixture) callCallback(t *testing.T, state string) url.Value
 // (audit-logged), and later sign-ins match by sub even when the email moved.
 func TestOIDCCallbackLinksExistingAccount(t *testing.T) {
 	fx := newSSOCallbackFixture(t, config.ConfigOIDC{})
-	t.Setenv("ADMIN_PASSWORD", "pw")
+	t.Setenv("ADMIN_PASSWORD", "test-password")
 	seeders.AdminUserSeeder{DB: fx.h.app.DB}.Seed()
 
 	idp := newFakeIdP(t, "n1", "admin@tera.local")
@@ -668,7 +668,7 @@ func TestOIDCCallbackLinksExistingAccount(t *testing.T) {
 // carries no linked subject is refused instead of being silently linked.
 func TestOIDCCallbackLinkDisabled(t *testing.T) {
 	fx := newSSOCallbackFixture(t, config.ConfigOIDC{})
-	t.Setenv("ADMIN_PASSWORD", "pw")
+	t.Setenv("ADMIN_PASSWORD", "test-password")
 	seeders.AdminUserSeeder{DB: fx.h.app.DB}.Seed()
 
 	idp := newFakeIdP(t, "n1", "admin@tera.local")

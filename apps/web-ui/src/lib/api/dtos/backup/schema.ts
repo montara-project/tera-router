@@ -12,7 +12,7 @@ export const ConfigExportSchema = ReauthSchema.extend({
 export type ConfigExportDto = z.infer<typeof ConfigExportSchema>
 
 /** Configuration import body (POST /v1/backup/config/import). */
-export const ConfigImportSchema = z.object({
+export const ConfigImportSchema = ReauthSchema.extend({
   passphrase: optionalString('passphrase'),
   backup: z.record(z.string(), z.unknown(), { error: 'The backup must be a JSON object.' }),
 })

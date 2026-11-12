@@ -2,6 +2,7 @@ package middlewares
 
 import (
 	"net/netip"
+	"strconv"
 	"strings"
 	"time"
 
@@ -49,8 +50,10 @@ func RateLimit(exemptLoopback bool, skipPaths func(string) bool, exemptIPs strin
 	}
 	exempt := map[string]struct{}{}
 	for _, ip := range strings.Split(exemptIPs, ",") {
-		if ip = strings.TrimSpace(ip); ip != "" {
-			exempt[ip] = struct{}{}
+		// Parse so IPv6 shorthand, zones, and case variants of the same
+		// address all match the canonical form clientIP produces.
+		if addr, err := netip.ParseAddr(strings.TrimSpace(ip)); err == nil {
+			exempt[addr.String()] = struct{}{}
 		}
 	}
 	return limiter.New(limiter.Config{
@@ -59,8 +62,10 @@ func RateLimit(exemptLoopback bool, skipPaths func(string) bool, exemptIPs strin
 				return true
 			}
 			ip := ipOf(c)
-			if _, ok := exempt[ip]; ok {
-				return true
+			if addr, err := netip.ParseAddr(ip); err == nil {
+				if _, ok := exempt[addr.String()]; ok {
+					return true
+				}
 			}
 			return exemptLoopback && ip == "127.0.0.1"
 		},
@@ -68,6 +73,7 @@ func RateLimit(exemptLoopback bool, skipPaths func(string) bool, exemptIPs strin
 		Max:          rateLimitMax,
 		Expiration:   rateLimitExpiration,
 		LimitReached: func(c fiber.Ctx) error {
+			c.Set("Retry-After", strconv.Itoa(int(rateLimitExpiration.Seconds())))
 			return apperr.ErrTooManyRequests
 		},
 	})

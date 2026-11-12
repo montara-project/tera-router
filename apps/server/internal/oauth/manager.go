@@ -141,7 +141,7 @@ func (m *Manager) refresh(ctx context.Context, acc models.Account) (models.Accou
 	acc.Refresh = sealedRefresh
 	acc.TokenExpiresAt = expiresAt
 
-	if err := m.Repos.Accounts.Update(ctx, acc); err != nil {
+	if err := m.Repos.Accounts.UpdateTokens(ctx, acc); err != nil {
 		return acc, fmt.Errorf("oauth: persist refreshed token: %w", err)
 	}
 	return acc, nil

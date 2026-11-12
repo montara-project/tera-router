@@ -63,6 +63,13 @@ export function getStoredAccessToken(): string | null {
 }
 
 /**
+ * Read the backend-issued refresh token from cookies (client-side).
+ */
+export function getStoredRefreshToken(): string | null {
+  return readCookie(AUTH_STORAGE_KEYS.REFRESH_TOKEN)
+}
+
+/**
  * Remove all backend-issued auth tokens from cookies.
  */
 export function clearAuthTokens() {

@@ -22,6 +22,12 @@ type Budget struct {
 func (d *Budget) Validate(v *validator.MapValidator) {
 	v.Field("scope_kind").WithinS("tenant", "api_key", "account")
 	v.Field("period").WithinS("daily", "weekly", "monthly")
+	// 9e12 USD is well past any real budget and still converts to micros
+	// without overflowing int64; a negative or overflowing limit would
+	// silently store the "no cap" encoding.
+	v.Field("budget_spend").Range(0, 9e12)
+	v.Field("limit_tokens").Range(0, 9e18)
+	v.Field("alert_pct").Range(0, 100)
 }
 
 // BudgetStatus is one row of the budgets/status endpoint: the budget plus

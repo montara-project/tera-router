@@ -19,6 +19,12 @@ var httpClient = &http.Client{
 	Transport: http.DefaultTransport,
 }
 
+// oauthBodyLimit caps provider token and userinfo responses, read on every
+// code exchange and every just-in-time refresh: an unbounded body from a
+// buggy or hostile provider would grow memory per request. 1 MiB matches the
+// cap the usage endpoint already applies — token payloads are small JSON.
+const oauthBodyLimit = 1 << 20
+
 // AuthURL builds the provider authorize URL for the authorization-code + PKCE
 // flow. challenge is the S256 code challenge.
 func (c ProviderConfig) AuthURL(redirectURI, state, challenge string) string {
@@ -248,9 +254,12 @@ func (c ProviderConfig) tokenRequestStatus(ctx context.Context, endpoint string,
 		return nil, 0, fmt.Errorf("oauth: token request: %w", err)
 	}
 	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, oauthBodyLimit+1))
 	if err != nil {
 		return nil, resp.StatusCode, fmt.Errorf("oauth: read token response: %w", err)
+	}
+	if int64(len(body)) > oauthBodyLimit {
+		return nil, resp.StatusCode, fmt.Errorf("oauth: token response exceeds %d bytes", oauthBodyLimit)
 	}
 	return body, resp.StatusCode, nil
 }
@@ -345,7 +354,7 @@ func (c ProviderConfig) FetchUserInfo(ctx context.Context, t *Tokens) {
 	if resp.StatusCode >= 400 {
 		return
 	}
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, oauthBodyLimit))
 	if err != nil {
 		return
 	}

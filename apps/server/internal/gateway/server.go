@@ -18,6 +18,7 @@ package gateway
 import (
 	"log/slog"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"tera-router/server/internal/app"
@@ -28,6 +29,7 @@ import (
 	"tera-router/server/internal/transform"
 
 	"github.com/gofiber/fiber/v3"
+	"golang.org/x/sync/singleflight"
 )
 
 const (
@@ -99,6 +101,10 @@ type Server struct {
 	accountRotation accountRotation
 	// auth caches verified inbound API keys so argon2 runs once per key per TTL.
 	auth authCache
+	// authFlight shares one cache-miss verification across concurrent callers:
+	// an argon2 run costs tens of MiB, so a post-restart burst of requests
+	// carrying the same key must not all verify at once.
+	authFlight singleflight.Group
 	// inflight bounds concurrent inference requests. A request holds its slot
 	// for its whole life, including the stream writer phase that runs after the
 	// handler returns.
@@ -112,6 +118,8 @@ type Server struct {
 	// database yet, so a shutdown (or a test teardown) can wait for the
 	// accounting of already-served requests instead of racing it.
 	metering sync.WaitGroup
+	// droppedUsage counts usage rows lost to exhausted insert retries.
+	droppedUsage atomic.Int64
 }
 
 // New builds the gateway server over the application container. The codec

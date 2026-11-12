@@ -40,7 +40,7 @@ func TestRotateRequiresReauth(t *testing.T) {
 	if err := migrator.Up(db, "../../migrations"); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
-	t.Setenv("ADMIN_PASSWORD", "pw")
+	t.Setenv("ADMIN_PASSWORD", "test-password")
 	seeders.RoleSeeder{DB: db}.Seed()
 	seeders.AdminUserSeeder{DB: db}.Seed()
 
@@ -108,17 +108,17 @@ func TestRotateRequiresReauth(t *testing.T) {
 	secret, _ := setup["secret"].(string)
 	now := time.Now()
 	prev, cur := totp.Code(secret, now.Add(-30*time.Second)), totp.Code(secret, now)
-	if status, _ := call("/totp/enable", `{"password":"pw","secret":"`+secret+`","code":"`+prev+`"}`); status != 200 {
+	if status, _ := call("/totp/enable", `{"password":"test-password","secret":"`+secret+`","code":"`+prev+`"}`); status != 200 {
 		t.Fatalf("enable = %d", status)
 	}
 
-	if status, data := rotate("pw", ""); status != 200 || data["totp_required"] != true || data["full_key"] != nil {
+	if status, data := rotate("test-password", ""); status != 200 || data["totp_required"] != true || data["full_key"] != nil {
 		t.Fatalf("rotate without code = %d %v, want totp_required", status, data)
 	}
-	if status, _ := rotate("pw", "000000"); status != 422 {
+	if status, _ := rotate("test-password", "000000"); status != 422 {
 		t.Fatalf("wrong code = %d, want 422", status)
 	}
-	status, data := rotate("pw", cur)
+	status, data := rotate("test-password", cur)
 	fresh, _ := data["full_key"].(string)
 	if status != 200 || fresh == "" || fresh == gen.Plaintext {
 		t.Fatalf("rotate with code = %d %v", status, data)

@@ -3,6 +3,7 @@ package gateway
 import (
 	"net/http"
 	"strings"
+	"unicode/utf8"
 
 	"tera-router/server/internal/core"
 
@@ -117,7 +118,13 @@ func sanitizeErrorMessage(msg string) string {
 	msg = redactSkKey(msg)
 	msg = redactBearerToken(msg)
 	if len(msg) > maxErrorMessageLen {
-		msg = msg[:maxErrorMessageLen] + "…"
+		msg = msg[:maxErrorMessageLen]
+		// A byte cut can split a multi-byte character; walk back to a rune
+		// boundary so persisted text stays valid UTF-8.
+		for len(msg) > 0 && !utf8.ValidString(msg) {
+			msg = msg[:len(msg)-1]
+		}
+		msg += "…"
 	}
 	return msg
 }

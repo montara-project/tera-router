@@ -33,6 +33,22 @@ func envOr(key, fallback string) string {
 // disposable. It is never used for a production seed.
 const devAdminPassword = "admin123"
 
+// minAdminPasswordLength keeps a production admin from being seeded or
+// re-seeded with a trivially short password: ADMIN_PASSWORD re-imposes
+// itself on every boot, so a weak value here is a permanent credential.
+const minAdminPasswordLength = 8
+
+// checkAdminPassword refuses a production ADMIN_PASSWORD that is the known
+// development password or too short to be a real credential.
+func checkAdminPassword(plain string, dev bool) {
+	if dev {
+		return
+	}
+	if plain == devAdminPassword || len(plain) < minAdminPasswordLength {
+		log.Fatalf("ADMIN_PASSWORD must differ from the development password and be at least %d characters", minAdminPasswordLength)
+	}
+}
+
 // adminPassword resolves the first admin's password. A production seed
 // refuses to run without ADMIN_PASSWORD; a development seed falls back to a
 // known password so a fresh checkout stays usable. Either way a random
@@ -40,6 +56,7 @@ const devAdminPassword = "admin123"
 // so no build ever ships a usable default credential.
 func adminPassword(dev bool) string {
 	if v := os.Getenv("ADMIN_PASSWORD"); v != "" {
+		checkAdminPassword(v, dev)
 		return v
 	}
 
@@ -141,6 +158,7 @@ func (s AdminUserSeeder) syncPassword() {
 	if plain == "" {
 		return
 	}
+	checkAdminPassword(plain, s.Dev)
 
 	var current string
 	if err := s.DB.QueryRow(`SELECT password_hash FROM users WHERE id = $1`, adminID).Scan(&current); err != nil {

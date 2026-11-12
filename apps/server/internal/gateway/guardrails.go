@@ -78,11 +78,6 @@ func (s *Server) screen(ctx context.Context, req *core.ChatRequest, resolved res
 				verdict.Reasons = appendUnique(verdict.Reasons, m.Entity)
 			}
 		}
-		for _, m := range d.Matches {
-			if m.Entity != "" {
-				verdict.Reasons = appendUnique(verdict.Reasons, m.Entity)
-			}
-		}
 		// PII masking applies whenever PII is found, even when a stronger
 		// action (warn) outranks it in the decision.
 		if d.Key == "pii" {

@@ -30,7 +30,7 @@ import (
 )
 
 // backupAdminPassword is the seeded admin's password in every harness.
-const backupAdminPassword = "pw"
+const backupAdminPassword = "test-password"
 
 // backupHarness is one install: a migrated database file, a sealer derived
 // from its own APP_SECRET, and a Fiber app exposing the backup routes.
@@ -174,16 +174,16 @@ func TestConfigBackupPortableAcrossInstalls(t *testing.T) {
 	dst := newBackupHarness(t, "destination-secret")
 	dst.seedChain(t, "stale")
 
-	status, body := dst.postJSON(t, "/backup/config/import", map[string]any{"passphrase": "wrong", "backup": json.RawMessage(portable)})
+	status, body := dst.postJSON(t, "/backup/config/import", map[string]any{"password": backupAdminPassword, "passphrase": "wrong", "backup": json.RawMessage(portable)})
 	if status != http.StatusBadRequest {
 		t.Fatalf("wrong passphrase status = %d, want 400: %s", status, body)
 	}
-	status, body = dst.postJSON(t, "/backup/config/import", map[string]any{"backup": json.RawMessage(sealedOnly)})
+	status, body = dst.postJSON(t, "/backup/config/import", map[string]any{"password": backupAdminPassword, "backup": json.RawMessage(sealedOnly)})
 	if status != http.StatusUnprocessableEntity {
 		t.Fatalf("foreign non-portable import status = %d, want 422: %s", status, body)
 	}
 
-	status, body = dst.postJSON(t, "/backup/config/import", map[string]any{"passphrase": "correct horse", "backup": json.RawMessage(portable)})
+	status, body = dst.postJSON(t, "/backup/config/import", map[string]any{"password": backupAdminPassword, "passphrase": "correct horse", "backup": json.RawMessage(portable)})
 	if status != http.StatusOK {
 		t.Fatalf("portable import status = %d: %s", status, body)
 	}
@@ -208,7 +208,7 @@ func TestConfigBackupPortableAcrossInstalls(t *testing.T) {
 	}
 
 	// Same install, no passphrase: the sealed blobs open as-is.
-	status, body = src.postJSON(t, "/backup/config/import", map[string]any{"backup": json.RawMessage(sealedOnly)})
+	status, body = src.postJSON(t, "/backup/config/import", map[string]any{"password": backupAdminPassword, "backup": json.RawMessage(sealedOnly)})
 	if status != http.StatusOK {
 		t.Fatalf("same-install import status = %d: %s", status, body)
 	}
@@ -535,9 +535,10 @@ func TestResealLegacyBindsStoredSecrets(t *testing.T) {
 	}
 }
 
-// TestBackupsRequireReauth pins that neither backup leaves the server without
-// the signed-in user's password: the snapshot and the export (whose passphrase
-// would decrypt every credential) both refuse a missing or wrong one.
+// TestBackupsRequireReauth pins that no backup crosses the server without
+// the signed-in user's password: the snapshot, the export (whose passphrase
+// would decrypt every credential), and the import — which would replace
+// every credential — all refuse a missing or wrong one.
 func TestBackupsRequireReauth(t *testing.T) {
 	h := newBackupHarness(t, "test-secret")
 	for _, path := range []string{"/backup/database/download", "/backup/config/export"} {
@@ -550,5 +551,10 @@ func TestBackupsRequireReauth(t *testing.T) {
 		if status, _ := h.postJSON(t, path, map[string]string{"password": backupAdminPassword}); status != http.StatusOK {
 			t.Fatalf("%s with password = %d", path, status)
 		}
+	}
+
+	// The import refuses before the document is even inspected.
+	if status, _ := h.postJSON(t, "/backup/config/import", map[string]string{}); status != http.StatusUnprocessableEntity {
+		t.Fatalf("import without password = %d, want 422", status)
 	}
 }

@@ -39,7 +39,7 @@ func TestRevealRequiresReauth(t *testing.T) {
 	if err := migrator.Up(db, "../../migrations"); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
-	t.Setenv("ADMIN_PASSWORD", "pw")
+	t.Setenv("ADMIN_PASSWORD", "test-password")
 	seeders.RoleSeeder{DB: db}.Seed()
 	seeders.AdminUserSeeder{DB: db}.Seed()
 
@@ -102,7 +102,7 @@ func TestRevealRequiresReauth(t *testing.T) {
 	if status, data := reveal("wrong", ""); status != 422 || data["full_key"] != nil {
 		t.Fatalf("wrong password = %d %v, want 422", status, data)
 	}
-	if status, data := reveal("pw", ""); status != 200 || data["full_key"] != gen.Plaintext {
+	if status, data := reveal("test-password", ""); status != 200 || data["full_key"] != gen.Plaintext {
 		t.Fatalf("reveal with password = %d %v", status, data)
 	}
 
@@ -110,17 +110,17 @@ func TestRevealRequiresReauth(t *testing.T) {
 	secret, _ := setup["secret"].(string)
 	now := time.Now()
 	prev, cur := totp.Code(secret, now.Add(-30*time.Second)), totp.Code(secret, now)
-	if status, _ := call("/totp/enable", `{"password":"pw","secret":"`+secret+`","code":"`+prev+`"}`); status != 200 {
+	if status, _ := call("/totp/enable", `{"password":"test-password","secret":"`+secret+`","code":"`+prev+`"}`); status != 200 {
 		t.Fatalf("enable = %d", status)
 	}
 
-	if status, data := reveal("pw", ""); status != 200 || data["totp_required"] != true || data["full_key"] != nil {
+	if status, data := reveal("test-password", ""); status != 200 || data["totp_required"] != true || data["full_key"] != nil {
 		t.Fatalf("reveal without code = %d %v, want totp_required", status, data)
 	}
-	if status, _ := reveal("pw", "000000"); status != 422 {
+	if status, _ := reveal("test-password", "000000"); status != 422 {
 		t.Fatalf("wrong code = %d, want 422", status)
 	}
-	if status, data := reveal("pw", cur); status != 200 || data["full_key"] != gen.Plaintext {
+	if status, data := reveal("test-password", cur); status != 200 || data["full_key"] != gen.Plaintext {
 		t.Fatalf("reveal with code = %d %v", status, data)
 	}
 
