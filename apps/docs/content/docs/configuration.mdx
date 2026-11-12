@@ -5,7 +5,9 @@ description: Environment variables, make targets, and the built-in limits of the
 
 ## Server (apps/server)
 
-The server reads `.env` in `apps/server` when run via `make run`.
+The server reads these variables from the environment — every CLI flag falls back to its
+variable, so a container needs no argument list. `make run` exports `apps/server/.env` and
+passes explicit flags, which still win over the environment.
 
 | Variable               | Default                 | Notes                                                                                                                                   |
 | ---------------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
@@ -21,6 +23,8 @@ The server reads `.env` in `apps/server` when run via `make run`.
 | `ADMIN_PASSWORD`       | `admin123` (dev)        | Admin password — required in production; a change is synced to the admin on the next seed                                               |
 | `ADMIN_TOTP_RESET`     | —                       | Set to `true` to turn off the admin's two-factor auth on the next seed; unset it after signing in                                       |
 | `CORS_ALLOWED_ORIGINS` | `*`                     | Comma-separated origin list, e.g. `http://localhost:5173,http://localhost:3001`                                                         |
+| `TRUSTED_PROXIES`      | —                       | Comma-separated proxy IPs/CIDRs trusted to supply `X-Forwarded-For`                                                                     |
+| `RATE_LIMIT_EXEMPT_IPS`| —                       | Comma-separated client IPs that bypass the dashboard rate limit                                                                         |
 | `API_URL`              | — (same origin)         | Public API base URL injected into the served dashboard and written into agent skill guides; set it for a split origin or behind a proxy |
 | `APP_NAME`             | `tera-router-server`    | Application name                                                                                                                        |
 | `SENTRY_DSN`           | —                       | Enables error tracking when set                                                                                                         |

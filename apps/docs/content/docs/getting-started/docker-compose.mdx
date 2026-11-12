@@ -21,32 +21,32 @@ services:
   tera-router-llm:
     image: ghcr.io/montara-project/tera-router:v0.4.0
     container_name: tera-router-llm
+    # Every flag falls back to its environment variable, so no command list is
+    # needed — the container env is the whole configuration.
     environment:
       - APP_SECRET=${APP_SECRET:?APP_SECRET wajib diisi di Dokploy env}
       - ADMIN_EMAIL=${ADMIN_EMAIL}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
 
+      - MACHINE_ID=${MACHINE_ID:-1}
+      - DEBUG=${DEBUG:-false}
+      - ENV=${ENV:-production}
+      - PORT=${PORT:-8080}
+      - APP_NAME=${APP_NAME:-tera-router-server}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-*}
+
+      - RATE_LIMIT_EXEMPT_IPS=${RATE_LIMIT_EXEMPT_IPS}
+      - TRUSTED_PROXIES=${TRUSTED_PROXIES}
+
+      - DATABASE_PATH=${DATABASE_PATH:-/app/data/terarouter.db}
+      - MIGRATE_ON_BOOT=${MIGRATE_ON_BOOT:-true}
+      - SEED_ON_BOOT=${SEED_ON_BOOT:-true}
+      - SENTRY_DSN=${SENTRY_DSN:-}
+
       # Optional: point the dashboard at an API on another origin. Leave unset
       # for the usual same-origin setup — the server injects it into the UI
       # at runtime, no rebuild needed.
       - API_URL=${API_URL}
-
-    command:
-      - '--machine-id=${MACHINE_ID:-1}'
-      - '--debug=${DEBUG:-false}'
-      - '--env=${APP_ENV:-production}'
-      - '--port=${APP_PORT:-8080}'
-
-      - '--app-name=${APP_NAME:-tera-router-server}'
-      - '--cors-allowed-origins=${CORS_ALLOWED_ORIGINS:-*}'
-
-      - '--rate-limit-exempt-ips=${RATE_LIMIT_EXEMPT_IPS}'
-      - '--trusted-proxies=${TRUSTED_PROXIES}'
-
-      - '--database-path=${DATABASE_PATH:-/app/data/terarouter.db}'
-      - '--migrate-on-boot=${MIGRATE_ON_BOOT:-true}'
-      - '--seed-on-boot=${SEED_ON_BOOT:-true}'
-      - '--sentry-dsn=${SENTRY_DSN:-}'
     restart: unless-stopped
     healthcheck:
       test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:8080/health || exit 1']

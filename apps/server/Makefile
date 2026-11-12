@@ -1,4 +1,6 @@
 -include .env
+# Exported so the binaries read their configuration from the environment.
+export
 
 DATABASE_PATH ?= terarouter.db
 
@@ -26,21 +28,10 @@ help:
 install:
 	go mod tidy
 
-## run: run the application
+## run: run the application (configuration comes from .env)
 .PHONY: run
 run:
-	go run -ldflags="$(GO_LDFLAGS)" ./cmd/api \
-		--machine-id=$(MACHINE_ID) \
-		--debug=$(DEBUG) \
-		--env=$(ENV) \
-		--port=$(PORT) \
-		--app-name=$(APP_NAME) \
-		--app-secret=$(APP_SECRET) \
-		--cors-allowed-origins=$(CORS_ALLOWED_ORIGINS) \
-		--database-path=$(DATABASE_PATH) \
-		--migrate-on-boot=$(MIGRATE_ON_BOOT) \
-		--seed-on-boot=$(SEED_ON_BOOT) \
-		--sentry-dsn=$(SENTRY_DSN)
+	go run -ldflags="$(GO_LDFLAGS)" ./cmd/api
 
 # ==================================================================================== #
 # DATABASE
@@ -49,27 +40,27 @@ run:
 ## migrate/up: apply up migrations
 .PHONY: migrate/up
 migrate/up:
-	go run ./cmd/migrate --db-path=$(DATABASE_PATH) up
+	go run ./cmd/migrate up
 
 ## migrate/down: roll back all migrations
 .PHONY: migrate/down
 migrate/down:
-	go run ./cmd/migrate --db-path=$(DATABASE_PATH) down
+	go run ./cmd/migrate down
 
 ## migrate/refresh: drop and re-apply all migrations
 .PHONY: migrate/refresh
 migrate/refresh:
-	go run ./cmd/migrate --db-path=$(DATABASE_PATH) refresh
+	go run ./cmd/migrate refresh
 
 ## seed: run migrations + seed baseline data (use seed/dev for the sample key)
 .PHONY: seed
 seed:
-	go run ./cmd/migrate --db-path=$(DATABASE_PATH) --seed=prod up
+	go run ./cmd/migrate --seed=prod up
 
 ## seed/dev: run migrations + seed baseline data and a sample API key
 .PHONY: seed/dev
 seed/dev:
-	go run ./cmd/migrate --db-path=$(DATABASE_PATH) --seed=dev up
+	go run ./cmd/migrate --seed=dev up
 
 ## test: run all Go tests
 .PHONY: test

@@ -3,11 +3,20 @@ package main
 import (
 	"flag"
 	"log"
+	"os"
 	"slices"
 	"strings"
 
 	"tera-router/server/internal/database"
 )
+
+// Flags fall back to their environment variable, matching cmd/api.
+func envString(key, fallback string) string {
+	if v, ok := os.LookupEnv(key); ok {
+		return v
+	}
+	return fallback
+}
 
 const (
 	modeUp      = "up"
@@ -28,9 +37,9 @@ type config struct {
 }
 
 func parseFlag(cfg *config) {
-	flag.StringVar(&cfg.dbPath, "db-path", database.DefaultPath, "SQLite database file path")
+	flag.StringVar(&cfg.dbPath, "db-path", envString("DATABASE_PATH", database.DefaultPath), "SQLite database file path")
 	flag.StringVar(&cfg.seed, "seed", "", "seed")
-	flag.StringVar(&cfg.appSecret, "app-secret", "", "App Secret (required with --seed dev)")
+	flag.StringVar(&cfg.appSecret, "app-secret", envString("APP_SECRET", ""), "App Secret (required with --seed dev)")
 
 	flag.Parse()
 	validateFlag(cfg)

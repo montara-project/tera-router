@@ -7,45 +7,86 @@ import (
 	"log"
 	"net/netip"
 	"os"
+	"strconv"
 	"strings"
 
 	"tera-router/server/internal/config"
 	"tera-router/server/internal/database"
 )
 
-// debugFromEnv is the default for the -debug flag, so DEBUG=true enables
-// query logging in deployments that configure through the environment.
-func debugFromEnv() bool {
-	v := os.Getenv("DEBUG")
-	return v == "true" || v == "1"
+// Every flag defaults to its environment variable, so `make run` (which exports
+// .env) and the container (which sets env) need no argument list; an explicit
+// flag still wins over the environment.
+
+func envString(key, fallback string) string {
+	if v, ok := os.LookupEnv(key); ok {
+		return v
+	}
+	return fallback
+}
+
+func envBool(key string, fallback bool) bool {
+	v, ok := os.LookupEnv(key)
+	if !ok || v == "" {
+		return fallback
+	}
+	b, err := strconv.ParseBool(v)
+	if err != nil {
+		log.Fatalf("env %s: %q is not a boolean", key, v)
+	}
+	return b
+}
+
+func envInt(key string, fallback int) int {
+	v, ok := os.LookupEnv(key)
+	if !ok || v == "" {
+		return fallback
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil {
+		log.Fatalf("env %s: %q is not an integer", key, v)
+	}
+	return n
+}
+
+func envUint(key string, fallback uint) uint {
+	v, ok := os.LookupEnv(key)
+	if !ok || v == "" {
+		return fallback
+	}
+	n, err := strconv.ParseUint(v, 10, 0)
+	if err != nil {
+		log.Fatalf("env %s: %q is not an unsigned integer", key, v)
+	}
+	return uint(n)
 }
 
 func parseFlag(cfg *config.Config) {
 	var machineID uint
 
 	// App
-	flag.UintVar(&machineID, "machine-id", 0, "Machine ID")
-	flag.StringVar(&cfg.App.Env, "env", "development", "Environment")
-	flag.BoolVar(&cfg.App.Debug, "debug", debugFromEnv(), "Debug mode (also enabled by DEBUG=true)")
-	flag.IntVar(&cfg.App.Port, "port", 8080, "Port")
-	flag.StringVar(&cfg.App.Name, "app-name", "tera-router-server", "App Name")
+	flag.UintVar(&machineID, "machine-id", envUint("MACHINE_ID", 0), "Machine ID")
+	flag.StringVar(&cfg.App.Env, "env", envString("ENV", "development"), "Environment")
+	flag.BoolVar(&cfg.App.Debug, "debug", envBool("DEBUG", false), "Debug mode")
+	flag.IntVar(&cfg.App.Port, "port", envInt("PORT", 8080), "Port")
+	flag.StringVar(&cfg.App.Name, "app-name", envString("APP_NAME", "tera-router-server"), "App Name")
 	// APP_SECRET in the environment keeps the secret out of the process
 	// arguments, which any local user can read with ps.
-	flag.StringVar(&cfg.App.Secret, "app-secret", os.Getenv("APP_SECRET"), "App Secret (also read from APP_SECRET)")
-	flag.StringVar(&cfg.App.CORSAllowedOrigins, "cors-allowed-origins", "*", "CORS Allowed Origins")
+	flag.StringVar(&cfg.App.Secret, "app-secret", envString("APP_SECRET", ""), "App Secret")
+	flag.StringVar(&cfg.App.CORSAllowedOrigins, "cors-allowed-origins", envString("CORS_ALLOWED_ORIGINS", "*"), "CORS Allowed Origins")
 	// API_URL in the environment reaches the served web UI at runtime — no
 	// rebuild — when the dashboard API lives on a different origin.
-	flag.StringVar(&cfg.App.APIURL, "api-url", os.Getenv("API_URL"), "Public API base URL for the served web UI (also read from API_URL)")
-	flag.StringVar(&cfg.App.RateLimitExemptIPs, "rate-limit-exempt-ips", "", "Comma-separated client IPs exempt from the rate limiter")
-	flag.StringVar(&cfg.App.TrustedProxies, "trusted-proxies", "", "Comma-separated IPs/CIDRs trusted to supply X-Forwarded-For (e.g. the reverse proxy's address)")
+	flag.StringVar(&cfg.App.APIURL, "api-url", envString("API_URL", ""), "Public API base URL for the served web UI")
+	flag.StringVar(&cfg.App.RateLimitExemptIPs, "rate-limit-exempt-ips", envString("RATE_LIMIT_EXEMPT_IPS", ""), "Comma-separated client IPs exempt from the rate limiter")
+	flag.StringVar(&cfg.App.TrustedProxies, "trusted-proxies", envString("TRUSTED_PROXIES", ""), "Comma-separated IPs/CIDRs trusted to supply X-Forwarded-For (e.g. the reverse proxy's address)")
 
 	// Database
-	flag.StringVar(&cfg.Database.Path, "database-path", database.DefaultPath, "SQLite database file path")
-	flag.BoolVar(&cfg.Database.MigrateOnBoot, "migrate-on-boot", false, "Apply pending migrations before starting the server")
-	flag.BoolVar(&cfg.Database.SeedOnBoot, "seed-on-boot", false, "Run baseline seeders after migrating on boot")
+	flag.StringVar(&cfg.Database.Path, "database-path", envString("DATABASE_PATH", database.DefaultPath), "SQLite database file path")
+	flag.BoolVar(&cfg.Database.MigrateOnBoot, "migrate-on-boot", envBool("MIGRATE_ON_BOOT", false), "Apply pending migrations before starting the server")
+	flag.BoolVar(&cfg.Database.SeedOnBoot, "seed-on-boot", envBool("SEED_ON_BOOT", false), "Run baseline seeders after migrating on boot")
 
 	// Sentry
-	flag.StringVar(&cfg.Sentry.Dsn, "sentry-dsn", "", "Sentry DSN")
+	flag.StringVar(&cfg.Sentry.Dsn, "sentry-dsn", envString("SENTRY_DSN", ""), "Sentry DSN")
 
 	flag.Parse()
 
