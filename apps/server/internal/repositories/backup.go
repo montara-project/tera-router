@@ -297,6 +297,10 @@ func EachSealed(ctx context.Context, db *sql.DB, fn func(table, prefix, id strin
 				}
 				found = append(found, s)
 			}
+			if err := rows.Err(); err != nil {
+				_ = rows.Close()
+				return errtrace.Wrap(err)
+			}
 			if err := rows.Close(); err != nil {
 				return errtrace.Wrap(err)
 			}
