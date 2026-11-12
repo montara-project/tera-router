@@ -55,6 +55,7 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	publicAuth.Get("/oidc/login", h.Auth.OIDCLogin)
 	publicAuth.Get("/oidc/callback", h.Auth.OIDCCallback)
 	publicAuth.Post("/oidc/exchange", h.Auth.OIDCExchange)
+	publicAuth.Post("/oidc/verify-totp", h.Auth.OIDCVerifyTOTP)
 
 	v1.Get("/branding", h.Settings.Branding)
 

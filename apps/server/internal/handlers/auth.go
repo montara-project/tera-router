@@ -45,6 +45,7 @@ type authHandler struct {
 	oidcProv    *oidc.Provider
 	oidcStates  ttlStore[oidcState]
 	oidcTickets ttlStore[ssoTicket]
+	oidcPending ttlStore[ssoPending]
 }
 
 // SignIn verifies credentials and returns the token pair the web client

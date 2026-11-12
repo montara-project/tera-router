@@ -3,15 +3,24 @@ package handlers
 import (
 	"encoding/json"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"tera-router/server/internal/app"
 	"tera-router/server/internal/config"
+	"tera-router/server/internal/database"
+	"tera-router/server/internal/lib"
+	"tera-router/server/internal/lib/sealer"
+	"tera-router/server/internal/lib/totp"
 	"tera-router/server/internal/middlewares"
+	"tera-router/server/internal/migrator"
+	"tera-router/server/internal/repositories"
+	"tera-router/server/internal/seeders"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 )
 
 // TestTTLStore pins the single-use semantics of the state and ticket stores:
@@ -175,5 +184,105 @@ func TestUIOriginAllowed(t *testing.T) {
 			t.Errorf("%s: uiOriginAllowed(%q, %q, %q) = %v, want %v",
 				tc.name, tc.origin, tc.base, tc.cors, got, tc.want)
 		}
+	}
+}
+
+// TestOIDCVerifyTOTP gates the SSO session behind the account's TOTP factor:
+// a pending entry survives a wrong code, a correct code spends it once, and
+// the flow id must match the browser that began the sign-in.
+func TestOIDCVerifyTOTP(t *testing.T) {
+	db, err := database.Open(filepath.Join(t.TempDir(), "sso_totp_test.db"))
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if err := migrator.Up(db, "../../migrations"); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	t.Setenv("ADMIN_PASSWORD", "pw")
+	seeders.RoleSeeder{DB: db}.Seed()
+	seeders.AdminUserSeeder{DB: db}.Seed()
+
+	cfg := config.Config{App: config.ConfigApp{Secret: "test-secret"}}
+	secrets, err := sealer.FromSecret(cfg.App.Secret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := &authHandler{app: &app.Application{Config: cfg, DB: db, Repos: repositories.New(db, &cfg.App), Secrets: secrets}}
+
+	admin := uuid.MustParse("00000000-0000-0000-0000-0000000000ff")
+	f := fiber.New(fiber.Config{ErrorHandler: middlewares.ErrorHandler})
+	f.Post("/oidc/verify-totp", h.OIDCVerifyTOTP)
+	authed := f.Group("/", func(c fiber.Ctx) error { lib.ContextSetUID(c, admin); return c.Next() })
+	authed.Post("/totp/setup", h.TOTPSetup)
+	authed.Post("/totp/enable", h.TOTPEnable)
+
+	call := func(body string) (int, map[string]any) {
+		t.Helper()
+		req := httptest.NewRequest("POST", "/oidc/verify-totp", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := f.Test(req)
+		if err != nil {
+			t.Fatalf("POST /oidc/verify-totp: %v", err)
+		}
+		var out map[string]any
+		_ = json.NewDecoder(resp.Body).Decode(&out)
+		data, _ := out["data"].(map[string]any)
+		return resp.StatusCode, data
+	}
+	post := func(path, body string) (int, map[string]any) {
+		t.Helper()
+		req := httptest.NewRequest("POST", path, strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := f.Test(req)
+		if err != nil {
+			t.Fatalf("%s: %v", path, err)
+		}
+		var out map[string]any
+		_ = json.NewDecoder(resp.Body).Decode(&out)
+		data, _ := out["data"].(map[string]any)
+		return resp.StatusCode, data
+	}
+
+	// Enroll an authenticator on the seeded admin so the callback would have
+	// parked this sign-in in oidcPending instead of opening a session.
+	_, setup := post("/totp/setup", `{}`)
+	secret, _ := setup["secret"].(string)
+	now := time.Now()
+	prev, cur := totp.Code(secret, now.Add(-30*time.Second)), totp.Code(secret, now)
+	if status, _ := post("/totp/enable", `{"password":"pw","secret":"`+secret+`","code":"`+prev+`"}`); status != 200 {
+		t.Fatalf("enable = %d", status)
+	}
+	user, err := h.app.Repos.Users.Get(t.Context(), admin.String())
+	if err != nil || !user.TOTPEnabled {
+		t.Fatalf("enrolled user: %v enabled=%v", err, user.TOTPEnabled)
+	}
+
+	if status, _ := call(`{"ticket":"nope","otp":"` + cur + `"}`); status != 401 {
+		t.Fatalf("unknown ticket = %d, want 401", status)
+	}
+	if status, _ := call(`{"ticket":"nope","otp":""}`); status != 422 {
+		t.Fatalf("missing otp = %d, want 422", status)
+	}
+
+	h.oidcPending.put("pend", ssoPending{userID: admin.String(), flow: "f1"}, time.Minute)
+	if status, _ := call(`{"ticket":"pend","otp":"` + cur + `","flow":"wrong"}`); status != 401 {
+		t.Fatalf("wrong flow = %d, want 401", status)
+	}
+	// A wrong code refuses but keeps the pending entry, so the next code can
+	// still complete the sign-in.
+	if status, _ := call(`{"ticket":"pend","otp":"000000","flow":"f1"}`); status != 401 {
+		t.Fatalf("wrong code = %d, want 401", status)
+	}
+	if status, data := call(`{"ticket":"pend","otp":"` + cur + `","flow":"f1"}`); status != 200 || data["access_token"] == nil {
+		t.Fatalf("correct code = %d %v, want 200 with access_token", status, data)
+	}
+	if status, _ := call(`{"ticket":"pend","otp":"` + cur + `","flow":"f1"}`); status != 401 {
+		t.Fatalf("replayed pending ticket = %d, want 401", status)
+	}
+
+	h.oidcPending.put("stale", ssoPending{userID: admin.String()}, -time.Second)
+	if status, _ := call(`{"ticket":"stale","otp":"` + cur + `"}`); status != 401 {
+		t.Fatalf("expired pending = %d, want 401", status)
 	}
 }

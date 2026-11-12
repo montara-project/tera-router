@@ -26,6 +26,9 @@ const (
 	// oidcTicketTTL bounds how long the one-time ticket the callback issues
 	// stays redeemable by the dashboard.
 	oidcTicketTTL = time.Minute
+	// oidcPendingTTL bounds how long a TOTP-gated SSO sign-in waits for the
+	// authenticator code.
+	oidcPendingTTL = 5 * time.Minute
 )
 
 // oidcState is a begun SSO sign-in: the nonce the returned id_token must
@@ -78,6 +81,20 @@ func (s *ttlStore[V]) take(key string) (V, bool) {
 	defer s.mu.Unlock()
 	e, ok := s.m[key]
 	delete(s.m, key)
+	if !ok || !time.Now().Before(e.expires) {
+		var zero V
+		return zero, false
+	}
+	return e.value, true
+}
+
+// peek reads key without consuming it: a pending TOTP entry must survive a
+// wrong code (the password flow lets the client resubmit too), so it is read
+// with peek and spent with take once the factor passes.
+func (s *ttlStore[V]) peek(key string) (V, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	e, ok := s.m[key]
 	if !ok || !time.Now().Before(e.expires) {
 		var zero V
 		return zero, false
@@ -143,6 +160,13 @@ func (h *authHandler) uiOrigin(c fiber.Ctx) string {
 type ssoTicket struct {
 	view fiber.Map
 	flow string
+}
+
+// ssoPending holds a verified-identity sign-in that still owes the account's
+// TOTP factor: the session is opened only after the code checks out.
+type ssoPending struct {
+	userID string
+	flow   string
 }
 
 // oidcEnabled reports whether dashboard SSO is configured: all three OIDC
@@ -308,6 +332,20 @@ func (h *authHandler) OIDCCallback(c fiber.Ctx) error {
 		return fail("no_account", claims.Email)
 	}
 
+	if user.TOTPEnabled {
+		// The account opted into two factors: IdP authentication is one, the
+		// authenticator code is still owed. Hold the verified identity and
+		// send the browser to the OTP step; the session is opened by
+		// /oidc/verify-totp after the code checks out.
+		ticket, err := randHex(32)
+		if err != nil {
+			return err
+		}
+		h.oidcPending.put(ticket, ssoPending{userID: user.ID, flow: st.flow}, oidcPendingTTL)
+		auditRecord(c, user.ID, "auth.sso_sign_in", user.ID, fiber.Map{"method": "oidc", "totp": "pending"})
+		return c.Redirect().Status(fiber.StatusFound).To(st.uiOrigin + "/?sso_totp=" + ticket)
+	}
+
 	session, err := h.openSession(ctx, user, clientOf(c))
 	if err != nil {
 		return fail("internal", claims.Email)
@@ -343,4 +381,43 @@ func (h *authHandler) OIDCExchange(c fiber.Ctx) error {
 		return apperr.ErrUnauthorized
 	}
 	return dtos.OK(c, t.view)
+}
+
+// OIDCVerifyTOTP completes a TOTP-gated SSO sign-in (POST
+// /v1/auth/oidc/verify-totp): the callback left a verified identity pending
+// for accounts with two-factor on; a correct code spends it and opens the
+// session. The entry is peeked, not taken, so a wrong code lets the client
+// retry like the password flow does.
+func (h *authHandler) OIDCVerifyTOTP(c fiber.Ctx) error {
+	var req dtos.OIDCVerifyTOTP
+	if err := lib.ValidateRequestBody(c, &req); err != nil {
+		return err
+	}
+	pend, ok := h.oidcPending.peek(req.Ticket)
+	if !ok || (pend.flow != "" && pend.flow != req.Flow) {
+		return apperr.ErrUnauthorized
+	}
+
+	ctx := c.Context()
+	user, err := h.app.Repos.Users.Get(ctx, pend.userID)
+	if err != nil || !user.IsActive || user.IsBlocked {
+		return apperr.ErrUnauthorized
+	}
+	if err := h.checkTOTP(ctx, user, req.OTP); err != nil {
+		auditRecord(c, "", "auth.sso_sign_in", pend.userID, fiber.Map{"method": "oidc", "error": "totp"})
+		return err
+	}
+	if _, ok := h.oidcPending.take(req.Ticket); !ok {
+		// A sibling request spent it between the peek and now.
+		return apperr.ErrUnauthorized
+	}
+
+	session, err := h.openSession(ctx, user, clientOf(c))
+	if err != nil {
+		return err
+	}
+	consoleInfof("sign-in · %s (sso)", user.Email)
+	lib.ContextSetSID(c, session.SessionID)
+	auditRecord(c, user.ID, "auth.sso_sign_in", user.ID, fiber.Map{"method": "oidc", "totp": true})
+	return dtos.OK(c, sessionView(session))
 }

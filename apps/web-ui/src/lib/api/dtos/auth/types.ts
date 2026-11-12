@@ -46,3 +46,11 @@ export interface SSOExchangeDto {
   /** Repeats the id the SSO button generated, binding the ticket to this browser. */
   flow?: string
 }
+
+/** POST /v1/auth/oidc/verify-totp body: pending ticket + authenticator code. */
+export interface SSOVerifyTotpDto {
+  ticket: string
+  otp: string
+  /** Repeats the id the SSO button generated, binding the ticket to this browser. */
+  flow?: string
+}

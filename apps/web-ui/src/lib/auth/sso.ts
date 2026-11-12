@@ -42,3 +42,39 @@ export async function signInWithSSOTicket(ticket: string) {
     throwAxiosError(error as Error)
   }
 }
+
+/**
+ * Complete an SSO sign-in that stopped at the account's TOTP factor: the
+ * callback held the verified identity pending, and a correct code opens the
+ * session. Tokens are stored like a normal sign-in.
+ */
+export async function verifySSOTOTP(ticket: string, otp: string) {
+  // Keep the flow until success: the server peeks the pending entry on a
+  // wrong code, and the retry still has to repeat the same flow id.
+  const flow = sessionStorage.getItem(SSO_FLOW_KEY) ?? undefined
+  try {
+    const res = await services.auth.ssoVerifyTotp({ ticket, otp, flow })
+    const payload = res?.data?.data
+
+    if (!payload?.access_token) {
+      throw new Error('Sign-in response did not include an access token')
+    }
+
+    setAuthTokens({
+      accessToken: payload.access_token,
+      refreshToken: payload.refresh_token,
+      idToken: payload.id_token,
+      expiresIn: payload.expires_in,
+    })
+    sessionStorage.removeItem(SSO_FLOW_KEY)
+
+    return payload
+  } catch (error) {
+    // A 401 is a wrong code, an expired pending ticket or a flow mismatch —
+    // the client retries the code or starts the sign-in again.
+    if (error instanceof AxiosError && error.response?.status === 401) {
+      throw new Error('The code did not match, or the sign-in link expired. Try again.')
+    }
+    throwAxiosError(error as Error)
+  }
+}

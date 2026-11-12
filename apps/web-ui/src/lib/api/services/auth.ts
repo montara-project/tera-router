@@ -89,6 +89,10 @@ const resources = (): AuthResources => {
       const url = `${path}/oidc/exchange`
       return api.post(url, reqBody)
     },
+    ssoVerifyTotp: (reqBody) => {
+      const url = `${path}/oidc/verify-totp`
+      return api.post(url, reqBody)
+    },
   }
 }
 

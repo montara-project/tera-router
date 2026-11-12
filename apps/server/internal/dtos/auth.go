@@ -89,6 +89,19 @@ func (d *OIDCExchange) Validate(v *validator.MapValidator) {
 	v.Field("ticket").Required().String()
 }
 
+// OIDCVerifyTOTP completes a TOTP-gated SSO sign-in (POST
+// /v1/auth/oidc/verify-totp): the pending ticket plus the authenticator code.
+type OIDCVerifyTOTP struct {
+	Ticket string `json:"ticket"`
+	OTP    string `json:"otp"`
+	Flow   string `json:"flow"`
+}
+
+func (d *OIDCVerifyTOTP) Validate(v *validator.MapValidator) {
+	v.Field("ticket").Required().String()
+	v.Field("otp").Required().String()
+}
+
 // Refresh is the token rotation request body (POST /v1/auth/refresh).
 type Refresh struct {
 	RefreshToken string `json:"refresh_token"`

@@ -4,7 +4,7 @@ import type { ReauthDto, ReauthResult } from '@/lib/api/dtos/auth/schema'
 import type { Models } from '@/lib/api/models'
 
 import { createPasskey } from '@/lib/auth/passkey'
-import { signInWithSSOTicket } from '@/lib/auth/sso'
+import { signInWithSSOTicket, verifySSOTOTP } from '@/lib/auth/sso'
 import { getQueryClient } from '@/lib/providers/react-query'
 
 import { services } from '../services'
@@ -163,6 +163,12 @@ const ssoExchange = () =>
     mutationFn: (ticket: string) => signInWithSSOTicket(ticket),
   })
 
+/** Completes a TOTP-gated SSO sign-in; the helper stores the session tokens. */
+const ssoVerifyTotp = () =>
+  mutationOptions({
+    mutationFn: (vars: { ticket: string; otp: string }) => verifySSOTOTP(vars.ticket, vars.otp),
+  })
+
 export const authQueries = {
   me,
   totpSetup,
@@ -175,4 +181,5 @@ export const authQueries = {
   deletePasskey,
   ssoConfig,
   ssoExchange,
+  ssoVerifyTotp,
 } as const
