@@ -3,6 +3,21 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [1.24.0](https://github.com/montara-project/tera-router/compare/v1.23.0...v1.24.0) (2026-11-12)
+
+### Features
+
+* **server:** provision and link OIDC accounts at sign-in ([6b58d45](https://github.com/montara-project/tera-router/commit/6b58d453c1cdb5c262fbe19a9a419f3c51fbdf04))
+
+### Bug Fixes
+
+* **server:** apply the correctness and safety audit findings ([88f2414](https://github.com/montara-project/tera-router/commit/88f2414aaeb2ac5b0775124042f75af99d0482ff))
+* **server:** check rows.Err() in the sealed-secret backup scan ([ddcaf7f](https://github.com/montara-project/tera-router/commit/ddcaf7f6dc32806b66dc3a016fd81d81060d9b6b))
+* **server:** close OIDC legacy-link and email-fold gaps ([abb3613](https://github.com/montara-project/tera-router/commit/abb3613c6b8c591982e793cea4f6aaba546f68bc))
+* **server:** close OIDC session and linking bypasses ([b2273fc](https://github.com/montara-project/tera-router/commit/b2273fc088bcdaf6a6935a1bea5514530df8d101))
+* **server:** harden OIDC linking and reauth for SSO accounts ([9b746dd](https://github.com/montara-project/tera-router/commit/9b746ddb6e40b1f16d49cc0e68623b69843162f3))
+* **server:** require a fresh IdP ceremony for passwordless reauth ([16f3f66](https://github.com/montara-project/tera-router/commit/16f3f6672cebcfb398369bb46e28024618c61176))
+
 ## [1.23.0](https://github.com/montara-project/tera-router/compare/v1.22.0...v1.23.0) (2026-11-12)
 
 ### Features
