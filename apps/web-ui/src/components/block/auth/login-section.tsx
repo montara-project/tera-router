@@ -155,11 +155,6 @@ export default function LoginSection({
       setError(null)
 
       try {
-        if (verifyingSSO) {
-          await ssoVerifyTotp.mutateAsync({ ticket: ssoTOTPTicket, otp })
-          navigate({ to: '/dashboard' })
-          return
-        }
         const res = await signInWithEmail({ ...value, otp: needsCode ? otp : undefined })
         if (res && 'totpRequired' in res) {
           setNeedsCode(true)
@@ -180,6 +175,22 @@ export default function LoginSection({
       }
     },
   })
+
+  // The SSO TOTP step has no email or password to satisfy SignInSchema, so it
+  // submits outside the form's validation like the passkey button does.
+  const submitSSOTOTP = async () => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      await ssoVerifyTotp.mutateAsync({ ticket: ssoTOTPTicket, otp })
+      navigate({ to: '/dashboard' })
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'An error occurred')
+      setOtp('')
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const passkeySignIn = async () => {
     setIsLoading(true)
@@ -273,6 +284,10 @@ export default function LoginSection({
           noValidate
           onSubmit={(e) => {
             e.preventDefault()
+            if (verifyingSSO) {
+              void submitSSOTOTP()
+              return
+            }
             form.handleSubmit()
           }}
         >
