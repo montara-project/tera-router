@@ -48,12 +48,17 @@ type authHandler struct {
 	oidcPending ttlStore[ssoPending]
 }
 
+// ssoOnly reports whether OIDC_DISABLE_PASSWORD_LOGIN makes SSO the only way
+// in — but only while SSO is actually configured, so a lone flag cannot lock
+// everyone out. It gates every non-SSO sign-in: password and passkey alike.
+func ssoOnly(a *app.Application) bool {
+	return a.Config.OIDC.DisablePasswordLogin && (&authHandler{app: a}).oidcEnabled()
+}
+
 // SignIn verifies credentials and returns the token pair the web client
 // stores in cookies. Shaped after the web UI SignInResponse.
 func (h *authHandler) SignIn(c fiber.Ctx) error {
-	// OIDC_DISABLE_PASSWORD_LOGIN makes SSO the only way in — but only while
-	// SSO is actually configured, so a lone flag cannot lock everyone out.
-	if h.oidcEnabled() && h.app.Config.OIDC.DisablePasswordLogin {
+	if ssoOnly(h.app) {
 		return apperr.New(apperr.KindForbidden, "password sign-in is disabled; sign in with SSO")
 	}
 	var req dtos.SignIn

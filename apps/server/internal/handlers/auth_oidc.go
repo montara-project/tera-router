@@ -367,6 +367,11 @@ func (h *authHandler) OIDCCallback(c fiber.Ctx) error {
 		user, err = h.app.Repos.Users.GetByEmailFold(ctx, claims.Email)
 		switch {
 		case err == nil:
+			// An account sign-in policy would refuse anyway must not gain a
+			// link: the binding would wait patiently for reactivation.
+			if !user.IsActive || user.IsBlocked {
+				return fail("no_account", claims.Email)
+			}
 			// A known account with no OIDC identity yet: attach the subject
 			// when the operator allows linking, so the next sign-in matches
 			// by the pair before email.
@@ -456,9 +461,26 @@ func (h *authHandler) provisionOIDCUser(c fiber.Ctx, email, fullname, iss, sub s
 		OIDCSub:      sub,
 	}
 	if err := h.app.Repos.Users.Insert(ctx, u); err != nil {
+		// The insert lost a race or hit a deleted account still holding the
+		// email. The row it resolves to decides: it is usable only when this
+		// identity owns it already (a retry of the same callback), or when it
+		// is still unlinked and linking is enabled — anything else belongs to
+		// someone else's sign-in and must not be entered.
 		user, rerr := h.app.Repos.Users.GetByEmailFold(ctx, email)
 		if rerr == nil {
-			return user, nil
+			switch {
+			case user.OIDCIss == iss && user.OIDCSub == sub:
+				return user, nil
+			case user.OIDCSub == "" && user.IsActive && !user.IsBlocked &&
+				h.app.Config.OIDC.LinkExistingAccounts:
+				if lerr := h.app.Repos.Users.LinkOIDC(ctx, user.ID, iss, sub); lerr != nil {
+					return models.User{}, lerr
+				}
+				user.OIDCIss, user.OIDCSub = iss, sub
+				return user, nil
+			default:
+				return models.User{}, apperr.New(apperr.KindConflict, "account already linked to a different identity")
+			}
 		}
 		if errors.Is(rerr, apperr.ErrNotFound) {
 			return models.User{}, rerr

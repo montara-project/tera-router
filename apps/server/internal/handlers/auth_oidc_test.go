@@ -17,6 +17,7 @@ import (
 	"tera-router/server/internal/app"
 	"tera-router/server/internal/config"
 	"tera-router/server/internal/database"
+	"tera-router/server/internal/dtos"
 	"tera-router/server/internal/lib"
 	"tera-router/server/internal/lib/password"
 	"tera-router/server/internal/lib/sealer"
@@ -870,6 +871,147 @@ func TestLinkOIDC(t *testing.T) {
 	healed, err := repo.Get(ctx, v.ID)
 	if err != nil || healed.OIDCIss != "iss-a" || healed.OIDCSub != "sub-9" {
 		t.Fatalf("healed link: iss=%q sub=%q err=%v", healed.OIDCIss, healed.OIDCSub, err)
+	}
+}
+
+// TestProvisionOIDCUserRace pins the insert-conflict fallback: a row that
+// appears between the email lookup and the INSERT is usable only when this
+// identity owns it already, or when it is still unlinked and linking is on —
+// never silently borrowed from a different sign-in.
+func TestProvisionOIDCUserRace(t *testing.T) {
+	fx := newSSOCallbackFixture(t, config.ConfigOIDC{})
+	fx.h.app.Config.OIDC = config.ConfigOIDC{
+		Issuer: "https://idp", ClientID: "id", ClientSecret: "secret",
+		RequireEmailVerified: true, LinkExistingAccounts: true,
+	}
+	fx.f.Post("/prov", func(c fiber.Ctx) error {
+		u, err := fx.h.provisionOIDCUser(c, "race@example.com", "Racer", "iss-a", "sub-b")
+		if err != nil {
+			return err
+		}
+		return dtos.OK(c, fiber.Map{"id": u.ID, "iss": u.OIDCIss, "sub": u.OIDCSub})
+	})
+	call := func() (int, map[string]any) {
+		t.Helper()
+		resp, err := fx.f.Test(httptest.NewRequest("POST", "/prov", nil))
+		if err != nil {
+			t.Fatalf("POST /prov: %v", err)
+		}
+		var out map[string]any
+		_ = json.NewDecoder(resp.Body).Decode(&out)
+		data, _ := out["data"].(map[string]any)
+		return resp.StatusCode, data
+	}
+	deleteUsers := func() {
+		t.Helper()
+		if _, err := fx.h.app.DB.ExecContext(t.Context(), `DELETE FROM users WHERE email = 'race@example.com'`); err != nil {
+			t.Fatalf("cleanup: %v", err)
+		}
+	}
+
+	// The row already carries this identity's pair: the insert lost to this
+	// same callback's retry, so accepting it is idempotent.
+	insertSSOUser(t, fx.h, "race@example.com", "iss-a", "sub-b")
+	if status, data := call(); status != 200 || data["sub"] != "sub-b" {
+		t.Fatalf("same pair = %d %v, want 200 sub-b", status, data)
+	}
+
+	// The row carries a different identity: a racing callback won. Entering
+	// it anyway would hand this subject the other identity's session.
+	deleteUsers()
+	insertSSOUser(t, fx.h, "race@example.com", "iss-a", "sub-a")
+	if status, _ := call(); status != 409 {
+		t.Fatalf("different pair = %d, want 409", status)
+	}
+
+	// An unlinked row honors the linking flag.
+	deleteUsers()
+	u := insertSSOUser(t, fx.h, "race@example.com", "", "")
+	if status, data := call(); status != 200 || data["sub"] != "sub-b" {
+		t.Fatalf("unlinked + linking on = %d %v, want 200 sub-b", status, data)
+	}
+	linked, err := fx.h.app.Repos.Users.Get(t.Context(), u.ID)
+	if err != nil || linked.OIDCSub != "sub-b" {
+		t.Fatalf("unlinked row was not linked: %v", err)
+	}
+
+	deleteUsers()
+	insertSSOUser(t, fx.h, "race@example.com", "", "")
+	fx.h.app.Config.OIDC.LinkExistingAccounts = false
+	if status, _ := call(); status != 409 {
+		t.Fatalf("unlinked + linking off = %d, want 409", status)
+	}
+	fx.h.app.Config.OIDC.LinkExistingAccounts = true
+}
+
+// TestOIDCCallbackBlockedAccountNoLink pins the status check order: a
+// provider-verified email matching an inactive or blocked account is refused
+// without writing the link first — a stored sub would wait for reactivation
+// and then sign in.
+func TestOIDCCallbackBlockedAccountNoLink(t *testing.T) {
+	fx := newSSOCallbackFixture(t, config.ConfigOIDC{})
+	ctx := t.Context()
+	roleID, err := fx.h.app.Repos.Users.RoleIDByName(ctx, "user")
+	if err != nil {
+		t.Fatalf("role: %v", err)
+	}
+	hash, _ := password.Hash(uuid.NewString())
+	blocked := models.User{
+		ID: uuid.NewString(), Email: "blocked@example.com", PasswordHash: hash,
+		IsActive: true, IsBlocked: true, RoleID: roleID,
+	}
+	if err := fx.h.app.Repos.Users.Insert(ctx, blocked); err != nil {
+		t.Fatalf("insert blocked user: %v", err)
+	}
+
+	idp := newFakeIdP(t, "n1", "blocked@example.com")
+	idp.sub = "blocked-sub"
+	fx.h.app.Config.OIDC = config.ConfigOIDC{
+		Issuer: idp.srv.URL, ClientID: "id", ClientSecret: "secret",
+		RequireEmailVerified: true, LinkExistingAccounts: true,
+	}
+
+	if q := fx.callCallback(t, "st"); q.Get("sso_error") != "no_account" {
+		t.Fatalf("callback = %v, want sso_error=no_account", q)
+	}
+	stored, err := fx.h.app.Repos.Users.Get(ctx, blocked.ID)
+	if err != nil || stored.OIDCSub != "" {
+		t.Fatalf("blocked account was linked: sub=%q err=%v", stored.OIDCSub, err)
+	}
+}
+
+// TestPasskeySignInDisabled pins OIDC_DISABLE_PASSWORD_LOGIN covering the
+// public passkey endpoints too: when SSO is the only way in, begin and finish
+// refuse before any ceremony work.
+func TestPasskeySignInDisabled(t *testing.T) {
+	newApp := func(oidc config.ConfigOIDC) *fiber.App {
+		pk := &passkeysHandler{app: &app.Application{Config: config.Config{OIDC: oidc}}}
+		f := fiber.New(fiber.Config{ErrorHandler: middlewares.ErrorHandler})
+		f.Post("/passkey/begin", pk.SignInBegin)
+		f.Post("/passkey/finish", pk.SignInFinish)
+		return f
+	}
+	call := func(f *fiber.App, path string) int {
+		t.Helper()
+		req := httptest.NewRequest("POST", path, strings.NewReader(`{}`))
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := f.Test(req)
+		if err != nil {
+			t.Fatalf("POST %s: %v", path, err)
+		}
+		return resp.StatusCode
+	}
+
+	disabled := config.ConfigOIDC{
+		Issuer: "https://id.example.com", ClientID: "id", ClientSecret: "secret",
+		DisablePasswordLogin: true,
+	}
+	f := newApp(disabled)
+	if status := call(f, "/passkey/begin"); status != 403 {
+		t.Fatalf("begin = %d, want 403", status)
+	}
+	if status := call(f, "/passkey/finish"); status != 403 {
+		t.Fatalf("finish = %d, want 403", status)
 	}
 }
 

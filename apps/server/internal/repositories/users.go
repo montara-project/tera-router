@@ -113,7 +113,7 @@ func (r *UserRepository) LinkOIDC(ctx context.Context, id, iss, sub string) erro
 	res, err := r.execContext(ctx, r.DB,
 		`UPDATE users SET oidc_iss = $2, oidc_sub = $3,
 		 updated_at = strftime('%Y-%m-%d %H:%M:%f+00:00', 'now')
-		 WHERE id = $1 AND oidc_sub IS NULL`, id, iss, sub)
+		 WHERE id = $1 AND oidc_sub IS NULL AND deleted_at IS NULL`, id, iss, sub)
 	if err != nil {
 		return translateUnique(err, "OIDC subject already linked to another account")
 	}

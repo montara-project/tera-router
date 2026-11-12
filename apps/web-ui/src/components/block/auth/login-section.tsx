@@ -129,7 +129,7 @@ export default function LoginSection({
     if (code === 'not_linked') {
       return passwordLogin
         ? 'This account is not linked to the identity provider. Sign in with your password instead.'
-        : 'This account is not linked to the identity provider. Sign in with an enrolled passkey or ask an administrator for help.'
+        : 'This account is not linked to the identity provider. Ask an administrator for help.'
     }
     return SSO_ERRORS[code] ?? 'SSO sign-in failed. Try again.'
   }
@@ -423,7 +423,7 @@ export default function LoginSection({
             </Button>
           )}
 
-          {!showCode && (ssoEnabled || passkeysSupported()) && (
+          {!showCode && (ssoEnabled || (passwordLogin && passkeysSupported())) && (
             <>
               {passwordLogin && (
                 <div className="flex items-center gap-2.5" aria-hidden>
@@ -455,7 +455,7 @@ export default function LoginSection({
                   Continue with {ssoConfig.data?.provider_name || 'SSO'}
                 </Button>
               )}
-              {passkeysSupported() && (
+              {passwordLogin && passkeysSupported() && (
                 <Button
                   type="button"
                   variant="outline"
