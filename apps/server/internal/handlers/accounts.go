@@ -254,7 +254,7 @@ func (h *accountsHandler) Update(c fiber.Ctx) error {
 	// The next test or dispatch sends the stored credential to base_url, so
 	// pointing it somewhere new needs the same re-authentication as a reveal.
 	if u := metadataBaseURL(in.Metadata); u != "" && u != metadataBaseURL(account.Metadata) {
-		needsCode, err := reauthenticate(c, h.app, req.Password, req.OTP)
+		needsCode, err := reauthenticate(c, h.app, req.Password, req.OTP, req.ReauthTicket)
 		if err != nil {
 			return err
 		}

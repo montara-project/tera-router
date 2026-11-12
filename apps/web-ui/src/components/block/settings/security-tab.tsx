@@ -16,16 +16,19 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { env } from '@/config/env'
 import { toastAxiosError } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
+import { startSSOReauth, takeSSOReauthTicket } from '@/lib/auth/sso'
 import { cn } from '@/lib/utils'
 
 export default function SecurityTab() {
   const { data, isLoading } = useQuery(queries.auth.me())
   const enabled = data?.data?.totp_enabled ?? false
-  // SSO-provisioned accounts hold no usable password: the server accepts an
-  // empty password when the session was opened by a recent SSO sign-in.
+  // SSO-provisioned accounts hold no usable password: a fresh provider
+  // ceremony hands this tab a one-use reauth ticket instead.
   const ssoLinked = data?.data?.sso_linked === true
+  const providerName = useQuery(queries.auth.ssoConfig()).data?.provider_name || 'SSO'
 
   const setupMutation = useMutation(queries.auth.totpSetup())
   const enableMutation = useMutation(queries.auth.totpEnable())
@@ -62,10 +65,19 @@ export default function SecurityTab() {
     setupMutation.mutate(undefined, { onError: toastAxiosError })
   }
 
+  // The ticket the provider ceremony parked — consumed by the next call.
+  const reauthTicket = () => takeSSOReauthTicket() || undefined
+
+  const ssoVerifyButton = (
+    <Button type="button" variant="outline" onClick={() => startSSOReauth(String(env.API_URL))}>
+      Verify with {providerName}
+    </Button>
+  )
+
   const confirmEnable = () => {
     if (!setup) return
     enableMutation.mutate(
-      { password, secret: setup.secret, code },
+      { password, secret: setup.secret, code, reauth_ticket: reauthTicket() },
       {
         onSuccess: () => {
           toast.success('Two-factor authentication enabled')
@@ -82,7 +94,7 @@ export default function SecurityTab() {
 
   const confirmDisable = () => {
     disableMutation.mutate(
-      { password, code },
+      { password, code, reauth_ticket: reauthTicket() },
       {
         onSuccess: () => {
           toast.success('Two-factor authentication disabled')
@@ -106,9 +118,10 @@ export default function SecurityTab() {
         <div className="flex flex-wrap items-center gap-3">
           <p className="text-muted-foreground text-sm">
             {ssoLinked
-              ? 'Enter a current code to turn two-factor authentication off — a recent SSO sign-in verifies you (leave the password empty).'
+              ? `Verify with ${providerName} or enter your password, plus a current code, to turn two-factor authentication off.`
               : 'Enter your password and a current code to turn two-factor authentication off.'}
           </p>
+          {ssoLinked && ssoVerifyButton}
           {passwordInput('totp-disable-password')}
           <TotpCodeInput id="totp-disable" value={code} onChange={setCode} />
           <Button
@@ -162,7 +175,7 @@ export default function SecurityTab() {
           <div className="flex min-w-0 flex-col gap-3">
             <p className="text-sm">
               {ssoLinked
-                ? 'Scan the QR code with your authenticator app, then enter the 6-digit code it shows — a recent SSO sign-in verifies you (leave the password empty).'
+                ? `Scan the QR code with your authenticator app, verify with ${providerName} or enter your password, then enter the 6-digit code it shows.`
                 : 'Scan the QR code with your authenticator app, then enter your password and the 6-digit code it shows.'}
             </p>
             <div>
@@ -174,6 +187,7 @@ export default function SecurityTab() {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
+              {ssoLinked && ssoVerifyButton}
               {passwordInput('totp-enable-password')}
               <TotpCodeInput id="totp-enable" value={code} onChange={setCode} />
               <Button

@@ -9,12 +9,14 @@ export const Route = createFileRoute('/(auth)/(login)/')({
   // error code from the server.
   validateSearch: (
     search: Record<string, unknown>
-  ): { sso_ticket?: string; sso_totp?: string; sso_error?: string } => ({
+  ): { sso_ticket?: string; sso_totp?: string; sso_error?: string; sso_reauth?: string } => ({
     sso_ticket:
       typeof search.sso_ticket === 'string' && search.sso_ticket ? search.sso_ticket : undefined,
     sso_totp: typeof search.sso_totp === 'string' && search.sso_totp ? search.sso_totp : undefined,
     sso_error:
       typeof search.sso_error === 'string' && search.sso_error ? search.sso_error : undefined,
+    sso_reauth:
+      typeof search.sso_reauth === 'string' && search.sso_reauth ? search.sso_reauth : undefined,
   }),
   component: RouteComponent,
 })
@@ -22,7 +24,7 @@ export const Route = createFileRoute('/(auth)/(login)/')({
 function RouteComponent() {
   // The brand panel switches to the second-step copy while a TOTP code is due.
   const [twoFactorEmail, setTwoFactorEmail] = useState<string | null>(null)
-  const { sso_ticket, sso_totp, sso_error } = Route.useSearch()
+  const { sso_ticket, sso_totp, sso_error, sso_reauth } = Route.useSearch()
 
   return (
     <div className="flex min-h-svh bg-background">
@@ -35,6 +37,7 @@ function RouteComponent() {
           ssoTicket={sso_ticket}
           ssoTotp={sso_totp}
           ssoError={sso_error}
+          ssoReauth={sso_reauth}
           onTwoFactorChange={setTwoFactorEmail}
         />
       </main>

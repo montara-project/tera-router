@@ -266,9 +266,8 @@ func clientOf(c fiber.Ctx) client {
 }
 
 // openSession stores a new session for user and signs its first token pair.
-// method records what opened it ("password", "sso", "passkey") so actions
-// that re-check identity can recognize a fresh SSO sign-in on an account that
-// holds no usable password.
+// method records what opened it ("password", "sso", "passkey") for the
+// session list — it is informational; reauthentication never trusts it.
 func (h *authHandler) openSession(ctx context.Context, user models.User, cl client, method string) (dtos.Session, error) {
 	refreshRaw, refreshHash, err := token.NewRefresh()
 	if err != nil {

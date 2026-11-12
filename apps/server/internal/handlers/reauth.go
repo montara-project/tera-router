@@ -20,32 +20,28 @@ var (
 	errReauthBadTOTP     = apperr.New(apperr.KindUnprocessable, "invalid authentication code")
 )
 
-// ssoReauthWindow bounds how long a session the identity provider opened
-// counts as reauthentication: an account that holds no usable password proves
-// itself by signing in fresh at the provider. The window matches the SSO
-// round-trip TTL and is short enough that a stolen session gains little.
-const ssoReauthWindow = 10 * time.Minute
-
 // reauthenticate re-checks the signed-in user's password, and TOTP code when
 // enabled, before an action that exposes secrets (key reveal, backups), so a
 // stolen session alone is not enough. totpRequired means the password passed
 // and the client must resend with the code. Failures count toward the
 // client's IP block, the same brute-force limit failed sign-ins hit.
 //
-// An empty password instead passes when this request's session was opened
-// moments ago by an SSO sign-in on an OIDC-linked account — a provisioned
-// account carries no usable password, so the fresh IdP authentication is its
-// reauthentication. The TOTP factor still applies. Password-bearing accounts
-// are untouched: no password, no pass.
-func reauthenticate(c fiber.Ctx, a *app.Application, password, otp string) (totpRequired bool, err error) {
+// An empty password instead passes only with a one-use ticket minted by a
+// fresh provider ceremony (/oidc/reauth) for this account — a provisioned
+// account carries no usable password, so re-authenticating at the identity
+// provider is its reauthentication. The bearer session itself never counts
+// as the fresh proof: the ticket is a separate credential the ceremony
+// hands to the browser. The TOTP factor still applies. Password-bearing
+// accounts are untouched: no password and no ticket, no pass.
+func reauthenticate(c fiber.Ctx, a *app.Application, password, otp, ticket string) (totpRequired bool, err error) {
 	auth := &authHandler{app: a}
 	user, err := auth.currentUser(c)
 	if err != nil {
 		return false, err
 	}
 	var verr error
-	if password == "" && auth.ssoReauthOK(c, user) {
-		verr = auth.verifyTOTP(c.Context(), user, otp)
+	if password == "" {
+		verr = auth.verifySSOTicket(c, user, ticket, otp)
 	} else {
 		verr = auth.verifyFactors(c.Context(), user, password, otp)
 	}
@@ -63,24 +59,26 @@ func reauthenticate(c fiber.Ctx, a *app.Application, password, otp string) (totp
 	}
 }
 
-// ssoReauthOK reports whether the request's own session was opened by a
-// fresh-enough SSO sign-in on an account bound to an identity provider.
-func (h *authHandler) ssoReauthOK(c fiber.Ctx, user models.User) bool {
-	if user.OIDCSub == "" {
-		return false
+// verifySSOTicket re-authenticates an OIDC-linked account through a ticket
+// the reauth callback minted for it. The ticket is peeked, not consumed, so
+// a wrong TOTP code does not burn the ceremony the user just completed; it
+// is spent exactly once the second factor passes, and the take still
+// refuses a sibling request that raced it.
+func (h *authHandler) verifySSOTicket(c fiber.Ctx, user models.User, ticket, otp string) error {
+	if user.OIDCSub == "" || ticket == "" {
+		return ErrBadCredentials
 	}
-	sid := lib.ContextSID(c)
-	if sid == "" {
-		return false
+	uid, ok := oidcReauths.peek(ticket)
+	if !ok || uid != user.ID {
+		return ErrBadCredentials
 	}
-	rt, err := h.app.Repos.Refresh.Get(c.Context(), sid)
-	if err != nil {
-		return false
+	if err := h.verifyTOTP(c.Context(), user, otp); err != nil {
+		return err
 	}
-	if rt.AuthMethod != "sso" && rt.AuthMethod != "passkey" {
-		return false
+	if _, ok := oidcReauths.take(ticket); !ok {
+		return ErrBadCredentials
 	}
-	return time.Since(rt.CreatedAt) <= ssoReauthWindow
+	return nil
 }
 
 // totpRequired answers a re-authenticated request whose password passed but

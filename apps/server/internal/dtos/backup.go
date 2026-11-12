@@ -8,11 +8,12 @@ import "tera-router/server/internal/lib/validator"
 type ConfigExport struct {
 	Passphrase string `json:"passphrase"`
 	// Password and OTP re-authenticate the export (see Reauth).
-	Password string `json:"password"`
-	OTP      string `json:"otp"`
+	Password     string `json:"password"`
+	OTP          string `json:"otp"`
+	ReauthTicket string `json:"reauth_ticket"`
 }
 
 func (d *ConfigExport) Validate(v *validator.MapValidator) {
 	v.Field("passphrase").String()
-	v.Field("password").String() // empty can reauthenticate via a fresh SSO session
+	v.Field("password").String() // empty can reauthenticate via a fresh SSO reauth ticket
 }

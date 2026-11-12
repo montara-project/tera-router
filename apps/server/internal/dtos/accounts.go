@@ -17,8 +17,9 @@ type Account struct {
 	Disabled    *bool          `json:"disabled"`
 	// Password and OTP re-authenticate an update that points the stored
 	// credential at a new metadata.base_url; see Reauth.
-	Password string `json:"password"`
-	OTP      string `json:"otp"`
+	Password     string `json:"password"`
+	ReauthTicket string `json:"reauth_ticket"`
+	OTP          string `json:"otp"`
 }
 
 func (d *Account) Validate(v *validator.MapValidator) {

@@ -18,6 +18,7 @@ export interface User {
   role: Role
   totp_enabled: boolean
   /** An identity provider is bound to the account; SSO-provisioned accounts
-   *  hold no usable password, so they reauthenticate via a recent SSO sign-in. */
+   *  hold no usable password, so they reauthenticate via a fresh SSO
+   *  ceremony (see use-reauth-dialog). */
   sso_linked: boolean
 }

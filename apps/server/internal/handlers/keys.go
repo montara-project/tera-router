@@ -347,7 +347,7 @@ func (h *keysHandler) Reveal(c fiber.Ctx) error {
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
 	}
-	needsCode, err := reauthenticate(c, h.app, req.Password, req.OTP)
+	needsCode, err := reauthenticate(c, h.app, req.Password, req.OTP, req.ReauthTicket)
 	if err != nil {
 		return err
 	}
@@ -384,7 +384,7 @@ func (h *keysHandler) Rotate(c fiber.Ctx) error {
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
 	}
-	needsCode, err := reauthenticate(c, h.app, req.Password, req.OTP)
+	needsCode, err := reauthenticate(c, h.app, req.Password, req.OTP, req.ReauthTicket)
 	if err != nil {
 		return err
 	}

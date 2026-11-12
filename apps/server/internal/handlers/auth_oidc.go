@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"html"
 	"net/url"
 	"strings"
 	"sync"
@@ -32,6 +33,9 @@ const (
 	// oidcPendingTTL bounds how long a TOTP-gated SSO sign-in waits for the
 	// authenticator code.
 	oidcPendingTTL = 5 * time.Minute
+	// oidcReauthTTL bounds how long a reauthentication ticket minted by a
+	// fresh provider ceremony stays usable by one sensitive action.
+	oidcReauthTTL = 5 * time.Minute
 	// oidcTOTPMaxAttempts caps wrong-code guesses on one pending sign-in. The
 	// count lives on the ticket, so it holds across addresses — unlike the
 	// sign-in guard's per-IP counter, which never sees this endpoint.
@@ -49,7 +53,18 @@ type oidcState struct {
 	// flow binds the issued ticket to the browser tab that began this
 	// sign-in; the web client generates it and must repeat it at exchange.
 	flow string
+	// reauthUID marks this state as a step-up ceremony for that signed-in
+	// user instead of a sign-in: the callback then verifies the returned
+	// identity is the account's linked one and mints a reauth ticket rather
+	// than a session.
+	reauthUID string
 }
+
+// oidcReauths holds the one-use tickets the callback's reauth branch mints,
+// keyed by the ticket and storing the account id. It lives at package level
+// — not on the handler — because reauthenticate builds its own authHandler
+// and must still see what the routed instance minted.
+var oidcReauths ttlStore[string]
 
 // ttlEntry is one stored value with its deadline.
 type ttlEntry[V any] struct {
@@ -58,7 +73,7 @@ type ttlEntry[V any] struct {
 }
 
 // ttlStore keeps single-use entries until taken or expired; expired entries
-// are swept lazily on access. It backs the OIDC state and ticket maps.
+// are swept lazily on access. It backs the OIDC state, ticket and reauth maps.
 // ponytail: in-process map, so login, callback and exchange must reach the
 // same api process; move it to the DB if the api ever runs as several replicas.
 type ttlStore[V any] struct {
@@ -287,6 +302,63 @@ func (h *authHandler) OIDCLogin(c fiber.Ctx) error {
 	return c.Redirect().Status(fiber.StatusFound).To(authURL)
 }
 
+// OIDCReauth starts a step-up ceremony (GET /v1/auth/oidc/reauth): the
+// signed-in, OIDC-linked user is sent to the provider with prompt=login so
+// the callback can mint a reauthentication ticket — the fresh proof actions
+// that expose secrets require from an account that holds no usable password.
+func (h *authHandler) OIDCReauth(c fiber.Ctx) error {
+	if !h.oidcEnabled() {
+		return apperr.ErrNotFound
+	}
+	user, err := h.currentUser(c)
+	if err != nil {
+		return err
+	}
+	if user.OIDCSub == "" {
+		return apperr.New(apperr.KindUnprocessable, "account is not linked to the SSO provider")
+	}
+	provider, err := h.oidcProvider(c.Context())
+	if err != nil {
+		return apperr.New(apperr.KindUnprocessable, "OIDC provider discovery failed: %s", err.Error())
+	}
+	state, err := randHex(32)
+	if err != nil {
+		return err
+	}
+	nonce, err := randHex(32)
+	if err != nil {
+		return err
+	}
+	verifier := oauth2.GenerateVerifier()
+	h.oidcStates.put(state, oidcState{
+		nonce:     nonce,
+		verifier:  verifier,
+		uiOrigin:  h.uiOrigin(c),
+		reauthUID: user.ID,
+	}, oidcStateTTL)
+
+	// prompt=login forces the provider to authenticate again even when its
+	// own session is still warm; max_age=0 asks the same of providers that
+	// honor it instead. Without a fresh authentication the ticket the
+	// callback mints would only prove the IdP session exists.
+	authURL := h.oidcOAuth2Config(c, provider).AuthCodeURL(
+		state, oidc.Nonce(nonce), oauth2.S256ChallengeOption(verifier),
+		oauth2.SetAuthURLParam("prompt", "login"),
+		oauth2.SetAuthURLParam("max_age", "0"))
+	return c.Redirect().Status(fiber.StatusFound).To(authURL)
+}
+
+// ssoReauthPage answers a failed reauth ceremony's browser stop — a plain
+// page, because the callback is the provider's redirect target and an error
+// has no dashboard to land on. Success redirects to the dashboard instead,
+// carrying the ticket like the sign-in's sso_ticket does.
+func ssoReauthPage(c fiber.Ctx, reason string) error {
+	return c.Type("html").SendString(
+		`<!doctype html><meta charset="utf-8"><title>Verification failed</title>` +
+			`<p>` + html.EscapeString(reason) +
+			`</p><p><a href="/">Return to the dashboard</a></p>`)
+}
+
 // OIDCCallback completes an SSO sign-in (GET /v1/auth/oidc/callback). The
 // browser arrives through a provider redirect, so every failure answers with
 // a redirect back to the dashboard's login page carrying a short sso_error
@@ -348,6 +420,14 @@ func (h *authHandler) OIDCCallback(c fiber.Ctx) error {
 		// it the identity cannot be bound to an account.
 		return fail("invalid_id_token", "")
 	}
+
+	if st.reauthUID != "" {
+		// A step-up ceremony, not a sign-in: the returned identity must be
+		// the account's linked issuer-subject pair, and on success the browser
+		// carries back a one-use reauth ticket — no session is opened.
+		return h.finishSSOReauth(c, st, idToken.Issuer, claims.Sub)
+	}
+
 	if claims.Email == "" {
 		return fail("no_email", "")
 	}
@@ -428,6 +508,30 @@ func (h *authHandler) OIDCCallback(c fiber.Ctx) error {
 	lib.ContextSetSID(c, session.SessionID)
 	auditRecord(c, user.ID, "auth.sso_sign_in", user.ID, fiber.Map{"method": "oidc"})
 	return c.Redirect().Status(fiber.StatusFound).To(st.uiOrigin + "/?sso_ticket=" + ticket)
+}
+
+// finishSSOReauth completes a step-up ceremony begun by /oidc/reauth: only a
+// returned identity equal to the account's linked pair counts, and the minted
+// ticket is what reauthenticate consumes for one sensitive action. The ticket
+// travels to the dashboard in the redirect URL — parking it server-side or in
+// API-origin storage would strand it away from the page that needs it.
+func (h *authHandler) finishSSOReauth(c fiber.Ctx, st oidcState, iss, sub string) error {
+	user, err := h.app.Repos.Users.Get(c.Context(), st.reauthUID)
+	if err != nil || !user.IsActive || user.IsBlocked {
+		auditRecord(c, "", "auth.sso_reauth", st.reauthUID, fiber.Map{"error": "unavailable"})
+		return ssoReauthPage(c, "The account is no longer available.")
+	}
+	if user.OIDCIss != iss || user.OIDCSub != sub {
+		auditRecord(c, "", "auth.sso_reauth", st.reauthUID, fiber.Map{"error": "identity_mismatch"})
+		return ssoReauthPage(c, "The provider signed in a different identity than the one linked to this account.")
+	}
+	ticket, err := randHex(32)
+	if err != nil {
+		return err
+	}
+	oidcReauths.put(ticket, user.ID, oidcReauthTTL)
+	auditRecord(c, user.ID, "auth.sso_reauth", user.ID, nil)
+	return c.Redirect().Status(fiber.StatusFound).To(st.uiOrigin + "/?sso_reauth=" + ticket)
 }
 
 // provisionOIDCUser mints a dashboard account for an IdP-verified email. The

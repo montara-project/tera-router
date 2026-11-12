@@ -23,16 +23,6 @@ func (r *RefreshTokenRepository) Insert(ctx context.Context, t models.RefreshTok
 	return err
 }
 
-// Get resolves a session by id, returning when and how it was opened —
-// reauthenticate reads both.
-func (r *RefreshTokenRepository) Get(ctx context.Context, id string) (models.RefreshToken, error) {
-	row := r.queryRowContext(ctx, r.DB, `
-		SELECT id, user_id, auth_method, created_at FROM refresh_tokens WHERE id = $1 AND revoked_at IS NULL`, id)
-	var t models.RefreshToken
-	err := row.Scan(&t.ID, &t.UserID, &t.AuthMethod, &t.CreatedAt)
-	return t, translateNotFound(err)
-}
-
 // GetValid returns the token row when it exists, is unrevoked, and unexpired.
 func (r *RefreshTokenRepository) GetValid(ctx context.Context, tokenHash string) (models.RefreshToken, error) {
 	row := r.queryRowContext(ctx, r.DB, `

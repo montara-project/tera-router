@@ -5,11 +5,13 @@ import (
 	"crypto/rsa"
 	"encoding/base64"
 	"encoding/json"
+	"io"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -1017,7 +1019,9 @@ func TestPasskeySignInDisabled(t *testing.T) {
 
 // TestSSOReauth pins the empty-password path: a session opened moments ago by
 // SSO on a linked account satisfies reauthentication, while a password-method
-// session, a stale session, or an unlinked account does not.
+// TestSSOReauth exercises the passwordless reauth path: only a one-use
+// ticket minted for this account by a fresh provider ceremony substitutes
+// for the password — the bearer session itself never counts.
 func TestSSOReauth(t *testing.T) {
 	db, err := database.Open(filepath.Join(t.TempDir(), "sso_reauth_test.db"))
 	if err != nil {
@@ -1035,37 +1039,26 @@ func TestSSOReauth(t *testing.T) {
 		t.Fatal(err)
 	}
 	h := &authHandler{app: &app.Application{Config: cfg, DB: db, Repos: repositories.New(db, &cfg.App), Secrets: secrets}}
-	ctx := t.Context()
 
 	linked := insertSSOUser(t, h, "sso@example.com", "iss-a", "sub-1")
 	unlinked := insertSSOUser(t, h, "plain@example.com", "", "")
-
-	insertSession := func(userID, method string) string {
-		t.Helper()
-		sid := uuid.NewString()
-		if err := h.app.Repos.Refresh.Insert(ctx, models.RefreshToken{
-			ID: sid, UserID: userID, TokenHash: uuid.NewString(),
-			AuthMethod: method, ExpiresAt: time.Now().Add(refreshTTL),
-		}); err != nil {
-			t.Fatalf("insert session: %v", err)
-		}
-		return sid
-	}
+	other := insertSSOUser(t, h, "sso2@example.com", "iss-a", "sub-2")
 
 	f := fiber.New(fiber.Config{ErrorHandler: middlewares.ErrorHandler})
-	var uid, sid string
+	var uid string
 	authed := f.Group("/", func(c fiber.Ctx) error {
 		lib.ContextSetUID(c, uuid.MustParse(uid))
-		lib.ContextSetSID(c, sid)
 		return c.Next()
 	})
 	authed.Post("/totp/enable", h.TOTPEnable)
+	bh := &backupHandler{app: h.app}
+	authed.Post("/db", bh.DatabaseDownload)
 
-	call := func(user models.User, session, password, secret, code string) int {
+	call := func(user models.User, password, secret, code, ticket string) int {
 		t.Helper()
-		uid, sid = user.ID, session
+		uid = user.ID
 		req := httptest.NewRequest("POST", "/totp/enable", strings.NewReader(
-			`{"password":"`+password+`","secret":"`+secret+`","code":"`+code+`"}`))
+			`{"password":"`+password+`","secret":"`+secret+`","code":"`+code+`","reauth_ticket":"`+ticket+`"}`))
 		req.Header.Set("Content-Type", "application/json")
 		resp, err := f.Test(req)
 		if err != nil {
@@ -1073,37 +1066,206 @@ func TestSSOReauth(t *testing.T) {
 		}
 		return resp.StatusCode
 	}
+	download := func(user models.User, ticket string) int {
+		t.Helper()
+		uid = user.ID
+		req := httptest.NewRequest("POST", "/db", strings.NewReader(
+			`{"password":"","reauth_ticket":"`+ticket+`"}`))
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := f.Test(req)
+		if err != nil {
+			t.Fatalf("POST /db: %v", err)
+		}
+		return resp.StatusCode
+	}
 
-	// A fresh SSO session stands in for the password the account does not have.
+	// A ticket minted for the linked account stands in for the password it
+	// does not have.
 	secret, err := totp.NewSecret()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if status := call(linked, insertSession(linked.ID, "sso"), "", secret, totp.Code(secret, time.Now())); status != 200 {
-		t.Fatalf("sso reauth enable = %d, want 200", status)
+	code := totp.Code(secret, time.Now())
+	oidcReauths.put("tk-good", linked.ID, oidcReauthTTL)
+	if status := call(linked, "", secret, code, "tk-good"); status != 200 {
+		t.Fatalf("ticket reauth enable = %d, want 200", status)
 	}
 
-	// A session opened by password sign-in still demands the password.
-	other := insertSSOUser(t, h, "sso2@example.com", "iss-a", "sub-2")
-	secret2, _ := totp.NewSecret()
-	pwSID := insertSession(other.ID, "password")
-	if status := call(other, pwSID, "", secret2, totp.Code(secret2, time.Now())); status != 422 {
-		t.Fatalf("password-method empty password = %d, want 422", status)
+	// The ticket is single-use: a replay of the same one is refused. The
+	// account under test carries no TOTP — "linked" enrolled one above, so a
+	// ticket path for it would now owe the second factor instead of failing.
+	oidcReauths.put("tk-dl", other.ID, oidcReauthTTL)
+	if status := download(other, "tk-dl"); status != 200 {
+		t.Fatalf("ticket download = %d, want 200", status)
+	}
+	if status := download(other, "tk-dl"); status != 422 {
+		t.Fatalf("replayed ticket = %d, want 422", status)
 	}
 
-	// An SSO session outside the window no longer counts.
-	staleSID := insertSession(other.ID, "sso")
-	if _, err := h.app.DB.ExecContext(ctx,
-		`UPDATE refresh_tokens SET created_at = $2 WHERE id = $1`,
-		staleSID, time.Now().Add(-ssoReauthWindow-time.Minute).UTC().Format("2006-01-02 15:04:05.000-07:00")); err != nil {
-		t.Fatalf("age session: %v", err)
-	}
-	if status := call(other, staleSID, "", secret2, totp.Code(secret2, time.Now())); status != 422 {
-		t.Fatalf("stale sso session = %d, want 422", status)
+	// A ticket minted for somebody else does not reauthenticate this account.
+	// The download endpoint changes nothing between calls, so it isolates the
+	// reauth decision — TOTPEnable would short-circuit on an enabled factor.
+	oidcReauths.put("tk-other", other.ID, oidcReauthTTL)
+	if status := download(linked, "tk-other"); status != 422 {
+		t.Fatalf("foreign ticket = %d, want 422", status)
 	}
 
-	// An unlinked account always owes the password, even on an SSO session.
-	if status := call(unlinked, insertSession(unlinked.ID, "sso"), "", secret2, totp.Code(secret2, time.Now())); status != 422 {
+	// An expired ticket no longer counts.
+	oidcReauths.put("tk-stale", linked.ID, -time.Second)
+	if status := download(linked, "tk-stale"); status != 422 {
+		t.Fatalf("stale ticket = %d, want 422", status)
+	}
+
+	// No ticket at all: an empty password never reauthenticates, however the
+	// session was opened.
+	if status := download(linked, ""); status != 422 {
+		t.Fatalf("empty password, no ticket = %d, want 422", status)
+	}
+
+	// An unlinked account cannot use the ticket path even with a ticket minted
+	// for it — the provider link is what the ticket substitutes for.
+	oidcReauths.put("tk-unlinked", unlinked.ID, oidcReauthTTL)
+	if status := download(unlinked, "tk-unlinked"); status != 422 {
 		t.Fatalf("unlinked account = %d, want 422", status)
 	}
 }
+
+// TestOIDCReauthFlow drives the step-up ceremony: /oidc/reauth sends the
+// linked user to the provider for a fresh login, the callback mints a one-use
+// ticket the reauth dialog then spends — and a ceremony returning a different
+// identity mints nothing.
+func TestOIDCReauthFlow(t *testing.T) {
+	db, err := database.Open(filepath.Join(t.TempDir(), "sso_reauth_flow_test.db"))
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if err := migrator.Up(db, "../../migrations"); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	seeders.RoleSeeder{DB: db}.Seed()
+
+	idp := newFakeIdP(t, "n1", "sso@example.com")
+	cfg := config.Config{
+		App: config.ConfigApp{Secret: "test-secret"},
+		OIDC: config.ConfigOIDC{
+			Issuer: idp.srv.URL, ClientID: "id", ClientSecret: "secret",
+			RequireEmailVerified: true, LinkExistingAccounts: true,
+		},
+	}
+	secrets, err := sealer.FromSecret(cfg.App.Secret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := &authHandler{app: &app.Application{Config: cfg, DB: db, Repos: repositories.New(db, &cfg.App), Secrets: secrets}}
+
+	linked := insertSSOUser(t, h, "sso@example.com", idp.srv.URL, "idp-user")
+	unlinked := insertSSOUser(t, h, "plain@example.com", "", "")
+
+	f := fiber.New(fiber.Config{ErrorHandler: middlewares.ErrorHandler})
+	var uid string
+	authed := f.Group("/", func(c fiber.Ctx) error {
+		lib.ContextSetUID(c, uuid.MustParse(uid))
+		return c.Next()
+	})
+	f.Get("/oidc/callback", h.OIDCCallback)
+	authed.Get("/oidc/reauth", h.OIDCReauth)
+	authed.Post("/totp/enable", h.TOTPEnable)
+
+	get := func(user models.User, path string) *http.Response {
+		t.Helper()
+		uid = user.ID
+		resp, err := f.Test(httptest.NewRequest("GET", path, nil))
+		if err != nil {
+			t.Fatalf("GET %s: %v", path, err)
+		}
+		return resp
+	}
+
+	// An unlinked account cannot start the ceremony — its password is the
+	// reauthentication it already has.
+	if resp := get(unlinked, "/oidc/reauth"); resp.StatusCode != 422 {
+		t.Fatalf("unlinked reauth = %d, want 422", resp.StatusCode)
+	}
+
+	// A linked account is redirected to the provider demanding fresh auth.
+	resp := get(linked, "/oidc/reauth")
+	if resp.StatusCode != 302 {
+		t.Fatalf("reauth redirect = %d, want 302", resp.StatusCode)
+	}
+	authURL, err := url.Parse(resp.Header.Get("Location"))
+	if err != nil {
+		t.Fatalf("parse auth url: %v", err)
+	}
+	if got := authURL.Query().Get("prompt"); got != "login" {
+		t.Fatalf("prompt = %q, want login", got)
+	}
+	state := authURL.Query().Get("state")
+	if state == "" {
+		t.Fatal("auth url carried no state")
+	}
+	// The IdP echoes the ceremony's nonce in its id_token — teach the fake
+	// which one this run generated.
+	st, ok := h.oidcStates.peek(state)
+	if !ok {
+		t.Fatal("no stored state for the reauth redirect")
+	}
+	idp.nonce = st.nonce
+
+	// The callback verifies the returned identity is the linked pair and
+	// redirects the dashboard-ward with the ticket — which also proves no
+	// session was opened.
+	resp, err = f.Test(httptest.NewRequest("GET", "/oidc/callback?state="+state+"&code=whatever", nil))
+	if err != nil {
+		t.Fatalf("GET /oidc/callback: %v", err)
+	}
+	loc, err := url.Parse(resp.Header.Get("Location"))
+	if err != nil {
+		t.Fatalf("parse redirect: %v", err)
+	}
+	ticket := loc.Query().Get("sso_reauth")
+	if resp.StatusCode != 302 || ticket == "" {
+		t.Fatalf("callback = %d %q, want 302 with sso_reauth", resp.StatusCode, loc.String())
+	}
+	if rows, err := h.app.Repos.Refresh.ListActive(t.Context(), linked.ID); err != nil || len(rows) != 0 {
+		t.Fatalf("reauth opened sessions = %d %v, want 0", len(rows), err)
+	}
+
+	// The ticket reauthenticates one action for the account it was minted for.
+	secret, err := totp.NewSecret()
+	if err != nil {
+		t.Fatal(err)
+	}
+	uid = linked.ID
+	req := httptest.NewRequest("POST", "/totp/enable", strings.NewReader(
+		`{"password":"","secret":"`+secret+`","code":"`+totp.Code(secret, time.Now())+`","reauth_ticket":"`+ticket+`"}`))
+	req.Header.Set("Content-Type", "application/json")
+	enResp, err := f.Test(req)
+	if err != nil {
+		t.Fatalf("POST /totp/enable: %v", err)
+	}
+	if enResp.StatusCode != 200 {
+		t.Fatalf("totp enable with ticket = %d, want 200", enResp.StatusCode)
+	}
+
+	// A ceremony whose returned identity is not the linked pair mints
+	// nothing: this account is bound to "linked-sub" but the provider
+	// asserted its own "idp-user".
+	other := insertSSOUser(t, h, "other@example.com", idp.srv.URL, "linked-sub")
+	otherState := "st-mismatch"
+	h.oidcStates.put(otherState, oidcState{nonce: idp.nonce, verifier: oauth2.GenerateVerifier(), reauthUID: other.ID}, oidcStateTTL)
+	mresp, err := f.Test(httptest.NewRequest("GET", "/oidc/callback?state="+otherState+"&code=whatever", nil))
+	if err != nil {
+		t.Fatalf("GET /oidc/callback (mismatch): %v", err)
+	}
+	mpage, err := io.ReadAll(mresp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mresp.StatusCode != 200 || reauthTicketRe.Match(mpage) || !strings.Contains(string(mpage), "different identity") {
+		t.Fatalf("mismatch page = %d %q, want the identity-mismatch error page", mresp.StatusCode, string(mpage))
+	}
+}
+
+// reauthTicketRe spots the ticket parameter in a callback redirect's query.
+var reauthTicketRe = regexp.MustCompile(`sso_reauth`)

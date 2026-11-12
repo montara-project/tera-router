@@ -25,8 +25,13 @@ export type AuthResources = {
     password: string
     secret: string
     code: string
+    reauth_ticket?: string
   }) => Promise<AxiosItemResponse<void>>
-  totpDisable: (reqBody: { password: string; code: string }) => Promise<AxiosItemResponse<void>>
+  totpDisable: (reqBody: {
+    password: string
+    code: string
+    reauth_ticket?: string
+  }) => Promise<AxiosItemResponse<void>>
   sessions: () => Promise<AxiosItemResponse<Models.Session[]>>
   revokeSession: (id: string) => Promise<AxiosItemResponse<void>>
   passkeys: () => Promise<AxiosItemResponse<Models.Passkey[]>>

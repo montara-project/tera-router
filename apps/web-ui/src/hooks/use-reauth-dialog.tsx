@@ -17,8 +17,10 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { env } from '@/config/env'
 import { axiosErrorMessage } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
+import { startSSOReauth, takeSSOReauthTicket } from '@/lib/auth/sso'
 
 type Job = {
   action: string
@@ -35,9 +37,14 @@ type Job = {
  */
 export function useReauthDialog() {
   const job = useRef<Job | null>(null)
-  // SSO-provisioned accounts hold no usable password: the server accepts an
-  // empty password when the session was opened by a recent SSO sign-in.
+  // SSO-provisioned accounts hold no usable password: they prove themselves
+  // with a fresh provider ceremony whose ticket lands in localStorage. It is
+  // kept on a ref because a totp_required response needs the same ticket on
+  // the code retry, and the store hands it out only once.
   const ssoLinked = useQuery(queries.auth.me()).data?.data?.sso_linked === true
+  const ssoConfig = useQuery(queries.auth.ssoConfig()).data
+  const providerName = ssoConfig?.provider_name || 'SSO'
+  const ticketRef = useRef<string | null>(null)
   const [open, setOpen] = useState(false)
   const [action, setAction] = useState('')
   const [password, setPassword] = useState('')
@@ -53,6 +60,7 @@ export function useReauthDialog() {
     new Promise((resolve) => {
       job.current?.resolve(null)
       job.current = { action: actionText, run, resolve: resolve as (value: unknown) => void }
+      ticketRef.current = null
       setAction(actionText)
       setPassword('')
       setOtp('')
@@ -64,6 +72,7 @@ export function useReauthDialog() {
   const finish = (value: unknown) => {
     job.current?.resolve(value)
     job.current = null
+    ticketRef.current = null
     setOpen(false)
   }
 
@@ -73,7 +82,15 @@ export function useReauthDialog() {
     setError(null)
     setPending(true)
     try {
-      const res = await job.current.run({ password, otp: needsCode ? otp : undefined })
+      if (ticketRef.current === null) {
+        const stored = takeSSOReauthTicket()
+        ticketRef.current = stored || null
+      }
+      const res = await job.current.run({
+        password,
+        otp: needsCode ? otp : undefined,
+        reauth_ticket: ticketRef.current || undefined,
+      })
       if ('totpRequired' in res) {
         setNeedsCode(true)
         return
@@ -100,7 +117,7 @@ export function useReauthDialog() {
               {needsCode
                 ? `Enter the 6-digit code from your authenticator app to ${action}.`
                 : ssoLinked
-                  ? `Enter your password to ${action}, or continue with it empty — a recent SSO sign-in also verifies you.`
+                  ? `Verify with ${providerName} or enter your password to ${action}.`
                   : `Enter your password to ${action}.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -133,6 +150,15 @@ export function useReauthDialog() {
 
           <AlertDialogFooter>
             <AlertDialogCancel type="button">Cancel</AlertDialogCancel>
+            {ssoLinked && !needsCode && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => startSSOReauth(String(env.API_URL))}
+              >
+                Verify with {providerName}
+              </Button>
+            )}
             <Button type="submit" disabled={!canSubmit || pending}>
               {pending && <IconLoader2 className="animate-spin" />}
               {needsCode ? 'Verify' : 'Continue'}

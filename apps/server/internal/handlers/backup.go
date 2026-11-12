@@ -103,7 +103,7 @@ func (h *backupHandler) ConfigExport(c fiber.Ctx) error {
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
 	}
-	needsCode, err := reauthenticate(c, h.app, req.Password, req.OTP)
+	needsCode, err := reauthenticate(c, h.app, req.Password, req.OTP, req.ReauthTicket)
 	if err != nil {
 		return err
 	}
@@ -328,7 +328,7 @@ func (h *backupHandler) DatabaseDownload(c fiber.Ctx) error {
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
 	}
-	needsCode, err := reauthenticate(c, h.app, req.Password, req.OTP)
+	needsCode, err := reauthenticate(c, h.app, req.Password, req.OTP, req.ReauthTicket)
 	if err != nil {
 		return err
 	}
@@ -407,7 +407,7 @@ func (h *backupHandler) DatabaseRestore(c fiber.Ctx) error {
 		}
 		return ""
 	}
-	needsCode, err := reauthenticate(c, h.app, field("password"), field("otp"))
+	needsCode, err := reauthenticate(c, h.app, field("password"), field("otp"), field("reauth_ticket"))
 	if err != nil {
 		return err
 	}

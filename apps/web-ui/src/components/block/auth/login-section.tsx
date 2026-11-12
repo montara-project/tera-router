@@ -26,7 +26,7 @@ import { SignInSchema } from '@/lib/api/dtos/auth/schema'
 import { queries } from '@/lib/api/queries'
 import { signInWithEmail } from '@/lib/auth/email-auth'
 import { passkeysSupported, signInWithPasskey } from '@/lib/auth/passkey'
-import { SSO_FLOW_KEY } from '@/lib/auth/sso'
+import { SSO_FLOW_KEY, SSO_REAUTH_TICKET_KEY } from '@/lib/auth/sso'
 import { cn } from '@/lib/utils'
 
 import { BrandRow, useGatewayHealth } from './brand-panel'
@@ -87,6 +87,8 @@ interface LoginSectionProps extends React.ComponentProps<'div'> {
   ssoTotp?: string
   /** Error code the OIDC callback sent back instead of a ticket. */
   ssoError?: string
+  /** One-use reauthentication ticket a step-up ceremony appended to its redirect. */
+  ssoReauth?: string
 }
 
 export default function LoginSection({
@@ -95,6 +97,7 @@ export default function LoginSection({
   ssoTicket,
   ssoTotp,
   ssoError,
+  ssoReauth,
   ...props
 }: LoginSectionProps) {
   const { navigate } = useRouter()
@@ -146,8 +149,20 @@ export default function LoginSection({
   useEffect(() => {
     if (handledSSO.current) return
     handledSSO.current = true
-    if (ssoError || ssoTicket || ssoTotp) {
+    if (ssoError || ssoTicket || ssoTotp || ssoReauth) {
       void navigate({ to: '/', search: {}, replace: true })
+    }
+    if (ssoReauth) {
+      // The step-up ticket belongs to the dashboard origin's localStorage:
+      // park it for the waiting reauth dialog, then close the popup the
+      // ceremony usually runs in — a plain navigation returns to the app.
+      localStorage.setItem(SSO_REAUTH_TICKET_KEY, ssoReauth)
+      if (window.opener) {
+        window.close()
+      } else {
+        void navigate({ to: '/dashboard', replace: true })
+      }
+      return
     }
     if (ssoTotp) {
       onTwoFactorChange?.('your SSO account')
@@ -160,7 +175,7 @@ export default function LoginSection({
         setIsLoading(false)
       },
     })
-  }, [ssoTicket, ssoTotp, ssoError, navigate, ssoExchange, onTwoFactorChange])
+  }, [ssoTicket, ssoTotp, ssoError, ssoReauth, navigate, ssoExchange, onTwoFactorChange])
 
   const form = useAppForm({
     defaultValues: {

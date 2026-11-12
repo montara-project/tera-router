@@ -28,11 +28,14 @@ type TOTPEnable struct {
 	Password string `json:"password"`
 	Secret   string `json:"secret"`
 	Code     string `json:"code"`
+	// ReauthTicket substitutes for the password on OIDC-linked accounts: the
+	// one-use ticket a fresh /oidc/reauth ceremony minted.
+	ReauthTicket string `json:"reauth_ticket"`
 }
 
 func (d *TOTPEnable) Validate(v *validator.MapValidator) {
 	// Not Required: an empty password can still reauthenticate through a
-	// fresh SSO session (see reauthenticate); the server decides.
+	// fresh SSO reauth ticket (see reauthenticate); the server decides.
 	v.Field("password").String()
 	v.Field("secret").Required().String()
 	v.Field("code").Required().String()
@@ -44,6 +47,8 @@ func (d *TOTPEnable) Validate(v *validator.MapValidator) {
 type TOTPDisable struct {
 	Password string `json:"password"`
 	Code     string `json:"code"`
+	// ReauthTicket substitutes for the password (see TOTPEnable).
+	ReauthTicket string `json:"reauth_ticket"`
 }
 
 func (d *TOTPDisable) Validate(v *validator.MapValidator) {
@@ -57,6 +62,8 @@ func (d *TOTPDisable) Validate(v *validator.MapValidator) {
 type Reauth struct {
 	Password string `json:"password"`
 	OTP      string `json:"otp"`
+	// ReauthTicket substitutes for the password (see TOTPEnable).
+	ReauthTicket string `json:"reauth_ticket"`
 }
 
 func (d *Reauth) Validate(v *validator.MapValidator) {
