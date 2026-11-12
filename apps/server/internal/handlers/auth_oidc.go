@@ -29,6 +29,10 @@ const (
 	// oidcPendingTTL bounds how long a TOTP-gated SSO sign-in waits for the
 	// authenticator code.
 	oidcPendingTTL = 5 * time.Minute
+	// oidcTOTPMaxAttempts caps wrong-code guesses on one pending sign-in. The
+	// count lives on the ticket, so it holds across addresses — unlike the
+	// sign-in guard's per-IP counter, which never sees this endpoint.
+	oidcTOTPMaxAttempts = 5
 )
 
 // oidcState is a begun SSO sign-in: the nonce the returned id_token must
@@ -86,6 +90,21 @@ func (s *ttlStore[V]) take(key string) (V, bool) {
 		return zero, false
 	}
 	return e.value, true
+}
+
+// update mutates a live entry's value in place under the lock, keeping the
+// original deadline: a pending sign-in can count failed attempts without
+// buying more time.
+func (s *ttlStore[V]) update(key string, fn func(V) V) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	e, ok := s.m[key]
+	if !ok || !time.Now().Before(e.expires) {
+		return false
+	}
+	e.value = fn(e.value)
+	s.m[key] = e
+	return true
 }
 
 // peek reads key without consuming it: a pending TOTP entry must survive a
@@ -163,10 +182,12 @@ type ssoTicket struct {
 }
 
 // ssoPending holds a verified-identity sign-in that still owes the account's
-// TOTP factor: the session is opened only after the code checks out.
+// TOTP factor: the session is opened only after the code checks out, and a
+// wrong code counts against attempts until the entry is spent.
 type ssoPending struct {
-	userID string
-	flow   string
+	userID   string
+	flow     string
+	attempts int
 }
 
 // oidcEnabled reports whether dashboard SSO is configured: all three OIDC
@@ -404,6 +425,12 @@ func (h *authHandler) OIDCVerifyTOTP(c fiber.Ctx) error {
 	if !ok || (pend.flow != "" && pend.flow != req.Flow) {
 		return apperr.ErrUnauthorized
 	}
+	if pend.attempts >= oidcTOTPMaxAttempts {
+		// The guess budget is spent: burn the pending sign-in outright so the
+		// ticket stops answering instead of sitting until it expires.
+		h.oidcPending.take(req.Ticket)
+		return apperr.ErrUnauthorized
+	}
 
 	ctx := c.Context()
 	user, err := h.app.Repos.Users.Get(ctx, pend.userID)
@@ -411,6 +438,10 @@ func (h *authHandler) OIDCVerifyTOTP(c fiber.Ctx) error {
 		return apperr.ErrUnauthorized
 	}
 	if err := h.checkTOTP(ctx, user, req.OTP); err != nil {
+		h.oidcPending.update(req.Ticket, func(p ssoPending) ssoPending {
+			p.attempts++
+			return p
+		})
 		auditRecord(c, "", "auth.sso_sign_in", pend.userID, fiber.Map{"method": "oidc", "error": "totp"})
 		return err
 	}

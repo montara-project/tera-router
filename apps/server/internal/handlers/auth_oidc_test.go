@@ -1,8 +1,14 @@
 package handlers
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"encoding/base64"
 	"encoding/json"
+	"math/big"
+	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -20,7 +26,9 @@ import (
 	"tera-router/server/internal/seeders"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"golang.org/x/oauth2"
 )
 
 // TestTTLStore pins the single-use semantics of the state and ticket stores:
@@ -303,5 +311,168 @@ func TestOIDCVerifyTOTP(t *testing.T) {
 	h.oidcPending.put("stale", ssoPending{userID: admin.String()}, -time.Second)
 	if status, _ := call(`{"ticket":"stale","otp":"` + cur + `"}`); status != 401 {
 		t.Fatalf("expired pending = %d, want 401", status)
+	}
+
+	// Wrong guesses count against the pending entry across requests; once the
+	// cap is reached the ticket is spent, so even the right code is refused.
+	h.oidcPending.put("guessed", ssoPending{userID: admin.String()}, time.Minute)
+	for i := 0; i < oidcTOTPMaxAttempts; i++ {
+		if status, _ := call(`{"ticket":"guessed","otp":"000000"}`); status != 401 {
+			t.Fatalf("wrong code %d = %d, want 401", i+1, status)
+		}
+	}
+	if status, _ := call(`{"ticket":"guessed","otp":"` + totp.Code(secret, time.Now()) + `"}`); status != 401 {
+		t.Fatalf("post-cap correct code = %d, want 401", status)
+	}
+}
+
+// fakeIdP is a minimal OIDC provider for the callback test: discovery
+// metadata, a token endpoint that hands back a freshly signed id_token, and
+// the JWKS the verifier fetches for it.
+type fakeIdP struct {
+	srv   *httptest.Server
+	key   *rsa.PrivateKey
+	nonce string
+	email string
+}
+
+func newFakeIdP(t *testing.T, nonce, email string) *fakeIdP {
+	t.Helper()
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+	f := &fakeIdP{key: key, nonce: nonce, email: email}
+	f.srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/.well-known/openid-configuration":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"issuer":                 f.srv.URL,
+				"authorization_endpoint": f.srv.URL + "/auth",
+				"token_endpoint":         f.srv.URL + "/token",
+				"jwks_uri":               f.srv.URL + "/keys",
+			})
+		case "/token":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"access_token": "at", "token_type": "Bearer", "id_token": f.idToken(),
+			})
+		case "/keys":
+			_ = json.NewEncoder(w).Encode(map[string]any{"keys": []map[string]any{{
+				"kty": "RSA", "use": "sig", "alg": "RS256", "kid": "k1",
+				"n": base64.RawURLEncoding.EncodeToString(key.N.Bytes()),
+				"e": base64.RawURLEncoding.EncodeToString(big.NewInt(int64(key.E)).Bytes()),
+			}}})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(f.srv.Close)
+	return f
+}
+
+func (f *fakeIdP) idToken() string {
+	tok := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.MapClaims{
+		"iss": f.srv.URL, "sub": "idp-user", "aud": "id",
+		"iat": time.Now().Unix(), "exp": time.Now().Add(time.Hour).Unix(),
+		"nonce": f.nonce, "email": f.email, "email_verified": true,
+	})
+	tok.Header["kid"] = "k1"
+	signed, err := tok.SignedString(f.key)
+	if err != nil {
+		panic(err)
+	}
+	return signed
+}
+
+// TestOIDCCallbackPendingTOTP drives the callback against a controlled IdP: a
+// TOTP-enabled account is parked as a pending ticket with no session opened,
+// and a correct code at /oidc/verify-totp then opens it.
+func TestOIDCCallbackPendingTOTP(t *testing.T) {
+	db, err := database.Open(filepath.Join(t.TempDir(), "sso_callback_test.db"))
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if err := migrator.Up(db, "../../migrations"); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	t.Setenv("ADMIN_PASSWORD", "pw")
+	seeders.RoleSeeder{DB: db}.Seed()
+	seeders.AdminUserSeeder{DB: db}.Seed()
+
+	cfg := config.Config{App: config.ConfigApp{Secret: "test-secret"}}
+	secrets, err := sealer.FromSecret(cfg.App.Secret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := &authHandler{app: &app.Application{Config: cfg, DB: db, Repos: repositories.New(db, &cfg.App), Secrets: secrets}}
+
+	ctx := t.Context()
+	admin, err := h.app.Repos.Users.GetByEmail(ctx, "admin@tera.local")
+	if err != nil {
+		t.Fatalf("seeded admin: %v", err)
+	}
+
+	// Enroll the factor directly: last step is the previous window's, so the
+	// current window's code is still redeemable below.
+	secret, err := totp.NewSecret()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sealed, err := h.app.Secrets.SealString(secret, sealer.PurposeUserTOTP)
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	step, ok := totp.Verify(secret, totp.Code(secret, now.Add(-30*time.Second)), now)
+	if !ok {
+		t.Fatal("enrollment code did not verify")
+	}
+	if err := h.app.Repos.Users.SetTOTP(ctx, admin.ID, sealed.WrappedDEK, sealed.Ciphertext, step); err != nil {
+		t.Fatalf("set totp: %v", err)
+	}
+
+	idp := newFakeIdP(t, "n1", "admin@tera.local")
+	h.app.Config.OIDC = config.ConfigOIDC{Issuer: idp.srv.URL, ClientID: "id", ClientSecret: "secret"}
+	h.oidcStates.put("st", oidcState{nonce: "n1", verifier: oauth2.GenerateVerifier(), uiOrigin: "", flow: "f1"}, oidcStateTTL)
+
+	f := fiber.New(fiber.Config{ErrorHandler: middlewares.ErrorHandler})
+	f.Get("/oidc/callback", h.OIDCCallback)
+	f.Post("/oidc/verify-totp", h.OIDCVerifyTOTP)
+
+	resp, err := f.Test(httptest.NewRequest("GET", "/oidc/callback?state=st&code=whatever", nil))
+	if err != nil {
+		t.Fatalf("GET /oidc/callback: %v", err)
+	}
+	loc, err := url.Parse(resp.Header.Get("Location"))
+	if err != nil {
+		t.Fatalf("parse redirect: %v", err)
+	}
+	ticket := loc.Query().Get("sso_totp")
+	if resp.StatusCode != 302 || ticket == "" {
+		t.Fatalf("callback = %d %q, want 302 with sso_totp", resp.StatusCode, loc.String())
+	}
+
+	// The verified identity is pending the second factor: no session exists.
+	if rows, err := h.app.Repos.Refresh.ListActive(ctx, admin.ID); err != nil || len(rows) != 0 {
+		t.Fatalf("sessions before totp = %d %v, want 0", len(rows), err)
+	}
+
+	body := `{"ticket":"` + ticket + `","otp":"` + totp.Code(secret, time.Now()) + `","flow":"f1"}`
+	req := httptest.NewRequest("POST", "/oidc/verify-totp", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	vresp, err := f.Test(req)
+	if err != nil {
+		t.Fatalf("POST /oidc/verify-totp: %v", err)
+	}
+	var out map[string]any
+	_ = json.NewDecoder(vresp.Body).Decode(&out)
+	data, _ := out["data"].(map[string]any)
+	if vresp.StatusCode != 200 || data["access_token"] == nil {
+		t.Fatalf("verify-totp = %d %v, want 200 with access_token", vresp.StatusCode, out)
+	}
+	if rows, err := h.app.Repos.Refresh.ListActive(ctx, admin.ID); err != nil || len(rows) != 1 {
+		t.Fatalf("sessions after totp = %d %v, want 1", len(rows), err)
 	}
 }
