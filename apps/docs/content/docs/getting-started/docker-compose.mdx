@@ -12,93 +12,138 @@ upgrades.
 
 - Docker with the Compose plugin.
 - A machine reachable from your browser (directly or behind a reverse proxy).
-- A release tag to pin, e.g. `v0.4.0` — avoid `latest` so upgrades are reproducible.
 
-## 1. Create `docker-compose.yml`
+## 1. Get the compose file
+
+The repository ships a ready-made `deploy/docker-compose.yaml`: one `app` service — the API server
+serving the built dashboard on the same port — plus an optional Headroom sidecar behind a profile.
+Every server flag falls back to its environment variable, so the file needs no `command:` list; the
+`environment:` block below is the whole configuration.
 
 ```yaml
 services:
-  tera-router-llm:
-    image: ghcr.io/montara-project/tera-router:v0.4.0
-    container_name: tera-router-llm
-    environment:
-      - APP_SECRET=${APP_SECRET:?APP_SECRET wajib diisi di Dokploy env}
-      - ADMIN_EMAIL=${ADMIN_EMAIL}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
-
-      # Optional: point the dashboard at an API on another origin. Leave unset
-      # for the usual same-origin setup — the server injects it into the UI
-      # at runtime, no rebuild needed.
-      - API_URL=${API_URL}
-
-    command:
-      - '--machine-id=${MACHINE_ID:-1}'
-      - '--debug=${DEBUG:-false}'
-      - '--env=${APP_ENV:-production}'
-      - '--port=${APP_PORT:-8080}'
-
-      - '--app-name=${APP_NAME:-tera-router-server}'
-      - '--cors-allowed-origins=${CORS_ALLOWED_ORIGINS:-*}'
-
-      - '--rate-limit-exempt-ips=${RATE_LIMIT_EXEMPT_IPS}'
-      - '--trusted-proxies=${TRUSTED_PROXIES}'
-
-      - '--database-path=${DATABASE_PATH:-/app/data/terarouter.db}'
-      - '--migrate-on-boot=${MIGRATE_ON_BOOT:-true}'
-      - '--seed-on-boot=${SEED_ON_BOOT:-true}'
-      - '--sentry-dsn=${SENTRY_DSN:-}'
+  app:
+    image: ghcr.io/montara-project/tera-router:v1.23.0
     restart: unless-stopped
+    # APP_PORT is the host port; the container always listens on 8080.
+    ports:
+      - '${APP_PORT:-8080}:8080'
+    environment:
+      ENV: ${APP_ENV:-production}
+      MACHINE_ID: ${APP_MACHINE_ID:?APP_MACHINE_ID is required}
+      APP_SECRET: ${APP_SECRET:?APP_SECRET is required}
+      DEBUG: ${APP_DEBUG:-false}
+      ADMIN_EMAIL: ${APP_ADMIN_EMAIL:-admin@tera.local}
+      ADMIN_PASSWORD: ${APP_ADMIN_PASSWORD:?APP_ADMIN_PASSWORD is required}
+      APP_NAME: ${APP_NAME:-tera-router-server}
+      CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS:-*}
+      RATE_LIMIT_EXEMPT_IPS: ${RATE_LIMIT_EXEMPT_IPS:-}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
+      # Injected into the served web UI at runtime; set only when the API
+      # lives on a different origin than the dashboard.
+      API_URL: ${API_URL:-}
+      DATABASE_PATH: /app/data/terarouter.db
+      MIGRATE_ON_BOOT: 'true'
+      SEED_ON_BOOT: ${SEED_ON_BOOT:-true}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      # Dashboard SSO via any OIDC provider (Pocket ID, Keycloak, …).
+      OIDC_ISSUER: ${OIDC_ISSUER:-}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      OIDC_PROVIDER_NAME: ${OIDC_PROVIDER_NAME:-}
+      OIDC_REDIRECT_URL: ${OIDC_REDIRECT_URL:-}
+      HEADROOM_URL: ${HEADROOM_URL:-http://headroom:8787}
+      HEADROOM_PROXY_TOKEN: ${HEADROOM_PROXY_TOKEN:-}
     healthcheck:
-      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:8080/health || exit 1']
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:8080/health', '||', 'exit', '1']
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 10s
     volumes:
       - tera-data:/app/data
+    depends_on:
+      headroom:
+        condition: service_started
+        required: false
+
+  # Opt in with `docker compose --profile headroom up` and a shared
+  # HEADROOM_PROXY_TOKEN.
+  headroom:
+    image: ghcr.io/headroomlabs-ai/headroom:${HEADROOM_VERSION:-0.41.0}
+    profiles: [headroom]
+    restart: unless-stopped
+    environment:
+      HEADROOM_HOST: '0.0.0.0'
+      HEADROOM_PORT: '8787'
+      HEADROOM_COMPRESS_ALLOW_REMOTE: '1'
+      HEADROOM_PROXY_TOKEN: ${HEADROOM_PROXY_TOKEN:-}
+      HEADROOM_DISABLE_KOMPRESS: ${HEADROOM_DISABLE_KOMPRESS:-1}
+      HEADROOM_DISABLE_KOMPRESS_FALLBACK: ${HEADROOM_DISABLE_KOMPRESS_FALLBACK:-1}
 
 volumes:
   tera-data:
 ```
 
+Two ways to run it:
+
+- **From a repo checkout** — `docker compose -f deploy/docker-compose.yaml up -d` pulls the pinned
+  release image and starts the stack; it does not build `deploy/Dockerfile`, so local changes are
+  not deployed. For a local build run `docker build -f deploy/Dockerfile -t tera-router:local .`
+  from the repo root and set `image:` to `tera-router:local`.
+- **Standalone** — copy the file, keep `image:` on the release tag you want (or bump it, e.g.
+  `ghcr.io/montara-project/tera-router:v1.22.0`), and run the stack from the directory that holds
+  the copy.
+
+<Callout type="warn" title="Env-only config needs a current image">
+  Reading configuration from the environment alone lands in the release that follows `v1.22.0`. To
+  pin `v1.22.0` today, keep the same `environment:` block but add a `command:` that forwards the
+  values as flags (`--machine-id`, `--app-secret`, …) — names match the env vars kebab-cased.
+</Callout>
+
 ## 2. Create `.env`
 
-Place it next to `docker-compose.yml` and fill in the values:
+Place it next to the compose file (`deploy/.env` when running from the repo) and fill in the values:
 
 ```bash
-# Machine
-MACHINE_ID=1
+# Required — Compose refuses to interpolate without them
+APP_MACHINE_ID=1
+APP_SECRET=generate_from_openssl_rand_base64_48
+APP_ADMIN_PASSWORD=your_password
+
+# Seeded admin account
+APP_ADMIN_EMAIL=your@email.com
 
 # App
-DEBUG=false
-ENV=production
-PORT=8080
+APP_ENV=production
+APP_DEBUG=false
+APP_PORT=8080
 APP_NAME=tera-router-server
-APP_SECRET=generate_from_openssl_rand_base32
+APP_CORS_ALLOWED_ORIGINS=*
+
+# Client IPs that bypass the dashboard rate limit (comma-separated)
+RATE_LIMIT_EXEMPT_IPS=
+# Proxies trusted to supply X-Forwarded-For (comma-separated IPs/CIDRs)
+TRUSTED_PROXIES=
 
 # Only when the API lives on another origin than the dashboard
-API_URL=https://yourdomain.com
+API_URL=
 
-CORS_ALLOWED_ORIGINS=*
-RATE_LIMIT_EXEMPT_IPS=your_private_network_ip
-TRUSTED_PROXIES=your_private_network_ip
-
-# SQLite database file (created on first run)
-DATABASE_PATH=/app/data/terarouter.db
-
-# Seeded admin account (used by `make seed` / `make seed/dev`)
-ADMIN_EMAIL=your@email.com
-ADMIN_PASSWORD=your_password
-
-# Apply pending SQL migrations on server boot (true/false)
-MIGRATE_ON_BOOT=true
-
-# Run baseline seeders on server boot after migrating (true/false).
-# With ENV=development, this also mints the sample API key.
+# Run baseline seeders on boot (roles, admin, Default plan)
 SEED_ON_BOOT=true
-
-# Sentry DSN for error tracking
 SENTRY_DSN=
+
+# Dashboard SSO via an OIDC provider (Pocket ID, Keycloak, …); the login
+# button appears only when issuer + client id + secret are all set
+OIDC_ISSUER=
+OIDC_CLIENT_ID=
+OIDC_CLIENT_SECRET=
+OIDC_PROVIDER_NAME=Pocket ID
+OIDC_REDIRECT_URL=
+
+# Headroom sidecar (--profile headroom)
+HEADROOM_PROXY_TOKEN=
+HEADROOM_VERSION=0.41.0
 ```
 
 <Callout type="error" title="APP_SECRET is the house key">
@@ -111,8 +156,13 @@ SENTRY_DSN=
 ## 3. Start the stack
 
 ```bash
+# From a repo checkout:
+docker compose -f deploy/docker-compose.yaml up -d
+docker compose -f deploy/docker-compose.yaml logs -f app
+
+# Standalone, from the directory holding the copied file:
 docker compose up -d
-docker compose logs -f tera-router-llm
+docker compose logs -f app
 ```
 
 On boot the container:
@@ -130,7 +180,7 @@ account.
 
 ## Production notes
 
-- **Trusted proxies** — `--trusted-proxies=your_private_network_ip` must match the subnet your reverse proxy or
+- **Trusted proxies** — `TRUSTED_PROXIES` must match the subnet your reverse proxy or
   load balancer actually sits in, so the server reads real client IPs for rate limiting and logs.
   Adjust the value before deploying. Behind Cloudflare and Traefik, see
   [below](#behind-cloudflare-and-traefik-dokploy).

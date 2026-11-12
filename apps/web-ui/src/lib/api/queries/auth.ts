@@ -4,6 +4,7 @@ import type { ReauthDto, ReauthResult } from '@/lib/api/dtos/auth/schema'
 import type { Models } from '@/lib/api/models'
 
 import { createPasskey } from '@/lib/auth/passkey'
+import { signInWithSSOTicket, verifySSOTOTP } from '@/lib/auth/sso'
 import { getQueryClient } from '@/lib/providers/react-query'
 
 import { services } from '../services'
@@ -142,6 +143,32 @@ const deletePasskey = () => {
   })
 }
 
+export const SSO_CONFIG_QUERY_KEY = () => {
+  return [AUTH_QUERY_KEY, 'sso-config']
+}
+
+const ssoConfig = () =>
+  queryOptions({
+    queryKey: SSO_CONFIG_QUERY_KEY(),
+    queryFn: async () => {
+      const res = await services.auth.ssoConfig()
+      return res.data.data
+    },
+    staleTime: 60_000,
+  })
+
+/** Redeems the callback's one-time ticket; the helper stores the session tokens. */
+const ssoExchange = () =>
+  mutationOptions({
+    mutationFn: (ticket: string) => signInWithSSOTicket(ticket),
+  })
+
+/** Completes a TOTP-gated SSO sign-in; the helper stores the session tokens. */
+const ssoVerifyTotp = () =>
+  mutationOptions({
+    mutationFn: (vars: { ticket: string; otp: string }) => verifySSOTOTP(vars.ticket, vars.otp),
+  })
+
 export const authQueries = {
   me,
   totpSetup,
@@ -152,4 +179,7 @@ export const authQueries = {
   passkeys,
   addPasskey,
   deletePasskey,
+  ssoConfig,
+  ssoExchange,
+  ssoVerifyTotp,
 } as const

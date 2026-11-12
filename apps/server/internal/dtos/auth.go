@@ -76,6 +76,32 @@ func (d *PasskeyFinish) Validate(v *validator.MapValidator) {
 	v.Field("credential").Required()
 }
 
+// OIDCExchange redeems the one-time ticket the OIDC callback appended to its
+// dashboard redirect for the session it opened (POST /v1/auth/oidc/exchange).
+type OIDCExchange struct {
+	Ticket string `json:"ticket"`
+	// Flow repeats the browser-generated id the login carried, when the
+	// sign-in was initiated with one; it binds the ticket to that browser.
+	Flow string `json:"flow"`
+}
+
+func (d *OIDCExchange) Validate(v *validator.MapValidator) {
+	v.Field("ticket").Required().String()
+}
+
+// OIDCVerifyTOTP completes a TOTP-gated SSO sign-in (POST
+// /v1/auth/oidc/verify-totp): the pending ticket plus the authenticator code.
+type OIDCVerifyTOTP struct {
+	Ticket string `json:"ticket"`
+	OTP    string `json:"otp"`
+	Flow   string `json:"flow"`
+}
+
+func (d *OIDCVerifyTOTP) Validate(v *validator.MapValidator) {
+	v.Field("ticket").Required().String()
+	v.Field("otp").Required().String()
+}
+
 // Refresh is the token rotation request body (POST /v1/auth/refresh).
 type Refresh struct {
 	RefreshToken string `json:"refresh_token"`

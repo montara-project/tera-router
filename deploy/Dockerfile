@@ -80,5 +80,11 @@ USER tera
 
 EXPOSE 8080
 
+# Image-level env defaults: every flag falls back to its environment variable,
+# so a deployment needs no command/args — ENV=development in the container env
+# overrides this default where a bare --env flag would have won over it.
+ENV ENV=production \
+    PORT=8080 \
+    DATABASE_PATH=/app/data/terarouter.db
+
 ENTRYPOINT ["./tera-server"]
-CMD ["--env=production", "--port=8080", "--database-path=/app/data/terarouter.db"]

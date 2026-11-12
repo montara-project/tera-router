@@ -32,3 +32,25 @@ export interface TotpSetupResponse {
   secret: string
   otpauth_url: string
 }
+
+/** GET /v1/auth/oidc/config — whether the server has dashboard SSO configured. */
+export interface SSOConfigResponse {
+  enabled: boolean
+  /** Display name from OIDC_PROVIDER_NAME ("Pocket ID"), for the login button. */
+  provider_name: string
+}
+
+/** POST /v1/auth/oidc/exchange body: the one-time ticket from the callback redirect. */
+export interface SSOExchangeDto {
+  ticket: string
+  /** Repeats the id the SSO button generated, binding the ticket to this browser. */
+  flow?: string
+}
+
+/** POST /v1/auth/oidc/verify-totp body: pending ticket + authenticator code. */
+export interface SSOVerifyTotpDto {
+  ticket: string
+  otp: string
+  /** Repeats the id the SSO button generated, binding the ticket to this browser. */
+  flow?: string
+}

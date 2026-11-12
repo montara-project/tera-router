@@ -7,6 +7,9 @@ import type {
   PasskeyFinishDto,
   RefreshTokenResponse,
   SignInResponse,
+  SSOConfigResponse,
+  SSOExchangeDto,
+  SSOVerifyTotpDto,
   TotpSetupResponse,
 } from '../../dtos/auth/types'
 import type { Models } from '../../models'
@@ -40,4 +43,7 @@ export type AuthResources = {
     AxiosItemResponse<PasskeyCeremony<PublicKeyCredentialRequestOptionsJSON>>
   >
   passkeySignInFinish: (reqBody: PasskeyFinishDto) => Promise<AxiosItemResponse<SignInResponse>>
+  ssoConfig: () => Promise<AxiosItemResponse<SSOConfigResponse>>
+  ssoExchange: (reqBody: SSOExchangeDto) => Promise<AxiosItemResponse<SignInResponse>>
+  ssoVerifyTotp: (reqBody: SSOVerifyTotpDto) => Promise<AxiosItemResponse<SignInResponse>>
 }

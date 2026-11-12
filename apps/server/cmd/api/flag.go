@@ -7,47 +7,119 @@ import (
 	"log"
 	"net/netip"
 	"os"
+	"strconv"
 	"strings"
 
 	"tera-router/server/internal/config"
 	"tera-router/server/internal/database"
 )
 
-// debugFromEnv is the default for the -debug flag, so DEBUG=true enables
-// query logging in deployments that configure through the environment.
-func debugFromEnv() bool {
-	v := os.Getenv("DEBUG")
-	return v == "true" || v == "1"
+// Every flag defaults to its environment variable, so `make run` (which exports
+// .env) and the container (which sets env) need no argument list; an explicit
+// flag still wins over the environment.
+
+// envBad records env vars whose value failed to parse. The failure is only
+// fatal after flag.Parse() when the flag was not explicitly provided — a
+// flag always wins over the environment, even a malformed one.
+var envBad []envBadEntry
+
+type envBadEntry struct{ key, flagName string }
+
+// envString treats an env var that is set but empty as unset, so
+// DATABASE_PATH= cannot blank the default path; an intentionally empty value
+// needs the flag itself (e.g. --cors-allowed-origins=).
+func envString(key, fallback string) string {
+	if v, ok := os.LookupEnv(key); ok && v != "" {
+		return v
+	}
+	return fallback
+}
+
+func envBool(key, flagName string, fallback bool) bool {
+	v, ok := os.LookupEnv(key)
+	if !ok || v == "" {
+		return fallback
+	}
+	b, err := strconv.ParseBool(v)
+	if err != nil {
+		envBad = append(envBad, envBadEntry{key, flagName})
+		return fallback
+	}
+	return b
+}
+
+func envInt(key, flagName string, fallback int) int {
+	v, ok := os.LookupEnv(key)
+	if !ok || v == "" {
+		return fallback
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil {
+		envBad = append(envBad, envBadEntry{key, flagName})
+		return fallback
+	}
+	return n
+}
+
+func envUint(key, flagName string, fallback uint) uint {
+	v, ok := os.LookupEnv(key)
+	if !ok || v == "" {
+		return fallback
+	}
+	n, err := strconv.ParseUint(v, 10, 0)
+	if err != nil {
+		envBad = append(envBad, envBadEntry{key, flagName})
+		return fallback
+	}
+	return uint(n)
 }
 
 func parseFlag(cfg *config.Config) {
 	var machineID uint
 
 	// App
-	flag.UintVar(&machineID, "machine-id", 0, "Machine ID")
-	flag.StringVar(&cfg.App.Env, "env", "development", "Environment")
-	flag.BoolVar(&cfg.App.Debug, "debug", debugFromEnv(), "Debug mode (also enabled by DEBUG=true)")
-	flag.IntVar(&cfg.App.Port, "port", 8080, "Port")
-	flag.StringVar(&cfg.App.Name, "app-name", "tera-router-server", "App Name")
+	flag.UintVar(&machineID, "machine-id", envUint("MACHINE_ID", "machine-id", 0), "Machine ID")
+	flag.StringVar(&cfg.App.Env, "env", envString("ENV", "development"), "Environment")
+	flag.BoolVar(&cfg.App.Debug, "debug", envBool("DEBUG", "debug", false), "Debug mode")
+	flag.IntVar(&cfg.App.Port, "port", envInt("PORT", "port", 8080), "Port")
+	flag.StringVar(&cfg.App.Name, "app-name", envString("APP_NAME", "tera-router-server"), "App Name")
 	// APP_SECRET in the environment keeps the secret out of the process
 	// arguments, which any local user can read with ps.
-	flag.StringVar(&cfg.App.Secret, "app-secret", os.Getenv("APP_SECRET"), "App Secret (also read from APP_SECRET)")
-	flag.StringVar(&cfg.App.CORSAllowedOrigins, "cors-allowed-origins", "*", "CORS Allowed Origins")
+	flag.StringVar(&cfg.App.Secret, "app-secret", envString("APP_SECRET", ""), "App Secret")
+	flag.StringVar(&cfg.App.CORSAllowedOrigins, "cors-allowed-origins", envString("CORS_ALLOWED_ORIGINS", "*"), "CORS Allowed Origins")
 	// API_URL in the environment reaches the served web UI at runtime — no
 	// rebuild — when the dashboard API lives on a different origin.
-	flag.StringVar(&cfg.App.APIURL, "api-url", os.Getenv("API_URL"), "Public API base URL for the served web UI (also read from API_URL)")
-	flag.StringVar(&cfg.App.RateLimitExemptIPs, "rate-limit-exempt-ips", "", "Comma-separated client IPs exempt from the rate limiter")
-	flag.StringVar(&cfg.App.TrustedProxies, "trusted-proxies", "", "Comma-separated IPs/CIDRs trusted to supply X-Forwarded-For (e.g. the reverse proxy's address)")
+	flag.StringVar(&cfg.App.APIURL, "api-url", envString("API_URL", ""), "Public API base URL for the served web UI")
+	flag.StringVar(&cfg.App.RateLimitExemptIPs, "rate-limit-exempt-ips", envString("RATE_LIMIT_EXEMPT_IPS", ""), "Comma-separated client IPs exempt from the rate limiter")
+	flag.StringVar(&cfg.App.TrustedProxies, "trusted-proxies", envString("TRUSTED_PROXIES", ""), "Comma-separated IPs/CIDRs trusted to supply X-Forwarded-For (e.g. the reverse proxy's address)")
 
 	// Database
-	flag.StringVar(&cfg.Database.Path, "database-path", database.DefaultPath, "SQLite database file path")
-	flag.BoolVar(&cfg.Database.MigrateOnBoot, "migrate-on-boot", false, "Apply pending migrations before starting the server")
-	flag.BoolVar(&cfg.Database.SeedOnBoot, "seed-on-boot", false, "Run baseline seeders after migrating on boot")
+	flag.StringVar(&cfg.Database.Path, "database-path", envString("DATABASE_PATH", database.DefaultPath), "SQLite database file path")
+	flag.BoolVar(&cfg.Database.MigrateOnBoot, "migrate-on-boot", envBool("MIGRATE_ON_BOOT", "migrate-on-boot", false), "Apply pending migrations before starting the server")
+	flag.BoolVar(&cfg.Database.SeedOnBoot, "seed-on-boot", envBool("SEED_ON_BOOT", "seed-on-boot", false), "Run baseline seeders after migrating on boot")
 
 	// Sentry
-	flag.StringVar(&cfg.Sentry.Dsn, "sentry-dsn", "", "Sentry DSN")
+	flag.StringVar(&cfg.Sentry.Dsn, "sentry-dsn", envString("SENTRY_DSN", ""), "Sentry DSN")
+
+	// OIDC dashboard SSO; enabled only when all three are set.
+	flag.StringVar(&cfg.OIDC.Issuer, "oidc-issuer", envString("OIDC_ISSUER", ""), "OIDC issuer base URL (Pocket ID, Keycloak, …)")
+	flag.StringVar(&cfg.OIDC.ClientID, "oidc-client-id", envString("OIDC_CLIENT_ID", ""), "OIDC client ID")
+	flag.StringVar(&cfg.OIDC.ClientSecret, "oidc-client-secret", envString("OIDC_CLIENT_SECRET", ""), "OIDC client secret")
+	flag.StringVar(&cfg.OIDC.ProviderName, "oidc-provider-name", envString("OIDC_PROVIDER_NAME", ""), "OIDC provider display name on the login button (e.g. \"Pocket ID\")")
+	flag.StringVar(&cfg.OIDC.RedirectURL, "oidc-redirect-url", envString("OIDC_REDIRECT_URL", ""), "OIDC callback URL registered at the provider; derived from the request when empty")
 
 	flag.Parse()
+
+	// A malformed env value is fatal unless the operator overrode it with a
+	// flag — the flag wins over the environment.
+	set := map[string]bool{}
+	flag.Visit(func(f *flag.Flag) { set[f.Name] = true })
+	for _, bad := range envBad {
+		if !set[bad.flagName] {
+			log.Fatalf("env %s: malformed value", bad.key)
+		}
+		log.Printf("env %s: malformed value ignored; --%s wins", bad.key, bad.flagName)
+	}
 
 	uint16Max := uint(1<<16 - 1)
 	if machineID > uint16Max {
