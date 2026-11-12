@@ -3,6 +3,23 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [1.23.0](https://github.com/montara-project/tera-router/compare/v1.22.0...v1.23.0) (2026-11-12)
+
+### Features
+
+* add OIDC features ([3a59cbc](https://github.com/montara-project/tera-router/commit/3a59cbcdb781a49900c19da4b86bb1cc37fa58d8))
+
+### Bug Fixes
+
+* **auth:** cap TOTP guesses on a pending SSO sign-in ([8869025](https://github.com/montara-project/tera-router/commit/886902501e9d5abd6dc2f28d413c48fa6ad3d5a5))
+* **auth:** gate OIDC sign-in behind the account's TOTP factor ([8e9151d](https://github.com/montara-project/tera-router/commit/8e9151de3ab4e22eaa2a7777cf77a29d40641d4b))
+* **auth:** require the flow id at OIDC login ([05de0ad](https://github.com/montara-project/tera-router/commit/05de0ad49da02b2f44cd14d053146349467a15b1))
+* update flag with env ([8ad3047](https://github.com/montara-project/tera-router/commit/8ad3047a3754aac1aad2e0d0a0b4ca9ddecae5aa))
+* update linter ([2f680aa](https://github.com/montara-project/tera-router/commit/2f680aa2bf9c1ed647966701a78b158a1864f46f))
+* update minor OIDC and deploy docker ([b636ba1](https://github.com/montara-project/tera-router/commit/b636ba1f1c43e52129e5f3f686068c94e345b83c))
+* update minor tailwindcss ([0a93533](https://github.com/montara-project/tera-router/commit/0a9353321a36c118c1fbbe55048842e8752fe206))
+* **web-ui:** submit the SSO TOTP step around sign-in schema validation ([112065f](https://github.com/montara-project/tera-router/commit/112065fdd520ed694d3ebad4b6e5ff4d525ccbe8))
+
 ## [1.22.0](https://github.com/montara-project/tera-router/compare/v1.21.0...v1.22.0) (2026-11-11)
 
 ### Bug Fixes
