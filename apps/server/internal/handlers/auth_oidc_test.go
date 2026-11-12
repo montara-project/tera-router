@@ -817,7 +817,7 @@ func TestOIDCCallbackAmbiguousEmailVariants(t *testing.T) {
 
 // TestOIDCCallbackIssuerMismatch pins issuer scoping: a link recorded under a
 // different issuer is not matched by the same sub from this provider, and the
-// email fallback refuses to overwrite it.
+// email fallback refuses to overwrite or enter it.
 func TestOIDCCallbackIssuerMismatch(t *testing.T) {
 	fx := newSSOCallbackFixture(t, config.ConfigOIDC{})
 	insertSSOUser(t, fx.h, "swap@example.com", "https://old-issuer.example.com", "shared-sub")
@@ -829,12 +829,37 @@ func TestOIDCCallbackIssuerMismatch(t *testing.T) {
 		RequireEmailVerified: true, LinkExistingAccounts: true,
 	}
 
-	if q := fx.callCallback(t, "st"); q.Get("sso_error") != "internal" {
-		t.Fatalf("callback = %v, want sso_error=internal", q)
+	if q := fx.callCallback(t, "st"); q.Get("sso_error") != "not_linked" {
+		t.Fatalf("callback = %v, want sso_error=not_linked", q)
 	}
 	stored, err := fx.h.app.Repos.Users.GetByEmail(t.Context(), "swap@example.com")
 	if err != nil || stored.OIDCIss != "https://old-issuer.example.com" {
 		t.Fatalf("link was overwritten: iss=%q err=%v", stored.OIDCIss, err)
+	}
+}
+
+// TestOIDCCallbackLegacyIssuerLink pins the upgrade path: a link written
+// before the issuer column existed keeps a NULL issuer with the subject, and
+// the same subject returning is still the account's own identity — even when
+// linking new accounts is off, since this one was linked already. The
+// sign-in fills the issuer for the next lookup.
+func TestOIDCCallbackLegacyIssuerLink(t *testing.T) {
+	fx := newSSOCallbackFixture(t, config.ConfigOIDC{})
+	u := insertSSOUser(t, fx.h, "legacy@example.com", "", "idp-user")
+
+	idp := newFakeIdP(t, "n1", "legacy@example.com")
+	idp.sub = "idp-user"
+	fx.h.app.Config.OIDC = config.ConfigOIDC{
+		Issuer: idp.srv.URL, ClientID: "id", ClientSecret: "secret",
+		RequireEmailVerified: true, LinkExistingAccounts: false,
+	}
+
+	if q := fx.callCallback(t, "st"); q.Get("sso_ticket") == "" {
+		t.Fatalf("callback = %v, want sso_ticket for the legacy-linked account", q)
+	}
+	stored, err := fx.h.app.Repos.Users.GetByEmail(t.Context(), "legacy@example.com")
+	if err != nil || stored.ID != u.ID || stored.OIDCIss != idp.srv.URL || stored.OIDCSub != "idp-user" {
+		t.Fatalf("legacy link not healed: iss=%q sub=%q err=%v", stored.OIDCIss, stored.OIDCSub, err)
 	}
 }
 
@@ -944,6 +969,67 @@ func TestProvisionOIDCUserRace(t *testing.T) {
 		t.Fatalf("unlinked + linking off = %d, want 409", status)
 	}
 	fx.h.app.Config.OIDC.LinkExistingAccounts = true
+}
+
+// TestProvisionOIDCUserCaseVariants pins the conditional insert: two
+// callbacks whose emails differ only by case cannot create twin accounts —
+// the case-sensitive unique index would admit them both, so the INSERT
+// itself checks the folded email and the loser resolves the winner's row.
+func TestProvisionOIDCUserCaseVariants(t *testing.T) {
+	fx := newSSOCallbackFixture(t, config.ConfigOIDC{})
+	fx.h.app.Config.OIDC = config.ConfigOIDC{
+		Issuer: "https://idp", ClientID: "id", ClientSecret: "secret",
+		RequireEmailVerified: true, LinkExistingAccounts: true,
+	}
+	var email, sub string
+	fx.f.Post("/prov", func(c fiber.Ctx) error {
+		u, err := fx.h.provisionOIDCUser(c, email, "Variant", "iss-a", sub)
+		if err != nil {
+			return err
+		}
+		return dtos.OK(c, fiber.Map{"id": u.ID})
+	})
+	call := func() (int, map[string]any) {
+		t.Helper()
+		resp, err := fx.f.Test(httptest.NewRequest("POST", "/prov", nil))
+		if err != nil {
+			t.Fatalf("POST /prov: %v", err)
+		}
+		var out map[string]any
+		_ = json.NewDecoder(resp.Body).Decode(&out)
+		data, _ := out["data"].(map[string]any)
+		return resp.StatusCode, data
+	}
+
+	email, sub = "Variant@dup.local", "sub-v"
+	status, first := call()
+	if status != 200 || first["id"] == nil {
+		t.Fatalf("first variant = %d %v, want 200", status, first)
+	}
+
+	// A different case spelling carrying a different identity: the insert is
+	// skipped and the stored row's pair does not match.
+	email, sub = "variant@dup.local", "sub-w"
+	if status, _ := call(); status != 409 {
+		t.Fatalf("case variant = %d, want 409", status)
+	}
+
+	// Exactly one live row exists for the folded email — the fold itself
+	// would conflict had a twin been created.
+	stored, err := fx.h.app.Repos.Users.GetByEmailFold(t.Context(), "variant@dup.local")
+	if err != nil || stored.ID != first["id"] || stored.OIDCSub != "sub-v" {
+		t.Fatalf("folded row = %v %q, want the one provisioned account", stored.ID, err)
+	}
+
+	// The same pair retrying under a different case spelling is idempotent.
+	email, sub = "VARIANT@dup.local", "sub-v"
+	resp, err := fx.f.Test(httptest.NewRequest("POST", "/prov", nil))
+	if err != nil {
+		t.Fatalf("POST /prov2: %v", err)
+	}
+	if resp.StatusCode != 200 {
+		t.Fatalf("same-pair case retry = %d, want 200", resp.StatusCode)
+	}
 }
 
 // TestOIDCCallbackBlockedAccountNoLink pins the status check order: a

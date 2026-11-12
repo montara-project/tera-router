@@ -452,10 +452,16 @@ func (h *authHandler) OIDCCallback(c fiber.Ctx) error {
 			if !user.IsActive || user.IsBlocked {
 				return fail("no_account", claims.Email)
 			}
-			// A known account with no OIDC identity yet: attach the subject
-			// when the operator allows linking, so the next sign-in matches
-			// by the pair before email.
-			if !h.app.Config.OIDC.LinkExistingAccounts {
+			// A row can carry a linked identity the pair lookup missed: links
+			// written before the issuer column keep NULL there. The same
+			// subject already belongs to this sign-in — it heals its issuer —
+			// while a different stored pair means the callback is not the
+			// linked identity. Only the genuinely unlinked apply the policy.
+			switch {
+			case user.OIDCSub == "" && !h.app.Config.OIDC.LinkExistingAccounts:
+				return fail("not_linked", claims.Email)
+			case user.OIDCSub != "" &&
+				(user.OIDCSub != claims.Sub || (user.OIDCIss != "" && user.OIDCIss != idToken.Issuer)):
 				return fail("not_linked", claims.Email)
 			}
 			if lerr := h.app.Repos.Users.LinkOIDC(ctx, user.ID, idToken.Issuer, claims.Sub); lerr != nil {
@@ -537,9 +543,10 @@ func (h *authHandler) finishSSOReauth(c fiber.Ctx, st oidcState, iss, sub string
 // provisionOIDCUser mints a dashboard account for an IdP-verified email. The
 // password hash is of a throwaway secret: the account authenticates at the
 // provider, no password ever verifies — but a password attempt still spends
-// the argon2 work every account costs. An insert can lose a race to a
-// concurrent sign-in for the same new email or hit a deleted account still
-// holding it; either way the live row the email resolves to decides.
+// the argon2 work every account costs. The conditional insert can still lose
+// a race to a concurrent sign-in for a folded-equal email or hit a deleted
+// account still holding the exact one; either way the live row the email
+// resolves to decides.
 func (h *authHandler) provisionOIDCUser(c fiber.Ctx, email, fullname, iss, sub string) (models.User, error) {
 	ctx := c.Context()
 	roleID, err := h.app.Repos.Users.RoleIDByName(ctx, "user")
@@ -564,16 +571,26 @@ func (h *authHandler) provisionOIDCUser(c fiber.Ctx, email, fullname, iss, sub s
 		OIDCIss:      iss,
 		OIDCSub:      sub,
 	}
-	if err := h.app.Repos.Users.Insert(ctx, u); err != nil {
-		// The insert lost a race or hit a deleted account still holding the
-		// email. The row it resolves to decides: it is usable only when this
-		// identity owns it already (a retry of the same callback), or when it
-		// is still unlinked and linking is enabled — anything else belongs to
-		// someone else's sign-in and must not be entered.
+	inserted, err := h.app.Repos.Users.InsertIfEmailFree(ctx, u)
+	if err != nil || !inserted {
+		// A live row folds to the email — a concurrent sign-in won the race
+		// or a case variant already exists — or the exact email still sits on
+		// a deleted account. The row it resolves to decides: it is usable
+		// only when this identity owns it already (a retry of the same
+		// callback, or a legacy link whose NULL issuer the same subject
+		// heals), or when it is still unlinked and linking is enabled —
+		// anything else belongs to someone else's sign-in and must not be
+		// entered.
 		user, rerr := h.app.Repos.Users.GetByEmailFold(ctx, email)
 		if rerr == nil {
 			switch {
 			case user.OIDCIss == iss && user.OIDCSub == sub:
+				return user, nil
+			case user.OIDCSub == sub && user.OIDCIss == "":
+				if lerr := h.app.Repos.Users.LinkOIDC(ctx, user.ID, iss, sub); lerr != nil {
+					return models.User{}, lerr
+				}
+				user.OIDCIss = iss
 				return user, nil
 			case user.OIDCSub == "" && user.IsActive && !user.IsBlocked &&
 				h.app.Config.OIDC.LinkExistingAccounts:
@@ -589,7 +606,10 @@ func (h *authHandler) provisionOIDCUser(c fiber.Ctx, email, fullname, iss, sub s
 		if errors.Is(rerr, apperr.ErrNotFound) {
 			return models.User{}, rerr
 		}
-		return models.User{}, err
+		if err != nil {
+			return models.User{}, err
+		}
+		return models.User{}, rerr
 	}
 	auditRecord(c, u.ID, "user.create", u.ID, fiber.Map{"method": "oidc"})
 	return h.app.Repos.Users.Get(ctx, u.ID)

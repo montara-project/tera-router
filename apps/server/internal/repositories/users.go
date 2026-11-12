@@ -143,6 +143,26 @@ func (r *UserRepository) Insert(ctx context.Context, u models.User) error {
 	return r.insertExec(ctx, r.DB, u)
 }
 
+// InsertIfEmailFree creates the account only when no live row folds-matches
+// its email: the email unique index is case-sensitive, so a plain insert
+// would let two concurrent sign-ins create "a@x" and "A@x" as separate
+// accounts. Checking inside the INSERT keeps lookup and write atomic.
+// inserted=false means a folded match already exists — the caller resolves
+// that row; an error still covers a deleted row holding the exact email.
+func (r *UserRepository) InsertIfEmailFree(ctx context.Context, u models.User) (inserted bool, err error) {
+	res, err := r.execContext(ctx, r.DB,
+		`INSERT INTO users (id, fullname, email, password_hash, is_active, is_blocked, role_id, oidc_iss, oidc_sub)
+		 SELECT $1, $2, $3, $4, $5, $6, $7, NULLIF($8, ''), NULLIF($9, '')
+		 WHERE NOT EXISTS (
+			 SELECT 1 FROM users WHERE LOWER(email) = LOWER($3) AND deleted_at IS NULL)`,
+		u.ID, u.Fullname, u.Email, u.PasswordHash, u.IsActive, u.IsBlocked, u.RoleID, u.OIDCIss, u.OIDCSub)
+	if err != nil {
+		return false, translateUnique(err, "email already registered")
+	}
+	n, _ := res.RowsAffected()
+	return n == 1, nil
+}
+
 func (r *UserRepository) insertExec(ctx context.Context, ex Executor, u models.User) error {
 	_, err := r.execContext(ctx, ex,
 		`INSERT INTO users (id, fullname, email, password_hash, is_active, is_blocked, role_id, oidc_iss, oidc_sub)
