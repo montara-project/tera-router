@@ -358,27 +358,29 @@ func (h *authHandler) OIDCCallback(c fiber.Ctx) error {
 		return fail("email_unverified", claims.Email)
 	}
 
-	// The linked subject identifies the account first: it survives email
-	// changes at the provider, where an email match would not.
-	user, err := h.app.Repos.Users.GetByOIDCSub(ctx, claims.Sub)
+	// The linked issuer-subject pair identifies the account first: it
+	// survives email changes at the provider, where an email match would
+	// not. The email fallback folds case, as a provider may spell the same
+	// mailbox differently than it was registered.
+	user, err := h.app.Repos.Users.GetByOIDCIdentity(ctx, idToken.Issuer, claims.Sub)
 	if errors.Is(err, apperr.ErrNotFound) {
-		user, err = h.app.Repos.Users.GetByEmail(ctx, claims.Email)
+		user, err = h.app.Repos.Users.GetByEmailFold(ctx, claims.Email)
 		switch {
 		case err == nil:
 			// A known account with no OIDC identity yet: attach the subject
 			// when the operator allows linking, so the next sign-in matches
-			// by sub before email.
+			// by the pair before email.
 			if !h.app.Config.OIDC.LinkExistingAccounts {
 				return fail("not_linked", claims.Email)
 			}
-			if lerr := h.app.Repos.Users.LinkOIDC(ctx, user.ID, claims.Sub); lerr != nil {
+			if lerr := h.app.Repos.Users.LinkOIDC(ctx, user.ID, idToken.Issuer, claims.Sub); lerr != nil {
 				return fail("internal", claims.Email)
 			}
 			auditRecord(c, user.ID, "user.oidc_link", user.ID, nil)
 		case errors.Is(err, apperr.ErrNotFound):
 			// SSO provisions on first use: an email the provider vouches for
 			// mints a dashboard account with the least-privileged "user" role.
-			user, err = h.provisionOIDCUser(c, claims.Email, claims.Name, claims.Sub)
+			user, err = h.provisionOIDCUser(c, claims.Email, claims.Name, idToken.Issuer, claims.Sub)
 		}
 	}
 	if errors.Is(err, apperr.ErrNotFound) {
@@ -407,7 +409,7 @@ func (h *authHandler) OIDCCallback(c fiber.Ctx) error {
 		return c.Redirect().Status(fiber.StatusFound).To(st.uiOrigin + "/?sso_totp=" + ticket)
 	}
 
-	session, err := h.openSession(ctx, user, clientOf(c))
+	session, err := h.openSession(ctx, user, clientOf(c), "sso")
 	if err != nil {
 		return fail("internal", claims.Email)
 	}
@@ -429,7 +431,7 @@ func (h *authHandler) OIDCCallback(c fiber.Ctx) error {
 // the argon2 work every account costs. An insert can lose a race to a
 // concurrent sign-in for the same new email or hit a deleted account still
 // holding it; either way the live row the email resolves to decides.
-func (h *authHandler) provisionOIDCUser(c fiber.Ctx, email, fullname, sub string) (models.User, error) {
+func (h *authHandler) provisionOIDCUser(c fiber.Ctx, email, fullname, iss, sub string) (models.User, error) {
 	ctx := c.Context()
 	roleID, err := h.app.Repos.Users.RoleIDByName(ctx, "user")
 	if err != nil {
@@ -450,10 +452,11 @@ func (h *authHandler) provisionOIDCUser(c fiber.Ctx, email, fullname, sub string
 		PasswordHash: hash,
 		IsActive:     true,
 		RoleID:       roleID,
+		OIDCIss:      iss,
 		OIDCSub:      sub,
 	}
 	if err := h.app.Repos.Users.Insert(ctx, u); err != nil {
-		user, rerr := h.app.Repos.Users.GetByEmail(ctx, email)
+		user, rerr := h.app.Repos.Users.GetByEmailFold(ctx, email)
 		if rerr == nil {
 			return user, nil
 		}
@@ -526,7 +529,7 @@ func (h *authHandler) OIDCVerifyTOTP(c fiber.Ctx) error {
 		return apperr.ErrUnauthorized
 	}
 
-	session, err := h.openSession(ctx, user, clientOf(c))
+	session, err := h.openSession(ctx, user, clientOf(c), "sso")
 	if err != nil {
 		return err
 	}

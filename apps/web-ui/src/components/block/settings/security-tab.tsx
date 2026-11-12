@@ -23,6 +23,9 @@ import { cn } from '@/lib/utils'
 export default function SecurityTab() {
   const { data, isLoading } = useQuery(queries.auth.me())
   const enabled = data?.data?.totp_enabled ?? false
+  // SSO-provisioned accounts hold no usable password: the server accepts an
+  // empty password when the session was opened by a recent SSO sign-in.
+  const ssoLinked = data?.data?.sso_linked === true
 
   const setupMutation = useMutation(queries.auth.totpSetup())
   const enableMutation = useMutation(queries.auth.totpEnable())
@@ -33,6 +36,7 @@ export default function SecurityTab() {
   // server asks for the password again on both.
   const [password, setPassword] = useState('')
   const [disabling, setDisabling] = useState(false)
+  const hasFactor = ssoLinked || password.length > 0
   const setup = setupMutation.data?.data
 
   const resetFields = () => {
@@ -101,14 +105,16 @@ export default function SecurityTab() {
       return (
         <div className="flex flex-wrap items-center gap-3">
           <p className="text-muted-foreground text-sm">
-            Enter your password and a current code to turn two-factor authentication off.
+            {ssoLinked
+              ? 'Enter a current code to turn two-factor authentication off — a recent SSO sign-in verifies you (leave the password empty).'
+              : 'Enter your password and a current code to turn two-factor authentication off.'}
           </p>
           {passwordInput('totp-disable-password')}
           <TotpCodeInput id="totp-disable" value={code} onChange={setCode} />
           <Button
             type="button"
             variant="destructive"
-            disabled={!password || code.length !== 6 || disableMutation.isPending}
+            disabled={!hasFactor || code.length !== 6 || disableMutation.isPending}
             onClick={confirmDisable}
           >
             Disable
@@ -155,8 +161,9 @@ export default function SecurityTab() {
           </div>
           <div className="flex min-w-0 flex-col gap-3">
             <p className="text-sm">
-              Scan the QR code with your authenticator app, then enter your password and the 6-digit
-              code it shows.
+              {ssoLinked
+                ? 'Scan the QR code with your authenticator app, then enter the 6-digit code it shows — a recent SSO sign-in verifies you (leave the password empty).'
+                : 'Scan the QR code with your authenticator app, then enter your password and the 6-digit code it shows.'}
             </p>
             <div>
               <p className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">
@@ -171,7 +178,7 @@ export default function SecurityTab() {
               <TotpCodeInput id="totp-enable" value={code} onChange={setCode} />
               <Button
                 type="button"
-                disabled={!password || code.length !== 6 || enableMutation.isPending}
+                disabled={!hasFactor || code.length !== 6 || enableMutation.isPending}
                 onClick={confirmEnable}
               >
                 Enable

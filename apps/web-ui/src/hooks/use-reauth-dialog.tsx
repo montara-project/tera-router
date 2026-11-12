@@ -1,4 +1,5 @@
 import { IconLoader2 } from '@tabler/icons-react'
+import { useQuery } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 
 import type { ReauthDto, ReauthResult } from '@/lib/api/dtos/auth/schema'
@@ -17,6 +18,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { axiosErrorMessage } from '@/lib/api/axios-error'
+import { queries } from '@/lib/api/queries'
 
 type Job = {
   action: string
@@ -33,6 +35,9 @@ type Job = {
  */
 export function useReauthDialog() {
   const job = useRef<Job | null>(null)
+  // SSO-provisioned accounts hold no usable password: the server accepts an
+  // empty password when the session was opened by a recent SSO sign-in.
+  const ssoLinked = useQuery(queries.auth.me()).data?.data?.sso_linked === true
   const [open, setOpen] = useState(false)
   const [action, setAction] = useState('')
   const [password, setPassword] = useState('')
@@ -83,7 +88,7 @@ export function useReauthDialog() {
     }
   }
 
-  const canSubmit = needsCode ? otp.length === 6 : password.length > 0
+  const canSubmit = needsCode ? otp.length === 6 : password.length > 0 || ssoLinked
 
   const dialog = (
     <AlertDialog open={open} onOpenChange={(next) => !next && finish(null)}>
@@ -94,7 +99,9 @@ export function useReauthDialog() {
             <AlertDialogDescription>
               {needsCode
                 ? `Enter the 6-digit code from your authenticator app to ${action}.`
-                : `Enter your password to ${action}.`}
+                : ssoLinked
+                  ? `Enter your password to ${action}, or continue with it empty — a recent SSO sign-in also verifies you.`
+                  : `Enter your password to ${action}.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
 

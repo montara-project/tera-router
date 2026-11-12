@@ -23,6 +23,7 @@ import (
 	"tera-router/server/internal/lib/totp"
 	"tera-router/server/internal/middlewares"
 	"tera-router/server/internal/migrator"
+	"tera-router/server/internal/models"
 	"tera-router/server/internal/repositories"
 	"tera-router/server/internal/seeders"
 
@@ -545,8 +546,8 @@ func TestOIDCCallbackProvisionsUser(t *testing.T) {
 		t.Fatalf("provisioned user: %v", err)
 	}
 	if user.Role.Name != "user" || !user.IsActive || user.IsBlocked || user.Fullname != "New Person" ||
-		user.OIDCSub != "sub-new" {
-		t.Fatalf("provisioned user = %+v, want active user role named New Person linked to sub-new", user)
+		user.OIDCSub != "sub-new" || user.OIDCIss != idp.srv.URL {
+		t.Fatalf("provisioned user = %+v, want active user role named New Person linked to idp sub-new", user)
 	}
 	if ok, err := password.Verify("new@example.com", user.PasswordHash); err != nil || ok {
 		t.Fatalf("provisioned password verified: ok=%v err=%v", ok, err)
@@ -649,8 +650,8 @@ func TestOIDCCallbackLinksExistingAccount(t *testing.T) {
 		t.Fatalf("callback = %v, want sso_ticket", q)
 	}
 	admin, err := fx.h.app.Repos.Users.GetByEmail(t.Context(), "admin@tera.local")
-	if err != nil || admin.OIDCSub != "admin-sub" {
-		t.Fatalf("linked admin: sub=%q err=%v", admin.OIDCSub, err)
+	if err != nil || admin.OIDCSub != "admin-sub" || admin.OIDCIss != idp.srv.URL {
+		t.Fatalf("linked admin: iss=%q sub=%q err=%v", admin.OIDCIss, admin.OIDCSub, err)
 	}
 
 	// The email may later change at the provider; the subject still resolves.
@@ -737,5 +738,230 @@ func TestSignInDisabledWithOIDCFlag(t *testing.T) {
 	// The request falls through to validation, which 422s the bad body.
 	if status := call(newApp(config.ConfigOIDC{DisablePasswordLogin: true})); status != 422 {
 		t.Fatalf("flag without provider = %d, want 422", status)
+	}
+}
+
+// insertSSOUser creates a role-"user" account directly, with the given linked
+// identity ("" links nothing). The password is a valid hash of a throwaway
+// string, like a provisioned account's.
+func insertSSOUser(t *testing.T, h *authHandler, email, iss, sub string) models.User {
+	t.Helper()
+	ctx := t.Context()
+	roleID, err := h.app.Repos.Users.RoleIDByName(ctx, "user")
+	if err != nil {
+		t.Fatalf("role: %v", err)
+	}
+	hash, err := password.Hash(uuid.NewString())
+	if err != nil {
+		t.Fatalf("hash: %v", err)
+	}
+	u := models.User{
+		ID:           uuid.NewString(),
+		Email:        email,
+		PasswordHash: hash,
+		IsActive:     true,
+		RoleID:       roleID,
+		OIDCIss:      iss,
+		OIDCSub:      sub,
+	}
+	if err := h.app.Repos.Users.Insert(ctx, u); err != nil {
+		t.Fatalf("insert user: %v", err)
+	}
+	return u
+}
+
+// TestOIDCCallbackEmailCaseFold pins the email fallback's case-insensitive
+// match: a provider that spells the mailbox differently than the stored row
+// still resolves the one existing account and links it.
+func TestOIDCCallbackEmailCaseFold(t *testing.T) {
+	fx := newSSOCallbackFixture(t, config.ConfigOIDC{})
+	u := insertSSOUser(t, fx.h, "Admin@Tera.local", "", "")
+
+	idp := newFakeIdP(t, "n1", "admin@tera.local")
+	idp.sub = "case-sub"
+	fx.h.app.Config.OIDC = config.ConfigOIDC{
+		Issuer: idp.srv.URL, ClientID: "id", ClientSecret: "secret",
+		RequireEmailVerified: true, LinkExistingAccounts: true,
+	}
+
+	if q := fx.callCallback(t, "st"); q.Get("sso_ticket") == "" {
+		t.Fatalf("callback = %v, want sso_ticket", q)
+	}
+	linked, err := fx.h.app.Repos.Users.GetByEmail(t.Context(), "Admin@Tera.local")
+	if err != nil || linked.OIDCSub != "case-sub" || linked.ID != u.ID {
+		t.Fatalf("linked user: id=%s sub=%q err=%v", linked.ID, linked.OIDCSub, err)
+	}
+}
+
+// TestOIDCCallbackAmbiguousEmailVariants refuses a sign-in whose email
+// resolves to more than one stored case variant — pre-existing duplicates
+// must never pick an account arbitrarily.
+func TestOIDCCallbackAmbiguousEmailVariants(t *testing.T) {
+	fx := newSSOCallbackFixture(t, config.ConfigOIDC{})
+	insertSSOUser(t, fx.h, "Case@dup.local", "", "")
+	insertSSOUser(t, fx.h, "case@dup.local", "", "")
+
+	idp := newFakeIdP(t, "n1", "CASE@dup.local")
+	fx.h.app.Config.OIDC = config.ConfigOIDC{
+		Issuer: idp.srv.URL, ClientID: "id", ClientSecret: "secret",
+		RequireEmailVerified: true, LinkExistingAccounts: true,
+	}
+
+	if q := fx.callCallback(t, "st"); q.Get("sso_error") != "internal" {
+		t.Fatalf("callback = %v, want sso_error=internal", q)
+	}
+}
+
+// TestOIDCCallbackIssuerMismatch pins issuer scoping: a link recorded under a
+// different issuer is not matched by the same sub from this provider, and the
+// email fallback refuses to overwrite it.
+func TestOIDCCallbackIssuerMismatch(t *testing.T) {
+	fx := newSSOCallbackFixture(t, config.ConfigOIDC{})
+	insertSSOUser(t, fx.h, "swap@example.com", "https://old-issuer.example.com", "shared-sub")
+
+	idp := newFakeIdP(t, "n1", "swap@example.com")
+	idp.sub = "shared-sub"
+	fx.h.app.Config.OIDC = config.ConfigOIDC{
+		Issuer: idp.srv.URL, ClientID: "id", ClientSecret: "secret",
+		RequireEmailVerified: true, LinkExistingAccounts: true,
+	}
+
+	if q := fx.callCallback(t, "st"); q.Get("sso_error") != "internal" {
+		t.Fatalf("callback = %v, want sso_error=internal", q)
+	}
+	stored, err := fx.h.app.Repos.Users.GetByEmail(t.Context(), "swap@example.com")
+	if err != nil || stored.OIDCIss != "https://old-issuer.example.com" {
+		t.Fatalf("link was overwritten: iss=%q err=%v", stored.OIDCIss, err)
+	}
+}
+
+// TestLinkOIDC pins the conditional write: a link attaches only to an
+// unlinked row, the same pair replays as success, a different pair conflicts,
+// and a NULL issuer left by the pre-pair schema heals on the next sign-in.
+func TestLinkOIDC(t *testing.T) {
+	fx := newSSOCallbackFixture(t, config.ConfigOIDC{})
+	ctx := t.Context()
+	repo := fx.h.app.Repos.Users
+
+	u := insertSSOUser(t, fx.h, "link@example.com", "", "")
+	if err := repo.LinkOIDC(ctx, u.ID, "iss-a", "sub-1"); err != nil {
+		t.Fatalf("first link: %v", err)
+	}
+	if err := repo.LinkOIDC(ctx, u.ID, "iss-a", "sub-1"); err != nil {
+		t.Fatalf("same-pair relink: %v", err)
+	}
+	if err := repo.LinkOIDC(ctx, u.ID, "iss-a", "sub-2"); err == nil {
+		t.Fatal("different subject overwrote the link")
+	}
+	if err := repo.LinkOIDC(ctx, u.ID, "iss-b", "sub-1"); err == nil {
+		t.Fatal("different issuer overwrote the link")
+	}
+
+	// A row linked before issuers were recorded keeps oidc_iss NULL; the next
+	// sign-in claims it without failing.
+	v := insertSSOUser(t, fx.h, "heal@example.com", "", "")
+	if _, err := fx.h.app.DB.ExecContext(ctx,
+		`UPDATE users SET oidc_sub = 'sub-9', oidc_iss = NULL WHERE id = $1`, v.ID); err != nil {
+		t.Fatalf("seed pre-pair link: %v", err)
+	}
+	if err := repo.LinkOIDC(ctx, v.ID, "iss-a", "sub-9"); err != nil {
+		t.Fatalf("heal link: %v", err)
+	}
+	healed, err := repo.Get(ctx, v.ID)
+	if err != nil || healed.OIDCIss != "iss-a" || healed.OIDCSub != "sub-9" {
+		t.Fatalf("healed link: iss=%q sub=%q err=%v", healed.OIDCIss, healed.OIDCSub, err)
+	}
+}
+
+// TestSSOReauth pins the empty-password path: a session opened moments ago by
+// SSO on a linked account satisfies reauthentication, while a password-method
+// session, a stale session, or an unlinked account does not.
+func TestSSOReauth(t *testing.T) {
+	db, err := database.Open(filepath.Join(t.TempDir(), "sso_reauth_test.db"))
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if err := migrator.Up(db, "../../migrations"); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	seeders.RoleSeeder{DB: db}.Seed()
+
+	cfg := config.Config{App: config.ConfigApp{Secret: "test-secret"}}
+	secrets, err := sealer.FromSecret(cfg.App.Secret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := &authHandler{app: &app.Application{Config: cfg, DB: db, Repos: repositories.New(db, &cfg.App), Secrets: secrets}}
+	ctx := t.Context()
+
+	linked := insertSSOUser(t, h, "sso@example.com", "iss-a", "sub-1")
+	unlinked := insertSSOUser(t, h, "plain@example.com", "", "")
+
+	insertSession := func(userID, method string) string {
+		t.Helper()
+		sid := uuid.NewString()
+		if err := h.app.Repos.Refresh.Insert(ctx, models.RefreshToken{
+			ID: sid, UserID: userID, TokenHash: uuid.NewString(),
+			AuthMethod: method, ExpiresAt: time.Now().Add(refreshTTL),
+		}); err != nil {
+			t.Fatalf("insert session: %v", err)
+		}
+		return sid
+	}
+
+	f := fiber.New(fiber.Config{ErrorHandler: middlewares.ErrorHandler})
+	var uid, sid string
+	authed := f.Group("/", func(c fiber.Ctx) error {
+		lib.ContextSetUID(c, uuid.MustParse(uid))
+		lib.ContextSetSID(c, sid)
+		return c.Next()
+	})
+	authed.Post("/totp/enable", h.TOTPEnable)
+
+	call := func(user models.User, session, password, secret, code string) int {
+		t.Helper()
+		uid, sid = user.ID, session
+		req := httptest.NewRequest("POST", "/totp/enable", strings.NewReader(
+			`{"password":"`+password+`","secret":"`+secret+`","code":"`+code+`"}`))
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := f.Test(req)
+		if err != nil {
+			t.Fatalf("POST /totp/enable: %v", err)
+		}
+		return resp.StatusCode
+	}
+
+	// A fresh SSO session stands in for the password the account does not have.
+	secret, err := totp.NewSecret()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status := call(linked, insertSession(linked.ID, "sso"), "", secret, totp.Code(secret, time.Now())); status != 200 {
+		t.Fatalf("sso reauth enable = %d, want 200", status)
+	}
+
+	// A session opened by password sign-in still demands the password.
+	other := insertSSOUser(t, h, "sso2@example.com", "iss-a", "sub-2")
+	secret2, _ := totp.NewSecret()
+	pwSID := insertSession(other.ID, "password")
+	if status := call(other, pwSID, "", secret2, totp.Code(secret2, time.Now())); status != 422 {
+		t.Fatalf("password-method empty password = %d, want 422", status)
+	}
+
+	// An SSO session outside the window no longer counts.
+	staleSID := insertSession(other.ID, "sso")
+	if _, err := h.app.DB.ExecContext(ctx,
+		`UPDATE refresh_tokens SET created_at = $2 WHERE id = $1`,
+		staleSID, time.Now().Add(-ssoReauthWindow-time.Minute).UTC().Format("2006-01-02 15:04:05.000-07:00")); err != nil {
+		t.Fatalf("age session: %v", err)
+	}
+	if status := call(other, staleSID, "", secret2, totp.Code(secret2, time.Now())); status != 422 {
+		t.Fatalf("stale sso session = %d, want 422", status)
+	}
+
+	// An unlinked account always owes the password, even on an SSO session.
+	if status := call(unlinked, insertSession(unlinked.ID, "sso"), "", secret2, totp.Code(secret2, time.Now())); status != 422 {
+		t.Fatalf("unlinked account = %d, want 422", status)
 	}
 }

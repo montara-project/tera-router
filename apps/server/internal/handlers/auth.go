@@ -95,7 +95,7 @@ func (h *authHandler) signIn(ctx context.Context, email, plainPassword, otp stri
 	if err := h.verifyFactors(ctx, user, plainPassword, otp); err != nil {
 		return dtos.Session{}, err
 	}
-	return h.openSession(ctx, user, cl)
+	return h.openSession(ctx, user, cl, "password")
 }
 
 // verifyFactors checks the password, and the TOTP code when the user enabled
@@ -105,6 +105,13 @@ func (h *authHandler) verifyFactors(ctx context.Context, user models.User, plain
 	if err != nil || !ok || !user.IsActive || user.IsBlocked {
 		return ErrBadCredentials
 	}
+	return h.verifyTOTP(ctx, user, otp)
+}
+
+// verifyTOTP enforces the account's second factor when one is enabled, on its
+// own — reauthentication paths that establish the first factor differently
+// still owe this one.
+func (h *authHandler) verifyTOTP(ctx context.Context, user models.User, otp string) error {
 	if !user.TOTPEnabled {
 		return nil
 	}
@@ -254,18 +261,22 @@ func clientOf(c fiber.Ctx) client {
 }
 
 // openSession stores a new session for user and signs its first token pair.
-func (h *authHandler) openSession(ctx context.Context, user models.User, cl client) (dtos.Session, error) {
+// method records what opened it ("password", "sso", "passkey") so actions
+// that re-check identity can recognize a fresh SSO sign-in on an account that
+// holds no usable password.
+func (h *authHandler) openSession(ctx context.Context, user models.User, cl client, method string) (dtos.Session, error) {
 	refreshRaw, refreshHash, err := token.NewRefresh()
 	if err != nil {
 		return dtos.Session{}, err
 	}
 	rt := models.RefreshToken{
-		ID:        uuid.NewString(),
-		UserID:    user.ID,
-		TokenHash: refreshHash,
-		UserAgent: cl.userAgent,
-		IPAddress: cl.ip,
-		ExpiresAt: time.Now().Add(refreshTTL),
+		ID:         uuid.NewString(),
+		UserID:     user.ID,
+		TokenHash:  refreshHash,
+		AuthMethod: method,
+		UserAgent:  cl.userAgent,
+		IPAddress:  cl.ip,
+		ExpiresAt:  time.Now().Add(refreshTTL),
 	}
 	if err := h.app.Repos.Refresh.Insert(ctx, rt); err != nil {
 		return dtos.Session{}, err

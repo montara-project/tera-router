@@ -20,11 +20,12 @@ export type RefreshDto = z.infer<typeof RefreshSchema>
 
 /**
  * Re-authentication body for actions that expose secrets (key reveal, backup
- * download and export): the signed-in user's password, plus the authenticator
- * code once the server answers totp_required.
+ * download and export): the signed-in user's password — empty is allowed, a
+ * fresh SSO session can stand in for it — plus the authenticator code once
+ * the server answers totp_required.
  */
 export const ReauthSchema = z.object({
-  password: requiredString('password'),
+  password: optionalString('password'),
   otp: optionalString('authentication code'),
 })
 

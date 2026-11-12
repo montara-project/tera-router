@@ -30,7 +30,7 @@ const resources = (): BackupResources => {
       const { password, otp } = parseDto(ReauthSchema, creds)
       const form = new FormData()
       form.append('file', file)
-      form.append('password', password)
+      form.append('password', password ?? '')
       if (otp) form.append('otp', otp)
       return api.post(url, form)
     },

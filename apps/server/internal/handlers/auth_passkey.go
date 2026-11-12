@@ -388,7 +388,7 @@ func (h *passkeysHandler) SignInFinish(c fiber.Ctx) error {
 	}
 
 	auth := &authHandler{app: h.app}
-	session, err := auth.openSession(ctx, user, clientOf(c))
+	session, err := auth.openSession(ctx, user, clientOf(c), "passkey")
 	if err != nil {
 		return err
 	}

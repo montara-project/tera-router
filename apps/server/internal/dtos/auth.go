@@ -31,7 +31,9 @@ type TOTPEnable struct {
 }
 
 func (d *TOTPEnable) Validate(v *validator.MapValidator) {
-	v.Field("password").Required().String()
+	// Not Required: an empty password can still reauthenticate through a
+	// fresh SSO session (see reauthenticate); the server decides.
+	v.Field("password").String()
 	v.Field("secret").Required().String()
 	v.Field("code").Required().String()
 }
@@ -45,7 +47,7 @@ type TOTPDisable struct {
 }
 
 func (d *TOTPDisable) Validate(v *validator.MapValidator) {
-	v.Field("password").Required().String()
+	v.Field("password").String() // see TOTPEnable
 	v.Field("code").Required().String()
 }
 
@@ -58,7 +60,7 @@ type Reauth struct {
 }
 
 func (d *Reauth) Validate(v *validator.MapValidator) {
-	v.Field("password").Required().String()
+	v.Field("password").String() // see TOTPEnable
 }
 
 // PasskeyFinish completes a passkey ceremony: the id the begin step returned

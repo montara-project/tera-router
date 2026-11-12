@@ -103,9 +103,11 @@ export default function LoginSection({
   // A ticket from the OIDC callback is being redeemed right away; an error
   // code is translated into a readable message.
   const [isLoading, setIsLoading] = useState(() => !!ssoTicket)
-  const [error, setError] = useState<string | null>(() =>
-    ssoError ? (SSO_ERRORS[ssoError] ?? 'SSO sign-in failed. Try again.') : null
-  )
+  const [error, setError] = useState<string | null>(null)
+  // The callback's error code, kept until the user retries so its message can
+  // be resolved at render — not_linked depends on the server config, which
+  // loads after the code arrives.
+  const [ssoErr, setSsoErr] = useState(() => ssoError ?? null)
   // Set once the password checked out on an account with two-factor auth on.
   const [needsCode, setNeedsCode] = useState(false)
   // A verified SSO identity that still owes the account's TOTP code.
@@ -120,6 +122,22 @@ export default function LoginSection({
   const passwordLogin = ssoConfig.data?.password_login !== false
   const ssoExchange = useMutation(queries.auth.ssoExchange())
   const ssoVerifyTotp = useMutation(queries.auth.ssoVerifyTotp())
+
+  // The right not_linked recovery depends on whether password sign-in is
+  // still offered, which only the server config knows.
+  const ssoErrMessage = (code: string): string => {
+    if (code === 'not_linked') {
+      return passwordLogin
+        ? 'This account is not linked to the identity provider. Sign in with your password instead.'
+        : 'This account is not linked to the identity provider. Sign in with an enrolled passkey or ask an administrator for help.'
+    }
+    return SSO_ERRORS[code] ?? 'SSO sign-in failed. Try again.'
+  }
+  const shownError = error ?? (ssoErr ? ssoErrMessage(ssoErr) : null)
+  const clearErrors = () => {
+    setError(null)
+    setSsoErr(null)
+  }
 
   // Consume the OIDC callback's search params once: the params are stripped
   // first so a refresh cannot replay the single-use ticket (or re-show the
@@ -156,7 +174,7 @@ export default function LoginSection({
     },
     onSubmit: async ({ value }) => {
       setIsLoading(true)
-      setError(null)
+      clearErrors()
 
       try {
         const res = await signInWithEmail({ ...value, otp: needsCode ? otp : undefined })
@@ -184,7 +202,7 @@ export default function LoginSection({
   // submits outside the form's validation like the passkey button does.
   const submitSSOTOTP = async () => {
     setIsLoading(true)
-    setError(null)
+    clearErrors()
     try {
       await ssoVerifyTotp.mutateAsync({ ticket: ssoTOTPTicket, otp })
       navigate({ to: '/dashboard' })
@@ -198,7 +216,7 @@ export default function LoginSection({
 
   const passkeySignIn = async () => {
     setIsLoading(true)
-    setError(null)
+    clearErrors()
     try {
       await signInWithPasskey()
       navigate({ to: '/dashboard' })
@@ -213,7 +231,7 @@ export default function LoginSection({
     setNeedsCode(false)
     setSsoTOTPTicket('')
     setOtp('')
-    setError(null)
+    clearErrors()
     form.setFieldValue('password', '', { dontValidate: true })
     onTwoFactorChange?.(null)
   }
@@ -331,7 +349,7 @@ export default function LoginSection({
                   }}
                   maxLength={6}
                   pattern={REGEXP_ONLY_DIGITS}
-                  aria-invalid={!!error}
+                  aria-invalid={!!shownError}
                   autoFocus
                   autoComplete="one-time-code"
                   containerClassName="w-full"
@@ -391,7 +409,7 @@ export default function LoginSection({
             </>
           ) : null}
 
-          {error && <FieldError>{error}</FieldError>}
+          {shownError && <FieldError>{shownError}</FieldError>}
 
           {(showCode || passwordLogin) && (
             <Button

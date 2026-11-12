@@ -14,5 +14,5 @@ type ConfigExport struct {
 
 func (d *ConfigExport) Validate(v *validator.MapValidator) {
 	v.Field("passphrase").String()
-	v.Field("password").Required().String()
+	v.Field("password").String() // empty can reauthenticate via a fresh SSO session
 }
