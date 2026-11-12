@@ -4,6 +4,7 @@ go 1.27.4
 
 require (
 	braces.dev/errtrace v0.4.0
+	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/descope/virtualwebauthn v1.0.5
 	github.com/getsentry/sentry-go v0.49.0
 	github.com/go-webauthn/webauthn v0.18.2
@@ -16,6 +17,7 @@ require (
 	github.com/shirou/gopsutil/v4 v4.26.8
 	github.com/valyala/fasthttp v1.74.0
 	golang.org/x/crypto v0.58.1-0.20261009181718-2f1f834330b2
+	golang.org/x/oauth2 v0.38.0
 	modernc.org/sqlite v1.59.0
 )
 
@@ -23,6 +25,7 @@ require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/ebitengine/purego v0.10.2 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.4 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/go-webauthn/x v0.3.1 // indirect

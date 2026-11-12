@@ -88,6 +88,13 @@ func parseFlag(cfg *config.Config) {
 	// Sentry
 	flag.StringVar(&cfg.Sentry.Dsn, "sentry-dsn", envString("SENTRY_DSN", ""), "Sentry DSN")
 
+	// OIDC dashboard SSO; enabled only when all three are set.
+	flag.StringVar(&cfg.OIDC.Issuer, "oidc-issuer", envString("OIDC_ISSUER", ""), "OIDC issuer base URL (Pocket ID, Keycloak, …)")
+	flag.StringVar(&cfg.OIDC.ClientID, "oidc-client-id", envString("OIDC_CLIENT_ID", ""), "OIDC client ID")
+	flag.StringVar(&cfg.OIDC.ClientSecret, "oidc-client-secret", envString("OIDC_CLIENT_SECRET", ""), "OIDC client secret")
+	flag.StringVar(&cfg.OIDC.ProviderName, "oidc-provider-name", envString("OIDC_PROVIDER_NAME", ""), "OIDC provider display name on the login button (e.g. \"Pocket ID\")")
+	flag.StringVar(&cfg.OIDC.RedirectURL, "oidc-redirect-url", envString("OIDC_REDIRECT_URL", ""), "OIDC callback URL registered at the provider; derived from the request when empty")
+
 	flag.Parse()
 
 	uint16Max := uint(1<<16 - 1)

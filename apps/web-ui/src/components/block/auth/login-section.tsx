@@ -7,19 +7,23 @@ import {
   IconLock,
   IconMail,
   IconShieldCheck,
+  IconWorld,
 } from '@tabler/icons-react'
 import { revalidateLogic } from '@tanstack/react-form'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { useRouter } from '@tanstack/react-router'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Field, FieldError } from '@/components/ui/field'
 import { Input, InputWrapper } from '@/components/ui/input'
 import { InputOTP, REGEXP_ONLY_DIGITS } from '@/components/ui/input-otp'
 import { Label } from '@/components/ui/label'
+import { env } from '@/config/env'
 import { useAppForm } from '@/hooks/form'
 import { useBranding } from '@/hooks/use-branding'
 import { SignInSchema } from '@/lib/api/dtos/auth/schema'
+import { queries } from '@/lib/api/queries'
 import { signInWithEmail } from '@/lib/auth/email-auth'
 import { passkeysSupported, signInWithPasskey } from '@/lib/auth/passkey'
 import { cn } from '@/lib/utils'
@@ -53,24 +57,76 @@ function useTotpSecondsLeft(active: boolean) {
 
 const canReadClipboard = () => typeof navigator !== 'undefined' && !!navigator.clipboard?.readText
 
+/** Readable messages for the short error codes the OIDC callback sends back. */
+const SSO_ERRORS: Record<string, string> = {
+  invalid_state: 'That sign-in session expired or was already used. Try again.',
+  not_enabled: 'SSO sign-in is not configured on this server.',
+  missing_code: 'The identity provider did not return a sign-in code.',
+  provider_error: 'The identity provider could not be reached. Try again.',
+  exchange_failed: 'The identity provider rejected the sign-in code. Try again.',
+  missing_id_token: 'The identity provider did not return an identity token.',
+  invalid_id_token: 'The identity token could not be verified.',
+  invalid_nonce: 'The sign-in could not be verified. Try again.',
+  no_email: 'The identity provider did not share an email address.',
+  email_unverified:
+    'The identity provider has not verified this email. Verify it there first, then try again.',
+  no_account:
+    'No dashboard account exists for this identity. Ask an administrator to create one first.',
+  internal: 'The sign-in failed on the server. Try again.',
+}
+
 interface LoginSectionProps extends React.ComponentProps<'div'> {
   /** The email awaiting a TOTP code, or null once back on the password step. */
   onTwoFactorChange?: (email: string | null) => void
+  /** One-time ticket the OIDC callback appended to its redirect. */
+  ssoTicket?: string
+  /** Error code the OIDC callback sent back instead of a ticket. */
+  ssoError?: string
 }
 
 export default function LoginSection({
   className,
   onTwoFactorChange,
+  ssoTicket,
+  ssoError,
   ...props
 }: LoginSectionProps) {
   const { navigate } = useRouter()
   const branding = useBranding()
   const health = useGatewayHealth()
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  // A ticket from the OIDC callback is being redeemed right away; an error
+  // code is translated into a readable message.
+  const [isLoading, setIsLoading] = useState(() => !!ssoTicket)
+  const [error, setError] = useState<string | null>(() =>
+    ssoError ? (SSO_ERRORS[ssoError] ?? 'SSO sign-in failed. Try again.') : null
+  )
   // Set once the password checked out on an account with two-factor auth on.
   const [needsCode, setNeedsCode] = useState(false)
   const [otp, setOtp] = useState('')
+
+  const ssoConfig = useQuery(queries.auth.ssoConfig())
+  const ssoEnabled = ssoConfig.data?.enabled === true
+  const ssoExchange = useMutation(queries.auth.ssoExchange())
+
+  // Consume the OIDC callback's search params once: the params are stripped
+  // first so a refresh cannot replay the single-use ticket (or re-show the
+  // error), then the ticket redeems for a session like a password sign-in.
+  const handledSSO = useRef(false)
+  useEffect(() => {
+    if (handledSSO.current) return
+    handledSSO.current = true
+    if (ssoError || ssoTicket) {
+      void navigate({ to: '/', search: {}, replace: true })
+    }
+    if (!ssoTicket) return
+    ssoExchange.mutate(ssoTicket, {
+      onSuccess: () => void navigate({ to: '/dashboard' }),
+      onError: (err) => {
+        setError(err instanceof Error ? err.message : 'An error occurred')
+        setIsLoading(false)
+      },
+    })
+  }, [ssoTicket, ssoError, navigate, ssoExchange])
 
   const form = useAppForm({
     defaultValues: {
@@ -306,7 +362,7 @@ export default function LoginSection({
             {!isLoading && <IconArrowRight className="size-3.5" aria-hidden />}
           </Button>
 
-          {!needsCode && passkeysSupported() && (
+          {!needsCode && (ssoEnabled || passkeysSupported()) && (
             <>
               <div className="flex items-center gap-2.5" aria-hidden>
                 <span className="h-px flex-1 bg-border" />
@@ -315,16 +371,39 @@ export default function LoginSection({
                 </span>
                 <span className="h-px flex-1 bg-border" />
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                className="h-9 w-full gap-2 bg-muted/40 text-[12.5px] font-medium"
-                onClick={passkeySignIn}
-                disabled={isLoading}
-              >
-                <IconFaceId className="size-3.5 text-orange-600 dark:text-orange-400" aria-hidden />
-                Sign in with a passkey
-              </Button>
+              {ssoEnabled && (
+                <Button
+                  variant="outline"
+                  className="h-9 w-full gap-2 bg-muted/40 text-[12.5px] font-medium"
+                  disabled={isLoading}
+                  asChild
+                >
+                  {/* A plain navigation: the server takes it from here and
+                      redirects back with a ticket or an error code. */}
+                  <a href={`${String(env.API_URL)}/v1/auth/oidc/login`}>
+                    <IconWorld
+                      className="size-3.5 text-orange-600 dark:text-orange-400"
+                      aria-hidden
+                    />
+                    Continue with {ssoConfig.data?.provider_name || 'SSO'}
+                  </a>
+                </Button>
+              )}
+              {passkeysSupported() && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-9 w-full gap-2 bg-muted/40 text-[12.5px] font-medium"
+                  onClick={passkeySignIn}
+                  disabled={isLoading}
+                >
+                  <IconFaceId
+                    className="size-3.5 text-orange-600 dark:text-orange-400"
+                    aria-hidden
+                  />
+                  Sign in with a passkey
+                </Button>
+              )}
             </>
           )}
         </form>

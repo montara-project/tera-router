@@ -14,6 +14,7 @@ import (
 	"tera-router/server/internal/lib/token"
 	"tera-router/server/internal/models"
 
+	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 )
@@ -37,6 +38,13 @@ var dummyHash = sync.OnceValue(func() string {
 
 type authHandler struct {
 	app *app.Application
+
+	// OIDC dashboard SSO (auth_oidc.go): the provider is discovered lazily on
+	// first use; states and tickets are single-use entries expiring in memory.
+	oidcMu      sync.Mutex
+	oidcProv    *oidc.Provider
+	oidcStates  ttlStore[oidcState]
+	oidcTickets ttlStore[fiber.Map]
 }
 
 // SignIn verifies credentials and returns the token pair the web client

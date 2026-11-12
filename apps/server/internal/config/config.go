@@ -9,6 +9,7 @@ type Config struct {
 	App      ConfigApp
 	Database ConfigDatabase
 	Sentry   ConfigSentry
+	OIDC     ConfigOIDC
 }
 
 type ConfigApp struct {
@@ -41,4 +42,15 @@ type ConfigDatabase struct {
 
 type ConfigSentry struct {
 	Dsn string
+}
+
+// ConfigOIDC holds the generic OpenID Connect sign-in settings (Pocket ID,
+// Keycloak, Authentik, …). Dashboard SSO is enabled only when all three are
+// set; the issuer is the provider's base URL used for discovery.
+type ConfigOIDC struct {
+	Issuer       string
+	ClientID     string
+	ClientSecret string
+	ProviderName string
+	RedirectURL  string
 }

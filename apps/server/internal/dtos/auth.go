@@ -76,6 +76,16 @@ func (d *PasskeyFinish) Validate(v *validator.MapValidator) {
 	v.Field("credential").Required()
 }
 
+// OIDCExchange redeems the one-time ticket the OIDC callback appended to its
+// dashboard redirect for the session it opened (POST /v1/auth/oidc/exchange).
+type OIDCExchange struct {
+	Ticket string `json:"ticket"`
+}
+
+func (d *OIDCExchange) Validate(v *validator.MapValidator) {
+	v.Field("ticket").Required().String()
+}
+
 // Refresh is the token rotation request body (POST /v1/auth/refresh).
 type Refresh struct {
 	RefreshToken string `json:"refresh_token"`

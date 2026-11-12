@@ -81,6 +81,14 @@ const resources = (): AuthResources => {
       const url = `${path}/passkey/finish`
       return api.post(url, reqBody)
     },
+    ssoConfig: () => {
+      const url = `${path}/oidc/config`
+      return api.get(url)
+    },
+    ssoExchange: (reqBody) => {
+      const url = `${path}/oidc/exchange`
+      return api.post(url, reqBody)
+    },
   }
 }
 

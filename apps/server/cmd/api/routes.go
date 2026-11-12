@@ -48,6 +48,13 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	publicAuth.Post("/passkey/begin", h.Passkeys.SignInBegin)
 	publicAuth.Post("/passkey/finish", h.Passkeys.SignInFinish)
 	publicAuth.Get("/google/redirect", h.Auth.GoogleRedirect)
+	// Generic OIDC dashboard SSO (Pocket ID, Keycloak, …): the browser is
+	// redirected to the provider and comes back through /oidc/callback, which
+	// hands the dashboard a one-time ticket it redeems at /oidc/exchange.
+	publicAuth.Get("/oidc/config", h.Auth.OIDCConfig)
+	publicAuth.Get("/oidc/login", h.Auth.OIDCLogin)
+	publicAuth.Get("/oidc/callback", h.Auth.OIDCCallback)
+	publicAuth.Post("/oidc/exchange", h.Auth.OIDCExchange)
 
 	v1.Get("/branding", h.Settings.Branding)
 
