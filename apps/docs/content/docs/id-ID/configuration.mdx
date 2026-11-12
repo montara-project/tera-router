@@ -14,7 +14,7 @@ dan mengoper flag eksplisit, yang tetap menang atas environment.
 | `MACHINE_ID`            | — (wajib)               | ID unik mesin (angka 16-bit, tidak boleh 0)                                                                                        |
 | `APP_SECRET`            | — (wajib)               | Menandatangani JWT dan menurunkan kunci enkripsi kredensial; instalasi baru menolak kurang dari 32 karakter                        |
 | `PORT`                  | `8080`                  | Port gateway + dashboard API                                                                                                       |
-| `ENV`                   | `development`           | `development` mengaktifkan perilaku dev (seed key contoh); image rilis dan contoh Compose menset `production` lewat env container    |
+| `ENV`                   | `development`           | `development` mengaktifkan perilaku dev (seed key contoh); image rilis dan contoh Compose menset `production` lewat env container  |
 | `DEBUG`                 | `false`                 | `true`/`1` mengaktifkan mode debug                                                                                                 |
 | `DATABASE_PATH`         | `terarouter.db`         | Lokasi file SQLite                                                                                                                 |
 | `MIGRATE_ON_BOOT`       | `false`                 | Jalankan migrasi saat start; contoh Compose mengoper `true`                                                                        |

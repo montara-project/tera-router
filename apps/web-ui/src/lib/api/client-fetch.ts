@@ -8,7 +8,8 @@ import { ms } from '../date'
 const timeout = ms('5m')
 
 /** Requests made while signing in; their 401 is a refused attempt, not an ended session. */
-const SIGN_IN_ATTEMPT = /\/v1\/auth\/(sign-in|passkey\/(begin|finish)|oidc\/(exchange|verify-totp))$/
+const SIGN_IN_ATTEMPT =
+  /\/v1\/auth\/(sign-in|passkey\/(begin|finish)|oidc\/(exchange|verify-totp))$/
 
 interface CreateAxiosProps {
   baseURL: string

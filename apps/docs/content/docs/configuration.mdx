@@ -14,7 +14,7 @@ passes explicit flags, which still win over the environment.
 | `MACHINE_ID`            | — (required)            | Unique machine ID (16-bit number, must not be 0)                                                                                        |
 | `APP_SECRET`            | — (required)            | Signs JWTs and derives the credential encryption key; a new install refuses fewer than 32 characters                                    |
 | `PORT`                  | `8080`                  | Port for the gateway + dashboard API                                                                                                    |
-| `ENV`                   | `development`           | `development` enables dev behavior (sample key seeding); the release image and Compose examples set `production` via the container env    |
+| `ENV`                   | `development`           | `development` enables dev behavior (sample key seeding); the release image and Compose examples set `production` via the container env  |
 | `DEBUG`                 | `false`                 | `true`/`1` enables debug mode                                                                                                           |
 | `DATABASE_PATH`         | `terarouter.db`         | SQLite file location                                                                                                                    |
 | `MIGRATE_ON_BOOT`       | `false`                 | Run migrations on start; Compose examples pass `true`                                                                                   |
