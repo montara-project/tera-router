@@ -87,10 +87,13 @@ volumes:
 
 Two ways to run it:
 
-- **From a repo checkout** — `docker compose -f deploy/docker-compose.yaml up -d` builds the image
-  from `deploy/Dockerfile` and starts the stack.
-- **Standalone** — copy the file, delete the `build:` block, and point `image:` at a release tag,
-  e.g. `ghcr.io/montara-project/tera-router:v1.22.0`.
+- **From a repo checkout** — `docker compose -f deploy/docker-compose.yaml up -d` pulls the pinned
+  release image and starts the stack; it does not build `deploy/Dockerfile`, so local changes are
+  not deployed. For a local build run `docker build -f deploy/Dockerfile -t tera-router:local .`
+  from the repo root and set `image:` to `tera-router:local`.
+- **Standalone** — copy the file, keep `image:` on the release tag you want (or bump it, e.g.
+  `ghcr.io/montara-project/tera-router:v1.22.0`), and run the stack from the directory that holds
+  the copy.
 
 <Callout type="warn" title="Env-only config needs a current image">
   Reading configuration from the environment alone lands in the release that follows `v1.22.0`. To
@@ -153,8 +156,13 @@ HEADROOM_VERSION=0.41.0
 ## 3. Start the stack
 
 ```bash
+# From a repo checkout:
 docker compose -f deploy/docker-compose.yaml up -d
 docker compose -f deploy/docker-compose.yaml logs -f app
+
+# Standalone, from the directory holding the copied file:
+docker compose up -d
+docker compose logs -f app
 ```
 
 On boot the container:

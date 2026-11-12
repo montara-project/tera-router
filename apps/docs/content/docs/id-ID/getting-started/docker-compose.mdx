@@ -87,10 +87,14 @@ volumes:
 
 Dua cara menjalankannya:
 
-- **Dari checkout repo** — `docker compose -f deploy/docker-compose.yaml up -d` mem-build image dari
-  `deploy/Dockerfile` lalu menjalankan stack.
-- **Standalone** — salin filenya, hapus blok `build:`, dan arahkan `image:` ke tag release, mis.
-  `ghcr.io/montara-project/tera-router:v1.22.0`.
+- **Dari checkout repo** — `docker compose -f deploy/docker-compose.yaml up -d` menarik image
+  release yang di-pin lalu menjalankan stack; perintah ini tidak mem-build `deploy/Dockerfile`,
+  jadi perubahan lokal tidak ikut ter-deploy. Untuk build lokal jalankan
+  `docker build -f deploy/Dockerfile -t tera-router:local .` dari root repo lalu set `image:` ke
+  `tera-router:local`.
+- **Standalone** — salin filenya, pertahankan `image:` pada tag release yang diinginkan (atau
+  naikkan, mis. `ghcr.io/montara-project/tera-router:v1.22.0`), lalu jalankan stack dari direktori
+  tempat salinan itu berada.
 
 <Callout type="warn" title="Konfigurasi env-only butuh image terbaru">
   Membaca konfigurasi dari environment saja baru tersedia di release setelah `v1.22.0`. Untuk pin
@@ -154,8 +158,13 @@ HEADROOM_VERSION=0.41.0
 ## 3. Jalankan stack
 
 ```bash
+# Dari checkout repo:
 docker compose -f deploy/docker-compose.yaml up -d
 docker compose -f deploy/docker-compose.yaml logs -f app
+
+# Standalone, dari direktori tempat file hasil salinan berada:
+docker compose up -d
+docker compose logs -f app
 ```
 
 Saat boot, container akan:
