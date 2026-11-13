@@ -3,6 +3,19 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [1.25.0](https://github.com/montara-project/tera-router/compare/v1.24.0...v1.25.0) (2026-11-13)
+
+### Features
+
+* **server:** add OIDC domain allowlist and startup SSO logs ([c7e7213](https://github.com/montara-project/tera-router/commit/c7e72139277d5f0ec1f46208a08fd52dfdc852ae))
+* **server:** gate OIDC JIT provisioning behind OIDC_AUTO_PROVISION ([cfd93ce](https://github.com/montara-project/tera-router/commit/cfd93cec3d56c3d6137b9d3c1bbafa81609229db))
+
+### Bug Fixes
+
+* linter ([c22516e](https://github.com/montara-project/tera-router/commit/c22516e178154433c235f7df1a34ce122d9d23c3))
+* update default range ([052aeef](https://github.com/montara-project/tera-router/commit/052aeefe986cf183a542d53c0c394b6224197f23))
+* update login page ([aaa95c7](https://github.com/montara-project/tera-router/commit/aaa95c742ab811fffd2b8e8212d4d0ef666c59b7))
+
 ## [1.24.0](https://github.com/montara-project/tera-router/compare/v1.23.0...v1.24.0) (2026-11-12)
 
 ### Features
