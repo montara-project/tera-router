@@ -90,7 +90,7 @@ function CustomProviderDetailRoute() {
   const apiKind = isCatalogProvider ? catalogView?.api_kind : provider?.api_kind
   const dialectLabel = apiKind === 'anthropic' ? 'Anthropic-compatible' : 'OpenAI-compatible'
 
-  const accountQuery = useQuery(queries.accounts.list({ offset: 0, limit: 100 }))
+  const accountQuery = useQuery(queries.accounts.list({ offset: 0, limit: 1000 }))
   const chainsQuery = useQuery(queries.chains.list({ offset: 0, limit: 100 }))
   const usageQuery = useQuery(queries.usage.telemetry('30d'))
   const healthQuery = useQuery(queries.providerHealth.overview('24h'))

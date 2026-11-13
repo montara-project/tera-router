@@ -19,7 +19,7 @@ function RouteComponent() {
 
   const { data } = useQuery(queries.budgets.status())
   const keysQuery = useQuery(queries.keys.list({ offset: 0, limit: 100 }))
-  const accountsQuery = useQuery(queries.accounts.list({ offset: 0, limit: 100 }))
+  const accountsQuery = useQuery(queries.accounts.list({ offset: 0, limit: 1000 }))
 
   const keys = keysQuery.data?.data ?? []
   const accounts = accountsQuery.data?.data ?? []

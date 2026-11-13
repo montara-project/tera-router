@@ -3,7 +3,7 @@ package dtos
 import "tera-router/server/internal/lib/validator"
 
 // ListQuery is the shared pagination binding for list endpoints.
-// Offset starts at 0; limit is clamped to 100.
+// Offset starts at 0; limit is clamped to 100 unless the endpoint raises it.
 type ListQuery struct {
 	Offset int `query:"offset"`
 	Limit  int `query:"limit"`
@@ -24,11 +24,17 @@ const (
 // Clamp normalizes pagination values: a missing or zero limit falls back to
 // 10 and the limit never exceeds 100.
 func (dto *ListQuery) Clamp() {
+	dto.ClampTo(maxListLimit)
+}
+
+// ClampTo is Clamp with the endpoint's own ceiling, for a list the dashboard
+// has to read whole (a provider's accounts) rather than page by page.
+func (dto *ListQuery) ClampTo(maxLimit int) {
 	if dto.Limit <= 0 {
 		dto.Limit = defaultListLimit
 	}
-	if dto.Limit > maxListLimit {
-		dto.Limit = maxListLimit
+	if dto.Limit > maxLimit {
+		dto.Limit = maxLimit
 	}
 	if dto.Offset < 0 {
 		dto.Offset = 0

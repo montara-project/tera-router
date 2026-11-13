@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -81,5 +82,45 @@ func TestAccountBulkStore(t *testing.T) {
 	tooMany := `{"provider":"openai","api_keys":["` + strings.Repeat(`k","`, maxBulkKeys) + `k"]}`
 	if status, _ := bulk(tooMany); status != http.StatusBadRequest {
 		t.Errorf("%d keys = %d, want 400", maxBulkKeys+1, status)
+	}
+}
+
+// TestAccountIndexLimit pins that the account list can be read whole: the
+// dashboard filters per provider in the browser, so a provider with more than
+// 100 accounts needs a page larger than the default ceiling.
+func TestAccountIndexLimit(t *testing.T) {
+	h := newBackupHarness(t, "test-secret")
+	accounts := make([]models.Account, 0, 105)
+	for i := range 105 {
+		accounts = append(accounts, models.Account{
+			ID: fmt.Sprintf("acc-%03d", i), Provider: "cline", Label: fmt.Sprintf("key %d", i),
+			AuthKind: models.AuthAPIKey, Metadata: "{}", KeyHash: fmt.Sprintf("hash-%03d", i),
+		})
+	}
+	if err := h.app.Repos.Accounts.BulkInsert(context.Background(), accounts); err != nil {
+		t.Fatal(err)
+	}
+	h.fiber.Get("/accounts", (&accountsHandler{app: h.app}).Index)
+
+	count := func(query string) int {
+		t.Helper()
+		status, raw := h.do(t, httptest.NewRequest(http.MethodGet, "/accounts"+query, nil))
+		if status != http.StatusOK {
+			t.Fatalf("GET /accounts%s = %d", query, status)
+		}
+		var res struct {
+			Data []map[string]any `json:"data"`
+		}
+		_ = json.Unmarshal(raw, &res)
+		return len(res.Data)
+	}
+	if got := count(""); got != 10 {
+		t.Errorf("default page = %d accounts, want 10", got)
+	}
+	if got := count("?limit=1000"); got != 105 {
+		t.Errorf("limit=1000 = %d accounts, want all 105", got)
+	}
+	if got := count("?limit=100"); got != 100 {
+		t.Errorf("limit=100 = %d accounts, want 100", got)
 	}
 }

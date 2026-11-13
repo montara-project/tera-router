@@ -72,7 +72,7 @@ export default function OverviewSavingsBudgets({
 function Budgets() {
   const { data, isLoading } = useQuery(queries.budgets.status())
   const keys = useQuery(queries.keys.list({ offset: 0, limit: 100 })).data?.data ?? []
-  const accounts = useQuery(queries.accounts.list({ offset: 0, limit: 100 })).data?.data ?? []
+  const accounts = useQuery(queries.accounts.list({ offset: 0, limit: 1000 })).data?.data ?? []
   const names = new Map<string, string>([
     ...keys.map((k) => [k.id, k.name] as [string, string]),
     ...accounts.map((a) => [a.id, a.label || a.provider] as [string, string]),

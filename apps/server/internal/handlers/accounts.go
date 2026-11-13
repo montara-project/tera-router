@@ -157,12 +157,18 @@ func accountView(a models.Account) fiber.Map {
 	}
 }
 
+// maxAccountListLimit is the largest page of accounts one request returns.
+// The dashboard filters accounts per provider in the browser, so it reads
+// them whole; at the default ceiling of 100 a provider with more accounts
+// showed only some of them.
+const maxAccountListLimit = 1000
+
 func (h *accountsHandler) Index(c fiber.Ctx) error {
 	var q dtos.ListQuery
 	if err := lib.ValidateRequestQuery(c, &q); err != nil {
 		return err
 	}
-	q.Clamp()
+	q.ClampTo(maxAccountListLimit)
 
 	accounts, total, err := h.app.Repos.Accounts.List(c.Context(), q.Offset, q.Limit)
 	if err != nil {

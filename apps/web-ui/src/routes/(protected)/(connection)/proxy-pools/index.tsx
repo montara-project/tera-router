@@ -42,7 +42,7 @@ function RouteComponent() {
 
   const { data } = useQuery(queries.proxyPools.list())
   const pools = data?.data ?? []
-  const accountsQuery = useQuery(queries.accounts.list({ offset: 0, limit: 100 }))
+  const accountsQuery = useQuery(queries.accounts.list({ offset: 0, limit: 1000 }))
   const usedBy = useMemo(() => {
     const map = new Map<string, number>()
     for (const a of accountsQuery.data?.data ?? []) {

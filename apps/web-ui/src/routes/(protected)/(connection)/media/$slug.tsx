@@ -59,7 +59,7 @@ function MediaDetailRoute() {
   const [accountOpen, setAccountOpen] = useState(false)
 
   const mediaQuery = useQuery(queries.media.list())
-  const accountQuery = useQuery(queries.accounts.list({ offset: 0, limit: 100 }))
+  const accountQuery = useQuery(queries.accounts.list({ offset: 0, limit: 1000 }))
   const modelsQuery = useQuery(
     queries.providers.catalogModels(slug, { offset: 0, limit: MODEL_LIMIT, state: 'active' })
   )

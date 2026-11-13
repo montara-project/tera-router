@@ -42,7 +42,7 @@ curl -X POST http://localhost:8080/v1/auth/sign-in \
 | Error            | `{"message": "…"}`                                        |
 | Validation error | `{"message": "…", "errors": {…}}` (422)                   |
 
-Pagination uses the `offset` (0-based) and `limit` (default 10, max 100) query parameters.
+Pagination uses the `offset` (0-based) and `limit` (default 10, max 100; `/v1/accounts` allows up to 1000) query parameters.
 
 ## Endpoints
 

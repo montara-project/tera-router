@@ -82,7 +82,7 @@ function RouteComponent() {
     ...queries.providerHealth.overview(healthWindow),
     refetchInterval: live ? LIVE_REFRESH_MS : false,
   })
-  const accountsQuery = useQuery(queries.accounts.list({ offset: 0, limit: 100 }))
+  const accountsQuery = useQuery(queries.accounts.list({ offset: 0, limit: 1000 }))
   const chainsQuery = useQuery(queries.chains.list({ offset: 0, limit: 100 }))
   const openProvider = useOpenProvider()
 
