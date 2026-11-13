@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"tera-router/server/internal/app"
@@ -142,8 +144,145 @@ func (h *accountsHandler) Export(c fiber.Ctx) error {
 }
 
 type accountsImportRequest struct {
-	Passphrase string         `json:"passphrase"`
-	Backup     accountsBackup `json:"backup"`
+	Passphrase string          `json:"passphrase"`
+	Backup     json.RawMessage `json:"backup"`
+}
+
+// idrouterPortfolioKind marks IDrouter's per-provider accounts export. The
+// file is accepted as-is: its secrets are sealed per secret with their own
+// salt under the same argon2id profile this install's portable sealer uses, so
+// a conversion needs no external tool.
+const idrouterPortfolioKind = "account-portfolio"
+
+// idrouterPortfolio is the envelope IDrouter writes for one provider's
+// accounts. Metadata is a JSON string there, and every secret is a
+// {salt, ciphertext} pair.
+type idrouterPortfolio struct {
+	Kind     string            `json:"kind"`
+	Provider string            `json:"provider"`
+	Portable bool              `json:"portable"`
+	Accounts []idrouterAccount `json:"accounts"`
+}
+
+type idrouterAccount struct {
+	Label          string            `json:"label"`
+	AuthKind       models.AuthKind   `json:"auth_kind"`
+	Priority       int               `json:"priority"`
+	Disabled       bool              `json:"disabled"`
+	Metadata       string            `json:"metadata"`
+	TokenExpiresAt *string           `json:"token_expires_at"`
+	PortableSecret idrouterSecretSet `json:"portable_secret"`
+}
+
+type idrouterSecretSet struct {
+	Secret  *idrouterSecret `json:"secret"`
+	Token   *idrouterSecret `json:"token"`
+	Refresh *idrouterSecret `json:"refresh"`
+}
+
+type idrouterSecret struct {
+	Salt       string `json:"salt"`
+	Ciphertext string `json:"ciphertext"`
+}
+
+// convertIDrouterPortfolio rewrites an IDrouter export into this install's
+// backup document: each secret is opened with the passphrase and its own salt,
+// then re-sealed under one fresh salt so the rest of the import runs unchanged.
+// The file carries no passphrase check, so the first secret that fails to open
+// is the only evidence of a wrong passphrase.
+func convertIDrouterPortfolio(raw json.RawMessage, passphrase string) (accountsBackup, error) {
+	var doc idrouterPortfolio
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		return accountsBackup{}, apperr.New(apperr.KindBadRequest, "invalid IDrouter accounts file: %s", err.Error())
+	}
+	// argon2 runs per secret, so the cap is checked before any decryption.
+	// ponytail: 1000 accounts x 3 secrets is roughly three minutes of argon2.
+	if len(doc.Accounts) > maxBulkKeys {
+		return accountsBackup{}, apperr.New(apperr.KindUnprocessable, "the backup holds %d accounts; at most %d import at once", len(doc.Accounts), maxBulkKeys)
+	}
+	ps, err := sealer.NewPortable(passphrase)
+	if err != nil {
+		return accountsBackup{}, apperr.New(apperr.KindBadRequest, "enter the backup's passphrase to import it")
+	}
+	check, err := ps.Seal(portableCheck)
+	if err != nil {
+		return accountsBackup{}, err
+	}
+	out := accountsBackup{
+		Format:     accountsBackupFormat,
+		Version:    accountsBackupVersion,
+		AppVersion: app.Version,
+		ExportedAt: time.Now().UTC(),
+		Provider:   doc.Provider,
+		Portable:   &portableHeader{KDF: "argon2id", Salt: ps.Salt(), Check: check},
+		Accounts:   make([]backupAccount, 0, len(doc.Accounts)),
+	}
+
+	opened := false
+	reseal := func(secret *idrouterSecret, label string) (string, error) {
+		if secret == nil {
+			return "", nil
+		}
+		open, err := sealer.OpenPortable(passphrase, secret.Salt)
+		if err != nil {
+			return "", apperr.New(apperr.KindUnprocessable, "account %q has a corrupt secret header", label)
+		}
+		plain, err := open.Open(secret.Ciphertext)
+		if err != nil {
+			if !opened {
+				return "", apperr.New(apperr.KindBadRequest, "wrong passphrase")
+			}
+			return "", apperr.New(apperr.KindUnprocessable, "cannot decrypt a credential of account %q", label)
+		}
+		opened = true
+		return ps.Seal(plain)
+	}
+
+	for _, a := range doc.Accounts {
+		label := a.Label
+		kind := a.AuthKind
+		if kind == "" {
+			kind = models.AuthAPIKey
+		}
+		metadata := strings.TrimSpace(a.Metadata)
+		if metadata == "" {
+			metadata = "{}"
+		}
+		if !json.Valid([]byte(metadata)) {
+			return accountsBackup{}, apperr.New(apperr.KindUnprocessable, "account %q has malformed metadata", label)
+		}
+		var expiresAt *time.Time
+		if a.TokenExpiresAt != nil && strings.TrimSpace(*a.TokenExpiresAt) != "" {
+			t, err := time.Parse(time.RFC3339, strings.TrimSpace(*a.TokenExpiresAt))
+			if err != nil {
+				return accountsBackup{}, apperr.New(apperr.KindUnprocessable, "account %q has a malformed token_expires_at", label)
+			}
+			expiresAt = &t
+		}
+		account := backupAccount{
+			Label:          label,
+			AuthKind:       kind,
+			Priority:       a.Priority,
+			Disabled:       a.Disabled,
+			Metadata:       json.RawMessage(metadata),
+			TokenExpiresAt: expiresAt,
+		}
+		for _, f := range []struct {
+			secret *idrouterSecret
+			into   *string
+		}{{a.PortableSecret.Secret, &account.Secret}, {a.PortableSecret.Token, &account.Token}, {a.PortableSecret.Refresh, &account.Refresh}} {
+			if *f.into, err = reseal(f.secret, label); err != nil {
+				return accountsBackup{}, err
+			}
+		}
+		out.Accounts = append(out.Accounts, account)
+	}
+	// A file whose accounts carry no secret at all cannot prove its passphrase;
+	// that is a damaged file, not a wrong passphrase.
+	if !opened && len(out.Accounts) > 0 {
+		return accountsBackup{}, apperr.New(apperr.KindUnprocessable, "the IDrouter file holds no credentials to open")
+	}
+	return out, nil
 }
 
 // accountsImportSkip names one account the import left out, and why.
@@ -169,7 +308,30 @@ func (h *accountsHandler) Import(c fiber.Ctx) error {
 	if err := json.Unmarshal(c.Body(), &req); err != nil {
 		return apperr.New(apperr.KindBadRequest, "invalid backup JSON: %s", err.Error())
 	}
-	doc := req.Backup
+	var doc accountsBackup
+	trimmed := bytes.TrimSpace(req.Backup)
+	if len(trimmed) > 0 && trimmed[0] == '{' {
+		var probe struct {
+			Kind     string `json:"kind"`
+			Provider string `json:"provider"`
+		}
+		_ = json.Unmarshal(trimmed, &probe)
+		if probe.Kind == idrouterPortfolioKind {
+			// Check the provider before touching a passphrase: the conversion
+			// runs argon2 per secret, which a misplaced file must not pay for.
+			if probe.Provider != "" && probe.Provider != slug {
+				return apperr.New(apperr.KindUnprocessable, "this backup holds %s accounts, not %s", probe.Provider, slug)
+			}
+			if doc, err = convertIDrouterPortfolio(trimmed, strings.TrimSpace(req.Passphrase)); err != nil {
+				return err
+			}
+		}
+	}
+	if doc.Format == "" {
+		if err := json.Unmarshal(req.Backup, &doc); err != nil {
+			return apperr.New(apperr.KindBadRequest, "invalid backup JSON: %s", err.Error())
+		}
+	}
 	if doc.Format != accountsBackupFormat || doc.Portable == nil {
 		return apperr.New(apperr.KindUnprocessable, "not a Tera Router accounts backup")
 	}
@@ -191,7 +353,7 @@ func (h *accountsHandler) Import(c fiber.Ctx) error {
 	if req.Passphrase == "" {
 		return apperr.New(apperr.KindBadRequest, "enter the backup's passphrase to import it")
 	}
-	ps, err := sealer.OpenPortable(req.Passphrase, doc.Portable.Salt)
+	ps, err := sealer.OpenPortable(strings.TrimSpace(req.Passphrase), doc.Portable.Salt)
 	if err != nil {
 		return apperr.New(apperr.KindUnprocessable, "corrupt accounts backup header")
 	}

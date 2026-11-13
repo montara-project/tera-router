@@ -14,6 +14,7 @@ import (
 	"tera-router/server/internal/app"
 	"tera-router/server/internal/catalog"
 	"tera-router/server/internal/connectors"
+	"tera-router/server/internal/core"
 	"tera-router/server/internal/dtos"
 	"tera-router/server/internal/lib"
 	"tera-router/server/internal/lib/apperr"
@@ -638,6 +639,9 @@ var modelsSyncProviders = map[string]bool{
 	"deepgram":     true,
 	"elevenlabs":   true,
 	"zcode":        true,
+	"workbuddy":    true,
+	"codebuddy":    true,
+	"codebuddy-cn": true,
 }
 
 // zcodeKnownModels is the GLM model list the ZCode plan lane serves. It has
@@ -703,6 +707,13 @@ func (h *providersHandler) syncProviderModels(ctx context.Context, slug string) 
 		// the auth headers (x-api-key, or Bearer + oauth beta for an OAuth
 		// token) — the response envelope is the same {"data":[{id}]} shape.
 		return h.app.Services.Upstream.ListModels(ctx, services.V1Join(spec.BaseURL, "models"), slug == "anthropic", oauth, apiKey)
+	case "workbuddy", "codebuddy", "codebuddy-cn":
+		// No /models endpoint: the served catalog lives in the CLI config,
+		// which is authenticated but free to read.
+		if apiKey == "" && !oauth {
+			return nil, apperr.New(apperr.KindUnprocessable, noCredential)
+		}
+		return h.app.Services.Upstream.ListBuddyModels(ctx, h.buddyHost(ctx, slug, spec.BaseURL), apiKey, slug)
 	case "zcode":
 		// The plan lane has no model-list endpoint: the served GLM ids are
 		// fixed, so sync returns the known list (an OAuth account is still
@@ -901,7 +912,7 @@ func validateModelTestMessages(msgs []dtos.ModelTestMessage) error {
 // the catalog and custom-provider handlers; the response carries the
 // assistant reply, latency, and token usage so the playground can render
 // them inline.
-func (h *providersHandler) runModelTest(c fiber.Ctx, baseURL string, anthropic bool, apiKey string, oauth bool, headers map[string]string) error {
+func (h *providersHandler) runModelTest(c fiber.Ctx, baseURL string, anthropic bool, apiKey string, oauth bool, headers map[string]string, forceStream bool) error {
 	var req dtos.ModelTestRequest
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
@@ -914,7 +925,22 @@ func (h *providersHandler) runModelTest(c fiber.Ctx, baseURL string, anthropic b
 	}
 
 	if req.Stream {
+		if forceStream {
+			req.Messages = append([]dtos.ModelTestMessage{{Role: "system", Content: connectors.BuddyNeutralSystem}}, req.Messages...)
+		}
 		return h.streamModelTest(c, req, baseURL, anthropic, apiKey, oauth, headers)
+	}
+
+	if forceStream {
+		// The buddy gateway refuses stream=false and rejects a conversation
+		// that does not open with a system turn, so the test is streamed and
+		// carries the neutral prompt the real client sends.
+		req.Messages = append([]dtos.ModelTestMessage{{Role: "system", Content: connectors.BuddyNeutralSystem}}, req.Messages...)
+		result, err := h.app.Services.Upstream.ChatCompletionStream(c.Context(), baseURL, anthropic, oauth, apiKey, req.Model, req.Messages, headers, func(string) {})
+		if err != nil {
+			return err
+		}
+		return dtos.OK(c, result)
 	}
 
 	result, err := h.app.Services.Upstream.ChatCompletion(c.Context(), baseURL, anthropic, oauth, apiKey, req.Model, req.Messages, headers)
@@ -978,7 +1004,17 @@ func (h *providersHandler) CatalogModelTest(c fiber.Ctx) error {
 	if connectors.IsCline(slug) {
 		headers = connectors.ClineHeaders(apiKey)
 	}
-	return h.runModelTest(c, base, spec.Dialect == "anthropic", apiKey, oauth, headers)
+	if connectors.IsBuddy(slug) {
+		// The model test bypasses the connector, so it must send the same
+		// client fingerprint a routed call would.
+		creds := core.Credentials{AccountID: "model-test", AccessToken: apiKey}
+		if !oauth {
+			creds = core.Credentials{AccountID: "model-test", APIKey: apiKey}
+		}
+		headers = connectors.BuddyHeaders(slug, creds, nil, "")
+		base = buddyChatBase(base)
+	}
+	return h.runModelTest(c, base, spec.Dialect == "anthropic", apiKey, oauth, headers, connectors.IsBuddy(slug))
 }
 
 // CustomModelTest issues one test chat completion for a custom provider model
@@ -1015,7 +1051,15 @@ func (h *providersHandler) CustomModelTest(c fiber.Ctx) error {
 	if connectors.IsCline(provider.Slug) {
 		headers = connectors.ClineHeaders(apiKey)
 	}
-	return h.runModelTest(c, base, anthropic, apiKey, oauth, headers)
+	if connectors.IsBuddy(provider.Slug) {
+		creds := core.Credentials{AccountID: "model-test", AccessToken: apiKey}
+		if !oauth {
+			creds = core.Credentials{AccountID: "model-test", APIKey: apiKey}
+		}
+		headers = connectors.BuddyHeaders(provider.Slug, creds, nil, "")
+		base = buddyChatBase(base)
+	}
+	return h.runModelTest(c, base, anthropic, apiKey, oauth, headers, connectors.IsBuddy(provider.Slug))
 }
 
 // Bounds for a provider's account strategy knobs.
@@ -1074,4 +1118,24 @@ func (h *providersHandler) RoutingUpdate(c fiber.Ctx) error {
 	}
 	auditRecord(c, actorFrom(c), "provider.routing_update", slug, routing)
 	return dtos.OK(c, routing)
+}
+
+// buddyHost resolves the realm host for a buddy call: the account's base_url
+// override when it names one, otherwise the catalog base. ListBuddyModels roots
+// the config endpoint at the host itself.
+func (h *providersHandler) buddyHost(ctx context.Context, slug, fallback string) string {
+	if u := h.usableBaseURL(ctx, slug); u != "" {
+		return u
+	}
+	return fallback
+}
+
+// buddyChatBase puts the /v2 gateway prefix on a base that is only the host,
+// so the model test posts to the same URL a routed call does.
+func buddyChatBase(base string) string {
+	base = strings.TrimRight(base, "/")
+	if strings.HasSuffix(base, "/v2") {
+		return base
+	}
+	return base + "/v2"
 }

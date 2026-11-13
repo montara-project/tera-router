@@ -76,6 +76,16 @@ export type ZcodePlanQuotaRow = {
   meter?: unknown
 }
 
+/** One credit package of a WorkBuddy/CodeBuddy account: a subscription cycle
+ * (`recurring`) or a one-off grant, with the credits spent against it. */
+export type BuddyCreditPackage = {
+  name: string
+  used: number
+  size: number
+  reset_at?: string
+  recurring: boolean
+}
+
 /** Matches GET /v1/accounts/:id/quota. */
 export type AccountQuota = {
   account_id: string
@@ -88,6 +98,8 @@ export type AccountQuota = {
   errors?: string[]
   /** Cline / Cline PAYG: the credit balance of the account behind the key. */
   credits?: ClineCredits
+  /** WorkBuddy / CodeBuddy: the credit packages the billing meter reports. */
+  packages?: BuddyCreditPackage[]
   fetched_at?: string
 }
 

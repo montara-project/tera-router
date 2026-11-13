@@ -11,6 +11,9 @@ export const OAUTH_FLOW_FOR: Record<string, string> = {
   openai: 'codex',
   anthropic: 'anthropic',
   zcode: 'zcode',
+  workbuddy: 'workbuddy',
+  codebuddy: 'codebuddy',
+  'codebuddy-cn': 'codebuddy-cn',
 }
 
 /** Catalog tiles that connect ONLY through the official-website sign-in
@@ -41,6 +44,10 @@ export const API_KEY_PROVIDERS: Record<string, { name: string }> = {
   together: { name: 'Together AI' },
   fireworks: { name: 'Fireworks AI' },
   nebius: { name: 'Nebius Token Factory' },
+  // The buddy family takes a plugin API key as well as its sign-in.
+  workbuddy: { name: 'WorkBuddy' },
+  codebuddy: { name: 'CodeBuddy' },
+  'codebuddy-cn': { name: 'CodeBuddy CN' },
 }
 
 /** Web search and voice providers: Connect opens the key form, but they have

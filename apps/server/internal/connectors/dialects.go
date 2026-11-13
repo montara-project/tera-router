@@ -10,6 +10,16 @@ import (
 // when set, otherwise the connector's default from the catalog.
 func (c *connector) endpoint(creds core.Credentials) string {
 	base := baseURL(c.defaultBase, creds)
+	if IsBuddy(c.id) {
+		// The buddy realms root both the gateway and the billing meter at
+		// /v2. The catalog base already carries it; an account-level override
+		// may be the bare host.
+		base = strings.TrimRight(base, "/")
+		if !strings.HasSuffix(base, "/v2") {
+			base += "/v2"
+		}
+		return base + "/chat/completions"
+	}
 	switch c.dialect {
 	case core.DialectAnthropic:
 		return joinURL(base, "messages")
@@ -35,6 +45,15 @@ func (c *connector) headers(req *core.ChatRequest, creds core.Credentials) map[s
 		// header set on top of the Bearer token, and ignores x-api-key
 		// entirely — its own headers, not the generic anthropic ones.
 		return mergeHeaders(ZCodeHeaders(creds.Token(), creds, req), creds.Headers)
+	}
+	if IsBuddy(c.id) {
+		// The buddy family fingerprints the client: its own identity headers,
+		// never the generic OpenAI ones. The model feeds the per-turn seed.
+		model := ""
+		if req != nil {
+			model = req.Model
+		}
+		return mergeHeaders(BuddyHeaders(c.id, creds, req, model), creds.Headers)
 	}
 	switch c.dialect {
 	case core.DialectAnthropic:

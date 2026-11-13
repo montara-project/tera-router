@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"tera-router/server/internal/lib/sealer"
 	"tera-router/server/internal/models"
@@ -204,5 +205,150 @@ func TestAccountMetaValueToleratesObjects(t *testing.T) {
 	}
 	if got := accountMetaValue(raw, "headers"); got != "" {
 		t.Errorf("a non-string value = %q, want empty", got)
+	}
+}
+
+// idrouterPortfolioFixture builds an IDrouter "account-portfolio" file: its
+// secrets are sealed per secret, each with its own salt, exactly as IDrouter
+// writes them.
+func idrouterPortfolioFixture(t *testing.T, provider, passphrase string, accounts []struct {
+	label    string
+	authKind models.AuthKind
+	metadata string
+	secret   string
+	token    string
+	refresh  string
+}) map[string]any {
+	t.Helper()
+	seal := func(plain string) map[string]string {
+		t.Helper()
+		ps, err := sealer.NewPortable(passphrase)
+		if err != nil {
+			t.Fatalf("portable: %v", err)
+		}
+		ct, err := ps.Seal(plain)
+		if err != nil {
+			t.Fatalf("seal: %v", err)
+		}
+		return map[string]string{"salt": ps.Salt(), "ciphertext": ct}
+	}
+	out := make([]map[string]any, 0, len(accounts))
+	for _, a := range accounts {
+		secret := map[string]any{}
+		if a.secret != "" {
+			secret["secret"] = seal(a.secret)
+		}
+		if a.token != "" {
+			secret["token"] = seal(a.token)
+		}
+		if a.refresh != "" {
+			secret["refresh"] = seal(a.refresh)
+		}
+		if a.metadata == "" {
+			a.metadata = "{}"
+		}
+		out = append(out, map[string]any{
+			"provider":        provider,
+			"label":           a.label,
+			"auth_kind":       string(a.authKind),
+			"priority":        100,
+			"disabled":        false,
+			"metadata":        a.metadata,
+			"portable_secret": secret,
+		})
+	}
+	return map[string]any{
+		"version":     1,
+		"kind":        "account-portfolio",
+		"provider":    provider,
+		"portable":    true,
+		"exported_at": "2026-11-13T00:00:00Z",
+		"accounts":    out,
+	}
+}
+
+// TestAccountImportFromIDrouterFile pins the direct import of an IDrouter
+// per-provider export: no conversion tool, a wrong passphrase is refused as a
+// wrong passphrase, and a second import of the same file adds nothing.
+func TestAccountImportFromIDrouterFile(t *testing.T) {
+	ctx := context.Background()
+	type idrouterFixtureAccount = struct {
+		label    string
+		authKind models.AuthKind
+		metadata string
+		secret   string
+		token    string
+		refresh  string
+	}
+	const apiKey, token, refresh = "sk-cline-key-0123456789", "cline-access-jwt", "cline-refresh-token"
+	file := idrouterPortfolioFixture(t, "cline", "pass phrase", []idrouterFixtureAccount{
+		{label: "key", authKind: models.AuthAPIKey, metadata: `{"base_url":"https://api.cline.bot/api/v1"}`, secret: apiKey},
+		{label: "me@example.com", authKind: models.AuthOAuth, metadata: `{"email":"me@example.com"}`, token: token, refresh: refresh},
+	})
+	// IDrouter writes token_expires_at as RFC3339 text, not a JSON timestamp.
+	file["accounts"].([]map[string]any)[1]["token_expires_at"] = "2026-12-01T00:00:00Z"
+
+	dst := newBackupHarness(t, "idrouter-destination").withAccountPortfolio()
+	importFile := func(passphrase string) (int, int, []byte) {
+		t.Helper()
+		status, raw := dst.postJSON(t, "/providers/cline/accounts/import", map[string]any{"passphrase": passphrase, "backup": file})
+		var res struct {
+			Data struct {
+				Imported int                  `json:"imported"`
+				Skipped  []accountsImportSkip `json:"skipped"`
+			} `json:"data"`
+		}
+		_ = json.Unmarshal(raw, &res)
+		return status, res.Data.Imported, raw
+	}
+
+	status, imported, raw := importFile("not the passphrase")
+	if status != http.StatusBadRequest {
+		t.Fatalf("wrong passphrase = %d (%s), want 400", status, raw)
+	}
+	if imported != 0 {
+		t.Fatalf("wrong passphrase imported %d accounts, want none", imported)
+	}
+
+	status, imported, raw = importFile("pass phrase")
+	if status != http.StatusOK || imported != 2 {
+		t.Fatalf("import = %d, %d imported (%s), want 200/2", status, imported, raw)
+	}
+	status, imported, raw = importFile("pass phrase")
+	if status != http.StatusOK || imported != 0 {
+		t.Fatalf("second import = %d, %d imported (%s), want 200/0", status, imported, raw)
+	}
+
+	accounts, err := dst.app.Repos.Accounts.ListByProvider(ctx, "cline")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(accounts) != 2 {
+		t.Fatalf("stored %d accounts, want 2", len(accounts))
+	}
+	open := func(s sealer.Sealed, purpose string) string {
+		t.Helper()
+		plain, err := dst.app.Secrets.OpenString(s, purpose)
+		if err != nil {
+			t.Fatalf("open %s: %v", purpose, err)
+		}
+		return plain
+	}
+	for _, a := range accounts {
+		switch a.Label {
+		case "key":
+			if open(a.Secret, sealer.PurposeAccountSecret) != apiKey || a.AuthKind != models.AuthAPIKey {
+				t.Errorf("api key account did not survive the conversion")
+			}
+		case "me@example.com":
+			if open(a.Token, sealer.PurposeAccountToken) != token || open(a.Refresh, sealer.PurposeAccountRefresh) != refresh {
+				t.Errorf("oauth tokens did not survive the conversion")
+			}
+			if a.TokenExpiresAt == nil || !a.TokenExpiresAt.Equal(time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC)) {
+				t.Errorf("token_expires_at = %v, want 2026-12-01T00:00:00Z", a.TokenExpiresAt)
+			}
+		default:
+			t.Errorf("unexpected account %q", a.Label)
+		}
 	}
 }

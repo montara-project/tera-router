@@ -68,6 +68,9 @@ function AccountStatusPill({ account }: { account: Models.Account }) {
 
 /** The `format` field of a per-provider accounts export file. */
 const ACCOUNTS_BACKUP_FORMAT = 'tera-router.accounts'
+/** IDrouter's per-provider export: same envelope role, different discriminator.
+ * The server converts it on import, so the dashboard only has to recognise it. */
+const IDROUTER_BACKUP_KIND = 'account-portfolio'
 
 /**
  * The provider's credential list: pagination, per-account connection tests,
@@ -154,7 +157,8 @@ export default function AccountsPanel({
     if (!file) return
     try {
       const backup = await readJsonObject(file)
-      if (backup.format !== ACCOUNTS_BACKUP_FORMAT) {
+      const isTeraRouter = backup.format === ACCOUNTS_BACKUP_FORMAT
+      if (!isTeraRouter && backup.kind !== IDROUTER_BACKUP_KIND) {
         toast.error('Not an accounts export', {
           description: `${file.name} was not exported from a provider's accounts.`,
         })

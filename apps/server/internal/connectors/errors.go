@@ -94,6 +94,9 @@ func isTimeout(err error) bool {
 // specific kind (context-too-large, model-not-found, quota, ...).
 func (c call) status(resp *http.Response, body []byte) *core.ProviderError {
 	kind := classifyStatus(resp.StatusCode, body)
+	if IsBuddy(c.provider) {
+		kind = buddyKindOverride(kind, body)
+	}
 
 	pe := &core.ProviderError{
 		Kind:       kind,
@@ -496,4 +499,58 @@ func truncateMessage(s string) string {
 		return s[:errorMessageLimit] + "..."
 	}
 	return s
+}
+
+// isBuddyChannelRefusal reports whether a 400 body is the buddy gateway's
+// channel verification block (code 11128, "Illegal API invocation from an
+// unapproved channel"). The refusal is about the request shape rather than the
+// credential, and the same account can be accepted later, so it is treated as
+// a transient upstream fault. The numeric code alone is not enough: 11128 also
+// covers the system-prompt identity gate and a media path, so a
+// channel-verification phrase must accompany it.
+func isBuddyChannelRefusal(body []byte) bool {
+	if len(body) == 0 {
+		return false
+	}
+	// Collapse spaces so `"code": 11128` still matches.
+	compact := strings.ReplaceAll(strings.ToLower(string(body)), " ", "")
+	if !strings.Contains(compact, `"code":11128`) {
+		return false
+	}
+	for _, needle := range []string{"requestillegal", "unapprovedchannel", "failedchannelverification", "channelverification"} {
+		if strings.Contains(compact, needle) {
+			return true
+		}
+	}
+	return false
+}
+
+// isBuddyAccountRestriction reports whether a 403 body is the buddy gateway's
+// account-level restriction (code 11140, "account has been restricted due to
+// unusual activity"). It is a server-side decision about the account, not a
+// stale token, so it must not be classified as ErrAuth.
+func isBuddyAccountRestriction(body []byte) bool {
+	if len(body) == 0 {
+		return false
+	}
+	compact := strings.ReplaceAll(strings.ToLower(string(body)), " ", "")
+	return strings.Contains(compact, `"code":11140`) && strings.Contains(compact, "restricted")
+}
+
+// buddyKindOverride reclassifies the two refusal codes of Tencent's buddy
+// gateway. Neither is a credential or request error, so neither may hard-down
+// the account the way ErrAuth and ErrBadRequest do:
+//
+//   - 11128 "Illegal API invocation from an unapproved channel" refuses the
+//     request shape; the same account can be accepted minutes later.
+//   - 11140 "restricted due to unusual activity" is a server-side decision
+//     about the account; a refresh and re-probe only add traffic to it.
+//
+// Both become ErrUpstream, so the dispatcher retries or falls back to another
+// account instead.
+func buddyKindOverride(kind core.ErrorKind, body []byte) core.ErrorKind {
+	if isBuddyChannelRefusal(body) || isBuddyAccountRestriction(body) {
+		return core.ErrUpstream
+	}
+	return kind
 }

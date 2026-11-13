@@ -7,6 +7,7 @@ import { useState } from 'react'
 import type { Models } from '@/lib/api/models'
 import type {
   AccountQuota,
+  BuddyCreditPackage,
   ClineCredits,
   QuotaWindow,
   ZcodePlanQuotaRow,
@@ -76,9 +77,17 @@ function isCline(account: Models.Account) {
   return account.provider === 'cline' || account.provider === 'clinepayg'
 }
 
+/** Tencent's buddy family: one billing meter, three realms. */
+const BUDDY_PROVIDERS: Record<string, true> = {
+  workbuddy: true,
+  codebuddy: true,
+  'codebuddy-cn': true,
+}
+
 function limitsLabel(account: Models.Account) {
   if (account.provider === 'zcode') return 'ZCode Plan grants'
   if (isCline(account)) return 'Cline credit balance'
+  if (BUDDY_PROVIDERS[account.provider]) return 'Credit packages'
   return 'Subscription limits'
 }
 
@@ -298,6 +307,21 @@ function QuotaMeters({ account, dense = false }: { account: Models.Account; dens
     return <ClineCredit credits={quota.credits} dense={dense} />
   }
 
+  if (quota?.packages?.length) {
+    return (
+      <div className={dense ? 'space-y-1.5' : 'space-y-4'}>
+        {!dense ? (
+          <p className="text-xs text-muted-foreground">
+            Credits the billing meter reports for this account.
+          </p>
+        ) : null}
+        {quota.packages.map((pkg) => (
+          <BuddyCreditPackageMeter key={pkg.name} pkg={pkg} dense={dense} />
+        ))}
+      </div>
+    )
+  }
+
   if (quota?.windows.length) {
     return (
       <div className={dense ? 'space-y-1.5' : 'space-y-4'}>
@@ -464,6 +488,30 @@ function ZcodeGrantMeter({ row, dense }: { row: ZcodePlanQuotaRow; dense: boolea
       title={model}
       used={percent}
       left={remaining !== null ? `${formatCompact(remaining)} left` : '—'}
+      detail={detail}
+      dense={dense}
+    />
+  )
+}
+
+/** One credit package: a subscription cycle or a one-off grant, with the
+ * credits spent against it and when the cycle rolls over. */
+function BuddyCreditPackageMeter({ pkg, dense }: { pkg: BuddyCreditPackage; dense: boolean }) {
+  const used = pkg.size > 0 ? Math.min(100, Math.max(0, (pkg.used / pkg.size) * 100)) : null
+  const remaining = Math.max(0, pkg.size - pkg.used)
+  const detail = [
+    pkg.recurring ? 'Subscription cycle' : 'One-off grant',
+    `${formatCompact(pkg.used)} / ${formatCompact(pkg.size)} used`,
+    pkg.reset_at ? `resets ${formatDate(pkg.reset_at, 'EEE dd MMM, HH:mm')}` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ')
+
+  return (
+    <Meter
+      title={pkg.name}
+      used={used}
+      left={`${formatCompact(remaining)} left`}
       detail={detail}
       dense={dense}
     />

@@ -51,6 +51,9 @@ type deviceInitResponse struct {
 // authorize URL the dashboard must open for the user. The poll token is
 // generated here and stays server-side; the browser never sees it.
 func (c ProviderConfig) DeviceInit(ctx context.Context) (*DeviceFlow, error) {
+	if c.Buddy != nil {
+		return buddyInit(ctx, *c.Buddy)
+	}
 	raw := make([]byte, 32)
 	if _, err := rand.Read(raw); err != nil {
 		return nil, fmt.Errorf("oauth: generate poll token: %w", err)
@@ -134,6 +137,10 @@ type devicePollResponse struct {
 // handler treats every other status as keep-waiting, so an unexpected body
 // never aborts a healthy sign-in.
 func (c ProviderConfig) DevicePoll(ctx context.Context, flowID, pollToken string) (string, *Tokens, error) {
+	if c.Buddy != nil {
+		// The realm polls on the state it issued; the flow id is that state.
+		return buddyPoll(ctx, *c.Buddy, flowID)
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.DevicePollURL+"/"+flowID, nil)
 	if err != nil {
 		return "", nil, fmt.Errorf("oauth: build device poll: %w", err)

@@ -107,14 +107,19 @@ function CustomProviderDetailRoute() {
     [accountQuery.data, slug]
   )
   // Accounts whose upstream reports an allowance: subscription (OAuth)
-  // accounts with Claude session/weekly windows or ZCode plan grants, and
-  // Cline pay-as-you-go accounts with a credit balance.
+  // accounts with Claude session/weekly windows, ZCode plan grants or the
+  // buddy family's credit packages, and Cline pay-as-you-go accounts with a
+  // credit balance. The buddy meter bills API keys too, so those accounts show
+  // their packages as well.
   const quotaAccounts = useMemo(
     () =>
       accounts.filter(
         (account) =>
           ((account.provider === 'anthropic' || account.provider === 'zcode') &&
             account.auth_kind === 'oauth') ||
+          account.provider === 'workbuddy' ||
+          account.provider === 'codebuddy' ||
+          account.provider === 'codebuddy-cn' ||
           account.provider === 'cline' ||
           account.provider === 'clinepayg'
       ),

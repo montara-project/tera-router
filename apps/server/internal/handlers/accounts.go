@@ -15,6 +15,7 @@ import (
 
 	"tera-router/server/internal/app"
 	"tera-router/server/internal/catalog"
+	"tera-router/server/internal/connectors"
 	"tera-router/server/internal/dtos"
 	"tera-router/server/internal/lib"
 	"tera-router/server/internal/lib/apperr"
@@ -532,6 +533,19 @@ func (h *accountsHandler) probe(ctx context.Context, providerSlug, metadataRaw, 
 		// and the recommended-models endpoint is public, so there is no cheap
 		// authenticated probe.
 		return dtos.TestResult{OK: true, Detail: "provider skips credential validation"}, nil
+	case "workbuddy", "codebuddy", "codebuddy-cn":
+		// No /models endpoint: the CLI config is the authenticated model list,
+		// and reading it costs no credits — unlike a chat probe.
+		if apiKey == "" {
+			return dtos.TestResult{OK: true, Detail: "no credential stored; skipped upstream probe"}, nil
+		}
+		start := time.Now()
+		models, err := h.app.Services.Upstream.ListBuddyModels(ctx, baseURL, apiKey, providerSlug)
+		latency := time.Since(start).Milliseconds()
+		if err != nil {
+			return dtos.TestResult{OK: false, LatencyMS: latency, Detail: err.Error()}, nil
+		}
+		return dtos.TestResult{OK: true, LatencyMS: latency, Detail: fmt.Sprintf("credential accepted · %d models", len(models))}, nil
 	}
 
 	if spec.AuthKind == string(models.AuthNone) {
@@ -560,6 +574,9 @@ func (h *accountsHandler) Quota(c fiber.Ctx) error {
 	}
 	if clineQuotaProvider(account.Provider) {
 		return h.clineQuota(c, account)
+	}
+	if connectors.IsBuddy(account.Provider) {
+		return h.buddyQuota(c, account)
 	}
 	if account.Provider != "anthropic" && account.Provider != "zcode" {
 		return dtos.OK(c, fiber.Map{

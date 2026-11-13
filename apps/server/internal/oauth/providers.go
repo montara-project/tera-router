@@ -64,12 +64,18 @@ type ProviderConfig struct {
 	// format" without it; the echoed state prefers the "#state" fragment of
 	// a pasted code and falls back to the state the flow started with.
 	EchoState bool
+
+	// Buddy marks a provider of Tencent's buddy family (WorkBuddy, CodeBuddy,
+	// CodeBuddy CN): the realm's host and client identity drive its device
+	// sign-in and its header-based token refresh. A config carrying a Buddy
+	// realm is a device-flow provider.
+	Buddy *BuddyRealm
 }
 
 // DeviceFlow reports whether this provider signs in through the device flow
 // (init + authorize_url + poll) instead of the authorization-code redirect.
 func (c ProviderConfig) DeviceFlow() bool {
-	return c.DeviceInitURL != ""
+	return c.DeviceInitURL != "" || c.Buddy != nil
 }
 
 // ResolveRedirectURI returns the redirect URI registered for a flow: the
@@ -137,6 +143,22 @@ var configs = map[string]ProviderConfig{
 		TokenContentType:     "json",
 		TokenBodyProvider:    "zai",
 		TokenResponseWrapped: true,
+	},
+	// The buddy family signs in the same way: the server asks for a state and
+	// a browser URL, the user approves on the realm's own site, and the server
+	// polls the state until the grant lands. Only host and client identity
+	// differ between the three realms, so they share one flow implementation.
+	"workbuddy": {
+		Provider: "workbuddy",
+		Buddy:    &BuddyRealm{Host: "https://www.workbuddy.ai", Domain: "www.workbuddy.ai", Platform: "workbuddy-ai", ClientVersion: workbuddyClientVersion, IDE: "WorkBuddy"},
+	},
+	"codebuddy": {
+		Provider: "codebuddy",
+		Buddy:    &BuddyRealm{Host: "https://www.codebuddy.ai", Domain: "www.codebuddy.ai", Platform: "CLI", ClientVersion: codebuddyClientVersion, IDE: "CLI"},
+	},
+	"codebuddy-cn": {
+		Provider: "codebuddy-cn",
+		Buddy:    &BuddyRealm{Host: "https://copilot.tencent.com", Domain: "copilot.tencent.com", Platform: "CLI", ClientVersion: codebuddyClientVersion, IDE: "CLI"},
 	},
 }
 

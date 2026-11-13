@@ -66,6 +66,15 @@ func All() []dtos.CatalogProvider {
 		// through a device flow (see internal/oauth): like codex, the account
 		// is a subscription session, so it is its own catalog provider.
 		{Slug: "zcode", Name: "ZCode", BaseURL: "https://zcode.z.ai/api/v1/zcode-plan/anthropic", Dialect: dialectAnthropic, Capabilities: llmCaps(), AuthKind: "oauth", AuthModes: []string{"oauth"}, Official: false, Notice: "Uses a ZCode Plan subscription session not licensed for proxy use. Account may be restricted. Use at your own risk."},
+		// Tencent's buddy family: one OpenAI-compatible wire format, one
+		// client-fingerprint scheme, three realms. WorkBuddy is the overseas
+		// desktop product; CodeBuddy and CodeBuddy CN are its CLI twins. All
+		// three are reached through the plugin sign-in or an API key, and all
+		// three reject clients whose client identity does not match the real
+		// app, so they carry the same risk notice as codex and zcode.
+		{Slug: "workbuddy", Name: "WorkBuddy", BaseURL: "https://www.workbuddy.ai/v2", Dialect: dialectOpenAI, Capabilities: llmCaps("image"), AuthKind: "oauth", AuthModes: []string{"oauth", "api_key"}, Official: false, Notice: "Uses a WorkBuddy desktop session not licensed for proxy use. Channel verification may restrict the account. Use at your own risk."},
+		{Slug: "codebuddy", Name: "CodeBuddy", BaseURL: "https://www.codebuddy.ai/v2", Dialect: dialectOpenAI, Capabilities: llmCaps("image"), AuthKind: "oauth", AuthModes: []string{"oauth", "api_key"}, Official: false, Notice: "Uses a CodeBuddy CLI session not licensed for proxy use. Channel verification may restrict the account. Use at your own risk."},
+		{Slug: "codebuddy-cn", Name: "CodeBuddy CN", BaseURL: "https://copilot.tencent.com/v2", Dialect: dialectOpenAI, Capabilities: llmCaps("image"), AuthKind: "oauth", AuthModes: []string{"oauth", "api_key"}, Official: false, Notice: "Uses a CodeBuddy CLI session on Tencent's CN realm, not licensed for proxy use. Channel verification may restrict the account. Use at your own risk."},
 	}
 }
 
@@ -105,6 +114,11 @@ var seedable = map[string]bool{
 	// catalog powers bare-name routing (catalogResult only matches custom
 	// providers) and the provider is addressable by uuid.
 	"zcode": true,
+	// The buddy family: the synced upstream catalog is what bare-name routing
+	// resolves against, so connecting one of them seeds the row too.
+	"workbuddy":   true,
+	"codebuddy":   true,
+	"codebuddy-cn": true,
 }
 
 // Seedable reports whether connecting the catalog provider (creating an
