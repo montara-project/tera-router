@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"io"
 	"math/big"
 	"net/http"
@@ -21,6 +22,7 @@ import (
 	"tera-router/server/internal/database"
 	"tera-router/server/internal/dtos"
 	"tera-router/server/internal/lib"
+	"tera-router/server/internal/lib/apperr"
 	"tera-router/server/internal/lib/password"
 	"tera-router/server/internal/lib/sealer"
 	"tera-router/server/internal/lib/totp"
@@ -457,7 +459,7 @@ func TestOIDCCallbackPendingTOTP(t *testing.T) {
 	idp := newFakeIdP(t, "n1", "admin@tera.local")
 	h.app.Config.OIDC = config.ConfigOIDC{
 		Issuer: idp.srv.URL, ClientID: "id", ClientSecret: "secret",
-		RequireEmailVerified: true, LinkExistingAccounts: true,
+		RequireEmailVerified: true, LinkExistingAccounts: true, AutoProvision: true,
 	}
 	h.oidcStates.put("st", oidcState{nonce: "n1", verifier: oauth2.GenerateVerifier(), uiOrigin: "", flow: "f1"}, oidcStateTTL)
 
@@ -523,7 +525,7 @@ func TestOIDCCallbackProvisionsUser(t *testing.T) {
 	idp.sub = "sub-new"
 	h.app.Config.OIDC = config.ConfigOIDC{
 		Issuer: idp.srv.URL, ClientID: "id", ClientSecret: "secret",
-		RequireEmailVerified: true, LinkExistingAccounts: true,
+		RequireEmailVerified: true, LinkExistingAccounts: true, AutoProvision: true,
 	}
 	h.oidcStates.put("st", oidcState{nonce: "n1", verifier: oauth2.GenerateVerifier(), uiOrigin: "", flow: "f1"}, oidcStateTTL)
 
@@ -634,6 +636,25 @@ func (fx *ssoCallbackFixture) callCallback(t *testing.T, state string) url.Value
 	return loc.Query()
 }
 
+// ticketUserID redeems the callback's one-use ticket and reports which user
+// the stored session belongs to.
+func (fx *ssoCallbackFixture) ticketUserID(t *testing.T, q url.Values) string {
+	t.Helper()
+	ticket := q.Get("sso_ticket")
+	if ticket == "" {
+		t.Fatalf("callback returned no sso_ticket: %v", q)
+	}
+	st, ok := fx.h.oidcTickets.take(ticket)
+	if !ok {
+		t.Fatalf("sso_ticket missing from the ticket store")
+	}
+	uid, _ := st.view["uid"].(string)
+	if uid == "" {
+		t.Fatalf("sso_ticket view has no uid: %v", st.view)
+	}
+	return uid
+}
+
 // TestOIDCCallbackLinksExistingAccount pins OIDC_LINK_EXISTING_ACCOUNTS: an
 // IdP-verified email matching a pre-existing account binds the subject to it
 // (audit-logged), and later sign-ins match by sub even when the email moved.
@@ -646,21 +667,22 @@ func TestOIDCCallbackLinksExistingAccount(t *testing.T) {
 	idp.sub = "admin-sub"
 	fx.h.app.Config.OIDC = config.ConfigOIDC{
 		Issuer: idp.srv.URL, ClientID: "id", ClientSecret: "secret",
-		RequireEmailVerified: true, LinkExistingAccounts: true,
+		RequireEmailVerified: true, LinkExistingAccounts: true, AutoProvision: true,
 	}
 
-	if q := fx.callCallback(t, "st"); q.Get("sso_ticket") == "" {
-		t.Fatalf("callback = %v, want sso_ticket", q)
-	}
+	q := fx.callCallback(t, "st")
 	admin, err := fx.h.app.Repos.Users.GetByEmail(t.Context(), "admin@tera.local")
 	if err != nil || admin.OIDCSub != "admin-sub" || admin.OIDCIss != idp.srv.URL {
 		t.Fatalf("linked admin: iss=%q sub=%q err=%v", admin.OIDCIss, admin.OIDCSub, err)
 	}
+	if got := fx.ticketUserID(t, q); got != admin.ID {
+		t.Fatalf("linked ticket uid = %q, want admin %q", got, admin.ID)
+	}
 
 	// The email may later change at the provider; the subject still resolves.
 	idp.email = "renamed@tera.local"
-	if q := fx.callCallback(t, "st2"); q.Get("sso_ticket") == "" {
-		t.Fatalf("second callback = %v, want sso_ticket via sub match", q)
+	if got := fx.ticketUserID(t, fx.callCallback(t, "st2")); got != admin.ID {
+		t.Fatalf("sub-match ticket uid = %q, want admin %q", got, admin.ID)
 	}
 }
 
@@ -675,7 +697,7 @@ func TestOIDCCallbackLinkDisabled(t *testing.T) {
 	idp.sub = "admin-sub"
 	fx.h.app.Config.OIDC = config.ConfigOIDC{
 		Issuer: idp.srv.URL, ClientID: "id", ClientSecret: "secret",
-		RequireEmailVerified: true, LinkExistingAccounts: false,
+		RequireEmailVerified: true, LinkExistingAccounts: false, AutoProvision: true,
 	}
 
 	if q := fx.callCallback(t, "st"); q.Get("sso_error") != "not_linked" {
@@ -683,8 +705,92 @@ func TestOIDCCallbackLinkDisabled(t *testing.T) {
 	}
 	// A brand-new email still provisions — linking governs existing rows only.
 	idp.email, idp.sub = "new@example.com", "sub-new"
+	q := fx.callCallback(t, "st2")
+	newUser, err := fx.h.app.Repos.Users.GetByEmail(t.Context(), "new@example.com")
+	if err != nil {
+		t.Fatalf("provisioned user: %v", err)
+	}
+	if got := fx.ticketUserID(t, q); got != newUser.ID {
+		t.Fatalf("provisioned ticket uid = %q, want new user %q", got, newUser.ID)
+	}
+}
+
+// TestOIDCAutoProvisionDisabled pins the off side of OIDC_AUTO_PROVISION: an
+// unknown verified email is turned away instead of minting an account, while
+// linked pairs and email-matched accounts still sign in — those are the
+// LinkExistingAccounts switch's territory, not provisioning's.
+func TestOIDCAutoProvisionDisabled(t *testing.T) {
+	fx := newSSOCallbackFixture(t, config.ConfigOIDC{})
+	t.Setenv("ADMIN_PASSWORD", "test-password")
+	seeders.AdminUserSeeder{DB: fx.h.app.DB}.Seed()
+
+	idp := newFakeIdP(t, "n1", "stranger@example.com")
+	fx.h.app.Config.OIDC = config.ConfigOIDC{
+		Issuer: idp.srv.URL, ClientID: "id", ClientSecret: "secret",
+		RequireEmailVerified: true, LinkExistingAccounts: true, AutoProvision: false,
+	}
+
+	// Unknown email: refused, and no account is created.
+	if q := fx.callCallback(t, "st"); q.Get("sso_error") != "no_account" {
+		t.Fatalf("unknown email callback = %v, want sso_error=no_account", q)
+	}
+	if _, err := fx.h.app.Repos.Users.GetByEmailFold(t.Context(), "stranger@example.com"); !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("provisioning ran anyway: %v", err)
+	}
+
+	// The seeded admin's email matches: linking is a separate switch, so the
+	// sign-in still goes through and binds the pair — and the minted session
+	// belongs to that admin, not to some freshly provisioned row.
+	idp.email, idp.sub = "admin@tera.local", "admin-sub"
+	q := fx.callCallback(t, "st2")
+	admin, err := fx.h.app.Repos.Users.GetByEmail(t.Context(), "admin@tera.local")
+	if err != nil {
+		t.Fatalf("seeded admin: %v", err)
+	}
+	if got := fx.ticketUserID(t, q); got != admin.ID {
+		t.Fatalf("linked-email ticket uid = %q, want admin %q", got, admin.ID)
+	}
+
+	// From then on the pair alone signs in — a new email at the provider
+	// resolves by subject without touching provisioning.
+	idp.email = "renamed@tera.local"
+	if got := fx.ticketUserID(t, fx.callCallback(t, "st3")); got != admin.ID {
+		t.Fatalf("linked pair ticket uid = %q, want admin %q", got, admin.ID)
+	}
+}
+
+// TestOIDCAllowedDomains pins the domain gate: an off-list domain is turned
+// away before provisioning — and even a pair already linked signs out, since
+// removing a domain must revoke accounts that were let in earlier.
+func TestOIDCAllowedDomains(t *testing.T) {
+	fx := newSSOCallbackFixture(t, config.ConfigOIDC{})
+
+	idp := newFakeIdP(t, "n1", "friend@denied.com")
+	fx.h.app.Config.OIDC = config.ConfigOIDC{
+		Issuer: idp.srv.URL, ClientID: "id", ClientSecret: "secret",
+		RequireEmailVerified: true, LinkExistingAccounts: true, AutoProvision: true,
+		AllowedDomains: "allowed.com",
+	}
+
+	// A domain not on the list is refused and creates nothing.
+	if q := fx.callCallback(t, "st"); q.Get("sso_error") != "domain_denied" {
+		t.Fatalf("denied domain callback = %v, want sso_error=domain_denied", q)
+	}
+	if _, err := fx.h.app.Repos.Users.GetByEmailFold(t.Context(), "friend@denied.com"); !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("denied domain was provisioned: %v", err)
+	}
+
+	// An allowed domain signs in normally and provisions.
+	idp.email, idp.sub = "friend@allowed.com", "sub-friend"
 	if q := fx.callCallback(t, "st2"); q.Get("sso_ticket") == "" {
-		t.Fatalf("new email callback = %v, want sso_ticket", q)
+		t.Fatalf("allowed domain callback = %v, want sso_ticket", q)
+	}
+
+	// The gate still applies after linking: the pair's new email falls off
+	// the list and the sign-in is refused.
+	idp.email = "friend@denied.com"
+	if q := fx.callCallback(t, "st3"); q.Get("sso_error") != "domain_denied" {
+		t.Fatalf("linked pair on denied domain = %v, want sso_error=domain_denied", q)
 	}
 }
 
@@ -696,7 +802,7 @@ func TestOIDCCallbackEmailVerifiedFlag(t *testing.T) {
 	idp.emailVerified = false
 	fx.h.app.Config.OIDC = config.ConfigOIDC{
 		Issuer: idp.srv.URL, ClientID: "id", ClientSecret: "secret",
-		RequireEmailVerified: true, LinkExistingAccounts: true,
+		RequireEmailVerified: true, LinkExistingAccounts: true, AutoProvision: true,
 	}
 
 	if q := fx.callCallback(t, "st"); q.Get("sso_error") != "email_unverified" {
@@ -784,7 +890,7 @@ func TestOIDCCallbackEmailCaseFold(t *testing.T) {
 	idp.sub = "case-sub"
 	fx.h.app.Config.OIDC = config.ConfigOIDC{
 		Issuer: idp.srv.URL, ClientID: "id", ClientSecret: "secret",
-		RequireEmailVerified: true, LinkExistingAccounts: true,
+		RequireEmailVerified: true, LinkExistingAccounts: true, AutoProvision: true,
 	}
 
 	if q := fx.callCallback(t, "st"); q.Get("sso_ticket") == "" {
@@ -807,7 +913,7 @@ func TestOIDCCallbackAmbiguousEmailVariants(t *testing.T) {
 	idp := newFakeIdP(t, "n1", "CASE@dup.local")
 	fx.h.app.Config.OIDC = config.ConfigOIDC{
 		Issuer: idp.srv.URL, ClientID: "id", ClientSecret: "secret",
-		RequireEmailVerified: true, LinkExistingAccounts: true,
+		RequireEmailVerified: true, LinkExistingAccounts: true, AutoProvision: true,
 	}
 
 	if q := fx.callCallback(t, "st"); q.Get("sso_error") != "internal" {
@@ -826,7 +932,7 @@ func TestOIDCCallbackIssuerMismatch(t *testing.T) {
 	idp.sub = "shared-sub"
 	fx.h.app.Config.OIDC = config.ConfigOIDC{
 		Issuer: idp.srv.URL, ClientID: "id", ClientSecret: "secret",
-		RequireEmailVerified: true, LinkExistingAccounts: true,
+		RequireEmailVerified: true, LinkExistingAccounts: true, AutoProvision: true,
 	}
 
 	if q := fx.callCallback(t, "st"); q.Get("sso_error") != "not_linked" {
@@ -851,7 +957,7 @@ func TestOIDCCallbackLegacyIssuerLink(t *testing.T) {
 	idp.sub = "idp-user"
 	fx.h.app.Config.OIDC = config.ConfigOIDC{
 		Issuer: idp.srv.URL, ClientID: "id", ClientSecret: "secret",
-		RequireEmailVerified: true, LinkExistingAccounts: false,
+		RequireEmailVerified: true, LinkExistingAccounts: false, AutoProvision: true,
 	}
 
 	if q := fx.callCallback(t, "st"); q.Get("sso_ticket") == "" {
@@ -909,7 +1015,7 @@ func TestProvisionOIDCUserRace(t *testing.T) {
 	fx := newSSOCallbackFixture(t, config.ConfigOIDC{})
 	fx.h.app.Config.OIDC = config.ConfigOIDC{
 		Issuer: "https://idp", ClientID: "id", ClientSecret: "secret",
-		RequireEmailVerified: true, LinkExistingAccounts: true,
+		RequireEmailVerified: true, LinkExistingAccounts: true, AutoProvision: true,
 	}
 	fx.f.Post("/prov", func(c fiber.Ctx) error {
 		u, err := fx.h.provisionOIDCUser(c, "race@example.com", "Racer", "iss-a", "sub-b")
@@ -979,7 +1085,7 @@ func TestProvisionOIDCUserCaseVariants(t *testing.T) {
 	fx := newSSOCallbackFixture(t, config.ConfigOIDC{})
 	fx.h.app.Config.OIDC = config.ConfigOIDC{
 		Issuer: "https://idp", ClientID: "id", ClientSecret: "secret",
-		RequireEmailVerified: true, LinkExistingAccounts: true,
+		RequireEmailVerified: true, LinkExistingAccounts: true, AutoProvision: true,
 	}
 	var email, sub string
 	fx.f.Post("/prov", func(c fiber.Ctx) error {
@@ -1056,7 +1162,7 @@ func TestOIDCCallbackBlockedAccountNoLink(t *testing.T) {
 	idp.sub = "blocked-sub"
 	fx.h.app.Config.OIDC = config.ConfigOIDC{
 		Issuer: idp.srv.URL, ClientID: "id", ClientSecret: "secret",
-		RequireEmailVerified: true, LinkExistingAccounts: true,
+		RequireEmailVerified: true, LinkExistingAccounts: true, AutoProvision: true,
 	}
 
 	if q := fx.callCallback(t, "st"); q.Get("sso_error") != "no_account" {
@@ -1236,7 +1342,7 @@ func TestOIDCReauthFlow(t *testing.T) {
 		App: config.ConfigApp{Secret: "test-secret"},
 		OIDC: config.ConfigOIDC{
 			Issuer: idp.srv.URL, ClientID: "id", ClientSecret: "secret",
-			RequireEmailVerified: true, LinkExistingAccounts: true,
+			RequireEmailVerified: true, LinkExistingAccounts: true, AutoProvision: true,
 		},
 	}
 	secrets, err := sealer.FromSecret(cfg.App.Secret)

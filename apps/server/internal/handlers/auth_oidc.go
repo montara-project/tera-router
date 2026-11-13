@@ -211,8 +211,7 @@ type ssoPending struct {
 // oidcEnabled reports whether dashboard SSO is configured: all three OIDC
 // settings must be set.
 func (h *authHandler) oidcEnabled() bool {
-	cfg := h.app.Config.OIDC
-	return cfg.Issuer != "" && cfg.ClientID != "" && cfg.ClientSecret != ""
+	return h.app.Config.OIDC.Enabled()
 }
 
 // oidcProvider returns the discovered provider, built once on first use —
@@ -437,6 +436,12 @@ func (h *authHandler) OIDCCallback(c fiber.Ctx) error {
 		// an address they do not own.
 		return fail("email_unverified", claims.Email)
 	}
+	if !h.app.Config.OIDC.EmailDomainAllowed(claims.Email) {
+		// The domain gate applies to every SSO sign-in, linked pairs
+		// included — a removed domain cuts off accounts that were already
+		// provisioned.
+		return fail("domain_denied", claims.Email)
+	}
 
 	// The linked issuer-subject pair identifies the account first: it
 	// survives email changes at the provider, where an email match would
@@ -469,9 +474,14 @@ func (h *authHandler) OIDCCallback(c fiber.Ctx) error {
 			}
 			auditRecord(c, user.ID, "user.oidc_link", user.ID, nil)
 		case errors.Is(err, apperr.ErrNotFound):
-			// SSO provisions on first use: an email the provider vouches for
-			// mints a dashboard account with the least-privileged "user" role.
-			user, err = h.provisionOIDCUser(c, claims.Email, claims.Name, idToken.Issuer, claims.Sub)
+			// SSO provisions on first use when the operator allows it: an
+			// email the provider vouches for mints a dashboard account with
+			// the least-privileged "user" role. With provisioning off, err
+			// keeps ErrNotFound and the sign-in is refused as no_account
+			// below — someone has to create the account first.
+			if h.app.Config.OIDC.AutoProvision {
+				user, err = h.provisionOIDCUser(c, claims.Email, claims.Name, idToken.Issuer, claims.Sub)
+			}
 		}
 	}
 	if errors.Is(err, apperr.ErrNotFound) {
