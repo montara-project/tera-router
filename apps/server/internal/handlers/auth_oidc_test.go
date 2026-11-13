@@ -636,6 +636,25 @@ func (fx *ssoCallbackFixture) callCallback(t *testing.T, state string) url.Value
 	return loc.Query()
 }
 
+// ticketUserID redeems the callback's one-use ticket and reports which user
+// the stored session belongs to.
+func (fx *ssoCallbackFixture) ticketUserID(t *testing.T, q url.Values) string {
+	t.Helper()
+	ticket := q.Get("sso_ticket")
+	if ticket == "" {
+		t.Fatalf("callback returned no sso_ticket: %v", q)
+	}
+	st, ok := fx.h.oidcTickets.take(ticket)
+	if !ok {
+		t.Fatalf("sso_ticket missing from the ticket store")
+	}
+	uid, _ := st.view["uid"].(string)
+	if uid == "" {
+		t.Fatalf("sso_ticket view has no uid: %v", st.view)
+	}
+	return uid
+}
+
 // TestOIDCCallbackLinksExistingAccount pins OIDC_LINK_EXISTING_ACCOUNTS: an
 // IdP-verified email matching a pre-existing account binds the subject to it
 // (audit-logged), and later sign-ins match by sub even when the email moved.
@@ -651,18 +670,19 @@ func TestOIDCCallbackLinksExistingAccount(t *testing.T) {
 		RequireEmailVerified: true, LinkExistingAccounts: true, AutoProvision: true,
 	}
 
-	if q := fx.callCallback(t, "st"); q.Get("sso_ticket") == "" {
-		t.Fatalf("callback = %v, want sso_ticket", q)
-	}
+	q := fx.callCallback(t, "st")
 	admin, err := fx.h.app.Repos.Users.GetByEmail(t.Context(), "admin@tera.local")
 	if err != nil || admin.OIDCSub != "admin-sub" || admin.OIDCIss != idp.srv.URL {
 		t.Fatalf("linked admin: iss=%q sub=%q err=%v", admin.OIDCIss, admin.OIDCSub, err)
 	}
+	if got := fx.ticketUserID(t, q); got != admin.ID {
+		t.Fatalf("linked ticket uid = %q, want admin %q", got, admin.ID)
+	}
 
 	// The email may later change at the provider; the subject still resolves.
 	idp.email = "renamed@tera.local"
-	if q := fx.callCallback(t, "st2"); q.Get("sso_ticket") == "" {
-		t.Fatalf("second callback = %v, want sso_ticket via sub match", q)
+	if got := fx.ticketUserID(t, fx.callCallback(t, "st2")); got != admin.ID {
+		t.Fatalf("sub-match ticket uid = %q, want admin %q", got, admin.ID)
 	}
 }
 
@@ -685,8 +705,13 @@ func TestOIDCCallbackLinkDisabled(t *testing.T) {
 	}
 	// A brand-new email still provisions — linking governs existing rows only.
 	idp.email, idp.sub = "new@example.com", "sub-new"
-	if q := fx.callCallback(t, "st2"); q.Get("sso_ticket") == "" {
-		t.Fatalf("new email callback = %v, want sso_ticket", q)
+	q := fx.callCallback(t, "st2")
+	newUser, err := fx.h.app.Repos.Users.GetByEmail(t.Context(), "new@example.com")
+	if err != nil {
+		t.Fatalf("provisioned user: %v", err)
+	}
+	if got := fx.ticketUserID(t, q); got != newUser.ID {
+		t.Fatalf("provisioned ticket uid = %q, want new user %q", got, newUser.ID)
 	}
 }
 
@@ -714,17 +739,23 @@ func TestOIDCAutoProvisionDisabled(t *testing.T) {
 	}
 
 	// The seeded admin's email matches: linking is a separate switch, so the
-	// sign-in still goes through and binds the pair.
+	// sign-in still goes through and binds the pair — and the minted session
+	// belongs to that admin, not to some freshly provisioned row.
 	idp.email, idp.sub = "admin@tera.local", "admin-sub"
-	if q := fx.callCallback(t, "st2"); q.Get("sso_ticket") == "" {
-		t.Fatalf("linked-email callback = %v, want sso_ticket", q)
+	q := fx.callCallback(t, "st2")
+	admin, err := fx.h.app.Repos.Users.GetByEmail(t.Context(), "admin@tera.local")
+	if err != nil {
+		t.Fatalf("seeded admin: %v", err)
+	}
+	if got := fx.ticketUserID(t, q); got != admin.ID {
+		t.Fatalf("linked-email ticket uid = %q, want admin %q", got, admin.ID)
 	}
 
 	// From then on the pair alone signs in — a new email at the provider
 	// resolves by subject without touching provisioning.
 	idp.email = "renamed@tera.local"
-	if q := fx.callCallback(t, "st3"); q.Get("sso_ticket") == "" {
-		t.Fatalf("linked pair callback = %v, want sso_ticket", q)
+	if got := fx.ticketUserID(t, fx.callCallback(t, "st3")); got != admin.ID {
+		t.Fatalf("linked pair ticket uid = %q, want admin %q", got, admin.ID)
 	}
 }
 
