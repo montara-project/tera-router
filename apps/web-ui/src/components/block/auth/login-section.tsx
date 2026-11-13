@@ -71,6 +71,8 @@ const SSO_ERRORS: Record<string, string> = {
   no_email: 'The identity provider did not share an email address.',
   email_unverified:
     'The identity provider has not verified this email. Verify it there first, then try again.',
+  domain_denied:
+    'Your email domain is not allowed to sign in to this dashboard. Ask an administrator for help.',
   no_account:
     'No dashboard account exists for this identity. Ask an administrator to create one first.',
   not_linked:

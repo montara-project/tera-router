@@ -211,8 +211,7 @@ type ssoPending struct {
 // oidcEnabled reports whether dashboard SSO is configured: all three OIDC
 // settings must be set.
 func (h *authHandler) oidcEnabled() bool {
-	cfg := h.app.Config.OIDC
-	return cfg.Issuer != "" && cfg.ClientID != "" && cfg.ClientSecret != ""
+	return h.app.Config.OIDC.Enabled()
 }
 
 // oidcProvider returns the discovered provider, built once on first use —
@@ -436,6 +435,12 @@ func (h *authHandler) OIDCCallback(c fiber.Ctx) error {
 		// account — otherwise anyone controlling an IdP account could claim
 		// an address they do not own.
 		return fail("email_unverified", claims.Email)
+	}
+	if !h.app.Config.OIDC.EmailDomainAllowed(claims.Email) {
+		// The domain gate applies to every SSO sign-in, linked pairs
+		// included — a removed domain cuts off accounts that were already
+		// provisioned.
+		return fail("domain_denied", claims.Email)
 	}
 
 	// The linked issuer-subject pair identifies the account first: it

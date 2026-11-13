@@ -120,6 +120,7 @@ func parseFlag(cfg *config.Config) {
 	flag.BoolVar(&cfg.OIDC.DisablePasswordLogin, "oidc-disable-password-login", envBool("OIDC_DISABLE_PASSWORD_LOGIN", "oidc-disable-password-login", false), "Refuse password sign-in while OIDC SSO is enabled")
 	flag.BoolVar(&cfg.OIDC.LinkExistingAccounts, "oidc-link-existing-accounts", envBool("OIDC_LINK_EXISTING_ACCOUNTS", "oidc-link-existing-accounts", true), "Let an OIDC sign-in link itself to an existing account with the same email")
 	flag.BoolVar(&cfg.OIDC.AutoProvision, "oidc-auto-provision", envBool("OIDC_AUTO_PROVISION", "oidc-auto-provision", true), "Create a \"user\" account for an OIDC sign-in whose email matches none")
+	flag.StringVar(&cfg.OIDC.AllowedDomains, "oidc-allowed-domains", envString("OIDC_ALLOWED_DOMAINS", ""), "Comma-separated email domains allowed to sign in via OIDC; empty allows all")
 
 	flag.Parse()
 

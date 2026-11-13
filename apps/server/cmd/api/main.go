@@ -6,6 +6,7 @@ import (
 	"log"
 	"log/slog"
 	"os"
+	"strings"
 	"time"
 
 	"tera-router/server/internal/app"
@@ -38,6 +39,20 @@ func main() {
 	// Packages that log through the slog default logger (repositories emit
 	// their debug queries that way) must see the same level and format.
 	slog.SetDefault(logger)
+
+	if cfg.OIDC.Enabled() {
+		name := cfg.OIDC.ProviderName
+		if name == "" {
+			name = "SSO"
+		}
+		logger.Info(fmt.Sprintf("OpenID Connect SSO enabled (%s)", name))
+		if cfg.OIDC.AutoProvision && strings.TrimSpace(cfg.OIDC.AllowedDomains) == "" {
+			logger.Warn(fmt.Sprintf(
+				"OIDC_AUTO_PROVISION is on with no OIDC_ALLOWED_DOMAINS: anyone with an account at %s can sign in",
+				cfg.OIDC.Issuer,
+			))
+		}
+	}
 
 	app := assemble(cfg, logger)
 

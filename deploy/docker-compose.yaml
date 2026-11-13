@@ -42,6 +42,8 @@ services:
       # Create "user" accounts for OIDC emails that match none; false means an
       # admin provisions first while linked accounts keep working.
       OIDC_AUTO_PROVISION: ${OIDC_AUTO_PROVISION:-true}
+      # Email domains allowed through SSO; empty allows all.
+      OIDC_ALLOWED_DOMAINS: ${OIDC_ALLOWED_DOMAINS:-}
       # Default Headroom proxy for Settings > Token Saving; a URL saved in the
       # dashboard overrides it. Headroom still has to be switched on there.
       HEADROOM_URL: ${HEADROOM_URL:-http://headroom:8787}

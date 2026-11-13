@@ -728,6 +728,41 @@ func TestOIDCAutoProvisionDisabled(t *testing.T) {
 	}
 }
 
+// TestOIDCAllowedDomains pins the domain gate: an off-list domain is turned
+// away before provisioning — and even a pair already linked signs out, since
+// removing a domain must revoke accounts that were let in earlier.
+func TestOIDCAllowedDomains(t *testing.T) {
+	fx := newSSOCallbackFixture(t, config.ConfigOIDC{})
+
+	idp := newFakeIdP(t, "n1", "friend@denied.com")
+	fx.h.app.Config.OIDC = config.ConfigOIDC{
+		Issuer: idp.srv.URL, ClientID: "id", ClientSecret: "secret",
+		RequireEmailVerified: true, LinkExistingAccounts: true, AutoProvision: true,
+		AllowedDomains: "allowed.com",
+	}
+
+	// A domain not on the list is refused and creates nothing.
+	if q := fx.callCallback(t, "st"); q.Get("sso_error") != "domain_denied" {
+		t.Fatalf("denied domain callback = %v, want sso_error=domain_denied", q)
+	}
+	if _, err := fx.h.app.Repos.Users.GetByEmailFold(t.Context(), "friend@denied.com"); !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("denied domain was provisioned: %v", err)
+	}
+
+	// An allowed domain signs in normally and provisions.
+	idp.email, idp.sub = "friend@allowed.com", "sub-friend"
+	if q := fx.callCallback(t, "st2"); q.Get("sso_ticket") == "" {
+		t.Fatalf("allowed domain callback = %v, want sso_ticket", q)
+	}
+
+	// The gate still applies after linking: the pair's new email falls off
+	// the list and the sign-in is refused.
+	idp.email = "friend@denied.com"
+	if q := fx.callCallback(t, "st3"); q.Get("sso_error") != "domain_denied" {
+		t.Fatalf("linked pair on denied domain = %v, want sso_error=domain_denied", q)
+	}
+}
+
 // TestOIDCCallbackEmailVerifiedFlag gates the email_verified requirement:
 // the flag on refuses unverified emails, off lets them provision.
 func TestOIDCCallbackEmailVerifiedFlag(t *testing.T) {

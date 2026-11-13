@@ -1,6 +1,8 @@
 // Package config holds the runtime configuration assembled from CLI flags.
 package config
 
+import "strings"
+
 // EnvDevelopment is the App.Env value that enables development-only behaviour
 // such as seeding the sample API key on boot.
 const EnvDevelopment = "development"
@@ -71,4 +73,31 @@ type ConfigOIDC struct {
 	// must be created by an admin first; linked and email-matched accounts
 	// are unaffected — those are governed by LinkExistingAccounts.
 	AutoProvision bool
+	// AllowedDomains, comma-separated, limits SSO to emails at the listed
+	// domains — including sign-ins whose pair is already linked. Empty
+	// means every domain the provider vouches for.
+	AllowedDomains string
+}
+
+// Enabled reports whether SSO is configured: all three provider fields set.
+func (c ConfigOIDC) Enabled() bool {
+	return c.Issuer != "" && c.ClientID != "" && c.ClientSecret != ""
+}
+
+// EmailDomainAllowed checks an email against the comma-separated domain
+// allowlist; an empty list allows everything.
+func (c ConfigOIDC) EmailDomainAllowed(email string) bool {
+	if strings.TrimSpace(c.AllowedDomains) == "" {
+		return true
+	}
+	_, domain, ok := strings.Cut(strings.ToLower(strings.TrimSpace(email)), "@")
+	if !ok {
+		return false
+	}
+	for d := range strings.SplitSeq(c.AllowedDomains, ",") {
+		if domain == strings.ToLower(strings.TrimSpace(d)) {
+			return true
+		}
+	}
+	return false
 }
