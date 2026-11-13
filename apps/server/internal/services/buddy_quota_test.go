@@ -10,16 +10,16 @@ import (
 )
 
 // TestParseBuddyQuota pins the credit-package split: a grant whose credits
-// outlive their cycle is a recurring subscription, one that expires with the
-// cycle is a one-off pack, and the precise (fractional) capacity wins over the
-// plain one.
+// stop being spendable when its cycle ends is a subscription, one whose
+// credits outlive the cycle is a one-off grant, and the precise (fractional)
+// capacity wins over the plain one.
 func TestParseBuddyQuota(t *testing.T) {
 	raw := `[
 		{"PackageName":"Pro","CycleStartTime":"2026-11-01 00:00:00","CycleEndTime":"2026-12-01 00:00:00",
 		 "CycleCapacityUsed":"10.5","CycleCapacityUsedPrecise":"10.55","CycleCapacitySize":500,"CycleCapacitySizePrecise":"500.25",
-		 "DeductionEndTime":"2027-01-01 00:00:00"},
+		 "DeductionEndTime":"2026-12-01 00:00:00"},
 		{"PackageName":"Pro","CycleStartTime":"2026-10-01 00:00:00","CycleEndTime":"2026-11-01 00:00:00",
-		 "DeductionEndTime":"2026-11-01 00:00:00"},
+		 "DeductionEndTime":"2027-06-01 00:00:00"},
 		{"PackageName":"Welcome","CapacityUsed":3,"CapacitySize":20,
 		 "CycleEndTime":"2026-11-20 00:00:00","DeductionEndTime":"2026-11-20 00:00:00"}
 	]`
@@ -31,21 +31,22 @@ func TestParseBuddyQuota(t *testing.T) {
 	if len(got) != 3 {
 		t.Fatalf("packages = %d, want 3", len(got))
 	}
-	if !got[0].Recurring || got[0].Name != "Monthly" {
-		t.Errorf("first package = %+v, want the recurring Monthly cycle", got[0])
+	// Recurring cycles come first, soonest expiry first.
+	if !got[0].Recurring || !got[1].Recurring || got[0].Name != "Monthly" || got[1].Name != "Monthly 2" {
+		t.Fatalf("recurring packages = %+v, want the two Monthly cycles", got[:2])
 	}
-	if got[0].ResetAt != "2026-11-30T16:00:00Z" {
-		t.Errorf("reset = %q, want the cycle end read as the vendor's own zone", got[0].ResetAt)
+	// The larger capacity belongs to the December cycle.
+	december := got[1]
+	if december.Used != 10.55 || december.Size != 500.25 {
+		t.Errorf("precise capacity = %v/%v, want 10.55/500.25", december.Used, december.Size)
 	}
-	if got[0].Used != 10.55 || got[0].Size != 500.25 {
-		t.Errorf("precise capacity = %v/%v, want 10.55/500.25", got[0].Used, got[0].Size)
+	if december.ResetAt != "2026-11-30T16:00:00Z" {
+		t.Errorf("reset = %q, want the cycle end read in the vendor's own zone", december.ResetAt)
 	}
-	// The one-off packs follow, in expiry order.
-	if got[1].Name != "Bonus pack 1" || got[1].Recurring {
-		t.Errorf("first bonus = %+v, want the October grant", got[1])
-	}
-	if got[2].Name != "Bonus pack 2" || got[2].Used != 3 || got[2].Size != 20 {
-		t.Errorf("second bonus = %+v, want the 3/20 welcome grant", got[2])
+	// A grant whose credits outlive its cycle is a one-off pack.
+	bonus := got[2]
+	if bonus.Recurring || bonus.Name != "Bonus pack 1" {
+		t.Errorf("bonus = %+v, want the one-off October grant", bonus)
 	}
 }
 
@@ -68,7 +69,7 @@ func TestBuddyQuotaRequest(t *testing.T) {
 			t.Errorf("quota call = %s %s", r.Method, r.URL.Path)
 		}
 		_, _ = w.Write([]byte(`{"code":0,"data":{"Response":{"Data":{"Accounts":[
-			{"PackageName":"Pro","CycleStartTime":"2026-11-01 00:00:00","CycleEndTime":"2026-12-01 00:00:00","CycleCapacityUsed":1,"CycleCapacitySize":10,"DeductionEndTime":"2027-01-01 00:00:00"}
+			{"PackageName":"Pro","CycleStartTime":"2026-11-01 00:00:00","CycleEndTime":"2026-12-01 00:00:00","CycleCapacityUsed":1,"CycleCapacitySize":10,"DeductionEndTime":"2026-12-01 00:00:00"}
 		]}}}}`))
 	}))
 	defer srv.Close()

@@ -207,7 +207,7 @@ func buddyPoll(ctx context.Context, realm BuddyRealm, state string) (string, *To
 	tokens := &Tokens{
 		AccessToken:  data.AccessToken,
 		RefreshToken: data.RefreshToken,
-		ExpiresIn:    buddyAccessTokenTTL,
+		ExpiresIn:    buddyLifetime(data.AccessToken, 0),
 	}
 	// The access token is the session JWT and carries the account email, which
 	// the poll reply omits. Decoding it gives the account a real label and lets
@@ -244,10 +244,11 @@ func buddyRefresh(ctx context.Context, realm BuddyRealm, refreshToken string) (*
 	if err != nil {
 		return nil, err
 	}
-	// A rejected refresh is reported exactly like a standard OAuth rejection so
-	// the manager's permanent/transient decision still applies.
+	// A rejected refresh is reported as a RefreshError so the manager can tell
+	// a dead token from a transient fault. The realm answers {code,msg}, which
+	// classifyRefreshError cannot read, so the envelope is mapped here.
 	if status >= 400 {
-		return nil, classifyRefreshError(raw, status)
+		return nil, buddyRefreshError(raw, status)
 	}
 	var envelope buddyEnvelope
 	if err := json.Unmarshal(raw, &envelope); err != nil {
@@ -262,15 +263,68 @@ func buddyRefresh(ctx context.Context, realm BuddyRealm, refreshToken string) (*
 		return nil, fmt.Errorf("oauth: parse buddy refresh data: %w", err)
 	}
 	if envelope.Code != 0 || data.AccessToken == "" {
-		return nil, fmt.Errorf("oauth: buddy refresh failed: %s", nonEmpty(envelope.Msg, "no access token in the reply"))
+		// A 2xx carrying an error code is the same rejection the HTTP status
+		// would have reported, so it goes through the same mapping.
+		return nil, buddyRefreshError(raw, http.StatusOK)
 	}
 	next := data.RefreshToken
 	if next == "" {
 		next = refreshToken
 	}
-	expiresIn := data.ExpiresIn
-	if expiresIn <= 0 {
-		expiresIn = buddyAccessTokenTTL
+	return &Tokens{AccessToken: data.AccessToken, RefreshToken: next, ExpiresIn: buddyLifetime(data.AccessToken, data.ExpiresIn)}, nil
+}
+
+// buddyRefreshError maps a rejected buddy refresh onto the manager's
+// permanent/transient model. The realm reports failures as {code,msg} rather
+// than the OAuth {error,error_description} shape, so the standard classifier
+// would read an empty code and call every rejection transient — leaving a dead
+// refresh token in place forever.
+//
+// A rejection is permanent when the realm says the token itself is unusable:
+// an auth status with no rate-limit marker, or a message naming the refresh
+// token. Rate limits and 5xx stay transient so the next request retries.
+func buddyRefreshError(body []byte, status int) *RefreshError {
+	var envelope buddyEnvelope
+	_ = json.Unmarshal(body, &envelope)
+	msg := strings.TrimSpace(envelope.Msg)
+
+	permanent := false
+	switch {
+	case status == http.StatusTooManyRequests || status >= 500:
+		permanent = false
+	case status == http.StatusUnauthorized || status == http.StatusForbidden:
+		permanent = true
+	case envelope.Code != 0 && envelope.Code != 11217:
+		// Any other envelope error is the realm refusing the grant.
+		permanent = true
 	}
-	return &Tokens{AccessToken: data.AccessToken, RefreshToken: next, ExpiresIn: expiresIn}, nil
+	// A rate-limit message overrides an auth status: it is a throttle, not a
+	// dead token.
+	if low := strings.ToLower(msg); strings.Contains(low, "rate limit") || strings.Contains(low, "too many") {
+		permanent = false
+	}
+
+	code := "buddy_refresh_rejected"
+	if envelope.Code != 0 {
+		code = fmt.Sprintf("buddy_code_%d", envelope.Code)
+	}
+	return &RefreshError{Code: code, Message: msg, HTTPStatus: status, Permanent: permanent}
+}
+
+// buddyLifetime returns the access token's lifetime in seconds: the `exp`
+// claim when the token is a JWT, otherwise the advertised value, otherwise the
+// assumed default. Assuming a fixed lifetime is not safe — an over-estimate
+// makes every call send an expired token, and EnsureFresh never refreshes it.
+func buddyLifetime(token string, advertised int) int {
+	if payload := decodeJWTPayload(token); payload != nil {
+		if exp, ok := payload["exp"].(float64); ok && exp > 0 {
+			if until := int(time.Until(time.Unix(int64(exp), 0)).Seconds()); until > 0 {
+				return until
+			}
+		}
+	}
+	if advertised > 0 {
+		return advertised
+	}
+	return buddyAccessTokenTTL
 }

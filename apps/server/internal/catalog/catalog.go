@@ -116,8 +116,8 @@ var seedable = map[string]bool{
 	"zcode": true,
 	// The buddy family: the synced upstream catalog is what bare-name routing
 	// resolves against, so connecting one of them seeds the row too.
-	"workbuddy":   true,
-	"codebuddy":   true,
+	"workbuddy":    true,
+	"codebuddy":    true,
 	"codebuddy-cn": true,
 }
 

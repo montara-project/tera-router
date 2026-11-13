@@ -153,8 +153,9 @@ func buddyJWTClaims(token string) (userID, email string) {
 
 // buddyConversationKey is the stable per-caller key the conversation id
 // derives from: the account plus the inbound API key and client address when
-// known. A caller that sends neither collapses onto the account, which is the
-// closest stable equivalent available here.
+// known. A caller that sends neither collapses onto the account — and an empty
+// account id is refused by the caller, because a constant key would make every
+// unrelated call share one conversation upstream.
 func buddyConversationKey(creds core.Credentials, req *core.ChatRequest) string {
 	key := creds.AccountID
 	if req != nil {
@@ -277,6 +278,8 @@ func buddyShapeRequest(body []byte, req *core.ChatRequest, providerID string) ([
 			break
 		}
 		if !found {
+			// No user turn to fold into (an assistant- or tool-led
+			// conversation): prepend one rather than losing the instructions.
 			messages = append([]any{map[string]any{"role": string(core.RoleUser), "content": wrapped}}, messages...)
 		}
 	}

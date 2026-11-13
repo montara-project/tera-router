@@ -8,6 +8,7 @@ import (
 	"tera-router/server/internal/lib/apperr"
 	"tera-router/server/internal/lib/sealer"
 	"tera-router/server/internal/models"
+	"tera-router/server/internal/oauth"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -47,6 +48,7 @@ func (h *accountsHandler) buddyQuota(c fiber.Ctx, account models.Account) error 
 		"account_id":       account.ID,
 		"quota_visibility": "upstream",
 		"quota_note":       "Credit packages reported by the " + spec.Name + " billing meter.",
+		"windows":          []oauth.UsageWindow{},
 		"packages":         packages,
 		"fetched_at":       time.Now().UTC(),
 	})

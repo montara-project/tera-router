@@ -422,6 +422,13 @@ func (h *accountsHandler) Test(c fiber.Ctx) error {
 		return err
 	}
 
+	// An OAuth account's access token expires, so refresh it before probing:
+	// a stale token reports a healthy account as a rejected credential.
+	if account.AuthKind == models.AuthOAuth {
+		if account, err = h.app.OAuth.EnsureFresh(c.Context(), account); err != nil {
+			return apperr.New(apperr.KindUnprocessable, "%s", err.Error())
+		}
+	}
 	// OAuth accounts carry the credential in Token, not Secret; probe
 	// whichever one is populated so the test reflects the stored auth kind.
 	apiKey := ""

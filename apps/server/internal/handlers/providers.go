@@ -1007,11 +1007,7 @@ func (h *providersHandler) CatalogModelTest(c fiber.Ctx) error {
 	if connectors.IsBuddy(slug) {
 		// The model test bypasses the connector, so it must send the same
 		// client fingerprint a routed call would.
-		creds := core.Credentials{AccountID: "model-test", AccessToken: apiKey}
-		if !oauth {
-			creds = core.Credentials{AccountID: "model-test", APIKey: apiKey}
-		}
-		headers = connectors.BuddyHeaders(slug, creds, nil, "")
+		headers = connectors.BuddyHeaders(slug, buddyTestCredential(apiKey, oauth), nil, "")
 		base = buddyChatBase(base)
 	}
 	return h.runModelTest(c, base, spec.Dialect == "anthropic", apiKey, oauth, headers, connectors.IsBuddy(slug))
@@ -1052,11 +1048,7 @@ func (h *providersHandler) CustomModelTest(c fiber.Ctx) error {
 		headers = connectors.ClineHeaders(apiKey)
 	}
 	if connectors.IsBuddy(provider.Slug) {
-		creds := core.Credentials{AccountID: "model-test", AccessToken: apiKey}
-		if !oauth {
-			creds = core.Credentials{AccountID: "model-test", APIKey: apiKey}
-		}
-		headers = connectors.BuddyHeaders(provider.Slug, creds, nil, "")
+		headers = connectors.BuddyHeaders(provider.Slug, buddyTestCredential(apiKey, oauth), nil, "")
 		base = buddyChatBase(base)
 	}
 	return h.runModelTest(c, base, anthropic, apiKey, oauth, headers, connectors.IsBuddy(provider.Slug))
@@ -1128,6 +1120,19 @@ func (h *providersHandler) buddyHost(ctx context.Context, slug, fallback string)
 		return u
 	}
 	return fallback
+}
+
+// buddyTestCredential scopes a model test's headers to the credential itself.
+// The conversation id derives from the account, and this path never learns the
+// account row, so the credential's fingerprint stands in for it: a shared
+// constant would make every test of every account look like one conversation
+// upstream.
+func buddyTestCredential(apiKey string, oauth bool) core.Credentials {
+	creds := core.Credentials{AccountID: "model-test:" + fingerprint(apiKey), AccessToken: apiKey}
+	if !oauth {
+		creds = core.Credentials{AccountID: "model-test:" + fingerprint(apiKey), APIKey: apiKey}
+	}
+	return creds
 }
 
 // buddyChatBase puts the /v2 gateway prefix on a base that is only the host,

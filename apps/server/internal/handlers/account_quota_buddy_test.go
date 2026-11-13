@@ -28,7 +28,7 @@ func TestBuddyQuotaRoute(t *testing.T) {
 		}
 		_, _ = w.Write([]byte(`{"code":0,"data":{"Response":{"Data":{"Accounts":[
 			{"PackageName":"Pro","CycleStartTime":"2026-11-01 00:00:00","CycleEndTime":"2026-12-01 00:00:00",
-			 "CycleCapacityUsed":"2.5","CycleCapacitySize":"100","DeductionEndTime":"2027-01-01 00:00:00"}
+			 "CycleCapacityUsed":"2.5","CycleCapacitySize":"100","DeductionEndTime":"2026-12-01 00:00:00"}
 		]}}}}`))
 	}))
 	defer srv.Close()

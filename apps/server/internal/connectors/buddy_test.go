@@ -194,7 +194,8 @@ func TestBuddyShapeRequestKeepsToolsForOtherModels(t *testing.T) {
 }
 
 // TestBuddyStatusClassification pins the two gateway refusals: 11128 is a
-// transient upstream fault, 11140 an account restriction — neither is a bad
+// transient upstream fault (retried, then fallen back), 11140 an account
+// restriction (parked, never retried on the same account) — neither is a bad
 // credential.
 func TestBuddyStatusClassification(t *testing.T) {
 	cases := []struct {
@@ -213,7 +214,7 @@ func TestBuddyStatusClassification(t *testing.T) {
 			name:   "account restriction",
 			status: 403,
 			body:   `{"code": 11140, "msg": "account has been restricted due to unusual activity"}`,
-			want:   core.ErrUpstream,
+			want:   core.ErrAccountRestricted,
 		},
 		{
 			name:   "plain 400 is still a bad request",

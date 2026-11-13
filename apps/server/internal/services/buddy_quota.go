@@ -16,10 +16,10 @@ import (
 	"tera-router/server/internal/core"
 )
 
-// buddyQuotaPath is the billing meter endpoint. It is not under the chat
-// gateway: POST answers Tencent's nested billing payload
-// (data.Response.Data.Accounts[]), one entry per credit package.
-const buddyQuotaPath = "/v2/billing/meter/get-user-resource"
+// buddyQuotaPath is the billing meter endpoint, rooted at the account's /v2
+// gateway base. It is not a chat route: POST answers Tencent's nested billing
+// payload (data.Response.Data.Accounts[]), one entry per credit package.
+const buddyQuotaPath = "/billing/meter/get-user-resource"
 
 // buddyBonusPackGap is the smallest distance between a package's cycle end and
 // the point its credits stop being spendable for the package to count as a
@@ -116,7 +116,7 @@ func (s *UpstreamService) BuddyQuota(ctx context.Context, baseURL, token, slug s
 	if !strings.HasSuffix(endpoint, "/v2") {
 		endpoint += "/v2"
 	}
-	endpoint += "/billing/meter/get-user-resource"
+	endpoint += buddyQuotaPath
 	if err := validateEndpoint(endpoint); err != nil {
 		return nil, err
 	}
@@ -126,7 +126,7 @@ func (s *UpstreamService) BuddyQuota(ctx context.Context, baseURL, token, slug s
 	if err != nil {
 		return nil, err
 	}
-	for k, v := range connectors.BuddyHeaders(slug, core.Credentials{AccessToken: token}, nil, "") {
+	for k, v := range connectors.BuddyHeaders(slug, core.Credentials{AccountID: slug + ":quota", AccessToken: token}, nil, "") {
 		req.Header.Set(k, v)
 	}
 	req.Header.Set("Content-Type", "application/json")
@@ -244,10 +244,10 @@ func buddyCadence(p buddyPackage) string {
 	return "Monthly"
 }
 
-// buddyIsRecurring reports whether a package refills on a cycle. The meter
-// states the cycle end and the point the credits stop being spendable; a
-// package whose credits outlive the cycle by more than buddyBonusPackGap is
-// treated as recurring, mirroring the reference gateway's isRefill().
+// buddyIsRecurring reports whether a package refills on a cycle. A subscription
+// reports its cycle end and stops spending at the same moment; a one-off grant
+// keeps its credits alive past the cycle, so the gap between the two is what
+// distinguishes them.
 //
 // ponytail: this heuristic is unverified against a live account. Check one real
 // workbuddy/codebuddy meter reply and flip the comparison here if a one-off
@@ -261,7 +261,7 @@ func buddyIsRecurring(p buddyPackage) bool {
 	if deduction.IsZero() {
 		return true
 	}
-	return deduction.Sub(end) > buddyBonusPackGap
+	return deduction.Sub(end) <= buddyBonusPackGap
 }
 
 // buddyResetAt returns the package's cycle end as RFC3339, "" when absent.

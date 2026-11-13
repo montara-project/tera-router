@@ -82,7 +82,9 @@ func (h *accountsHandler) Export(c fiber.Ctx) error {
 	}
 
 	// One key for the whole file: argon2 runs once, not once per credential.
-	ps, err := sealer.NewPortable(req.Passphrase)
+	// The passphrase is trimmed here exactly as Import trims it, or a backup
+	// sealed with a padded passphrase could never be opened again.
+	ps, err := sealer.NewPortable(strings.TrimSpace(req.Passphrase))
 	if err != nil {
 		return err
 	}
@@ -148,6 +150,13 @@ type accountsImportRequest struct {
 	Backup     json.RawMessage `json:"backup"`
 }
 
+// idrouterImportLimit caps the accounts accepted from an IDrouter file. That
+// format salts every secret separately, so each one costs a full argon2id
+// derivation (64 MiB, 4 threads) — unlike this install's own export, which pays
+// argon2 once per file. The cap is what keeps one request from occupying the
+// process for minutes.
+const idrouterImportLimit = 200
+
 // idrouterPortfolioKind marks IDrouter's per-provider accounts export. The
 // file is accepted as-is: its secrets are sealed per secret with their own
 // salt under the same argon2id profile this install's portable sealer uses, so
@@ -195,10 +204,16 @@ func convertIDrouterPortfolio(raw json.RawMessage, passphrase string) (accountsB
 	if err := json.Unmarshal(raw, &doc); err != nil {
 		return accountsBackup{}, apperr.New(apperr.KindBadRequest, "invalid IDrouter accounts file: %s", err.Error())
 	}
-	// argon2 runs per secret, so the cap is checked before any decryption.
-	// ponytail: 1000 accounts x 3 secrets is roughly three minutes of argon2.
-	if len(doc.Accounts) > maxBulkKeys {
-		return accountsBackup{}, apperr.New(apperr.KindUnprocessable, "the backup holds %d accounts; at most %d import at once", len(doc.Accounts), maxBulkKeys)
+	if !doc.Portable {
+		// Secrets arrive passphrase-sealed only; a file that says otherwise
+		// would hold blobs this install cannot open, and reporting that as a
+		// decrypt failure would be misleading.
+		return accountsBackup{}, apperr.New(apperr.KindUnprocessable, "this IDrouter file is not a portable export")
+	}
+	// Checked before any decryption: the work is per secret, and a file that
+	// large must be split rather than served in one request.
+	if len(doc.Accounts) > idrouterImportLimit {
+		return accountsBackup{}, apperr.New(apperr.KindUnprocessable, "the IDrouter file holds %d accounts; at most %d import at once — export it in smaller batches", len(doc.Accounts), idrouterImportLimit)
 	}
 	ps, err := sealer.NewPortable(passphrase)
 	if err != nil {
@@ -350,10 +365,11 @@ func (h *accountsHandler) Import(c fiber.Ctx) error {
 	if len(doc.Accounts) > maxBulkKeys {
 		return apperr.New(apperr.KindUnprocessable, "the backup holds %d accounts; at most %d import at once", len(doc.Accounts), maxBulkKeys)
 	}
-	if req.Passphrase == "" {
+	passphrase := strings.TrimSpace(req.Passphrase)
+	if passphrase == "" {
 		return apperr.New(apperr.KindBadRequest, "enter the backup's passphrase to import it")
 	}
-	ps, err := sealer.OpenPortable(strings.TrimSpace(req.Passphrase), doc.Portable.Salt)
+	ps, err := sealer.OpenPortable(passphrase, doc.Portable.Salt)
 	if err != nil {
 		return apperr.New(apperr.KindUnprocessable, "corrupt accounts backup header")
 	}

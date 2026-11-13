@@ -198,3 +198,51 @@ func TestBuddyInitRejectsBadState(t *testing.T) {
 		t.Fatal("a state reply without authUrl started a flow")
 	}
 }
+
+// TestBuddyRefreshRejectionIsPermanent pins the refresh mapping: the realm
+// reports {code,msg}, which the standard classifier reads as an empty code, so
+// a 401 must still mark the token dead — otherwise EnsureFresh retries a
+// refresh token that can never work again.
+func TestBuddyRefreshRejectionIsPermanent(t *testing.T) {
+	cases := []struct {
+		name      string
+		status    int
+		body      string
+		permanent bool
+	}{
+		{name: "unauthorized", status: http.StatusUnauthorized, body: `{"code":1001,"msg":"refresh token invalid"}`, permanent: true},
+		{name: "ok status with an error code", status: http.StatusOK, body: `{"code":11140,"msg":"account restricted"}`, permanent: true},
+		{name: "rate limited", status: http.StatusTooManyRequests, body: `{"code":1002,"msg":"rate limit exceeded"}`, permanent: false},
+		{name: "server error", status: http.StatusBadGateway, body: `{"code":500,"msg":"upstream error"}`, permanent: false},
+	}
+	for _, tc := range cases {
+		err := buddyRefreshError([]byte(tc.body), tc.status)
+		if err.Permanent != tc.permanent {
+			t.Errorf("%s: permanent = %v, want %v", tc.name, err.Permanent, tc.permanent)
+		}
+		if tc.status == http.StatusOK || tc.status == http.StatusUnauthorized {
+			if !IsPermanentRefresh(err) {
+				t.Errorf("%s: IsPermanentRefresh disagrees with the mapping", tc.name)
+			}
+		}
+	}
+}
+
+// TestBuddyLifetimeReadsJWTExp pins that the expiry comes from the token when
+// it carries one: assuming 24h for a 1h token would send an expired credential
+// until the assumed window closed.
+func TestBuddyLifetimeReadsJWTExp(t *testing.T) {
+	exp := time.Now().Add(90 * time.Minute).Unix()
+	token := buddyJWT(t, map[string]any{"exp": exp})
+	got := buddyLifetime(token, 0)
+	if got < 85*60 || got > 90*60 {
+		t.Errorf("lifetime = %ds, want about 90 minutes from the exp claim", got)
+	}
+	// A token without exp falls back to the advertised value, then the default.
+	if got := buddyLifetime("not-a-jwt", 3600); got != 3600 {
+		t.Errorf("advertised lifetime ignored: %d", got)
+	}
+	if got := buddyLifetime("not-a-jwt", 0); got != buddyAccessTokenTTL {
+		t.Errorf("default lifetime = %d, want %d", got, buddyAccessTokenTTL)
+	}
+}

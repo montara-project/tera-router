@@ -92,7 +92,7 @@ func statusForError(pe *core.ProviderError) int {
 		return http.StatusBadRequest
 	case core.ErrAuth:
 		return http.StatusUnauthorized
-	case core.ErrRateLimit, core.ErrCapacity:
+	case core.ErrRateLimit, core.ErrCapacity, core.ErrAccountRestricted:
 		return http.StatusTooManyRequests
 	case core.ErrQuotaExhausted, core.ErrBudgetBlocked, core.ErrAccountSuspended, core.ErrBilling:
 		return http.StatusPaymentRequired

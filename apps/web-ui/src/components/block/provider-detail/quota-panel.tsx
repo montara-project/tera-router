@@ -322,7 +322,7 @@ function QuotaMeters({ account, dense = false }: { account: Models.Account; dens
     )
   }
 
-  if (quota?.windows.length) {
+  if (quota?.windows?.length) {
     return (
       <div className={dense ? 'space-y-1.5' : 'space-y-4'}>
         {quota.windows.map((quotaWindow) => (
@@ -563,6 +563,9 @@ function nextReset(quota: AccountQuota | undefined): number | null {
   }
   for (const row of quota?.rows ?? []) {
     if (typeof row.period_end === 'number') times.push(row.period_end * 1000)
+  }
+  for (const pkg of quota?.packages ?? []) {
+    if (pkg.reset_at) times.push(new Date(pkg.reset_at).getTime())
   }
   return times.length ? Math.min(...times) : null
 }

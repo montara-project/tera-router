@@ -549,7 +549,15 @@ func isBuddyAccountRestriction(body []byte) bool {
 // Both become ErrUpstream, so the dispatcher retries or falls back to another
 // account instead.
 func buddyKindOverride(kind core.ErrorKind, body []byte) core.ErrorKind {
-	if isBuddyChannelRefusal(body) || isBuddyAccountRestriction(body) {
+	switch {
+	case isBuddyAccountRestriction(body):
+		// A server-side decision about the account: no refresh or retry
+		// clears it, and the fallback should park the account instead of
+		// burning attempts against it.
+		return core.ErrAccountRestricted
+	case isBuddyChannelRefusal(body):
+		// The request shape was refused; the same account can be accepted
+		// minutes later, so this stays a transient upstream fault.
 		return core.ErrUpstream
 	}
 	return kind

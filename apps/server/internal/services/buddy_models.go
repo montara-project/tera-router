@@ -50,7 +50,7 @@ func (s *UpstreamService) ListBuddyModels(ctx context.Context, host, token, slug
 	if err != nil {
 		return nil, err
 	}
-	for k, v := range connectors.BuddyHeaders(slug, core.Credentials{AccessToken: token}, nil, "") {
+	for k, v := range connectors.BuddyHeaders(slug, core.Credentials{AccountID: slug + ":models", AccessToken: token}, nil, "") {
 		req.Header.Set(k, v)
 	}
 	req.Header.Set("Accept", "application/json")
