@@ -36,7 +36,7 @@ const NO_ACCOUNTS: Models.QuotaAccount[] = []
 
 function RouteComponent() {
   const queryClient = useQueryClient()
-  const [range, setRange] = useState<Models.QuotaRange>('30d')
+  const [range, setRange] = useState<Models.QuotaRange>('7d')
   const [filters, setFilters] = useState<QuotaFilters>(DEFAULT_QUOTA_FILTERS)
   const [now, setNow] = useState(() => Date.now())
 

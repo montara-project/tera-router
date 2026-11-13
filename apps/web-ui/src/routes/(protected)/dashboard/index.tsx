@@ -31,7 +31,7 @@ const BASE_URL = `${env.API_URL.replace(/\/+$/, '')}/v1`
 
 function RouteComponent() {
   const queryClient = useQueryClient()
-  const [range, setRange] = useState<OverviewRange>('30d')
+  const [range, setRange] = useState<OverviewRange>('7d')
   const [copied, setCopied] = useState(false)
   const span = RANGES.find((r) => r.value === range)?.span
 
