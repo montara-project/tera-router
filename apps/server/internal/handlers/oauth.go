@@ -344,11 +344,14 @@ func accountMetaValue(raw, key string) string {
 	if strings.TrimSpace(raw) == "" {
 		return ""
 	}
-	var meta map[string]string
+	// Decode loosely: metadata also holds non-string values (a headers
+	// object), which a map[string]string decode rejects wholesale.
+	var meta map[string]any
 	if err := json.Unmarshal([]byte(raw), &meta); err != nil {
 		return ""
 	}
-	return meta[key]
+	value, _ := meta[key].(string)
+	return value
 }
 
 // oauthLabel derives a human label for an OAuth account.

@@ -30,6 +30,37 @@ func (d *Account) Validate(v *validator.MapValidator) {
 	v.Field("auth_kind").WithinS("api_key", "oauth", "none")
 }
 
+// AccountBulk is the bulk add request body (POST /v1/accounts/bulk): one
+// API-key account is created per entry of APIKeys, labelled
+// "<label_prefix> <n>", all sharing the remaining fields.
+type AccountBulk struct {
+	Provider    string         `json:"provider"`
+	APIKeys     []string       `json:"api_keys"`
+	LabelPrefix string         `json:"label_prefix"`
+	Priority    int            `json:"priority"`
+	ProxyPoolID string         `json:"proxy_pool_id"`
+	Metadata    map[string]any `json:"metadata"`
+}
+
+func (d *AccountBulk) Validate(v *validator.MapValidator) {
+	v.Field("provider").Required().String()
+}
+
+// AccountsExport is the body of POST /v1/providers/:id/accounts/export. The
+// passphrase re-keys every credential in the file so another install can
+// import it; Password and OTP re-authenticate the export (see Reauth).
+type AccountsExport struct {
+	Passphrase   string `json:"passphrase"`
+	Password     string `json:"password"`
+	OTP          string `json:"otp"`
+	ReauthTicket string `json:"reauth_ticket"`
+}
+
+func (d *AccountsExport) Validate(v *validator.MapValidator) {
+	v.Field("passphrase").Required().String()
+	v.Field("password").String() // empty can reauthenticate via a fresh SSO reauth ticket
+}
+
 // TestResult reports one credential validation attempt against the upstream.
 type TestResult struct {
 	OK        bool   `json:"ok"`

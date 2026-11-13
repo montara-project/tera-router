@@ -2,14 +2,18 @@ import type { ColumnDef } from '@tanstack/react-table'
 
 import {
   IconCircleCheck,
+  IconDots,
+  IconDownload,
   IconKey,
   IconMinus,
+  IconPlaylistAdd,
   IconPlus,
   IconRefresh,
   IconTrash,
+  IconUpload,
 } from '@tabler/icons-react'
 import { useMutation } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { toast } from 'sonner'
 
 import type { Models } from '@/lib/api/models'
@@ -18,12 +22,23 @@ import EmptyState from '@/components/block/common/empty-state'
 import ReactTable, { features } from '@/components/block/common/react-table'
 import SectionCardPanel from '@/components/block/common/section-card-panel'
 import SimpleAlertDialog from '@/components/block/common/simple-alert-dialog'
+import AccountsExportDialog from '@/components/block/provider-detail/accounts-export-dialog'
+import AccountsImportDialog from '@/components/block/provider-detail/accounts-import-dialog'
+import BulkAddKeysDialog from '@/components/block/provider-detail/bulk-add-keys-dialog'
+import { OAUTH_ONLY_PROVIDERS } from '@/components/block/providers/catalog-connect'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { usePaginationQuery } from '@/hooks/use-pagination-query'
 import { queries } from '@/lib/api/queries'
 import { services } from '@/lib/api/services'
+import { readJsonObject } from '@/lib/file'
 
 /** The pager never offers fewer than 10 rows. */
 const PAGE_SIZES = [10, 25, 50, 100]
@@ -51,22 +66,28 @@ function AccountStatusPill({ account }: { account: Models.Account }) {
   )
 }
 
+/** The `format` field of a per-provider accounts export file. */
+const ACCOUNTS_BACKUP_FORMAT = 'tera-router.accounts'
+
 /**
  * The provider's credential list: pagination, per-account connection tests,
- * and deletion all live here. The parent owns filtering (accounts already
- * scoped to this provider) and gets `onChanged` after a deletion so it can
- * invalidate its query keys.
+ * deletion, bulk add, and moving the accounts between installs (export /
+ * import) all live here. The parent owns filtering (accounts already scoped
+ * to this provider) and gets `onChanged` after a change so it can invalidate
+ * its query keys.
  */
 export default function AccountsPanel({
   accounts,
   loading,
   canManageKeys,
+  provider,
   onAddKey,
   onChanged,
 }: {
   accounts: Models.Account[]
   loading: boolean
   canManageKeys: boolean
+  provider: { slug: string; name: string }
   onAddKey: () => void
   onChanged: () => Promise<unknown> | void
 }) {
@@ -77,6 +98,13 @@ export default function AccountsPanel({
   const [deleteAccountId, setDeleteAccountId] = useState<string | null>(null)
   const [togglingId, setTogglingId] = useState<string | null>(null)
   const [savingPriorityId, setSavingPriorityId] = useState<string | null>(null)
+  const [bulkOpen, setBulkOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
+  const [pendingImport, setPendingImport] = useState<{
+    backup: Record<string, unknown>
+    fileName: string
+  } | null>(null)
+  const importInput = useRef<HTMLInputElement>(null)
 
   const testAccountMutation = useMutation(queries.accounts.test())
   const deleteAccountMutation = useMutation(queries.accounts.delete())
@@ -116,6 +144,32 @@ export default function AccountsPanel({
     setTestingAll(false)
     if (ok === accounts.length) toast.success(`All ${ok} accounts reachable`)
     else toast.warning(`${ok} of ${accounts.length} accounts reachable`)
+  }
+
+  // Check the picked file here so a wrong file is named before the passphrase
+  // is asked for; the server repeats both checks.
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    try {
+      const backup = await readJsonObject(file)
+      if (backup.format !== ACCOUNTS_BACKUP_FORMAT) {
+        toast.error('Not an accounts export', {
+          description: `${file.name} was not exported from a provider's accounts.`,
+        })
+        return
+      }
+      if (backup.provider !== provider.slug) {
+        toast.error('Wrong provider', {
+          description: `${file.name} holds ${String(backup.provider)} accounts, not ${provider.slug}.`,
+        })
+        return
+      }
+      setPendingImport({ backup, fileName: file.name })
+    } catch (error) {
+      toast.error((error as Error).message)
+    }
   }
 
   const removeAccount = async (id: string) => {
@@ -347,19 +401,75 @@ export default function AccountsPanel({
           </>
         }
         toolbar={
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={testingAll || accounts.length === 0}
-            onClick={testAll}
-          >
-            {testingAll ? <IconRefresh className="animate-spin" /> : <IconCircleCheck />}
-            Test all
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={testingAll || accounts.length === 0}
+              onClick={testAll}
+            >
+              {testingAll ? <IconRefresh className="animate-spin" /> : <IconCircleCheck />}
+              Test all
+            </Button>
+            {canManageKeys ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="px-2"
+                    aria-label="More account actions"
+                  >
+                    <IconDots />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-44">
+                  {OAUTH_ONLY_PROVIDERS[provider.slug] ? null : (
+                    <DropdownMenuItem onClick={() => setBulkOpen(true)}>
+                      <IconPlaylistAdd />
+                      Bulk add keys
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem onClick={() => importInput.current?.click()}>
+                    <IconUpload />
+                    Import accounts
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    disabled={accounts.length === 0}
+                    onClick={() => setExportOpen(true)}
+                  >
+                    <IconDownload />
+                    Export accounts
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
+          </div>
         }
       >
         {renderAccounts()}
       </SectionCardPanel>
+
+      <input
+        ref={importInput}
+        type="file"
+        accept=".json,application/json"
+        className="hidden"
+        onChange={handleImportFile}
+      />
+      <BulkAddKeysDialog
+        open={bulkOpen}
+        onOpenChange={setBulkOpen}
+        provider={provider}
+        onSuccess={onChanged}
+      />
+      <AccountsExportDialog open={exportOpen} onOpenChange={setExportOpen} provider={provider} />
+      <AccountsImportDialog
+        backup={pendingImport?.backup ?? null}
+        fileName={pendingImport?.fileName ?? ''}
+        provider={provider}
+        onClose={() => setPendingImport(null)}
+      />
 
       <SimpleAlertDialog
         open={deleteAccountId !== null}

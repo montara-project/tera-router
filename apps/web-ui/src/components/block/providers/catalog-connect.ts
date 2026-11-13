@@ -31,6 +31,8 @@ export const API_KEY_PROVIDERS: Record<string, { name: string }> = {
   openrouter: { name: 'OpenRouter' },
   nvidia: { name: 'NVIDIA NIM' },
   cline: { name: 'Cline' },
+  clinepayg: { name: 'Cline PAYG' },
+  clinepass: { name: 'ClinePass' },
   cloudflare: { name: 'Cloudflare AI' },
   muse: { name: 'Meta Muse' },
   groq: { name: 'Groq' },

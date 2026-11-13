@@ -153,7 +153,6 @@ func (h *legacyImportHandler) importProxyPools(ctx context.Context, pools []lega
 }
 
 func (h *legacyImportHandler) importAccounts(ctx context.Context, actor string, src legacyimport.Source, accounts []legacyimport.PlannedAccount, pools map[string]string, res *legacyImportResult) error {
-	oauthDedup := &oauthHandler{app: h.app}
 	for _, pa := range accounts {
 		if _, err := ensureCustomProviderRow(ctx, h.app, actor, pa.Provider); err != nil {
 			return err
@@ -184,7 +183,7 @@ func (h *legacyImportHandler) importAccounts(ctx context.Context, actor string, 
 			return err
 		}
 
-		dup, err := h.duplicateAccount(ctx, oauthDedup, acc, pa)
+		dup, err := duplicateAccount(ctx, h.app, acc, in)
 		if err != nil {
 			return err
 		}
@@ -205,11 +204,13 @@ func (h *legacyImportHandler) importAccounts(ctx context.Context, actor string, 
 
 // duplicateAccount reports whether the account already exists: same API key
 // hash, same OAuth grant (email / refresh token), or — for credential-less
-// stubs — same provider and label.
-func (h *legacyImportHandler) duplicateAccount(ctx context.Context, oauthDedup *oauthHandler, acc models.Account, pa legacyimport.PlannedAccount) (bool, error) {
+// stubs — same provider and label. in carries the plaintext tokens acc was
+// sealed from. The legacy import and the per-provider accounts import share
+// it, so both skip the same rows.
+func duplicateAccount(ctx context.Context, a *app.Application, acc models.Account, in accountInput) (bool, error) {
 	switch {
 	case acc.KeyHash != "":
-		_, err := h.app.Repos.Accounts.GetByKeyHash(ctx, acc.KeyHash)
+		_, err := a.Repos.Accounts.GetByKeyHash(ctx, acc.KeyHash)
 		if err == nil {
 			return true, nil
 		}
@@ -217,16 +218,17 @@ func (h *legacyImportHandler) duplicateAccount(ctx context.Context, oauthDedup *
 			return false, err
 		}
 		return false, nil
-	case pa.AccessToken != "" || pa.RefreshToken != "":
-		existing, err := oauthDedup.findExistingOAuthAccount(ctx, acc.Provider, pa.Metadata, pa.RefreshToken)
+	case in.Token != "" || in.Refresh != "":
+		meta := map[string]string{"email": accountMetaValue(acc.Metadata, "email")}
+		existing, err := (&oauthHandler{app: a}).findExistingOAuthAccount(ctx, acc.Provider, meta, in.Refresh)
 		return existing != nil, err
 	default:
-		list, err := h.app.Repos.Accounts.ListByProvider(ctx, acc.Provider)
+		list, err := a.Repos.Accounts.ListByProvider(ctx, acc.Provider)
 		if err != nil {
 			return false, err
 		}
-		for _, a := range list {
-			if a.Label == acc.Label {
+		for _, existing := range list {
+			if existing.Label == acc.Label {
 				return true, nil
 			}
 		}

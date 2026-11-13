@@ -196,6 +196,7 @@ function MediaDetailRoute() {
               accounts={accounts}
               loading={accountQuery.isLoading}
               canManageKeys
+              provider={{ slug, name: provider.name }}
               onAddKey={() => setAccountOpen(true)}
               onChanged={invalidate}
             />

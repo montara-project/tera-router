@@ -52,6 +52,13 @@ func (c *connector) headers(req *core.ChatRequest, creds core.Credentials) map[s
 // recognise as current.
 const clineClientVersion = "3.0.70"
 
+// IsCline reports whether a provider slug is one of the Cline tiers (cline,
+// clinepayg, clinepass). They share one gateway, so its headers, forced
+// streaming and skipped credential probe apply to all three.
+func IsCline(id string) bool {
+	return id == "cline" || id == "clinepayg" || id == "clinepass"
+}
+
 // ClineHeaders returns the auth and identification headers for a Cline call.
 // Cline's gateway requires its SDK's identification headers — without them
 // every cline-free model answers 403 "only available via Cline product
@@ -80,7 +87,7 @@ func ClineHeaders(tok string) map[string]string {
 func (c *connector) openAIHeaders(creds core.Credentials) map[string]string {
 	h := map[string]string{}
 	if tok := creds.Token(); tok != "" {
-		if c.id == "cline" {
+		if IsCline(c.id) {
 			return mergeHeaders(ClineHeaders(tok), creds.Headers)
 		}
 		h["Authorization"] = bearer(tok)

@@ -2,7 +2,7 @@ import { IconGauge, IconRefresh } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
 
 import type { Models } from '@/lib/api/models'
-import type { QuotaWindow, ZcodePlanQuotaRow } from '@/lib/api/models/account'
+import type { ClineCredits, QuotaWindow, ZcodePlanQuotaRow } from '@/lib/api/models/account'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -35,9 +35,9 @@ const WINDOW_LABELS: Record<string, { title: string; hint: string }> = {
 const REFRESH_MS = 60_000
 
 /**
- * QuotaPanel shows the live upstream limits of every subscription (OAuth)
- * account on this provider: Claude's rolling session and weekly windows, or
- * the ZCode plan grants (billing/balance merged per entitlement).
+ * QuotaPanel shows what each account's upstream reports about its allowance:
+ * Claude's rolling session and weekly windows, the ZCode plan grants
+ * (billing/balance merged per entitlement), or the Cline credit balance.
  */
 export default function QuotaPanel({ accounts }: { accounts: Models.Account[] }) {
   return (
@@ -53,8 +53,13 @@ function AccountQuotaCard({ account }: { account: Models.Account }) {
   const query = useQuery({ ...queries.accounts.quota(account.id), refetchInterval: REFRESH_MS })
   const quota = query.data?.data
   const isZcode = account.provider === 'zcode'
+  const isCline = account.provider === 'cline' || account.provider === 'clinepayg'
 
-  const limitsLabel = isZcode ? 'ZCode Plan grants' : 'Claude subscription limits'
+  const limitsLabel = isZcode
+    ? 'ZCode Plan grants'
+    : isCline
+      ? 'Cline credit balance'
+      : 'Claude subscription limits'
 
   const renderLimits = () => {
     if (query.isLoading) {
@@ -78,6 +83,10 @@ function AccountQuotaCard({ account }: { account: Models.Account }) {
       return (
         <ZcodePlanRows rows={quota?.rows ?? []} source={quota?.source} errors={quota?.errors} />
       )
+    }
+
+    if (quota?.credits) {
+      return <ClineCreditsTile credits={quota.credits} />
     }
 
     if (!quota?.windows.length) {
@@ -221,6 +230,33 @@ function ZcodePlanRows({
           <ZcodePlanRowTile key={row.entitlement_id || row.model} row={row} />
         ))}
       </div>
+    </div>
+  )
+}
+
+const CREDITS_FORMAT = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 4,
+})
+
+/** The Cline credit balance; a negative balance means usage has overdrawn it. */
+function ClineCreditsTile({ credits }: { credits: ClineCredits }) {
+  const overdrawn = credits.balance < 0
+  return (
+    <div className="max-w-md space-y-1 rounded-xl border border-border p-4">
+      <p className="text-sm font-semibold">Credit balance</p>
+      <p
+        className={`text-2xl font-semibold tabular-nums ${overdrawn ? 'text-red-500' : 'text-foreground'}`}
+      >
+        {CREDITS_FORMAT.format(credits.balance)}
+      </p>
+      <p className="text-xs text-muted-foreground">
+        {overdrawn
+          ? 'Negative: usage has gone past the credits added.'
+          : 'Reported by Cline for the account behind this key.'}
+      </p>
     </div>
   )
 }

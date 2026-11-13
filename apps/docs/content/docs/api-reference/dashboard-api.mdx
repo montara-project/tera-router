@@ -121,11 +121,14 @@ The playground authenticates with the dashboard JWT, not an API key. Its usage i
 | POST                 | `/v1/providers/:id/models/sync`        | Refresh a catalog provider's models                                                            |
 | POST                 | `/v1/providers/:id/models/test`        | Send one test chat to a model                                                                  |
 | GET / POST           | `/v1/accounts`                         | List / add accounts                                                                            |
+| POST                 | `/v1/accounts/bulk`                    | Add one API-key account per entry of `api_keys`; keys already stored are returned as `skipped` |
 | GET / PATCH / DELETE | `/v1/accounts/:id`                     | Manage account                                                                                 |
 | POST                 | `/v1/accounts/:id/test`                | Test account connection                                                                        |
 | POST                 | `/v1/accounts/test`                    | Test a key before saving it; nothing is stored                                                 |
 | GET                  | `/v1/accounts/:id/quota`               | Account quota                                                                                  |
 | GET / PUT            | `/v1/providers/:id/routing`            | Account strategy (`:id` is the provider slug)                                                  |
+| POST                 | `/v1/providers/:id/accounts/export`    | Download the provider's accounts as a file encrypted with `passphrase` (`:id` is the slug)     |
+| POST                 | `/v1/providers/:id/accounts/import`    | Add the accounts of an export file (`{"passphrase", "backup"}`); duplicates are skipped        |
 | POST                 | `/v1/oauth/:provider/authorize`        | Start a PKCE sign-in (`anthropic`, `codex`); returns the URL to open                           |
 | POST                 | `/v1/oauth/:provider/exchange`         | Exchange the returned code and save it as an OAuth account                                     |
 
@@ -244,4 +247,4 @@ Enabling and disabling are audit-logged. See [Remote access](/docs/getting-start
 | GET          | `/health`                 | Server health (no auth)                                                                                                                                                                    |
 | GET          | `/skills/:slug/SKILL.md`  | Public skill document an agent fetches by URL (no auth)                                                                                                                                    |
 
-The key reveal and rotate, both backup downloads, and a `PATCH /v1/accounts/:id` that changes `metadata.base_url` re-authenticate: send `"password"`, and when two-factor auth is on the server answers `{ "totp_required": true }` until you resend with `"otp"`. Wrong passwords or codes return `422` and count toward the IP block, like failed sign-ins.
+The key reveal and rotate, both backup downloads, the accounts export, and a `PATCH /v1/accounts/:id` that changes `metadata.base_url` re-authenticate: send `"password"`, and when two-factor auth is on the server answers `{ "totp_required": true }` until you resend with `"otp"`. Wrong passwords or codes return `422` and count toward the IP block, like failed sign-ins.

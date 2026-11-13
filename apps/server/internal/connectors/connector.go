@@ -293,7 +293,7 @@ func (c *connector) render(req *core.ChatRequest, stream bool, creds core.Creden
 // upstream's stream: Codex only accepts stream=true, and Cline wraps its
 // non-streaming body in a {"data": …} envelope the codec does not read.
 func (c *connector) requiresStream() bool {
-	return c.id == "codex" || c.id == "cline"
+	return c.id == "codex" || IsCline(c.id)
 }
 
 // hasCompletionEnvelope reports whether a body is a well-formed completion

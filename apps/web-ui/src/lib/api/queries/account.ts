@@ -2,10 +2,16 @@ import { mutationOptions, queryOptions } from '@tanstack/react-query'
 
 import { getQueryClient } from '@/lib/providers/react-query'
 
-import type { AccountDto } from '../dtos/account/schema'
+import type {
+  AccountBulkDto,
+  AccountDto,
+  AccountsExportDto,
+  AccountsImportDto,
+} from '../dtos/account/schema'
 import type { PaginateDto } from '../dtos/paginate'
 
 import { services } from '../services'
+import { decodeBlobError, fileOrTotp } from './backup'
 
 export const ACCOUNT_QUERY_KEY = 'accounts'
 
@@ -115,10 +121,52 @@ const testKey = () =>
     },
   })
 
+/** Adds one account per pasted key; duplicates come back as skipped. */
+const bulkCreate = () => {
+  const qc = getQueryClient()
+
+  return mutationOptions({
+    mutationFn: async (reqBody: AccountBulkDto) => {
+      const res = await services.accounts.bulkStore(reqBody)
+      return res.data
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [ACCOUNT_QUERY_KEY] })
+    },
+  })
+}
+
+/** Downloads one provider's accounts; re-authenticated like the config export. */
+const exportByProvider = (slug: string) =>
+  mutationOptions({
+    mutationFn: async (reqBody: AccountsExportDto) => {
+      const res = await services.accounts.exportByProvider(slug, reqBody).catch(decodeBlobError)
+      return fileOrTotp(res, `tera-router-${slug}-accounts`, 'json')
+    },
+  })
+
+const importByProvider = (slug: string) => {
+  const qc = getQueryClient()
+
+  return mutationOptions({
+    mutationFn: async (reqBody: AccountsImportDto) => {
+      const res = await services.accounts.importByProvider(slug, reqBody)
+      return res.data
+    },
+    onSuccess: () => {
+      // A first import also seeds the provider row, so providers refetch too.
+      qc.invalidateQueries()
+    },
+  })
+}
+
 export const accountQueries = {
   list,
   get,
   create,
+  bulkCreate,
+  exportByProvider,
+  importByProvider,
   update,
   delete: del,
   test,

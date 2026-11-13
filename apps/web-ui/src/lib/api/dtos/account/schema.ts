@@ -10,6 +10,7 @@ import {
 
 import type { Account, AccountAuthKind } from '../../models/account'
 
+import { ReauthSchema } from '../auth/schema'
 import { enumValues } from '../enum'
 
 const AUTH_KINDS = enumValues<AccountAuthKind>({ api_key: true, oauth: true, none: true })
@@ -44,3 +45,28 @@ export const AccountSchema = z.object({
 }) satisfies z.ZodType<AccountPayload>
 
 export type AccountDto = z.infer<typeof AccountSchema>
+
+/** Bulk add body (POST /v1/accounts/bulk): one API-key account per entry of api_keys. */
+export const AccountBulkSchema = z.object({
+  provider: requiredString('provider'),
+  api_keys: z.array(z.string()).min(1, { error: 'Paste at least one API key.' }),
+  label_prefix: optionalString('label prefix'),
+  priority: optionalNumber('priority'),
+})
+
+export type AccountBulkDto = z.infer<typeof AccountBulkSchema>
+
+/** Accounts export body (POST /v1/providers/:slug/accounts/export). */
+export const AccountsExportSchema = ReauthSchema.extend({
+  passphrase: requiredString('passphrase'),
+})
+
+export type AccountsExportDto = z.infer<typeof AccountsExportSchema>
+
+/** Accounts import body (POST /v1/providers/:slug/accounts/import). */
+export const AccountsImportSchema = z.object({
+  passphrase: requiredString('passphrase'),
+  backup: z.record(z.string(), z.unknown(), { error: 'The backup must be a JSON object.' }),
+})
+
+export type AccountsImportDto = z.infer<typeof AccountsImportSchema>

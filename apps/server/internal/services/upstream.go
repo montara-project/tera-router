@@ -6,6 +6,7 @@ import (
 	"cmp"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -459,25 +460,29 @@ func (s *UpstreamService) ListOllamaModels(ctx context.Context, baseURL, apiKey 
 	return models, nil
 }
 
-// ListClineModels fetches the Cline model catalog: the union of the standard
-// OpenAI-compatible GET {base}/models response and the free-promotion list
-// from GET {base}/ai/cline/recommended-models (whose `free` array carries the
-// no-cost tier). Both upstream calls are best-effort — only when both fail and
-// nothing was collected does the refresh error. Requests carry the Cline SDK's
-// identification headers; the key needs the workos: prefix its gateway
-// expects.
-func (s *UpstreamService) ListClineModels(ctx context.Context, baseURL, apiKey string) ([]UpstreamModel, error) {
+// ListClineModels fetches the model catalog of one Cline tier. The tiers share
+// a gateway and differ only in which lists they read:
+//
+//   - cline: the `free` bucket of GET {base}/ai/cline/recommended-models.
+//   - clinepayg: the standard GET {base}/models catalog plus the free bucket.
+//   - clinepass: the `clinePass` bucket (subscription models) plus the free one.
+//
+// A failed upstream call fails the sync: the result replaces the stored
+// catalog, so a partial list would silently drop every model of the list that
+// failed. Requests carry Cline's user agent, and the key gets the workos:
+// prefix its gateway expects.
+func (s *UpstreamService) ListClineModels(ctx context.Context, baseURL, apiKey, tier string) ([]UpstreamModel, error) {
 	base := strings.TrimSuffix(baseURL, "/")
 	if apiKey != "" && !strings.HasPrefix(apiKey, "workos:") && !strings.HasPrefix(apiKey, "sk_") {
 		apiKey = "workos:" + apiKey
 	}
-	do := func(endpoint string, recommended bool) ([]UpstreamModel, error) {
+	get := func(endpoint string, into any) error {
 		if err := validateEndpoint(endpoint); err != nil {
-			return nil, err
+			return err
 		}
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if apiKey != "" {
 			req.Header.Set("Authorization", "Bearer "+apiKey)
@@ -487,65 +492,60 @@ func (s *UpstreamService) ListClineModels(ctx context.Context, baseURL, apiKey s
 
 		resp, err := probeClient().Do(req)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		defer resp.Body.Close()
 		body, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-			return nil, fmt.Errorf("GET %s returned %d", endpoint, resp.StatusCode)
+			return fmt.Errorf("GET %s returned %d", endpoint, resp.StatusCode)
 		}
-		if recommended {
-			var free struct {
-				Free []struct {
-					ID   string `json:"id"`
-					Name string `json:"name"`
-				} `json:"free"`
-			}
-			if err := json.Unmarshal(body, &free); err != nil {
-				return nil, fmt.Errorf("parse recommended-models response: %w", err)
-			}
-			out := make([]UpstreamModel, 0, len(free.Free))
-			for _, e := range free.Free {
-				if e.ID != "" {
-					out = append(out, UpstreamModel{ID: e.ID})
-				}
-			}
-			return out, nil
+		if err := json.Unmarshal(body, into); err != nil {
+			return fmt.Errorf("parse %s response: %w", endpoint, err)
 		}
-		var env struct {
-			Data []struct {
-				ID string `json:"id"`
-			} `json:"data"`
-		}
-		if err := json.Unmarshal(body, &env); err != nil {
-			return nil, fmt.Errorf("parse models response: %w", err)
-		}
-		out := make([]UpstreamModel, 0, len(env.Data))
-		for _, e := range env.Data {
-			if e.ID != "" {
+		return nil
+	}
+
+	type entry struct {
+		ID string `json:"id"`
+	}
+	seen := map[string]bool{}
+	out := []UpstreamModel{}
+	add := func(entries []entry) {
+		for _, e := range entries {
+			if e.ID != "" && !seen[e.ID] {
+				seen[e.ID] = true
 				out = append(out, UpstreamModel{ID: e.ID})
 			}
 		}
-		return out, nil
 	}
 
-	standard, errStandard := do(base+"/models", false)
-	free, errFree := do(base+"/ai/cline/recommended-models", true)
-
-	seen := map[string]bool{}
-	out := make([]UpstreamModel, 0, len(standard)+len(free))
-	for _, m := range append(standard, free...) {
-		if m.ID == "" || seen[m.ID] {
-			continue
+	var errs []error
+	if tier == "clinepayg" {
+		var standard struct {
+			Data []entry `json:"data"`
 		}
-		seen[m.ID] = true
-		out = append(out, m)
+		if err := get(base+"/models", &standard); err != nil {
+			errs = append(errs, err)
+		}
+		add(standard.Data)
 	}
-	if len(out) == 0 && errStandard != nil && errFree != nil {
-		return nil, fmt.Errorf("both /models and recommended-models failed: %v; %v", errStandard, errFree)
+	var recommended struct {
+		Free      []entry `json:"free"`
+		ClinePass []entry `json:"clinePass"`
+	}
+	if err := get(base+"/ai/cline/recommended-models", &recommended); err != nil {
+		errs = append(errs, err)
+	}
+	if tier == "clinepass" {
+		add(recommended.ClinePass)
+	}
+	add(recommended.Free)
+
+	if len(errs) > 0 {
+		return nil, fmt.Errorf("cline model sync failed: %w", errors.Join(errs...))
 	}
 	slices.SortFunc(out, func(a, b UpstreamModel) int { return strings.Compare(a.ID, b.ID) })
 	return out, nil

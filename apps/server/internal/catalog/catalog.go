@@ -33,7 +33,13 @@ func All() []dtos.CatalogProvider {
 		{Slug: "fireworks", Name: "Fireworks AI", BaseURL: "https://api.fireworks.ai/inference/v1", Dialect: dialectOpenAI, Capabilities: llmCaps("embeddings"), AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true},
 		{Slug: "nebius", Name: "Nebius Token Factory", BaseURL: "https://api.tokenfactory.nebius.com/v1", Dialect: dialectOpenAI, Capabilities: llmCaps("embeddings"), AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true},
 		{Slug: "groq", Name: "Groq", BaseURL: "https://api.groq.com/openai/v1", Dialect: dialectOpenAI, Capabilities: llmCaps("stt"), AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true},
-		{Slug: "cline", Name: "Cline", BaseURL: "https://api.cline.bot/api/v1", Dialect: dialectOpenAI, Capabilities: llmCaps(), AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true},
+		// Cline's one gateway is split by billing tier, each with its own
+		// accounts and model catalog: cline lists the free models only,
+		// clinepayg the whole pay-as-you-go catalog, and clinepass the models a
+		// ClinePass subscription includes.
+		{Slug: "cline", Name: "Cline", BaseURL: "https://api.cline.bot/api/v1", Dialect: dialectOpenAI, Capabilities: llmCaps(), AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true, Notice: "Free models only. Paid models are on Cline PAYG, subscription models on ClinePass."},
+		{Slug: "clinepayg", Name: "Cline PAYG", BaseURL: "https://api.cline.bot/api/v1", Dialect: dialectOpenAI, Capabilities: llmCaps(), AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true},
+		{Slug: "clinepass", Name: "ClinePass", BaseURL: "https://api.cline.bot/api/v1", Dialect: dialectOpenAI, Capabilities: llmCaps(), AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true},
 		{Slug: "cloudflare", Name: "Cloudflare AI", BaseURL: "https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1", Dialect: dialectOpenAI, Capabilities: llmCaps("embeddings"), AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true, Notice: "The endpoint embeds your Cloudflare account ID — set the account's Base URL to https://api.cloudflare.com/client/v4/accounts/<account_id>/ai/v1."},
 		// Web search/fetch providers: no chat dialect, served by the gateway's
 		// /v1/search and /v1/web/fetch (connectors/web.go).
@@ -91,6 +97,8 @@ var seedable = map[string]bool{
 	"fireworks":  true,
 	"nebius":     true,
 	"cline":      true,
+	"clinepayg":  true,
+	"clinepass":  true,
 	"cloudflare": true,
 	"muse":       true,
 	// ZCode: connecting persists the custom_providers row so the synced GLM

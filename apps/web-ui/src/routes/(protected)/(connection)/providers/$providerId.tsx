@@ -106,14 +106,17 @@ function CustomProviderDetailRoute() {
     () => (accountQuery.data?.data ?? []).filter((account) => account.provider === slug),
     [accountQuery.data, slug]
   )
-  // Subscription (OAuth) accounts expose live upstream limits: Claude
-  // session/weekly windows and ZCode plan grants.
+  // Accounts whose upstream reports an allowance: subscription (OAuth)
+  // accounts with Claude session/weekly windows or ZCode plan grants, and
+  // Cline pay-as-you-go accounts with a credit balance.
   const quotaAccounts = useMemo(
     () =>
       accounts.filter(
         (account) =>
-          (account.provider === 'anthropic' || account.provider === 'zcode') &&
-          account.auth_kind === 'oauth'
+          ((account.provider === 'anthropic' || account.provider === 'zcode') &&
+            account.auth_kind === 'oauth') ||
+          account.provider === 'cline' ||
+          account.provider === 'clinepayg'
       ),
     [accounts]
   )
@@ -333,6 +336,7 @@ function CustomProviderDetailRoute() {
             accounts={accounts}
             loading={accountQuery.isLoading}
             canManageKeys
+            provider={{ slug: slug ?? '', name: providerName ?? '' }}
             onAddKey={() => setAccountOpen(true)}
             onChanged={invalidate}
           />

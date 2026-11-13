@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 
@@ -140,9 +141,9 @@ func TestListOllamaModels(t *testing.T) {
 	}
 }
 
-// The Cline sync unions /models with the recommended-models free list, dedups
-// by id, prefixes the key with workos:, and fails only when both upstreams
-// fail.
+// Each Cline tier reads its own lists: cline the free bucket only, clinepayg
+// /models plus the free bucket, clinepass the clinePass plus free buckets.
+// Ids are deduplicated and sorted, and the key is prefixed with workos:.
 func TestListClineModels(t *testing.T) {
 	var gotAuth, gotUA string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -152,17 +153,34 @@ func TestListClineModels(t *testing.T) {
 		case "/api/v1/models":
 			_, _ = w.Write([]byte(`{"data":[{"id":"anthropic/claude-sonnet-4.5"},{"id":"deepseek/deepseek-chat"}]}`))
 		case "/api/v1/ai/cline/recommended-models":
-			_, _ = w.Write([]byte(`{"free":[{"id":"deepseek/deepseek-chat"},{"id":"cline-free/mimo-v2.6-flash","name":"MiMo"}]}`))
+			_, _ = w.Write([]byte(`{"free":[{"id":"deepseek/deepseek-chat"},{"id":"cline-free/mimo-v2.6-flash","name":"MiMo"}],"clinePass":[{"id":"cline-pass/kimi-k3"}]}`))
 		default:
 			http.NotFound(w, r)
 		}
 	}))
 	defer srv.Close()
 
+	cases := []struct {
+		tier string
+		want []string
+	}{
+		{"cline", []string{"cline-free/mimo-v2.6-flash", "deepseek/deepseek-chat"}},
+		{"clinepayg", []string{"anthropic/claude-sonnet-4.5", "cline-free/mimo-v2.6-flash", "deepseek/deepseek-chat"}},
+		{"clinepass", []string{"cline-free/mimo-v2.6-flash", "cline-pass/kimi-k3", "deepseek/deepseek-chat"}},
+	}
 	svc := &UpstreamService{}
-	models, err := svc.ListClineModels(context.Background(), srv.URL+"/api/v1", "raw-key")
-	if err != nil {
-		t.Fatalf("ListClineModels: %v", err)
+	for _, tc := range cases {
+		models, err := svc.ListClineModels(context.Background(), srv.URL+"/api/v1", "raw-key", tc.tier)
+		if err != nil {
+			t.Fatalf("%s: ListClineModels: %v", tc.tier, err)
+		}
+		got := make([]string, 0, len(models))
+		for _, m := range models {
+			got = append(got, m.ID)
+		}
+		if !slices.Equal(got, tc.want) {
+			t.Errorf("%s: models = %v, want %v", tc.tier, got, tc.want)
+		}
 	}
 	if gotAuth != "Bearer workos:raw-key" {
 		t.Errorf("auth = %q, want the workos-prefixed key", gotAuth)
@@ -170,11 +188,26 @@ func TestListClineModels(t *testing.T) {
 	if gotUA != "Cline/1.0.0" {
 		t.Errorf("user-agent = %q", gotUA)
 	}
-	if len(models) != 3 {
-		t.Fatalf("models = %+v, want the 3-id union", models)
+}
+
+// A list that fails must fail the sync: the result replaces the stored
+// catalog, so returning the free bucket alone would drop every paid model.
+func TestListClineModelsPartialFailure(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v1/ai/cline/recommended-models" {
+			_, _ = w.Write([]byte(`{"free":[{"id":"cline-free/m"}]}`))
+			return
+		}
+		http.Error(w, "down", http.StatusBadGateway)
+	}))
+	defer srv.Close()
+
+	svc := &UpstreamService{}
+	if models, err := svc.ListClineModels(context.Background(), srv.URL+"/api/v1", "k", "clinepayg"); err == nil {
+		t.Fatalf("clinepayg with /models down = %v, want an error", models)
 	}
-	if models[0].ID != "anthropic/claude-sonnet-4.5" || models[1].ID != "cline-free/mimo-v2.6-flash" || models[2].ID != "deepseek/deepseek-chat" {
-		t.Errorf("union = %+v", models)
+	if _, err := svc.ListClineModels(context.Background(), srv.URL+"/api/v1", "k", "cline"); err != nil {
+		t.Fatalf("cline does not read /models and must still sync: %v", err)
 	}
 }
 
@@ -185,7 +218,7 @@ func TestListClineModelsBothFail(t *testing.T) {
 	defer srv.Close()
 
 	svc := &UpstreamService{}
-	if _, err := svc.ListClineModels(context.Background(), srv.URL+"/api/v1", "k"); err == nil {
+	if _, err := svc.ListClineModels(context.Background(), srv.URL+"/api/v1", "k", "clinepayg"); err == nil {
 		t.Fatal("both upstreams failing must error")
 	}
 }

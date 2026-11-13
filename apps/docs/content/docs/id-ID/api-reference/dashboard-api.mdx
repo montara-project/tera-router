@@ -121,11 +121,14 @@ Playground memakai JWT dashboard, bukan API key. Pemakaiannya dihitung dan kena 
 | POST                 | `/v1/providers/:id/models/sync`        | Segarkan model provider katalog                                                                  |
 | POST                 | `/v1/providers/:id/models/test`        | Kirim satu chat uji ke sebuah model                                                              |
 | GET / POST           | `/v1/accounts`                         | Daftar / tambah akun                                                                             |
+| POST                 | `/v1/accounts/bulk`                    | Tambah satu akun API key per isi `api_keys`; key yang sudah tersimpan dikembalikan di `skipped`  |
 | GET / PATCH / DELETE | `/v1/accounts/:id`                     | Kelola akun                                                                                      |
 | POST                 | `/v1/accounts/:id/test`                | Uji koneksi akun                                                                                 |
 | POST                 | `/v1/accounts/test`                    | Uji key sebelum disimpan; tidak ada yang disimpan                                                |
 | GET                  | `/v1/accounts/:id/quota`               | Kuota akun                                                                                       |
 | GET / PUT            | `/v1/providers/:id/routing`            | Strategi akun (`:id` adalah slug provider)                                                       |
+| POST                 | `/v1/providers/:id/accounts/export`    | Unduh akun provider sebagai file terenkripsi `passphrase` (`:id` adalah slug)                    |
+| POST                 | `/v1/providers/:id/accounts/import`    | Tambah akun dari file export (`{"passphrase", "backup"}`); duplikat dilewati                     |
 | POST                 | `/v1/oauth/:provider/authorize`        | Mulai login PKCE (`anthropic`, `codex`); mengembalikan URL yang harus dibuka                     |
 | POST                 | `/v1/oauth/:provider/exchange`         | Tukar kode yang didapat dan simpan sebagai akun OAuth                                            |
 
@@ -238,4 +241,4 @@ Menyalakan dan mematikan tercatat di audit log. Lihat [Akses jarak jauh](/id-ID/
 | GET          | `/health`                 | Kesehatan server (tanpa auth)                                                                                                                                |
 | GET          | `/skills/:slug/SKILL.md`  | Dokumen skill publik yang diambil agent lewat URL (tanpa auth)                                                                                               |
 
-Reveal dan rotate key, kedua download backup, dan `PATCH /v1/accounts/:id` yang mengubah `metadata.base_url` meminta autentikasi ulang: kirim `"password"`, dan saat autentikasi dua faktor aktif server menjawab `{ "totp_required": true }` sampai kamu mengirim ulang dengan `"otp"`. Password atau kode yang salah dijawab `422` dan dihitung ke blokir IP, sama seperti login gagal.
+Reveal dan rotate key, kedua download backup, export akun, dan `PATCH /v1/accounts/:id` yang mengubah `metadata.base_url` meminta autentikasi ulang: kirim `"password"`, dan saat autentikasi dua faktor aktif server menjawab `{ "totp_required": true }` sampai kamu mengirim ulang dengan `"otp"`. Password atau kode yang salah dijawab `422` dan dihitung ke blokir IP, sama seperti login gagal.

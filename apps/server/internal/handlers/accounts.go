@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"slices"
 	"strings"
 	"time"
@@ -187,10 +188,21 @@ func (h *accountsHandler) Store(c fiber.Ctx) error {
 		return apperr.New(apperr.KindBadRequest, "provider is required")
 	}
 
+	account, err := h.create(c.Context(), actorFrom(c), in)
+	if err != nil {
+		return err
+	}
+	auditRecord(c, actorFrom(c), "account.create", account.ID, map[string]string{"provider": account.Provider, "label": account.Label})
+	return dtos.Created(c, accountView(account), "Account created")
+}
+
+// create seals and inserts one account, answering a conflict when its API
+// key is already stored. Store and BulkStore share it.
+func (h *accountsHandler) create(ctx context.Context, actor string, in accountInput) (models.Account, error) {
 	// A connect on a seedable catalog provider persists its custom_providers
 	// row so the dashboard can address it by uuid (provider detail page).
-	if _, err := ensureCustomProviderRow(c.Context(), h.app, actorFrom(c), in.Provider); err != nil {
-		return err
+	if _, err := ensureCustomProviderRow(ctx, h.app, actor, in.Provider); err != nil {
+		return models.Account{}, err
 	}
 
 	account := models.Account{
@@ -206,24 +218,87 @@ func (h *accountsHandler) Store(c fiber.Ctx) error {
 		account.ProxyPoolID = &poolID
 	}
 	if err := sealCredential(h.app, &account, in); err != nil {
-		return err
+		return models.Account{}, err
 	}
 
 	if account.KeyHash != "" {
 		// Only a genuine miss means "no duplicate"; any other error is a real
 		// failure and must not be mistaken for a free slot.
-		if _, err := h.app.Repos.Accounts.GetByKeyHash(c.Context(), account.KeyHash); err == nil {
-			return apperr.New(apperr.KindConflict, "an account with this key already exists")
+		if _, err := h.app.Repos.Accounts.GetByKeyHash(ctx, account.KeyHash); err == nil {
+			return models.Account{}, apperr.New(apperr.KindConflict, "an account with this key already exists")
 		} else if !errors.Is(err, apperr.ErrNotFound) {
-			return err
+			return models.Account{}, err
 		}
 	}
 
-	if err := h.app.Repos.Accounts.Insert(c.Context(), account); err != nil {
+	if err := h.app.Repos.Accounts.Insert(ctx, account); err != nil {
+		return models.Account{}, err
+	}
+	return account, nil
+}
+
+// maxBulkKeys bounds one bulk add: each key is sealed and inserted on its own.
+const maxBulkKeys = 1000
+
+// BulkStore adds one API-key account per pasted key
+// (POST /v1/accounts/bulk). Keys are handled one by one, so a bad or
+// duplicate key never blocks the rest: duplicates (already stored, or
+// repeated in the paste) land in skipped, other failures in failed.
+func (h *accountsHandler) BulkStore(c fiber.Ctx) error {
+	var req dtos.AccountBulk
+	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
 	}
-	auditRecord(c, actorFrom(c), "account.create", account.ID, map[string]string{"provider": account.Provider, "label": account.Label})
-	return dtos.Created(c, accountView(account), "Account created")
+	keys := make([]string, 0, len(req.APIKeys))
+	for _, k := range req.APIKeys {
+		if k = strings.TrimSpace(k); k != "" {
+			keys = append(keys, k)
+		}
+	}
+	if len(keys) == 0 {
+		return apperr.New(apperr.KindBadRequest, "at least one api key is required")
+	}
+	if len(keys) > maxBulkKeys {
+		return apperr.New(apperr.KindBadRequest, "at most %d api keys per request", maxBulkKeys)
+	}
+
+	prefix := cmp.Or(strings.TrimSpace(req.LabelPrefix), "key")
+	metadata := encodeMetadata(req.Metadata)
+	actor := actorFrom(c)
+
+	created := make([]fiber.Map, 0, len(keys))
+	skipped := []fiber.Map{}
+	failed := []fiber.Map{}
+	for i, key := range keys {
+		account, err := h.create(c.Context(), actor, accountInput{
+			Provider:    req.Provider,
+			Label:       fmt.Sprintf("%s %d", prefix, i+1),
+			AuthKind:    models.AuthAPIKey,
+			APIKey:      key,
+			Metadata:    metadata,
+			Priority:    cmp.Or(req.Priority, 100),
+			ProxyPoolID: req.ProxyPoolID,
+		})
+		if err == nil {
+			created = append(created, accountView(account))
+			continue
+		}
+		// From keeps a typed error's message and reduces anything else to a
+		// generic one, so internals never reach the response.
+		status, message := apperr.From(err)
+		if status == fiber.StatusConflict {
+			skipped = append(skipped, fiber.Map{"index": i, "key_fingerprint": fingerprint(key)})
+			continue
+		}
+		// The error is reported per key instead of returned, so this log is
+		// the only place its detail survives.
+		slog.Warn("bulk account create failed", "provider", req.Provider, "index", i, "error", err)
+		failed = append(failed, fiber.Map{"index": i, "key_fingerprint": fingerprint(key), "error": message})
+	}
+	if len(created) > 0 {
+		auditRecord(c, actor, "account.bulk_create", req.Provider, map[string]int{"created": len(created), "skipped": len(skipped), "failed": len(failed)})
+	}
+	return dtos.OK(c, fiber.Map{"created": created, "skipped": skipped, "failed": failed})
 }
 
 func (h *accountsHandler) Get(c fiber.Ctx) error {
@@ -446,7 +521,7 @@ func (h *accountsHandler) probe(ctx context.Context, providerSlug, metadataRaw, 
 			detail = "daemon reachable"
 		}
 		return dtos.TestResult{OK: true, Detail: fmt.Sprintf("%s · %d models", detail, len(models))}, nil
-	case "cline":
+	case "cline", "clinepayg", "clinepass":
 		// IDRouter marks Cline SkipValidation: its gateway answers /models 404
 		// and the recommended-models endpoint is public, so there is no cheap
 		// authenticated probe.
@@ -465,7 +540,8 @@ func (h *accountsHandler) probe(ctx context.Context, providerSlug, metadataRaw, 
 // Quota reports an account's quota snapshot. Claude subscription (anthropic
 // OAuth) accounts read their live session (5-hour) and weekly windows from
 // Anthropic; ZCode Plan (zcode OAuth) accounts read their plan grants from
-// the zcode.z.ai billing endpoints; every other account is usage-only.
+// the zcode.z.ai billing endpoints; Cline and Cline PAYG accounts read their
+// credit balance; every other account is usage-only.
 func (h *accountsHandler) Quota(c fiber.Ctx) error {
 	id, err := lib.ContextParamUUID(c, "id")
 	if err != nil {
@@ -475,6 +551,9 @@ func (h *accountsHandler) Quota(c fiber.Ctx) error {
 	account, err := h.app.Repos.Accounts.Get(c.Context(), id.String())
 	if err != nil {
 		return err
+	}
+	if clineQuotaProvider(account.Provider) {
+		return h.clineQuota(c, account)
 	}
 	if account.Provider != "anthropic" && account.Provider != "zcode" {
 		return dtos.OK(c, fiber.Map{

@@ -612,8 +612,8 @@ func (h *providersHandler) usableCredential(ctx context.Context, providerSlug st
 // sync (POST /v1/providers/:id/models/sync and the custom-provider
 // equivalent), each with its own source ported from IDRouter's connectors:
 // OpenRouter's public /models (whose pricing is imported into the overrides),
-// the Ollama family's /api/tags, Cline's union of /models and the
-// recommended-models free list, Cloudflare's account-scoped /models,
+// the Ollama family's /api/tags, the Cline tiers' /models and
+// recommended-models buckets, Cloudflare's account-scoped /models,
 // Deepgram's stt/tts /v1/models, ElevenLabs' /v1/models plus its Scribe STT ids,
 // and the OpenAI-compatible /models of OpenAI, Anthropic, NVIDIA, Muse, Gemini,
 // Mistral, Together, Fireworks, Nebius, and Groq.
@@ -622,6 +622,8 @@ var modelsSyncProviders = map[string]bool{
 	"ollama":       true,
 	"ollama-local": true,
 	"cline":        true,
+	"clinepayg":    true,
+	"clinepass":    true,
 	"cloudflare":   true,
 	"openai":       true,
 	"anthropic":    true,
@@ -669,11 +671,11 @@ func (h *providersHandler) syncProviderModels(ctx context.Context, slug string) 
 		return h.app.Services.Upstream.ListModels(ctx, spec.BaseURL+"/models", false, oauth, apiKey)
 	case "ollama", "ollama-local":
 		return h.app.Services.Upstream.ListOllamaModels(ctx, spec.BaseURL, apiKey)
-	case "cline":
+	case "cline", "clinepayg", "clinepass":
 		if apiKey == "" {
 			return nil, apperr.New(apperr.KindUnprocessable, noCredential)
 		}
-		return h.app.Services.Upstream.ListClineModels(ctx, spec.BaseURL, apiKey)
+		return h.app.Services.Upstream.ListClineModels(ctx, spec.BaseURL, apiKey, slug)
 	case "cloudflare":
 		if apiKey == "" {
 			return nil, apperr.New(apperr.KindUnprocessable, noCredential)
@@ -973,7 +975,7 @@ func (h *providersHandler) CatalogModelTest(c fiber.Ctx) error {
 	}
 	apiKey, oauth := h.usableCredential(c.Context(), slug)
 	var headers map[string]string
-	if slug == "cline" {
+	if connectors.IsCline(slug) {
 		headers = connectors.ClineHeaders(apiKey)
 	}
 	return h.runModelTest(c, base, spec.Dialect == "anthropic", apiKey, oauth, headers)
@@ -1007,7 +1009,13 @@ func (h *providersHandler) CustomModelTest(c fiber.Ctx) error {
 	kind := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(provider.APIKind)), "custom-")
 	anthropic := kind == "anthropic"
 	apiKey, oauth := h.usableCredential(c.Context(), provider.Slug)
-	return h.runModelTest(c, base, anthropic, apiKey, oauth, nil)
+	// A seeded Cline tier is tested from this route too, and its gateway
+	// answers 403 without the SDK identification headers.
+	var headers map[string]string
+	if connectors.IsCline(provider.Slug) {
+		headers = connectors.ClineHeaders(apiKey)
+	}
+	return h.runModelTest(c, base, anthropic, apiKey, oauth, headers)
 }
 
 // Bounds for a provider's account strategy knobs.

@@ -4,7 +4,12 @@ import { AUTH_STORAGE_KEYS } from '@/lib/constants/auth'
 import type { AccountResources } from './types/account'
 
 import { ClientFetchApi } from '../client-fetch'
-import { AccountSchema } from '../dtos/account/schema'
+import {
+  AccountBulkSchema,
+  AccountSchema,
+  AccountsExportSchema,
+  AccountsImportSchema,
+} from '../dtos/account/schema'
 import { parseDto } from '../dtos/parse'
 
 const path = '/v1/accounts'
@@ -23,6 +28,11 @@ const resources = (): AccountResources => {
     store: (payload) => {
       const url = path
       return api.post(url, parseDto(AccountSchema, payload))
+    },
+    /** adds one account per pasted key (POST /v1/accounts/bulk) */
+    bulkStore: (payload) => {
+      const url = `${path}/bulk`
+      return api.post(url, parseDto(AccountBulkSchema, payload))
     },
     get: (id) => {
       const url = `${path}/${id}`
@@ -50,6 +60,16 @@ const resources = (): AccountResources => {
     quota: (id) => {
       const url = `${path}/${id}/quota`
       return api.get(url)
+    },
+    /** one provider's accounts as a passphrase-encrypted file */
+    exportByProvider: (slug, payload) => {
+      const url = `/v1/providers/${encodeURIComponent(slug)}/accounts/export`
+      return api.post(url, parseDto(AccountsExportSchema, payload), { responseType: 'blob' })
+    },
+    /** adds the accounts of an export file to the provider */
+    importByProvider: (slug, payload) => {
+      const url = `/v1/providers/${encodeURIComponent(slug)}/accounts/import`
+      return api.post(url, parseDto(AccountsImportSchema, payload))
     },
   }
 }
