@@ -72,6 +72,9 @@ interface ReactTableProps<T extends RowData> {
   pagination?: boolean
   /** Extra classes on the <table>, e.g. a min width before it scrolls. */
   tableClassName?: string
+  /** Drawn in place of the table, above the same pager: a card grid of the
+   * page's rows, for a panel that offers a grid next to its list. */
+  body?: React.ReactNode
 }
 
 export default function ReactTable<T extends RowData>({
@@ -89,6 +92,7 @@ export default function ReactTable<T extends RowData>({
   pageSizes,
   pagination: showPagination = true,
   tableClassName,
+  body,
 }: ReactTableProps<T>) {
   const [sorting, setSorting] = useState<SortingState>(columnSort)
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
@@ -147,6 +151,8 @@ export default function ReactTable<T extends RowData>({
       <div className="w-full">
         {emptyMessage && data.length === 0 ? (
           emptyMessage
+        ) : body ? (
+          body
         ) : (
           <DataGridContainer border={false}>
             <ScrollArea>
