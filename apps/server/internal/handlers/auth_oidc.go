@@ -469,9 +469,14 @@ func (h *authHandler) OIDCCallback(c fiber.Ctx) error {
 			}
 			auditRecord(c, user.ID, "user.oidc_link", user.ID, nil)
 		case errors.Is(err, apperr.ErrNotFound):
-			// SSO provisions on first use: an email the provider vouches for
-			// mints a dashboard account with the least-privileged "user" role.
-			user, err = h.provisionOIDCUser(c, claims.Email, claims.Name, idToken.Issuer, claims.Sub)
+			// SSO provisions on first use when the operator allows it: an
+			// email the provider vouches for mints a dashboard account with
+			// the least-privileged "user" role. With provisioning off, err
+			// keeps ErrNotFound and the sign-in is refused as no_account
+			// below — someone has to create the account first.
+			if h.app.Config.OIDC.AutoProvision {
+				user, err = h.provisionOIDCUser(c, claims.Email, claims.Name, idToken.Issuer, claims.Sub)
+			}
 		}
 	}
 	if errors.Is(err, apperr.ErrNotFound) {

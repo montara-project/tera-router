@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"io"
 	"math/big"
 	"net/http"
@@ -21,6 +22,7 @@ import (
 	"tera-router/server/internal/database"
 	"tera-router/server/internal/dtos"
 	"tera-router/server/internal/lib"
+	"tera-router/server/internal/lib/apperr"
 	"tera-router/server/internal/lib/password"
 	"tera-router/server/internal/lib/sealer"
 	"tera-router/server/internal/lib/totp"
@@ -457,7 +459,7 @@ func TestOIDCCallbackPendingTOTP(t *testing.T) {
 	idp := newFakeIdP(t, "n1", "admin@tera.local")
 	h.app.Config.OIDC = config.ConfigOIDC{
 		Issuer: idp.srv.URL, ClientID: "id", ClientSecret: "secret",
-		RequireEmailVerified: true, LinkExistingAccounts: true,
+		RequireEmailVerified: true, LinkExistingAccounts: true, AutoProvision: true,
 	}
 	h.oidcStates.put("st", oidcState{nonce: "n1", verifier: oauth2.GenerateVerifier(), uiOrigin: "", flow: "f1"}, oidcStateTTL)
 
@@ -523,7 +525,7 @@ func TestOIDCCallbackProvisionsUser(t *testing.T) {
 	idp.sub = "sub-new"
 	h.app.Config.OIDC = config.ConfigOIDC{
 		Issuer: idp.srv.URL, ClientID: "id", ClientSecret: "secret",
-		RequireEmailVerified: true, LinkExistingAccounts: true,
+		RequireEmailVerified: true, LinkExistingAccounts: true, AutoProvision: true,
 	}
 	h.oidcStates.put("st", oidcState{nonce: "n1", verifier: oauth2.GenerateVerifier(), uiOrigin: "", flow: "f1"}, oidcStateTTL)
 
@@ -646,7 +648,7 @@ func TestOIDCCallbackLinksExistingAccount(t *testing.T) {
 	idp.sub = "admin-sub"
 	fx.h.app.Config.OIDC = config.ConfigOIDC{
 		Issuer: idp.srv.URL, ClientID: "id", ClientSecret: "secret",
-		RequireEmailVerified: true, LinkExistingAccounts: true,
+		RequireEmailVerified: true, LinkExistingAccounts: true, AutoProvision: true,
 	}
 
 	if q := fx.callCallback(t, "st"); q.Get("sso_ticket") == "" {
@@ -675,7 +677,7 @@ func TestOIDCCallbackLinkDisabled(t *testing.T) {
 	idp.sub = "admin-sub"
 	fx.h.app.Config.OIDC = config.ConfigOIDC{
 		Issuer: idp.srv.URL, ClientID: "id", ClientSecret: "secret",
-		RequireEmailVerified: true, LinkExistingAccounts: false,
+		RequireEmailVerified: true, LinkExistingAccounts: false, AutoProvision: true,
 	}
 
 	if q := fx.callCallback(t, "st"); q.Get("sso_error") != "not_linked" {
@@ -688,6 +690,44 @@ func TestOIDCCallbackLinkDisabled(t *testing.T) {
 	}
 }
 
+// TestOIDCAutoProvisionDisabled pins the off side of OIDC_AUTO_PROVISION: an
+// unknown verified email is turned away instead of minting an account, while
+// linked pairs and email-matched accounts still sign in — those are the
+// LinkExistingAccounts switch's territory, not provisioning's.
+func TestOIDCAutoProvisionDisabled(t *testing.T) {
+	fx := newSSOCallbackFixture(t, config.ConfigOIDC{})
+	t.Setenv("ADMIN_PASSWORD", "test-password")
+	seeders.AdminUserSeeder{DB: fx.h.app.DB}.Seed()
+
+	idp := newFakeIdP(t, "n1", "stranger@example.com")
+	fx.h.app.Config.OIDC = config.ConfigOIDC{
+		Issuer: idp.srv.URL, ClientID: "id", ClientSecret: "secret",
+		RequireEmailVerified: true, LinkExistingAccounts: true, AutoProvision: false,
+	}
+
+	// Unknown email: refused, and no account is created.
+	if q := fx.callCallback(t, "st"); q.Get("sso_error") != "no_account" {
+		t.Fatalf("unknown email callback = %v, want sso_error=no_account", q)
+	}
+	if _, err := fx.h.app.Repos.Users.GetByEmailFold(t.Context(), "stranger@example.com"); !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("provisioning ran anyway: %v", err)
+	}
+
+	// The seeded admin's email matches: linking is a separate switch, so the
+	// sign-in still goes through and binds the pair.
+	idp.email, idp.sub = "admin@tera.local", "admin-sub"
+	if q := fx.callCallback(t, "st2"); q.Get("sso_ticket") == "" {
+		t.Fatalf("linked-email callback = %v, want sso_ticket", q)
+	}
+
+	// From then on the pair alone signs in — a new email at the provider
+	// resolves by subject without touching provisioning.
+	idp.email = "renamed@tera.local"
+	if q := fx.callCallback(t, "st3"); q.Get("sso_ticket") == "" {
+		t.Fatalf("linked pair callback = %v, want sso_ticket", q)
+	}
+}
+
 // TestOIDCCallbackEmailVerifiedFlag gates the email_verified requirement:
 // the flag on refuses unverified emails, off lets them provision.
 func TestOIDCCallbackEmailVerifiedFlag(t *testing.T) {
@@ -696,7 +736,7 @@ func TestOIDCCallbackEmailVerifiedFlag(t *testing.T) {
 	idp.emailVerified = false
 	fx.h.app.Config.OIDC = config.ConfigOIDC{
 		Issuer: idp.srv.URL, ClientID: "id", ClientSecret: "secret",
-		RequireEmailVerified: true, LinkExistingAccounts: true,
+		RequireEmailVerified: true, LinkExistingAccounts: true, AutoProvision: true,
 	}
 
 	if q := fx.callCallback(t, "st"); q.Get("sso_error") != "email_unverified" {
@@ -784,7 +824,7 @@ func TestOIDCCallbackEmailCaseFold(t *testing.T) {
 	idp.sub = "case-sub"
 	fx.h.app.Config.OIDC = config.ConfigOIDC{
 		Issuer: idp.srv.URL, ClientID: "id", ClientSecret: "secret",
-		RequireEmailVerified: true, LinkExistingAccounts: true,
+		RequireEmailVerified: true, LinkExistingAccounts: true, AutoProvision: true,
 	}
 
 	if q := fx.callCallback(t, "st"); q.Get("sso_ticket") == "" {
@@ -807,7 +847,7 @@ func TestOIDCCallbackAmbiguousEmailVariants(t *testing.T) {
 	idp := newFakeIdP(t, "n1", "CASE@dup.local")
 	fx.h.app.Config.OIDC = config.ConfigOIDC{
 		Issuer: idp.srv.URL, ClientID: "id", ClientSecret: "secret",
-		RequireEmailVerified: true, LinkExistingAccounts: true,
+		RequireEmailVerified: true, LinkExistingAccounts: true, AutoProvision: true,
 	}
 
 	if q := fx.callCallback(t, "st"); q.Get("sso_error") != "internal" {
@@ -826,7 +866,7 @@ func TestOIDCCallbackIssuerMismatch(t *testing.T) {
 	idp.sub = "shared-sub"
 	fx.h.app.Config.OIDC = config.ConfigOIDC{
 		Issuer: idp.srv.URL, ClientID: "id", ClientSecret: "secret",
-		RequireEmailVerified: true, LinkExistingAccounts: true,
+		RequireEmailVerified: true, LinkExistingAccounts: true, AutoProvision: true,
 	}
 
 	if q := fx.callCallback(t, "st"); q.Get("sso_error") != "not_linked" {
@@ -851,7 +891,7 @@ func TestOIDCCallbackLegacyIssuerLink(t *testing.T) {
 	idp.sub = "idp-user"
 	fx.h.app.Config.OIDC = config.ConfigOIDC{
 		Issuer: idp.srv.URL, ClientID: "id", ClientSecret: "secret",
-		RequireEmailVerified: true, LinkExistingAccounts: false,
+		RequireEmailVerified: true, LinkExistingAccounts: false, AutoProvision: true,
 	}
 
 	if q := fx.callCallback(t, "st"); q.Get("sso_ticket") == "" {
@@ -909,7 +949,7 @@ func TestProvisionOIDCUserRace(t *testing.T) {
 	fx := newSSOCallbackFixture(t, config.ConfigOIDC{})
 	fx.h.app.Config.OIDC = config.ConfigOIDC{
 		Issuer: "https://idp", ClientID: "id", ClientSecret: "secret",
-		RequireEmailVerified: true, LinkExistingAccounts: true,
+		RequireEmailVerified: true, LinkExistingAccounts: true, AutoProvision: true,
 	}
 	fx.f.Post("/prov", func(c fiber.Ctx) error {
 		u, err := fx.h.provisionOIDCUser(c, "race@example.com", "Racer", "iss-a", "sub-b")
@@ -979,7 +1019,7 @@ func TestProvisionOIDCUserCaseVariants(t *testing.T) {
 	fx := newSSOCallbackFixture(t, config.ConfigOIDC{})
 	fx.h.app.Config.OIDC = config.ConfigOIDC{
 		Issuer: "https://idp", ClientID: "id", ClientSecret: "secret",
-		RequireEmailVerified: true, LinkExistingAccounts: true,
+		RequireEmailVerified: true, LinkExistingAccounts: true, AutoProvision: true,
 	}
 	var email, sub string
 	fx.f.Post("/prov", func(c fiber.Ctx) error {
@@ -1056,7 +1096,7 @@ func TestOIDCCallbackBlockedAccountNoLink(t *testing.T) {
 	idp.sub = "blocked-sub"
 	fx.h.app.Config.OIDC = config.ConfigOIDC{
 		Issuer: idp.srv.URL, ClientID: "id", ClientSecret: "secret",
-		RequireEmailVerified: true, LinkExistingAccounts: true,
+		RequireEmailVerified: true, LinkExistingAccounts: true, AutoProvision: true,
 	}
 
 	if q := fx.callCallback(t, "st"); q.Get("sso_error") != "no_account" {
@@ -1236,7 +1276,7 @@ func TestOIDCReauthFlow(t *testing.T) {
 		App: config.ConfigApp{Secret: "test-secret"},
 		OIDC: config.ConfigOIDC{
 			Issuer: idp.srv.URL, ClientID: "id", ClientSecret: "secret",
-			RequireEmailVerified: true, LinkExistingAccounts: true,
+			RequireEmailVerified: true, LinkExistingAccounts: true, AutoProvision: true,
 		},
 	}
 	secrets, err := sealer.FromSecret(cfg.App.Secret)

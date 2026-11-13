@@ -66,4 +66,9 @@ type ConfigOIDC struct {
 	// already carry an oidc_sub (provisioned or previously linked) may use
 	// SSO; the rest keep password/passkey sign-in.
 	LinkExistingAccounts bool
+	// AutoProvision lets an OIDC sign-in whose verified email matches no
+	// account create one with the "user" role. Turn it off when accounts
+	// must be created by an admin first; linked and email-matched accounts
+	// are unaffected — those are governed by LinkExistingAccounts.
+	AutoProvision bool
 }
