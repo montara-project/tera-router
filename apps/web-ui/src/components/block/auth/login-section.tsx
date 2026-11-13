@@ -75,8 +75,6 @@ const SSO_ERRORS: Record<string, string> = {
     'Your email domain is not allowed to sign in to this dashboard. Ask an administrator for help.',
   no_account:
     'No dashboard account exists for this identity. Ask an administrator to create one first.',
-  not_linked:
-    'This account is not linked to the identity provider. Sign in with your password instead.',
   internal: 'The sign-in failed on the server. Try again.',
 }
 
@@ -128,15 +126,22 @@ export default function LoginSection({
   const ssoExchange = useMutation(queries.auth.ssoExchange())
   const ssoVerifyTotp = useMutation(queries.auth.ssoVerifyTotp())
 
+  const passkeyAvailable = passwordLogin && passkeysSupported()
+  // The card swaps between contents: the code step wins over the password
+  // form, and SSO-only mode leaves the card to the alternative buttons.
+  const showPasswordForm = !showCode && passwordLogin
+  const showAltSignIn = !showCode && (ssoEnabled || passkeyAvailable)
+  const otpIncomplete = showCode && otp.length !== 6
+
   // The right not_linked recovery depends on whether password sign-in is
   // still offered, which only the server config knows.
   const ssoErrMessage = (code: string): string => {
-    if (code === 'not_linked') {
-      return passwordLogin
-        ? 'This account is not linked to the identity provider. Sign in with your password instead.'
-        : 'This account is not linked to the identity provider. Ask an administrator for help.'
+    if (code !== 'not_linked') {
+      return SSO_ERRORS[code] ?? 'SSO sign-in failed. Try again.'
     }
-    return SSO_ERRORS[code] ?? 'SSO sign-in failed. Try again.'
+    return passwordLogin
+      ? 'This account is not linked to the identity provider. Sign in with your password instead.'
+      : 'This account is not linked to the identity provider. Ask an administrator for help.'
   }
   const shownError = error ?? (ssoErr ? ssoErrMessage(ssoErr) : null)
   const clearErrors = () => {
@@ -272,6 +277,159 @@ export default function LoginSection({
   const labels = showCode ? SUBMIT_LABELS.verify : SUBMIT_LABELS.signIn
   const submitLabel = isLoading ? labels.pending : labels.idle
   const HeadIcon = showCode ? IconShieldCheck : IconLock
+  const headerBadge = showCode ? 'TOTP' : health.version
+
+  // The footer explains the current step; later branches override earlier
+  // ones so the code step always wins.
+  let footerNote = 'Your identity provider handles sign-in'
+  if (passwordLogin) {
+    footerNote = 'TOTP is asked after this step when it is on'
+  }
+  if (showCode) {
+    footerNote = `Code expires in 00:${String(secondsLeft).padStart(2, '0')}`
+  }
+
+  const codeStep = (
+    <>
+      {/* Password sign-in echoes the account email; an SSO pending
+          ticket does not reveal it, so the field stays out. */}
+      {!verifyingSSO && (
+        <Field>
+          <Label htmlFor="totp-email" className="text-[12.5px]">
+            Email
+          </Label>
+          <InputWrapper variant="md">
+            <IconMail aria-hidden />
+            <Input
+              id="totp-email"
+              value={form.state.values.email}
+              readOnly
+              // Shown for context, not a locked field: no grey read-only fill.
+              className="cursor-default! bg-transparent!"
+            />
+          </InputWrapper>
+        </Field>
+      )}
+
+      <Field className="gap-2!">
+        <Label htmlFor="otp" className="text-[12.5px]">
+          Verification code
+        </Label>
+        <InputOTP
+          id="otp"
+          value={otp}
+          onChange={(value: string) => {
+            setOtp(value)
+            // Editing the code clears the last attempt's error and aria-invalid.
+            setError(null)
+          }}
+          maxLength={6}
+          pattern={REGEXP_ONLY_DIGITS}
+          aria-invalid={!!shownError}
+          autoFocus
+          autoComplete="one-time-code"
+          containerClassName="w-full"
+        >
+          <InputOTP.Group className="w-full">
+            {Array.from({ length: 6 }, (_, i) => (
+              <InputOTP.Slot
+                key={i}
+                index={i}
+                // Empty boxes sit a shade back; the caret is the accent, as in the design.
+                className="h-11.5 flex-1 text-xl font-semibold data-[filled=false]:bg-muted/40 [&_.animate-caret-blink]:h-5.5 [&_.animate-caret-blink]:w-0.5 [&_.animate-caret-blink]:bg-orange-500"
+              />
+            ))}
+          </InputOTP.Group>
+        </InputOTP>
+      </Field>
+
+      {canReadClipboard() && (
+        <button
+          type="button"
+          onClick={() => void pasteCode()}
+          className="flex w-fit items-center gap-1.5 rounded-sm text-[11.5px] text-muted-foreground hover:text-foreground"
+        >
+          <IconClipboard className="size-3 text-muted-foreground/80" aria-hidden />
+          Paste from authenticator
+        </button>
+      )}
+    </>
+  )
+
+  const passwordStep = (
+    <>
+      <form.AppField
+        name="email"
+        children={(field) => (
+          <field.TextField
+            label="Email"
+            placeholder="operator@tera.dev"
+            type="email"
+            autoComplete="username"
+            icon={IconMail}
+            variant="md"
+          />
+        )}
+      />
+
+      <form.AppField
+        name="password"
+        children={(field) => (
+          <field.PasswordField
+            label="Password"
+            placeholder="Your password"
+            autoComplete="current-password"
+            icon={IconKey}
+            variant="md"
+          />
+        )}
+      />
+    </>
+  )
+
+  const altSignIn = (
+    <>
+      {passwordLogin && (
+        <div className="flex items-center gap-2.5" aria-hidden>
+          <span className="h-px flex-1 bg-border" />
+          <span className="font-mono text-[10.5px] tracking-[0.6px] text-muted-foreground/80">
+            OR
+          </span>
+          <span className="h-px flex-1 bg-border" />
+        </div>
+      )}
+      {ssoEnabled && (
+        <Button
+          variant="outline"
+          className="h-9 w-full gap-2 bg-muted/40 text-[12.5px] font-medium"
+          disabled={isLoading}
+          type="button"
+          onClick={() => {
+            // Bind the coming ticket to this tab: the flow id lives
+            // in sessionStorage and must be repeated at exchange.
+            const flow = crypto.randomUUID()
+            sessionStorage.setItem(SSO_FLOW_KEY, flow)
+            window.location.href = `${String(env.API_URL)}/v1/auth/oidc/login?flow=${flow}`
+          }}
+        >
+          <IconWorld className="size-3.5 text-orange-600 dark:text-orange-400" aria-hidden />
+          Continue with {ssoConfig.data?.provider_name || 'SSO'}
+        </Button>
+      )}
+      {passkeyAvailable && (
+        <Button
+          type="button"
+          variant="outline"
+          className="h-9 w-full gap-2 bg-muted/40 text-[12.5px] font-medium"
+          onClick={passkeySignIn}
+          disabled={isLoading}
+        >
+          <IconFaceId className="size-3.5 text-orange-600 dark:text-orange-400" aria-hidden />
+          Sign in with a passkey
+        </Button>
+      )}
+    </>
+  )
 
   return (
     <div
@@ -307,10 +465,8 @@ export default function LoginSection({
               {showCode ? 'Step 2 of 2 · Enter the code' : 'Operator console access'}
             </p>
           </div>
-          {(showCode || health.version) && (
-            <span className="font-mono text-[11px] text-muted-foreground/80">
-              {showCode ? 'TOTP' : health.version}
-            </span>
+          {headerBadge && (
+            <span className="font-mono text-[11px] text-muted-foreground/80">{headerBadge}</span>
           )}
         </header>
 
@@ -330,109 +486,16 @@ export default function LoginSection({
             form.handleSubmit()
           }}
         >
-          {showCode ? (
-            <>
-              {/* Password sign-in echoes the account email; an SSO pending
-                  ticket does not reveal it, so the field stays out. */}
-              {!verifyingSSO && (
-                <Field>
-                  <Label htmlFor="totp-email" className="text-[12.5px]">
-                    Email
-                  </Label>
-                  <InputWrapper variant="md">
-                    <IconMail aria-hidden />
-                    <Input
-                      id="totp-email"
-                      value={form.state.values.email}
-                      readOnly
-                      // Shown for context, not a locked field: no grey read-only fill.
-                      className="cursor-default! bg-transparent!"
-                    />
-                  </InputWrapper>
-                </Field>
-              )}
-
-              <Field className="gap-2!">
-                <Label htmlFor="otp" className="text-[12.5px]">
-                  Verification code
-                </Label>
-                <InputOTP
-                  id="otp"
-                  value={otp}
-                  onChange={(value: string) => {
-                    setOtp(value)
-                    // Editing the code clears the last attempt's error and aria-invalid.
-                    setError(null)
-                  }}
-                  maxLength={6}
-                  pattern={REGEXP_ONLY_DIGITS}
-                  aria-invalid={!!shownError}
-                  autoFocus
-                  autoComplete="one-time-code"
-                  containerClassName="w-full"
-                >
-                  <InputOTP.Group className="w-full">
-                    {Array.from({ length: 6 }, (_, i) => (
-                      <InputOTP.Slot
-                        key={i}
-                        index={i}
-                        // Empty boxes sit a shade back; the caret is the accent, as in the design.
-                        className="h-[46px] flex-1 text-xl font-semibold data-[filled=false]:bg-muted/40 [&_.animate-caret-blink]:h-[22px] [&_.animate-caret-blink]:w-0.5 [&_.animate-caret-blink]:bg-orange-500"
-                      />
-                    ))}
-                  </InputOTP.Group>
-                </InputOTP>
-              </Field>
-
-              {canReadClipboard() && (
-                <button
-                  type="button"
-                  onClick={() => void pasteCode()}
-                  className="flex w-fit items-center gap-1.5 rounded-sm text-[11.5px] text-muted-foreground hover:text-foreground"
-                >
-                  <IconClipboard className="size-3 text-muted-foreground/80" aria-hidden />
-                  Paste from authenticator
-                </button>
-              )}
-            </>
-          ) : passwordLogin ? (
-            <>
-              <form.AppField
-                name="email"
-                children={(field) => (
-                  <field.TextField
-                    label="Email"
-                    placeholder="operator@tera.dev"
-                    type="email"
-                    autoComplete="username"
-                    icon={IconMail}
-                    variant="md"
-                  />
-                )}
-              />
-
-              <form.AppField
-                name="password"
-                children={(field) => (
-                  <field.PasswordField
-                    label="Password"
-                    placeholder="Your password"
-                    autoComplete="current-password"
-                    icon={IconKey}
-                    variant="md"
-                  />
-                )}
-              />
-            </>
-          ) : null}
+          {showCode && codeStep}
+          {showPasswordForm && passwordStep}
 
           {shownError && <FieldError>{shownError}</FieldError>}
 
-          {(showCode || passwordLogin) && (
+          {(showCode || showPasswordForm) && (
             <Button
               type="submit"
               className="h-[38px] w-full gap-[7px] bg-[#0a59b8] text-[13px] font-medium text-white hover:bg-[#0a59b8]/90"
-              disabled={isLoading || (showCode && otp.length !== 6)}
+              disabled={isLoading || otpIncomplete}
             >
               {isLoading && <IconLoader2 className="size-4 animate-spin" aria-hidden />}
               {submitLabel}
@@ -440,66 +503,12 @@ export default function LoginSection({
             </Button>
           )}
 
-          {!showCode && (ssoEnabled || (passwordLogin && passkeysSupported())) && (
-            <>
-              {passwordLogin && (
-                <div className="flex items-center gap-2.5" aria-hidden>
-                  <span className="h-px flex-1 bg-border" />
-                  <span className="font-mono text-[10.5px] tracking-[0.6px] text-muted-foreground/80">
-                    OR
-                  </span>
-                  <span className="h-px flex-1 bg-border" />
-                </div>
-              )}
-              {ssoEnabled && (
-                <Button
-                  variant="outline"
-                  className="h-9 w-full gap-2 bg-muted/40 text-[12.5px] font-medium"
-                  disabled={isLoading}
-                  type="button"
-                  onClick={() => {
-                    // Bind the coming ticket to this tab: the flow id lives
-                    // in sessionStorage and must be repeated at exchange.
-                    const flow = crypto.randomUUID()
-                    sessionStorage.setItem(SSO_FLOW_KEY, flow)
-                    window.location.href = `${String(env.API_URL)}/v1/auth/oidc/login?flow=${flow}`
-                  }}
-                >
-                  <IconWorld
-                    className="size-3.5 text-orange-600 dark:text-orange-400"
-                    aria-hidden
-                  />
-                  Continue with {ssoConfig.data?.provider_name || 'SSO'}
-                </Button>
-              )}
-              {passwordLogin && passkeysSupported() && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-9 w-full gap-2 bg-muted/40 text-[12.5px] font-medium"
-                  onClick={passkeySignIn}
-                  disabled={isLoading}
-                >
-                  <IconFaceId
-                    className="size-3.5 text-orange-600 dark:text-orange-400"
-                    aria-hidden
-                  />
-                  Sign in with a passkey
-                </Button>
-              )}
-            </>
-          )}
+          {showAltSignIn && altSignIn}
         </form>
 
         <footer className="flex items-center gap-1.5 border-t border-border bg-muted/40 px-5 py-2.5">
           <IconShieldCheck className="size-3 text-muted-foreground/80" aria-hidden />
-          <p className="text-[11.5px] text-muted-foreground">
-            {showCode
-              ? `Code expires in 00:${String(secondsLeft).padStart(2, '0')}`
-              : passwordLogin
-                ? 'TOTP is asked after this step when it is on'
-                : 'Your identity provider handles sign-in'}
-          </p>
+          <p className="text-[11.5px] text-muted-foreground">{footerNote}</p>
         </footer>
       </section>
 
