@@ -3,6 +3,25 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [1.26.0](https://github.com/montara-project/tera-router/compare/v1.25.0...v1.26.0) (2026-11-14)
+
+### Features
+
+* add Cline tiers, bulk account add and per-provider accounts export/import ([af30775](https://github.com/montara-project/tera-router/commit/af3077573e7737b784cc7957935bf23113d1e31a))
+* add WorkBuddy and CodeBuddy, and import IDrouter account files ([13a2202](https://github.com/montara-project/tera-router/commit/13a220222d75e85787733c306c9f84c91161b157))
+* search, filter and page provider accounts through the server ([bf95a0a](https://github.com/montara-project/tera-router/commit/bf95a0a49a52615f7ca638fadb393f43e2d43788))
+* search, filter, sort and page dashboard lists through the server ([c7a1f76](https://github.com/montara-project/tera-router/commit/c7a1f767ae8b3702cba48a6bfb8e12c049f1ac3e))
+* **server:** disable restricted access temporarily via RESTRICTED_ACCESS_DISABLED ([bc29f6c](https://github.com/montara-project/tera-router/commit/bc29f6c4d9ccd55c764588e3bcf372bc355f0054))
+* **web-ui:** add grid and list views to the provider quota tab ([93f57c6](https://github.com/montara-project/tera-router/commit/93f57c666180e35367f6fe31dd9f34678e903d68))
+
+### Bug Fixes
+
+* **buddy:** address review findings across gateway, oauth and quota ([2747e1e](https://github.com/montara-project/tera-router/commit/2747e1eaaef6574c09acb6154da9582032f565d5))
+* let the account list return up to 1000 accounts ([6988cf6](https://github.com/montara-project/tera-router/commit/6988cf678f7be28a3261f627ac7fccd17ae297cd))
+* park restricted buddy accounts and refresh before probing ([7a3efbe](https://github.com/montara-project/tera-router/commit/7a3efbe11730f8575742261144f82b3f71b53340))
+* update version ([f20cfdf](https://github.com/montara-project/tera-router/commit/f20cfdfb44b0523e30f367719a9016389f325f7b))
+* **web-ui:** show a retryable error when the account list fails to load ([8e1f102](https://github.com/montara-project/tera-router/commit/8e1f1021d703ed75326f4e5a5249fd0ec0d5856e))
+
 ## [1.25.0](https://github.com/montara-project/tera-router/compare/v1.24.0...v1.25.0) (2026-11-13)
 
 ### Features
