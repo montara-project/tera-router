@@ -1,4 +1,4 @@
-import { IconSearch } from '@tabler/icons-react'
+import { IconAlertTriangle, IconSearch } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
 import { useQueryState } from 'nuqs'
 import { useEffect, useState } from 'react'
@@ -74,12 +74,36 @@ export function useProviderAccounts({
     /** True until the page asked for is the one in `rows`. */
     pending: query.isLoading || query.isPlaceholderData || pastEnd,
     loading: query.isLoading,
+    /** The list failed to load and there is nothing to show in its place. */
+    failed: query.isError && query.data === undefined,
+    retry: () => void query.refetch(),
     pageIndex,
     limit,
   }
 }
 
 type AccountSearch = Pick<ReturnType<typeof useProviderAccounts>, 'value' | 'onChange'>
+
+/** Shown in place of the rows when the list failed to load. */
+export function AccountListError({
+  list,
+}: {
+  list: Pick<ReturnType<typeof useProviderAccounts>, 'retry'>
+}) {
+  return (
+    <EmptyState
+      className="py-12"
+      icon={IconAlertTriangle}
+      title="Couldn't load accounts"
+      description="The server did not answer. Try again in a moment."
+      action={
+        <Button size="sm" variant="outline" onClick={list.retry}>
+          Retry
+        </Button>
+      }
+    />
+  )
+}
 
 /** The search box of a provider tab's toolbar. */
 export function AccountSearchBar({ search }: { search: AccountSearch }) {

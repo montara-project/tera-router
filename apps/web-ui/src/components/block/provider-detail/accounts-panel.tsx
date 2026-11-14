@@ -24,6 +24,7 @@ import SectionCardPanel from '@/components/block/common/section-card-panel'
 import SimpleAlertDialog from '@/components/block/common/simple-alert-dialog'
 import {
   AccountSearchBar,
+  AccountListError,
   AccountSearchEmpty,
   useProviderAccounts,
 } from '@/components/block/provider-detail/account-search'
@@ -248,6 +249,8 @@ export default function AccountsPanel({
         </div>
       )
     }
+
+    if (list.failed) return <AccountListError list={list} />
 
     if (noAccounts) {
       return (

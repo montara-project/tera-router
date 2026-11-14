@@ -17,6 +17,7 @@ import ReactTable, { features } from '@/components/block/common/react-table'
 import SectionCardPanel from '@/components/block/common/section-card-panel'
 import {
   AccountSearchBar,
+  AccountListError,
   AccountSearchEmpty,
   useProviderAccounts,
 } from '@/components/block/provider-detail/account-search'
@@ -198,6 +199,8 @@ export default function QuotaPanel({ slug }: { slug: string }) {
           <Skeleton className="h-10 w-full" />
           <Skeleton className="h-10 w-full" />
         </div>
+      ) : list.failed ? (
+        <AccountListError list={list} />
       ) : (
         <ReactTable
           total={list.total}
