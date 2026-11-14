@@ -5,17 +5,17 @@ import { getQueryClient } from '@/lib/providers/react-query'
 import type {
   AccountBulkDto,
   AccountDto,
+  AccountListDto,
   AccountsExportDto,
   AccountsImportDto,
 } from '../dtos/account/schema'
-import type { PaginateDto } from '../dtos/paginate'
 
 import { services } from '../services'
 import { decodeBlobError, fileOrTotp } from './backup'
 
 export const ACCOUNT_QUERY_KEY = 'accounts'
 
-export const LIST_ACCOUNT_QUERY_KEY = (params?: PaginateDto) => {
+export const LIST_ACCOUNT_QUERY_KEY = (params?: AccountListDto) => {
   return [ACCOUNT_QUERY_KEY, 'list', params]
 }
 
@@ -23,7 +23,7 @@ export const GET_ACCOUNT_QUERY_KEY = (id: string) => {
   return [ACCOUNT_QUERY_KEY, 'detail', id]
 }
 
-const list = (params?: PaginateDto) =>
+const list = (params?: AccountListDto) =>
   queryOptions({
     queryKey: LIST_ACCOUNT_QUERY_KEY(params),
     queryFn: async () => {

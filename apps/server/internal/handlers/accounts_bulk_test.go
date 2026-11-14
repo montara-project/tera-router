@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 
@@ -122,5 +123,79 @@ func TestAccountIndexLimit(t *testing.T) {
 	}
 	if got := count("?limit=100"); got != 100 {
 		t.Errorf("limit=100 = %d accounts, want 100", got)
+	}
+}
+
+// TestAccountsIndexFilters pins the list filters the provider page uses:
+// `provider` scopes the list, `auth_kind` keeps one kind of credential, and
+// `search` matches the label or the key fingerprint without regard to case.
+// The page and its total both follow the filters.
+func TestAccountsIndexFilters(t *testing.T) {
+	h := newBackupHarness(t, "test-secret")
+	accounts := []models.Account{
+		{ID: "a1", Provider: "cline", Label: "Team Alpha", KeyFingerprint: "sk-…aaaa", KeyHash: "h1"},
+		{ID: "a2", Provider: "cline", Label: "beta@example.com", KeyFingerprint: "sk-…bbbb", KeyHash: "h2"},
+		{ID: "a3", Provider: "zcode", Label: "alpha@example.com", KeyHash: "h3"},
+	}
+	for i := range accounts {
+		accounts[i].AuthKind = models.AuthAPIKey
+		accounts[i].Metadata = "{}"
+	}
+	accounts[1].AuthKind = models.AuthOAuth
+	if err := h.app.Repos.Accounts.BulkInsert(context.Background(), accounts); err != nil {
+		t.Fatal(err)
+	}
+	h.fiber.Get("/accounts", (&accountsHandler{app: h.app}).Index)
+
+	for _, tc := range []struct {
+		query string
+		want  []string
+	}{
+		{"?provider=cline", []string{"a1", "a2"}},
+		{"?provider=cline&search=ALPHA", []string{"a1"}},
+		{"?provider=cline&search=bbbb", []string{"a2"}},
+		{"?search=alpha", []string{"a1", "a3"}},
+		{"?provider=cline&search=nobody", nil},
+		{"?provider=cline&search=%20%20", []string{"a1", "a2"}},
+		{"?provider=cline&auth_kind=oauth", []string{"a2"}},
+		{"?provider=cline&auth_kind=oauth&search=alpha", nil},
+	} {
+		status, raw := h.do(t, httptest.NewRequest(http.MethodGet, "/accounts"+tc.query, nil))
+		if status != http.StatusOK {
+			t.Fatalf("GET /accounts%s = %d", tc.query, status)
+		}
+		var res struct {
+			Data []struct {
+				ID string `json:"id"`
+			} `json:"data"`
+			Metadata struct {
+				Total int `json:"total"`
+			} `json:"metadata"`
+		}
+		_ = json.Unmarshal(raw, &res)
+		got := make([]string, 0, len(res.Data))
+		for _, a := range res.Data {
+			got = append(got, a.ID)
+		}
+		slices.Sort(got)
+		if !slices.Equal(got, tc.want) {
+			t.Errorf("GET /accounts%s = %v, want %v", tc.query, got, tc.want)
+		}
+		if res.Metadata.Total != len(tc.want) {
+			t.Errorf("GET /accounts%s total = %d, want %d", tc.query, res.Metadata.Total, len(tc.want))
+		}
+	}
+
+	// A page is cut from the filtered rows and still reports all of them.
+	_, raw := h.do(t, httptest.NewRequest(http.MethodGet, "/accounts?provider=cline&limit=1", nil))
+	var page struct {
+		Data     []map[string]any `json:"data"`
+		Metadata struct {
+			Total int `json:"total"`
+		} `json:"metadata"`
+	}
+	_ = json.Unmarshal(raw, &page)
+	if len(page.Data) != 1 || page.Metadata.Total != 2 {
+		t.Errorf("provider=cline&limit=1 = %d rows, total %d; want 1 row, total 2", len(page.Data), page.Metadata.Total)
 	}
 }

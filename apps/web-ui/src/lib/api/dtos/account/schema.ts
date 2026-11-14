@@ -9,6 +9,7 @@ import {
 } from '@/lib/validation'
 
 import type { Account, AccountAuthKind } from '../../models/account'
+import type { PaginateDto } from '../paginate'
 
 import { ReauthSchema } from '../auth/schema'
 import { enumValues } from '../enum'
@@ -70,3 +71,11 @@ export const AccountsImportSchema = z.object({
 })
 
 export type AccountsImportDto = z.infer<typeof AccountsImportSchema>
+
+/** Query of GET /v1/accounts: paging, one provider's accounts, one kind of
+ * credential, and a text search on label and key fingerprint. */
+export type AccountListDto = PaginateDto & {
+  provider?: string
+  auth_kind?: AccountAuthKind
+  search?: string
+}

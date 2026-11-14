@@ -5,10 +5,10 @@ import type { AxiosItemResponse, AxiosListResponse } from '@/types/api'
 import type {
   AccountBulkDto,
   AccountDto,
+  AccountListDto,
   AccountsExportDto,
   AccountsImportDto,
 } from '../../dtos/account/schema'
-import type { PaginateDto } from '../../dtos/paginate'
 import type {
   Account,
   AccountBulkResult,
@@ -18,7 +18,7 @@ import type {
 } from '../../models/account'
 
 export type AccountResources = {
-  list: (params?: PaginateDto) => Promise<AxiosListResponse<Account>>
+  list: (params?: AccountListDto) => Promise<AxiosListResponse<Account>>
   store: (payload: AccountDto) => Promise<AxiosItemResponse<Account>>
   bulkStore: (payload: AccountBulkDto) => Promise<AxiosItemResponse<AccountBulkResult>>
   get: (id: string) => Promise<AxiosItemResponse<Account>>

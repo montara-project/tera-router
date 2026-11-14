@@ -59,7 +59,9 @@ function MediaDetailRoute() {
   const [accountOpen, setAccountOpen] = useState(false)
 
   const mediaQuery = useQuery(queries.media.list())
-  const accountQuery = useQuery(queries.accounts.list({ offset: 0, limit: 1000 }))
+  // The panel reads its own page; here only the count is needed, so the query
+  // asks the server for one row of this provider and reads the total.
+  const accountQuery = useQuery(queries.accounts.list({ offset: 0, limit: 1, provider: slug }))
   const modelsQuery = useQuery(
     queries.providers.catalogModels(slug, { offset: 0, limit: MODEL_LIMIT, state: 'active' })
   )
@@ -72,7 +74,7 @@ function MediaDetailRoute() {
     search.category && categories.includes(search.category) ? search.category : categories[0]
   const active = MEDIA_CATEGORIES.find((c) => c.value === category) ?? MEDIA_CATEGORIES[0]
 
-  const accounts = (accountQuery.data?.data ?? []).filter((a) => a.provider === slug)
+  const accountCount = accountQuery.data?.metadata.total ?? 0
   const models = modelsQuery.data?.data
   const modelCount = models?.total ?? models?.models.length ?? 0
 
@@ -177,7 +179,7 @@ function MediaDetailRoute() {
             value="accounts"
             className="gap-1.5 px-3 data-[state=active]:text-foreground"
           >
-            Accounts {countChip(accounts.length)}
+            Accounts {countChip(accountCount)}
           </TabsTrigger>
           <TabsTrigger value="models" className="gap-1.5 px-3 data-[state=active]:text-foreground">
             Models {countChip(modelCount)}
@@ -191,10 +193,8 @@ function MediaDetailRoute() {
         </TabsList>
 
         <TabsContent value="accounts" className="mt-5">
-          {accountQuery.isLoading || accounts.length > 0 ? (
+          {accountQuery.isLoading || accountCount > 0 ? (
             <AccountsPanel
-              accounts={accounts}
-              loading={accountQuery.isLoading}
               canManageKeys
               provider={{ slug, name: provider.name }}
               onAddKey={() => setAccountOpen(true)}

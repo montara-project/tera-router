@@ -15,16 +15,20 @@ import type {
 
 import ReactTable, { features } from '@/components/block/common/react-table'
 import SectionCardPanel from '@/components/block/common/section-card-panel'
+import {
+  AccountSearchBar,
+  AccountSearchEmpty,
+  useProviderAccounts,
+} from '@/components/block/provider-detail/account-search'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ButtonGroup, ButtonGroupItem } from '@/components/ui/button-group'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
-import { usePaginationQuery } from '@/hooks/use-pagination-query'
 import { axiosErrorMessage } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
 import { ACCOUNT_QUERY_KEY } from '@/lib/api/queries/account'
-import { formatDate, formatUptime, formatTimeAgo } from '@/lib/date'
+import { formatDate, formatTimeAgo, formatUptime } from '@/lib/date'
 import { formatCompact } from '@/lib/format'
 
 /** Display names for the windows Anthropic reports; unknown keys show raw.
@@ -84,6 +88,17 @@ const BUDDY_PROVIDERS: Record<string, true> = {
   'codebuddy-cn': true,
 }
 
+/**
+ * Which of a provider's accounts report an upstream allowance: all of them
+ * (Cline credits, the buddy billing meter, which bills API keys too), only the
+ * OAuth sessions (Claude windows, ZCode plan grants), or none.
+ */
+export function quotaScope(slug: string): 'all' | 'oauth' | null {
+  if (slug === 'anthropic' || slug === 'zcode') return 'oauth'
+  if (BUDDY_PROVIDERS[slug] || slug === 'cline' || slug === 'clinepayg') return 'all'
+  return null
+}
+
 function limitsLabel(account: Models.Account) {
   if (account.provider === 'zcode') return 'ZCode Plan grants'
   if (isCline(account)) return 'Cline credit balance'
@@ -97,13 +112,18 @@ function limitsLabel(account: Models.Account) {
  * grants (billing/balance merged per entitlement), or the Cline credit
  * balance. The grid gives every account a card; the list puts the same
  * meters in aligned rows for comparing many accounts. Both are paged, and
- * only the accounts on the page are fetched.
+ * only the accounts on the page are fetched. The page comes from the server,
+ * which also keeps it to the accounts that report a quota and applies the
+ * search.
  */
-export default function QuotaPanel({ accounts }: { accounts: Models.Account[] }) {
+export default function QuotaPanel({ slug }: { slug: string }) {
   const qc = useQueryClient()
   const [view, setView] = useQuotaView()
-  const { offset, limit, pageIndex } = usePaginationQuery({ defaultLimit: PAGE_SIZES[0] })
-  const paged = accounts.slice(offset, offset + limit)
+  const list = useProviderAccounts({
+    slug,
+    authKind: quotaScope(slug) === 'oauth' ? 'oauth' : undefined,
+    defaultLimit: PAGE_SIZES[0],
+  })
 
   const columns: ColumnDef<typeof features, Models.Account, unknown>[] = [
     {
@@ -142,12 +162,13 @@ export default function QuotaPanel({ accounts }: { accounts: Models.Account[] })
         <>
           Quota
           <span className="font-normal text-muted-foreground">
-            {accounts.length} {accounts.length === 1 ? 'account' : 'accounts'}
+            {list.total} {list.total === 1 ? 'account' : 'accounts'}
           </span>
         </>
       }
       toolbar={
         <div className="flex items-center gap-2">
+          <AccountSearchBar search={list} />
           <Button
             size="sm"
             variant="outline"
@@ -172,24 +193,32 @@ export default function QuotaPanel({ accounts }: { accounts: Models.Account[] })
         </div>
       }
     >
-      <ReactTable
-        total={accounts.length}
-        data={paged}
-        pageIndex={pageIndex}
-        pageSize={limit}
-        pageSizes={PAGE_SIZES}
-        columns={columns}
-        tableClassName="min-w-[44rem]"
-        body={
-          view === 'grid' ? (
-            <div className="grid gap-4 p-4 md:grid-cols-2 2xl:grid-cols-3">
-              {paged.map((account) => (
-                <AccountQuotaCard key={account.id} account={account} />
-              ))}
-            </div>
-          ) : undefined
-        }
-      />
+      {list.loading ? (
+        <div className="space-y-2 p-5">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+      ) : (
+        <ReactTable
+          total={list.total}
+          data={list.rows}
+          pageIndex={list.pageIndex}
+          pageSize={list.limit}
+          pageSizes={PAGE_SIZES}
+          columns={columns}
+          tableClassName="min-w-[44rem]"
+          emptyMessage={list.searching ? <AccountSearchEmpty search={list} /> : undefined}
+          body={
+            view === 'grid' ? (
+              <div className="grid gap-4 p-4 md:grid-cols-2 2xl:grid-cols-3">
+                {list.rows.map((account) => (
+                  <AccountQuotaCard key={account.id} account={account} />
+                ))}
+              </div>
+            ) : undefined
+          }
+        />
+      )}
     </SectionCardPanel>
   )
 }

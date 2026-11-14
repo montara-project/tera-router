@@ -70,13 +70,25 @@ func (r *AccountRepository) BulkInsert(ctx context.Context, accounts []models.Ac
 	})
 }
 
-// List returns a page of accounts newest-first plus the unpaged total.
-func (r *AccountRepository) List(ctx context.Context, offset, limit int) ([]models.Account, int, error) {
+// AccountFilter narrows an accounts page. Empty fields match everything.
+// Search is a case-insensitive substring of the label or the key fingerprint,
+// the two things the dashboard shows for an account.
+type AccountFilter struct {
+	Provider string
+	AuthKind string
+	Search   string
+}
+
+// List returns a page of accounts newest-first plus the filtered total.
+func (r *AccountRepository) List(ctx context.Context, f AccountFilter, offset, limit int) ([]models.Account, int, error) {
 	rows, err := r.queryContext(ctx, r.DB, `
 		SELECT`+accountColumns+`, count(*) OVER () AS total
 		FROM accounts
+		WHERE ($1 = '' OR provider = $1)
+		AND ($2 = '' OR auth_kind = $2)
+		AND ($3 = '' OR instr(lower(label || ' ' || key_fingerprint), lower($3)) > 0)
 		ORDER BY created_at DESC
-		LIMIT $2 OFFSET $1`, offset, limit)
+		LIMIT $5 OFFSET $4`, f.Provider, f.AuthKind, f.Search, offset, limit)
 	if err != nil {
 		return nil, 0, err
 	}

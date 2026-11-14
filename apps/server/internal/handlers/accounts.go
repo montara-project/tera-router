@@ -22,6 +22,7 @@ import (
 	"tera-router/server/internal/lib/sealer"
 	"tera-router/server/internal/models"
 	"tera-router/server/internal/oauth"
+	"tera-router/server/internal/repositories"
 	"tera-router/server/internal/services"
 
 	"github.com/gofiber/fiber/v3"
@@ -159,11 +160,15 @@ func accountView(a models.Account) fiber.Map {
 }
 
 // maxAccountListLimit is the largest page of accounts one request returns.
-// The dashboard filters accounts per provider in the browser, so it reads
-// them whole; at the default ceiling of 100 a provider with more accounts
-// showed only some of them.
+// The dashboard reads one provider's accounts whole and pages them in the
+// browser; at the default ceiling of 100 a provider with more accounts showed
+// only some of them.
 const maxAccountListLimit = 1000
 
+// Index lists accounts. `provider` keeps one provider's accounts, `auth_kind`
+// one kind of credential, and `search` those whose label or key fingerprint
+// contains the text. The dashboard's provider tabs page and filter through
+// these rather than in the browser.
 func (h *accountsHandler) Index(c fiber.Ctx) error {
 	var q dtos.ListQuery
 	if err := lib.ValidateRequestQuery(c, &q); err != nil {
@@ -171,7 +176,12 @@ func (h *accountsHandler) Index(c fiber.Ctx) error {
 	}
 	q.ClampTo(maxAccountListLimit)
 
-	accounts, total, err := h.app.Repos.Accounts.List(c.Context(), q.Offset, q.Limit)
+	filter := repositories.AccountFilter{
+		Provider: strings.TrimSpace(c.Query("provider")),
+		AuthKind: strings.TrimSpace(c.Query("auth_kind")),
+		Search:   strings.TrimSpace(c.Query("search")),
+	}
+	accounts, total, err := h.app.Repos.Accounts.List(c.Context(), filter, q.Offset, q.Limit)
 	if err != nil {
 		return err
 	}

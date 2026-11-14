@@ -11,6 +11,7 @@ import (
 
 	"tera-router/server/internal/lib/sealer"
 	"tera-router/server/internal/models"
+	"tera-router/server/internal/repositories"
 )
 
 func (h backupHarness) withAccountPortfolio() backupHarness {
@@ -94,7 +95,7 @@ func TestAccountPortfolioRoundTrip(t *testing.T) {
 	}
 	count := func() int {
 		t.Helper()
-		list, _, err := dst.app.Repos.Accounts.List(ctx, 0, 100)
+		list, _, err := dst.app.Repos.Accounts.List(ctx, repositories.AccountFilter{}, 0, 100)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -20,7 +20,7 @@ type RepoAccounts struct {
 
 // ListAll returns every registered account as engine refs.
 func (s RepoAccounts) ListAll(ctx context.Context) ([]AccountRef, error) {
-	rows, _, err := s.R.List(ctx, 0, accountScanLimit)
+	rows, _, err := s.R.List(ctx, repositories.AccountFilter{}, 0, accountScanLimit)
 	if err != nil {
 		return nil, err
 	}

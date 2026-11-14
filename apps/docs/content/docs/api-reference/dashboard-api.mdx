@@ -44,6 +44,8 @@ curl -X POST http://localhost:8080/v1/auth/sign-in \
 
 Pagination uses the `offset` (0-based) and `limit` (default 10, max 100; `/v1/accounts` allows up to 1000) query parameters.
 
+`GET /v1/accounts` also takes `provider` (a provider slug), `auth_kind` (`api_key`, `oauth` or `none`) and `search` (case-insensitive text matched against the account label and key fingerprint). Each narrows the list and its `total`.
+
 ## Endpoints
 
 ### Auth

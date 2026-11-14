@@ -22,6 +22,11 @@ import EmptyState from '@/components/block/common/empty-state'
 import ReactTable, { features } from '@/components/block/common/react-table'
 import SectionCardPanel from '@/components/block/common/section-card-panel'
 import SimpleAlertDialog from '@/components/block/common/simple-alert-dialog'
+import {
+  AccountSearchBar,
+  AccountSearchEmpty,
+  useProviderAccounts,
+} from '@/components/block/provider-detail/account-search'
 import AccountsExportDialog from '@/components/block/provider-detail/accounts-export-dialog'
 import AccountsImportDialog from '@/components/block/provider-detail/accounts-import-dialog'
 import BulkAddKeysDialog from '@/components/block/provider-detail/bulk-add-keys-dialog'
@@ -35,7 +40,6 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
-import { usePaginationQuery } from '@/hooks/use-pagination-query'
 import { queries } from '@/lib/api/queries'
 import { services } from '@/lib/api/services'
 import { readJsonObject } from '@/lib/file'
@@ -75,27 +79,24 @@ const IDROUTER_BACKUP_KIND = 'account-portfolio'
 /**
  * The provider's credential list: pagination, per-account connection tests,
  * deletion, bulk add, and moving the accounts between installs (export /
- * import) all live here. The parent owns filtering (accounts already scoped
- * to this provider) and gets `onChanged` after a change so it can invalidate
- * its query keys.
+ * import) all live here. The panel reads its own page from the server, which
+ * also scopes it to the provider and applies the search; the parent gets
+ * `onChanged` after a change so it can invalidate its query keys.
  */
 export default function AccountsPanel({
-  accounts,
-  loading,
   canManageKeys,
   provider,
   onAddKey,
   onChanged,
 }: {
-  accounts: Models.Account[]
-  loading: boolean
   canManageKeys: boolean
   provider: { slug: string; name: string }
   onAddKey: () => void
   onChanged: () => Promise<unknown> | void
 }) {
-  // The list arrives whole, so paging runs here; the pager keeps its page in ?page.
-  const { offset, limit, pageIndex } = usePaginationQuery()
+  const list = useProviderAccounts({ slug: provider.slug })
+  // The provider has no account at all, as opposed to a search matching none.
+  const noAccounts = !list.pending && !list.searching && list.total === 0
   const [testingId, setTestingId] = useState<string | null>(null)
   const [testingAll, setTestingAll] = useState(false)
   const [deleteAccountId, setDeleteAccountId] = useState<string | null>(null)
@@ -129,12 +130,23 @@ export default function AccountsPanel({
     }
   }
 
+  // Every account of the provider is tested, whatever page or search is shown.
   const testAll = async () => {
+    setTestingAll(true)
+    let accounts: Models.Account[] = []
+    try {
+      const res = await services.accounts.list({ offset: 0, limit: 1000, provider: provider.slug })
+      accounts = res.data.data
+    } catch {
+      setTestingAll(false)
+      toast.error('Failed to load accounts')
+      return
+    }
     if (accounts.length === 0) {
+      setTestingAll(false)
       toast.info('No accounts to test')
       return
     }
-    setTestingAll(true)
     let ok = 0
     for (const account of accounts) {
       try {
@@ -224,7 +236,7 @@ export default function AccountsPanel({
   }
 
   const renderAccounts = () => {
-    if (loading) {
+    if (list.loading) {
       return (
         <div className="space-y-2 p-5">
           <Skeleton className="h-10 w-full" />
@@ -233,7 +245,7 @@ export default function AccountsPanel({
       )
     }
 
-    if (accounts.length === 0) {
+    if (noAccounts) {
       return (
         <EmptyState
           className="py-12"
@@ -253,13 +265,14 @@ export default function AccountsPanel({
 
     return (
       <ReactTable
-        total={accounts.length}
-        data={accounts.slice(offset, offset + limit)}
-        pageIndex={pageIndex}
-        pageSize={limit}
+        total={list.total}
+        data={list.rows}
+        pageIndex={list.pageIndex}
+        pageSize={list.limit}
         pageSizes={PAGE_SIZES}
         columns={columns}
         tableClassName="min-w-[44rem]"
+        emptyMessage={list.searching ? <AccountSearchEmpty search={list} /> : undefined}
       />
     )
   }
@@ -400,16 +413,17 @@ export default function AccountsPanel({
           <>
             Accounts
             <span className="font-normal text-muted-foreground">
-              {accounts.length} {accounts.length === 1 ? 'account' : 'accounts'}
+              {list.total} {list.total === 1 ? 'account' : 'accounts'}
             </span>
           </>
         }
         toolbar={
           <div className="flex items-center gap-2">
+            {noAccounts ? null : <AccountSearchBar search={list} />}
             <Button
               size="sm"
               variant="outline"
-              disabled={testingAll || accounts.length === 0}
+              disabled={testingAll || noAccounts}
               onClick={testAll}
             >
               {testingAll ? <IconRefresh className="animate-spin" /> : <IconCircleCheck />}
@@ -438,10 +452,7 @@ export default function AccountsPanel({
                     <IconUpload />
                     Import accounts
                   </DropdownMenuItem>
-                  <DropdownMenuItem
-                    disabled={accounts.length === 0}
-                    onClick={() => setExportOpen(true)}
-                  >
+                  <DropdownMenuItem disabled={noAccounts} onClick={() => setExportOpen(true)}>
                     <IconDownload />
                     Export accounts
                   </DropdownMenuItem>

@@ -19,7 +19,7 @@ type quotaHandler struct {
 }
 
 func (h *quotaHandler) quotaRows(ctx context.Context, rng string) ([]dtos.QuotaAccount, error) {
-	accounts, _, err := h.app.Repos.Accounts.List(ctx, 0, 100)
+	accounts, _, err := h.app.Repos.Accounts.List(ctx, repositories.AccountFilter{}, 0, 100)
 	if err != nil {
 		return nil, err
 	}
