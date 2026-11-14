@@ -25,7 +25,7 @@ passes explicit flags, which still win over the environment.
 | `CORS_ALLOWED_ORIGINS`        | `*` (dev), empty (prod) | Comma-separated origin list, e.g. `http://localhost:5173,http://localhost:3001`; empty means same-origin only                             |
 | `TRUSTED_PROXIES`             | —                       | Comma-separated proxy IPs/CIDRs trusted to supply `X-Forwarded-For`                                                                       |
 | `RATE_LIMIT_EXEMPT_IPS`       | —                       | Comma-separated client IPs that bypass the dashboard rate limit                                                                           |
-| `RESTRICTED_ACCESS_DISABLED`  | `false`                 | Set to `true` to ignore the Restricted Access period without changing it, e.g. after locking yourself out; unset it once you are back in |
+| `RESTRICTED_ACCESS_DISABLED`  | `false`                 | Set to `true` to ignore the Restricted Access period without changing it, e.g. after locking yourself out; unset it once you are back in  |
 | `API_URL`                     | — (same origin)         | Public API base URL injected into the served dashboard and written into agent skill guides; set it for a split origin or behind a proxy   |
 | `APP_NAME`                    | `tera-router-server`    | Application name                                                                                                                          |
 | `SENTRY_DSN`                  | —                       | Enables error tracking when set                                                                                                           |
