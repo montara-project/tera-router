@@ -199,6 +199,11 @@ type idrouterSecret struct {
 // then re-sealed under one fresh salt so the rest of the import runs unchanged.
 // The file carries no passphrase check, so the first secret that fails to open
 // is the only evidence of a wrong passphrase.
+//
+// The passphrase arrives as typed: IDrouter may have sealed under one with
+// surrounding spaces, so it is tried verbatim first and trimmed second. The
+// converted file is re-sealed under the trimmed form, which is what Import
+// opens it with.
 func convertIDrouterPortfolio(raw json.RawMessage, passphrase string) (accountsBackup, error) {
 	var doc idrouterPortfolio
 	if err := json.Unmarshal(raw, &doc); err != nil {
@@ -215,9 +220,14 @@ func convertIDrouterPortfolio(raw json.RawMessage, passphrase string) (accountsB
 	if len(doc.Accounts) > idrouterImportLimit {
 		return accountsBackup{}, apperr.New(apperr.KindUnprocessable, "the IDrouter file holds %d accounts; at most %d import at once — export it in smaller batches", len(doc.Accounts), idrouterImportLimit)
 	}
-	ps, err := sealer.NewPortable(passphrase)
+	trimmed := strings.TrimSpace(passphrase)
+	ps, err := sealer.NewPortable(trimmed)
 	if err != nil {
 		return accountsBackup{}, apperr.New(apperr.KindBadRequest, "enter the backup's passphrase to import it")
+	}
+	candidates := []string{passphrase}
+	if trimmed != passphrase {
+		candidates = append(candidates, trimmed)
 	}
 	check, err := ps.Seal(portableCheck)
 	if err != nil {
@@ -238,11 +248,20 @@ func convertIDrouterPortfolio(raw json.RawMessage, passphrase string) (accountsB
 		if secret == nil {
 			return "", nil
 		}
-		open, err := sealer.OpenPortable(passphrase, secret.Salt)
-		if err != nil {
-			return "", apperr.New(apperr.KindUnprocessable, "account %q has a corrupt secret header", label)
+		var plain string
+		var err error
+		for _, pass := range candidates {
+			open, oerr := sealer.OpenPortable(pass, secret.Salt)
+			if oerr != nil {
+				return "", apperr.New(apperr.KindUnprocessable, "account %q has a corrupt secret header", label)
+			}
+			if plain, err = open.Open(secret.Ciphertext); err == nil {
+				// The rest of the file is sealed under the same passphrase;
+				// stop paying argon2 for the form that did not open it.
+				candidates = []string{pass}
+				break
+			}
 		}
-		plain, err := open.Open(secret.Ciphertext)
 		if err != nil {
 			if !opened {
 				return "", apperr.New(apperr.KindBadRequest, "wrong passphrase")
@@ -337,7 +356,7 @@ func (h *accountsHandler) Import(c fiber.Ctx) error {
 			if probe.Provider != "" && probe.Provider != slug {
 				return apperr.New(apperr.KindUnprocessable, "this backup holds %s accounts, not %s", probe.Provider, slug)
 			}
-			if doc, err = convertIDrouterPortfolio(trimmed, strings.TrimSpace(req.Passphrase)); err != nil {
+			if doc, err = convertIDrouterPortfolio(trimmed, req.Passphrase); err != nil {
 				return err
 			}
 		}

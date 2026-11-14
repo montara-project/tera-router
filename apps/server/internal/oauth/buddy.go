@@ -254,6 +254,13 @@ func buddyRefresh(ctx context.Context, realm BuddyRealm, refreshToken string) (*
 	if err := json.Unmarshal(raw, &envelope); err != nil {
 		return nil, fmt.Errorf("oauth: parse buddy refresh response: %w", err)
 	}
+	// A 2xx carrying an error code is the same rejection the HTTP status would
+	// have reported, so it goes through the same mapping. It is checked before
+	// data: a rejection usually carries none, and a parse error would read as
+	// transient.
+	if envelope.Code != 0 {
+		return nil, buddyRefreshError(raw, http.StatusOK)
+	}
 	var data struct {
 		AccessToken  string `json:"accessToken"`
 		RefreshToken string `json:"refreshToken"`
@@ -262,9 +269,7 @@ func buddyRefresh(ctx context.Context, realm BuddyRealm, refreshToken string) (*
 	if err := json.Unmarshal(envelope.Data, &data); err != nil {
 		return nil, fmt.Errorf("oauth: parse buddy refresh data: %w", err)
 	}
-	if envelope.Code != 0 || data.AccessToken == "" {
-		// A 2xx carrying an error code is the same rejection the HTTP status
-		// would have reported, so it goes through the same mapping.
+	if data.AccessToken == "" {
 		return nil, buddyRefreshError(raw, http.StatusOK)
 	}
 	next := data.RefreshToken
@@ -318,9 +323,13 @@ func buddyRefreshError(body []byte, status int) *RefreshError {
 func buddyLifetime(token string, advertised int) int {
 	if payload := decodeJWTPayload(token); payload != nil {
 		if exp, ok := payload["exp"].(float64); ok && exp > 0 {
-			if until := int(time.Until(time.Unix(int64(exp), 0)).Seconds()); until > 0 {
+			// A known expiry wins even when it has passed: 0 means "unknown"
+			// downstream and would leave an expired token looking fresh, so
+			// a spent token reports the smallest lifetime and is refreshed.
+			if until := int(time.Until(time.Unix(int64(exp), 0)).Seconds()); until > 1 {
 				return until
 			}
+			return 1
 		}
 	}
 	if advertised > 0 {

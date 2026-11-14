@@ -126,3 +126,39 @@ func TestListBuddyModelsRejectsBadCode(t *testing.T) {
 		t.Fatal("a rejected config read returned no error")
 	}
 }
+
+// TestBuddyQuotaFallbacks pins two meter shapes: a recurring package without
+// cycle fields keeps its absolute capacity, and a bonus grant expires (and
+// sorts) by its deduction end, which outlives its cycle.
+func TestBuddyQuotaFallbacks(t *testing.T) {
+	var pkgs []buddyPackage
+	if err := json.Unmarshal([]byte(`[
+		{"CycleStartTime":"2026-11-01 00:00:00","CycleEndTime":"2026-12-01 00:00:00","CapacityUsed":3,"CapacitySize":30},
+		{"CycleEndTime":"2026-11-02 00:00:00","DeductionEndTime":"2027-03-01 00:00:00","CapacityUsed":1,"CapacitySize":5},
+		{"CycleEndTime":"2026-11-20 00:00:00","DeductionEndTime":"2027-01-01 00:00:00","CapacityUsed":2,"CapacitySize":6}
+	]`), &pkgs); err != nil {
+		t.Fatal(err)
+	}
+	out := ParseBuddyQuota(pkgs)
+	if len(out) != 3 {
+		t.Fatalf("packages = %+v", out)
+	}
+	if !out[0].Recurring || out[0].Used != 3 || out[0].Size != 30 {
+		t.Errorf("recurring without cycle fields = %+v, want 3/30", out[0])
+	}
+	if out[1].Size != 6 || out[1].ResetAt != "2026-12-31T16:00:00Z" {
+		t.Errorf("first bonus = %+v, want the 6-credit grant expiring at its deduction end", out[1])
+	}
+	if out[2].Size != 5 {
+		t.Errorf("second bonus = %+v, want the later-expiring 5-credit grant", out[2])
+	}
+}
+
+// TestListBuddyModelsKeepsV2Host pins that only the path loses its /v2: a host
+// named v2.* must not be cut down to the scheme.
+func TestListBuddyModelsKeepsV2Host(t *testing.T) {
+	_, err := (&UpstreamService{}).ListBuddyModels(context.Background(), "http://v2.invalid/v2", "tok", "codebuddy")
+	if err == nil || !strings.Contains(err.Error(), "v2.invalid") {
+		t.Fatalf("err = %v, want a call to http://v2.invalid/v3/config", err)
+	}
+}

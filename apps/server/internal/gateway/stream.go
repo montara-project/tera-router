@@ -132,6 +132,11 @@ func (s *Server) connectStream(
 		if ctx.Err() != nil {
 			return streamConn{}, ctx.Err()
 		}
+		// An earlier attempt of this request may have parked the account
+		// (another target on the same provider); do not hit it again.
+		if s.cooldowns.active(at.AccountID) {
+			continue
+		}
 
 		conn, err := s.connectOne(ctx, at, req, clientDialect, meta)
 		if err == nil {

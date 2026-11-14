@@ -358,7 +358,10 @@ func stripBuddyTools(messages []any) []any {
 			continue
 		}
 		if msg["role"] == string(core.RoleTool) {
-			continue
+			// The model cannot take a tool message, but the result (a file
+			// read, a command's output) is what the next turn answers from,
+			// so it stays in the conversation as plain user text.
+			msg = map[string]any{"role": string(core.RoleUser), "content": prependBuddyText(msg["content"], "Tool result:")}
 		}
 		delete(msg, "tool_calls")
 		delete(msg, "tool_call_id")

@@ -179,6 +179,11 @@ func (s *Server) serveDirect(c fiber.Ctx, what string, resolve func(context.Cont
 
 	var last *core.ProviderError
 	for _, at := range attempts {
+		// An earlier attempt of this request may have parked the account
+		// (another target on the same provider); do not hit it again.
+		if s.cooldowns.active(at.AccountID) {
+			continue
+		}
 		start := time.Now()
 		respond, usage, err := run(ctx, at)
 		latency := time.Since(start)

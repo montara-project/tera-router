@@ -23,6 +23,9 @@ func (h *accountsHandler) buddyQuota(c fiber.Ctx, account models.Account) error 
 	}
 	token := ""
 	switch {
+	case account.AuthKind == models.AuthOAuth && !account.Token.Empty():
+		// EnsureFresh rotated Token; a leftover Secret would be stale.
+		token, err = h.app.Secrets.OpenString(account.Token, sealer.PurposeAccountToken)
 	case !account.Secret.Empty():
 		token, err = h.app.Secrets.OpenString(account.Secret, sealer.PurposeAccountSecret)
 	case !account.Token.Empty():

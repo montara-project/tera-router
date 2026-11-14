@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -244,5 +245,31 @@ func TestBuddyLifetimeReadsJWTExp(t *testing.T) {
 	}
 	if got := buddyLifetime("not-a-jwt", 0); got != buddyAccessTokenTTL {
 		t.Errorf("default lifetime = %d, want %d", got, buddyAccessTokenTTL)
+	}
+}
+
+// TestBuddyRefreshEnvelopeErrorIsPermanent pins that a 200 carrying an error
+// code and no data is the realm refusing the grant, not a parse fault: read
+// as transient, the dead refresh token would be retried forever.
+func TestBuddyRefreshEnvelopeErrorIsPermanent(t *testing.T) {
+	realm, _ := testBuddyRealm(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"code":11140,"msg":"account restricted"}`))
+	})
+	_, err := buddyRefresh(context.Background(), realm, "rt-flagged")
+	var re *RefreshError
+	if !errors.As(err, &re) {
+		t.Fatalf("error %v is not a *RefreshError", err)
+	}
+	if !re.Permanent {
+		t.Errorf("code 11140 refresh = %+v, want permanent", re)
+	}
+}
+
+// TestBuddyLifetimeExpiredStaysExpired pins that a past exp is not replaced by
+// the default lifetime: that would make a spent token look fresh for 24h.
+func TestBuddyLifetimeExpiredStaysExpired(t *testing.T) {
+	token := buddyJWT(t, map[string]any{"exp": time.Now().Add(-time.Hour).Unix()})
+	if got := buddyLifetime(token, 3600); got != 1 {
+		t.Errorf("expired token lifetime = %ds, want 1", got)
 	}
 }

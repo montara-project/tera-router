@@ -39,6 +39,11 @@ func (s *Server) unaryChat(
 		if ctx.Err() != nil {
 			return s.fail(c, meta.Dialect, statusForContextErr(ctx), "request canceled")
 		}
+		// An earlier attempt of this request may have parked the account
+		// (another target on the same provider); do not hit it again.
+		if s.cooldowns.active(at.AccountID) {
+			continue
+		}
 
 		resp, pe, ok := s.callUnary(ctx, at, req, meta)
 		if ok {

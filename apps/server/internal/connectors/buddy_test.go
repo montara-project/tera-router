@@ -289,3 +289,23 @@ func TestBuddyCNRequestsSummary(t *testing.T) {
 		t.Errorf("cn default reasoning = %v/%v, want medium/auto", out["reasoning_effort"], out["reasoning_summary"])
 	}
 }
+
+// TestStripBuddyToolsKeepsResults pins that a tool result survives the strip
+// as user text: dropping it would leave the next turn without the output
+// (a file read, a command) it must answer from.
+func TestStripBuddyToolsKeepsResults(t *testing.T) {
+	out := stripBuddyTools([]any{
+		map[string]any{"role": "assistant", "content": "", "tool_calls": []any{map[string]any{"id": "c1"}}},
+		map[string]any{"role": "tool", "tool_call_id": "c1", "content": "package main"},
+	})
+	if len(out) != 2 {
+		t.Fatalf("messages = %v, want the tool result kept", out)
+	}
+	msg := out[1].(map[string]any)
+	if msg["role"] != "user" || !strings.Contains(msg["content"].(string), "package main") {
+		t.Errorf("tool result = %v, want user text carrying it", msg)
+	}
+	if _, set := out[0].(map[string]any)["tool_calls"]; set {
+		t.Error("assistant kept its tool_calls")
+	}
+}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"tera-router/server/internal/connectors"
@@ -35,13 +36,17 @@ type buddyConfigModel struct {
 // config (GET {host}/v3/config). It doubles as the credential probe: the
 // endpoint is authenticated but costs no credits, unlike a chat probe.
 func (s *UpstreamService) ListBuddyModels(ctx context.Context, host, token, slug string) ([]UpstreamModel, error) {
-	base := strings.TrimRight(strings.TrimSpace(host), "/")
 	// The catalog base carries the /v2 gateway prefix; the config endpoint is
-	// rooted at the host, so only the scheme and host are kept.
-	if i := strings.Index(base, "/v2"); i > 0 {
-		base = base[:i]
+	// rooted at the host, so the prefix is cut from the path only — a host
+	// such as v2.example.com must survive.
+	u, err := url.Parse(strings.TrimSpace(host))
+	if err != nil {
+		return nil, fmt.Errorf("%s: invalid base url: %w", slug, err)
 	}
-	endpoint := base + buddyConfigPath
+	if i := strings.Index(u.Path, "/v2"); i >= 0 {
+		u.Path, u.RawPath = u.Path[:i], ""
+	}
+	endpoint := strings.TrimRight(u.String(), "/") + buddyConfigPath
 	if err := validateEndpoint(endpoint); err != nil {
 		return nil, err
 	}

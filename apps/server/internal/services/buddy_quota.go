@@ -50,19 +50,21 @@ type BuddyCreditPackage struct {
 // plain ones may arrive as JSON numbers or numeric strings, so both go through
 // flexFloat.
 type buddyPackage struct {
-	PackageName           string          `json:"PackageName"`
-	SubProductName        string          `json:"SubProductName"`
-	CycleStartTime        json.RawMessage `json:"CycleStartTime"`
-	CycleEndTime          json.RawMessage `json:"CycleEndTime"`
-	DeductionEndTime      json.RawMessage `json:"DeductionEndTime"`
-	CycleCapacityUsed     flexFloat       `json:"CycleCapacityUsed"`
-	CycleCapacityUsedPrec *flexFloat      `json:"CycleCapacityUsedPrecise"`
-	CycleCapacitySize     flexFloat       `json:"CycleCapacitySize"`
-	CycleCapacitySizePrec *flexFloat      `json:"CycleCapacitySizePrecise"`
-	CapacityUsed          flexFloat       `json:"CapacityUsed"`
-	CapacityUsedPrecise   *flexFloat      `json:"CapacityUsedPrecise"`
-	CapacitySize          flexFloat       `json:"CapacitySize"`
-	CapacitySizePrecise   *flexFloat      `json:"CapacitySizePrecise"`
+	PackageName      string          `json:"PackageName"`
+	SubProductName   string          `json:"SubProductName"`
+	CycleStartTime   json.RawMessage `json:"CycleStartTime"`
+	CycleEndTime     json.RawMessage `json:"CycleEndTime"`
+	DeductionEndTime json.RawMessage `json:"DeductionEndTime"`
+	// The cycle fields are pointers so an absent one is told apart from a
+	// real zero: a package without them reports its absolute capacity.
+	CycleCapacityUsed     *flexFloat `json:"CycleCapacityUsed"`
+	CycleCapacityUsedPrec *flexFloat `json:"CycleCapacityUsedPrecise"`
+	CycleCapacitySize     *flexFloat `json:"CycleCapacitySize"`
+	CycleCapacitySizePrec *flexFloat `json:"CycleCapacitySizePrecise"`
+	CapacityUsed          flexFloat  `json:"CapacityUsed"`
+	CapacityUsedPrecise   *flexFloat `json:"CapacityUsedPrecise"`
+	CapacitySize          flexFloat  `json:"CapacitySize"`
+	CapacitySizePrecise   *flexFloat `json:"CapacitySizePrecise"`
 }
 
 // flexFloat accepts a JSON number or a numeric JSON string. The billing meter
@@ -174,13 +176,13 @@ func ParseBuddyQuota(pkgs []buddyPackage) []BuddyCreditPackage {
 			bonus = append(bonus, p)
 		}
 	}
-	byExpiry := func(list []buddyPackage) {
+	byExpiry := func(list []buddyPackage, recurring bool) {
 		sort.SliceStable(list, func(i, j int) bool {
-			return buddyTime(list[i].CycleEndTime).Before(buddyTime(list[j].CycleEndTime))
+			return buddyExpiry(list[i], recurring).Before(buddyExpiry(list[j], recurring))
 		})
 	}
-	byExpiry(recurring)
-	byExpiry(bonus)
+	byExpiry(recurring, true)
+	byExpiry(bonus, false)
 
 	out := make([]BuddyCreditPackage, 0, len(pkgs))
 	seen := map[string]int{}
@@ -200,30 +202,20 @@ func ParseBuddyQuota(pkgs []buddyPackage) []BuddyCreditPackage {
 }
 
 // buddyPackageEntry converts one package. A recurring package reports its cycle
-// capacity; a bonus grant reports its absolute capacity.
+// capacity where the meter sends one; otherwise, and for a bonus grant, the
+// absolute capacity stands.
 func buddyPackageEntry(label string, p buddyPackage, recurring bool) BuddyCreditPackage {
-	used, limit := float64(p.CapacityUsed), float64(p.CapacitySize)
+	used := flexOr(float64(p.CapacityUsed), p.CapacityUsedPrecise)
+	limit := flexOr(float64(p.CapacitySize), p.CapacitySizePrecise)
 	if recurring {
-		used, limit = float64(p.CycleCapacityUsed), float64(p.CycleCapacitySize)
-		if p.CycleCapacityUsedPrec != nil {
-			used = float64(*p.CycleCapacityUsedPrec)
-		}
-		if p.CycleCapacitySizePrec != nil {
-			limit = float64(*p.CycleCapacitySizePrec)
-		}
-	} else {
-		if p.CapacityUsedPrecise != nil {
-			used = float64(*p.CapacityUsedPrecise)
-		}
-		if p.CapacitySizePrecise != nil {
-			limit = float64(*p.CapacitySizePrecise)
-		}
+		used = flexOr(flexOr(used, p.CycleCapacityUsed), p.CycleCapacityUsedPrec)
+		limit = flexOr(flexOr(limit, p.CycleCapacitySize), p.CycleCapacitySizePrec)
 	}
 	return BuddyCreditPackage{
 		Name:      label,
 		Used:      used,
 		Size:      limit,
-		ResetAt:   buddyResetAt(p),
+		ResetAt:   buddyResetAt(p, recurring),
 		Recurring: recurring,
 	}
 }
@@ -264,9 +256,29 @@ func buddyIsRecurring(p buddyPackage) bool {
 	return deduction.Sub(end) <= buddyBonusPackGap
 }
 
-// buddyResetAt returns the package's cycle end as RFC3339, "" when absent.
-func buddyResetAt(p buddyPackage) string {
-	if t := buddyTime(p.CycleEndTime); !t.IsZero() {
+// flexOr returns v when the meter sent it, otherwise fallback.
+func flexOr(fallback float64, v *flexFloat) float64 {
+	if v == nil {
+		return fallback
+	}
+	return float64(*v)
+}
+
+// buddyExpiry is when a package stops: a recurring cycle at its cycle end, a
+// bonus grant at its deduction end — its credits outlive the cycle — with the
+// cycle end as the fallback.
+func buddyExpiry(p buddyPackage, recurring bool) time.Time {
+	if !recurring {
+		if t := buddyTime(p.DeductionEndTime); !t.IsZero() {
+			return t
+		}
+	}
+	return buddyTime(p.CycleEndTime)
+}
+
+// buddyResetAt returns the package's expiry as RFC3339, "" when absent.
+func buddyResetAt(p buddyPackage, recurring bool) string {
+	if t := buddyExpiry(p, recurring); !t.IsZero() {
 		return t.UTC().Format(time.RFC3339)
 	}
 	return ""
