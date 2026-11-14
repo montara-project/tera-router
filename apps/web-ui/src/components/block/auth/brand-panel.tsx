@@ -29,7 +29,7 @@ export const gatewayHost = new URL(String(env.API_URL)).host
 export function useGatewayHealth() {
   const { data, isPending, isError } = useQuery(queries.system.health())
   return {
-    version: data?.version ? `v${data.version}` : undefined,
+    version: data?.version ? `${data.version}` : undefined,
     state: isPending ? 'checking' : isError || data?.status !== 'ok' ? 'down' : 'up',
   } as const
 }
