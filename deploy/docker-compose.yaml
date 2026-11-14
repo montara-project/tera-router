@@ -22,6 +22,9 @@ services:
       CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS:-}
       RATE_LIMIT_EXEMPT_IPS: ${RATE_LIMIT_EXEMPT_IPS:-}
       TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
+      # Set true to ignore the dashboard's Restricted Access period, e.g.
+      # after locking yourself out; unset it once you are back in.
+      RESTRICTED_ACCESS_DISABLED: ${RESTRICTED_ACCESS_DISABLED:-false}
       # Injected into the served web UI at runtime; set only when the API
       # lives on a different origin than the dashboard.
       API_URL: ${API_URL:-}

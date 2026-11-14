@@ -10,4 +10,6 @@ export interface RestrictedAccess {
   end_time: string
   timezone: string
   allowed_ips: string[]
+  /** RESTRICTED_ACCESS_DISABLED is set: the period is stored but not enforced. Read-only. */
+  disabled_by_env?: boolean
 }

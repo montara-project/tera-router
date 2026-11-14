@@ -79,3 +79,20 @@ func TestGuardRestricted(t *testing.T) {
 		}
 	}
 }
+
+// TestGuardRestrictionDisabled: RESTRICTED_ACCESS_DISABLED lets everyone in
+// while the stored period stays enabled.
+func TestGuardRestrictionDisabled(t *testing.T) {
+	g, _ := newGuard(t)
+	ctx := context.Background()
+	if err := g.settings.SetRestrictedAccess(ctx, models.RestrictedAccess{Enabled: true, AllowedIPs: []string{"10.0.0.0/8"}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := g.Reload(ctx); err != nil {
+		t.Fatal(err)
+	}
+	g.RestrictionDisabled = true
+	if g.Restricted(netip.MustParseAddr("203.0.113.7"), time.Now()) {
+		t.Error("restricted while RestrictionDisabled is set")
+	}
+}

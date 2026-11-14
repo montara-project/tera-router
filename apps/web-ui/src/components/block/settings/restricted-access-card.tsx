@@ -32,7 +32,9 @@ export default function RestrictedAccessCard() {
   const { data, isLoading } = useQuery(queries.restrictedAccess.get())
   const stored = data?.data
 
-  let statusLabel = stored?.enabled ? 'On' : 'Off'
+  const enforced = stored?.enabled && !stored.disabled_by_env
+  let statusLabel = enforced ? 'On' : 'Off'
+  if (stored?.disabled_by_env) statusLabel = 'Disabled by env'
   if (isLoading) statusLabel = '…'
 
   return (
@@ -51,13 +53,15 @@ export default function RestrictedAccessCard() {
               <CardDescription className="text-xs">
                 During this period only the listed addresses can reach the server; everyone else
                 gets 403. /health stays open.
+                {stored?.disabled_by_env &&
+                  ' RESTRICTED_ACCESS_DISABLED is set, so the period below is saved but not enforced.'}
               </CardDescription>
             </CardHeading>
           </div>
           <span
             className={cn(
               'inline-flex shrink-0 items-center rounded-md px-2.5 py-1.5 text-[11.5px] font-medium',
-              stored?.enabled ? 'bg-emerald-950 text-emerald-400' : 'bg-muted text-muted-foreground'
+              enforced ? 'bg-emerald-950 text-emerald-400' : 'bg-muted text-muted-foreground'
             )}
           >
             {statusLabel}

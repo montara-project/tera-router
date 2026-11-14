@@ -25,6 +25,7 @@ dan mengoper flag eksplisit, yang tetap menang atas environment.
 | `CORS_ALLOWED_ORIGINS`  | `*`                     | Daftar origin dipisah koma, mis. `http://localhost:5173,http://localhost:3001`                                                     |
 | `TRUSTED_PROXIES`       | —                       | IP/CIDR proxy dipisah koma yang dipercaya menyuplai `X-Forwarded-For`                                                              |
 | `RATE_LIMIT_EXEMPT_IPS` | —                       | IP klien dipisah koma yang bebas dari rate limit dashboard                                                                         |
+| `RESTRICTED_ACCESS_DISABLED` | `false`          | Set `true` untuk mengabaikan periode Restricted Access tanpa mengubahnya, mis. setelah terkunci; hapus lagi setelah bisa masuk      |
 | `API_URL`               | — (same origin)         | Base URL API publik yang di-inject ke dashboard dan ditulis ke panduan skill agent; isi untuk split origin atau di belakang proxy  |
 | `APP_NAME`              | `tera-router-server`    | Nama aplikasi                                                                                                                      |
 | `SENTRY_DSN`            | —                       | Aktifkan error tracking bila diisi                                                                                                 |
