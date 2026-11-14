@@ -16,19 +16,9 @@ export const TEAL_CHIP = 'bg-teal-500/10 text-teal-600 dark:bg-teal-400/10 dark:
  * Header strip of the quota page: one tile per account-health figure, joined
  * by hairline gaps (the project's stat-card idiom).
  */
-export default function QuotaStatStrip({
-  summary,
-  accounts,
-}: {
-  summary: Models.QuotaSummary
-  accounts: Models.QuotaAccount[]
-}) {
+export default function QuotaStatStrip({ summary }: { summary: Models.QuotaSummary }) {
   // Attention/depleted only mean something when upstream windows exist; with
   // usage-only accounts every figure stays 0 and next reset stays unknown.
-  const nearLimit = accounts.filter(
-    (account) =>
-      account.attention && !account.depleted && account.quota_visibility === 'quota-capable'
-  ).length
 
   const cards: QuotaStatCard[] = [
     {
@@ -40,7 +30,7 @@ export default function QuotaStatStrip({
     {
       label: 'Near limit',
       icon: IconGauge,
-      value: String(nearLimit),
+      value: String(summary.near_limit),
       detail: '80%+ of a window used',
     },
     {

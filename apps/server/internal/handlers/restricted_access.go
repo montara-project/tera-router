@@ -6,6 +6,7 @@ import (
 	"tera-router/server/internal/ipblock"
 	"tera-router/server/internal/lib"
 	"tera-router/server/internal/lib/apperr"
+	"tera-router/server/internal/models"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -14,13 +15,17 @@ type restrictedAccessHandler struct {
 	app *app.Application
 }
 
-// Get returns the restricted access period (GET /v1/restricted-access).
+// Get returns the restricted access period (GET /v1/restricted-access), and
+// whether RESTRICTED_ACCESS_DISABLED is overriding it.
 func (h *restrictedAccessHandler) Get(c fiber.Ctx) error {
 	stored, err := h.app.Repos.Settings.RestrictedAccess(c.Context())
 	if err != nil {
 		return err
 	}
-	return dtos.OK(c, stored)
+	return dtos.OK(c, struct {
+		models.RestrictedAccess
+		DisabledByEnv bool `json:"disabled_by_env"`
+	}{stored, h.app.IPBlocks.RestrictionDisabled})
 }
 
 // Update replaces the restricted access period (PUT /v1/restricted-access).

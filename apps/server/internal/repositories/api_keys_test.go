@@ -3,7 +3,9 @@ package repositories_test
 import (
 	"context"
 	"path/filepath"
+	"slices"
 	"testing"
+	"time"
 
 	"tera-router/server/internal/config"
 	"tera-router/server/internal/database"
@@ -180,7 +182,7 @@ func TestAPIKeyListIncludesAllowedModelsAndPlan(t *testing.T) {
 		t.Fatalf("insert key: %v", err)
 	}
 
-	rows, total, err := keys.List(ctx, 0, 10)
+	rows, total, err := keys.List(ctx, repositories.APIKeyFilter{}, 0, 10)
 	if err != nil {
 		t.Fatalf("list: %v", err)
 	}
@@ -192,5 +194,74 @@ func TestAPIKeyListIncludesAllowedModelsAndPlan(t *testing.T) {
 	}
 	if rows[0].PlanName == nil || *rows[0].PlanName != "Pro" {
 		t.Fatalf("plan name = %v, want Pro", rows[0].PlanName)
+	}
+}
+
+// TestAPIKeyListFilters pins the list filters the keys page sends: search over
+// name, key preview and plan name, the status filter, the sort orders, and a
+// total that follows the filters. StatusCounts ignores them.
+func TestAPIKeyListFilters(t *testing.T) {
+	keys, plans := newKeyRepo(t)
+	ctx := context.Background()
+
+	plan := models.Plan{ID: uuid.NewString(), Name: "Pro", Description: "Pro tier"}
+	if err := plans.Insert(ctx, plan); err != nil {
+		t.Fatalf("insert plan: %v", err)
+	}
+	base := time.Now().UTC().Truncate(time.Second)
+	for i, k := range []models.APIKey{
+		{Name: "zeta", Display: "tr_aaa…0001", PlanID: &plan.ID},
+		{Name: "Alpha", Display: "tr_bbb…0002", Disabled: true},
+		{Name: "beta", Display: "tr_ccc…0003"},
+	} {
+		k.ID = uuid.NewString()
+		k.KeyHash = "hash-" + k.Name
+		k.LookupHash = "lookup-" + k.Name
+		if err := keys.Insert(ctx, k); err != nil {
+			t.Fatalf("insert %s: %v", k.Name, err)
+		}
+		// Insert stamps created_at itself; space the rows so the order is known.
+		if _, err := keys.DB.Exec(`UPDATE api_keys SET created_at = $2 WHERE id = $1`, k.ID, base.Add(time.Duration(i)*time.Minute)); err != nil {
+			t.Fatalf("stamp %s: %v", k.Name, err)
+		}
+	}
+
+	for _, tc := range []struct {
+		name   string
+		filter repositories.APIKeyFilter
+		limit  int
+		want   []string
+		total  int
+	}{
+		{"newest first", repositories.APIKeyFilter{}, 10, []string{"beta", "Alpha", "zeta"}, 3},
+		{"oldest first", repositories.APIKeyFilter{Sort: "oldest"}, 10, []string{"zeta", "Alpha", "beta"}, 3},
+		{"by name", repositories.APIKeyFilter{Sort: "name"}, 10, []string{"Alpha", "beta", "zeta"}, 3},
+		{"search name", repositories.APIKeyFilter{Search: "ALP"}, 10, []string{"Alpha"}, 1},
+		{"search preview", repositories.APIKeyFilter{Search: "ccc"}, 10, []string{"beta"}, 1},
+		{"search plan", repositories.APIKeyFilter{Search: "pro"}, 10, []string{"zeta"}, 1},
+		{"search no plan", repositories.APIKeyFilter{Search: "no plan", Sort: "name"}, 10, []string{"Alpha", "beta"}, 2},
+		{"disabled", repositories.APIKeyFilter{Status: "disabled"}, 10, []string{"Alpha"}, 1},
+		{"active", repositories.APIKeyFilter{Status: "active", Sort: "name"}, 10, []string{"beta", "zeta"}, 2},
+		{"page of filtered", repositories.APIKeyFilter{Sort: "name"}, 2, []string{"Alpha", "beta"}, 3},
+	} {
+		rows, total, err := keys.List(ctx, tc.filter, 0, tc.limit)
+		if err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+		got := make([]string, 0, len(rows))
+		for _, r := range rows {
+			got = append(got, r.Name)
+		}
+		if !slices.Equal(got, tc.want) || total != tc.total {
+			t.Errorf("%s = %v (total %d), want %v (total %d)", tc.name, got, total, tc.want, tc.total)
+		}
+	}
+
+	total, disabled, err := keys.StatusCounts(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if total != 3 || disabled != 1 {
+		t.Errorf("StatusCounts = %d total, %d disabled; want 3, 1", total, disabled)
 	}
 }

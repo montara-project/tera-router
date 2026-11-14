@@ -63,7 +63,10 @@ export type PortalUsage = {
   month: { requests: number; cost_micros: number }
   daily: PortalDay[]
   models: PortalModel[]
+  /** One page of the key's attempts, newest first. */
   recent: PortalRequest[]
+  /** Attempts in the window, across every page. */
+  recent_total: number
   limits: PortalLimit[]
   /** effective allowlist; empty means every model */
   allowed_models: string[]

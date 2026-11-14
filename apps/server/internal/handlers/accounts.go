@@ -8,18 +8,21 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"slices"
 	"strings"
 	"time"
 
 	"tera-router/server/internal/app"
 	"tera-router/server/internal/catalog"
+	"tera-router/server/internal/connectors"
 	"tera-router/server/internal/dtos"
 	"tera-router/server/internal/lib"
 	"tera-router/server/internal/lib/apperr"
 	"tera-router/server/internal/lib/sealer"
 	"tera-router/server/internal/models"
 	"tera-router/server/internal/oauth"
+	"tera-router/server/internal/repositories"
 	"tera-router/server/internal/services"
 
 	"github.com/gofiber/fiber/v3"
@@ -156,14 +159,29 @@ func accountView(a models.Account) fiber.Map {
 	}
 }
 
+// maxAccountListLimit is the largest page of accounts one request returns.
+// The dashboard reads one provider's accounts whole and pages them in the
+// browser; at the default ceiling of 100 a provider with more accounts showed
+// only some of them.
+const maxAccountListLimit = 1000
+
+// Index lists accounts. `provider` keeps one provider's accounts, `auth_kind`
+// one kind of credential, and `search` those whose label or key fingerprint
+// contains the text. The dashboard's provider tabs page and filter through
+// these rather than in the browser.
 func (h *accountsHandler) Index(c fiber.Ctx) error {
 	var q dtos.ListQuery
 	if err := lib.ValidateRequestQuery(c, &q); err != nil {
 		return err
 	}
-	q.Clamp()
+	q.ClampTo(maxAccountListLimit)
 
-	accounts, total, err := h.app.Repos.Accounts.List(c.Context(), q.Offset, q.Limit)
+	filter := repositories.AccountFilter{
+		Provider: strings.TrimSpace(c.Query("provider")),
+		AuthKind: strings.TrimSpace(c.Query("auth_kind")),
+		Search:   strings.TrimSpace(c.Query("search")),
+	}
+	accounts, total, err := h.app.Repos.Accounts.List(c.Context(), filter, q.Offset, q.Limit)
 	if err != nil {
 		return err
 	}
@@ -187,10 +205,21 @@ func (h *accountsHandler) Store(c fiber.Ctx) error {
 		return apperr.New(apperr.KindBadRequest, "provider is required")
 	}
 
+	account, err := h.create(c.Context(), actorFrom(c), in)
+	if err != nil {
+		return err
+	}
+	auditRecord(c, actorFrom(c), "account.create", account.ID, map[string]string{"provider": account.Provider, "label": account.Label})
+	return dtos.Created(c, accountView(account), "Account created")
+}
+
+// create seals and inserts one account, answering a conflict when its API
+// key is already stored. Store and BulkStore share it.
+func (h *accountsHandler) create(ctx context.Context, actor string, in accountInput) (models.Account, error) {
 	// A connect on a seedable catalog provider persists its custom_providers
 	// row so the dashboard can address it by uuid (provider detail page).
-	if _, err := ensureCustomProviderRow(c.Context(), h.app, actorFrom(c), in.Provider); err != nil {
-		return err
+	if _, err := ensureCustomProviderRow(ctx, h.app, actor, in.Provider); err != nil {
+		return models.Account{}, err
 	}
 
 	account := models.Account{
@@ -206,24 +235,87 @@ func (h *accountsHandler) Store(c fiber.Ctx) error {
 		account.ProxyPoolID = &poolID
 	}
 	if err := sealCredential(h.app, &account, in); err != nil {
-		return err
+		return models.Account{}, err
 	}
 
 	if account.KeyHash != "" {
 		// Only a genuine miss means "no duplicate"; any other error is a real
 		// failure and must not be mistaken for a free slot.
-		if _, err := h.app.Repos.Accounts.GetByKeyHash(c.Context(), account.KeyHash); err == nil {
-			return apperr.New(apperr.KindConflict, "an account with this key already exists")
+		if _, err := h.app.Repos.Accounts.GetByKeyHash(ctx, account.KeyHash); err == nil {
+			return models.Account{}, apperr.New(apperr.KindConflict, "an account with this key already exists")
 		} else if !errors.Is(err, apperr.ErrNotFound) {
-			return err
+			return models.Account{}, err
 		}
 	}
 
-	if err := h.app.Repos.Accounts.Insert(c.Context(), account); err != nil {
+	if err := h.app.Repos.Accounts.Insert(ctx, account); err != nil {
+		return models.Account{}, err
+	}
+	return account, nil
+}
+
+// maxBulkKeys bounds one bulk add: each key is sealed and inserted on its own.
+const maxBulkKeys = 1000
+
+// BulkStore adds one API-key account per pasted key
+// (POST /v1/accounts/bulk). Keys are handled one by one, so a bad or
+// duplicate key never blocks the rest: duplicates (already stored, or
+// repeated in the paste) land in skipped, other failures in failed.
+func (h *accountsHandler) BulkStore(c fiber.Ctx) error {
+	var req dtos.AccountBulk
+	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
 	}
-	auditRecord(c, actorFrom(c), "account.create", account.ID, map[string]string{"provider": account.Provider, "label": account.Label})
-	return dtos.Created(c, accountView(account), "Account created")
+	keys := make([]string, 0, len(req.APIKeys))
+	for _, k := range req.APIKeys {
+		if k = strings.TrimSpace(k); k != "" {
+			keys = append(keys, k)
+		}
+	}
+	if len(keys) == 0 {
+		return apperr.New(apperr.KindBadRequest, "at least one api key is required")
+	}
+	if len(keys) > maxBulkKeys {
+		return apperr.New(apperr.KindBadRequest, "at most %d api keys per request", maxBulkKeys)
+	}
+
+	prefix := cmp.Or(strings.TrimSpace(req.LabelPrefix), "key")
+	metadata := encodeMetadata(req.Metadata)
+	actor := actorFrom(c)
+
+	created := make([]fiber.Map, 0, len(keys))
+	skipped := []fiber.Map{}
+	failed := []fiber.Map{}
+	for i, key := range keys {
+		account, err := h.create(c.Context(), actor, accountInput{
+			Provider:    req.Provider,
+			Label:       fmt.Sprintf("%s %d", prefix, i+1),
+			AuthKind:    models.AuthAPIKey,
+			APIKey:      key,
+			Metadata:    metadata,
+			Priority:    cmp.Or(req.Priority, 100),
+			ProxyPoolID: req.ProxyPoolID,
+		})
+		if err == nil {
+			created = append(created, accountView(account))
+			continue
+		}
+		// From keeps a typed error's message and reduces anything else to a
+		// generic one, so internals never reach the response.
+		status, message := apperr.From(err)
+		if status == fiber.StatusConflict {
+			skipped = append(skipped, fiber.Map{"index": i, "key_fingerprint": fingerprint(key)})
+			continue
+		}
+		// The error is reported per key instead of returned, so this log is
+		// the only place its detail survives.
+		slog.Warn("bulk account create failed", "provider", req.Provider, "index", i, "error", err)
+		failed = append(failed, fiber.Map{"index": i, "key_fingerprint": fingerprint(key), "error": message})
+	}
+	if len(created) > 0 {
+		auditRecord(c, actor, "account.bulk_create", req.Provider, map[string]int{"created": len(created), "skipped": len(skipped), "failed": len(failed)})
+	}
+	return dtos.OK(c, fiber.Map{"created": created, "skipped": skipped, "failed": failed})
 }
 
 func (h *accountsHandler) Get(c fiber.Ctx) error {
@@ -340,6 +432,13 @@ func (h *accountsHandler) Test(c fiber.Ctx) error {
 		return err
 	}
 
+	// An OAuth account's access token expires, so refresh it before probing:
+	// a stale token reports a healthy account as a rejected credential.
+	if account.AuthKind == models.AuthOAuth {
+		if account, err = h.app.OAuth.EnsureFresh(c.Context(), account); err != nil {
+			return apperr.New(apperr.KindUnprocessable, "%s", err.Error())
+		}
+	}
 	// OAuth accounts carry the credential in Token, not Secret; probe
 	// whichever one is populated so the test reflects the stored auth kind.
 	apiKey := ""
@@ -446,11 +545,24 @@ func (h *accountsHandler) probe(ctx context.Context, providerSlug, metadataRaw, 
 			detail = "daemon reachable"
 		}
 		return dtos.TestResult{OK: true, Detail: fmt.Sprintf("%s · %d models", detail, len(models))}, nil
-	case "cline":
+	case "cline", "clinepayg", "clinepass":
 		// IDRouter marks Cline SkipValidation: its gateway answers /models 404
 		// and the recommended-models endpoint is public, so there is no cheap
 		// authenticated probe.
 		return dtos.TestResult{OK: true, Detail: "provider skips credential validation"}, nil
+	case "workbuddy", "codebuddy", "codebuddy-cn":
+		// No /models endpoint: the CLI config is the authenticated model list,
+		// and reading it costs no credits — unlike a chat probe.
+		if apiKey == "" {
+			return dtos.TestResult{OK: true, Detail: "no credential stored; skipped upstream probe"}, nil
+		}
+		start := time.Now()
+		models, err := h.app.Services.Upstream.ListBuddyModels(ctx, baseURL, apiKey, providerSlug)
+		latency := time.Since(start).Milliseconds()
+		if err != nil {
+			return dtos.TestResult{OK: false, LatencyMS: latency, Detail: err.Error()}, nil
+		}
+		return dtos.TestResult{OK: true, LatencyMS: latency, Detail: fmt.Sprintf("credential accepted · %d models", len(models))}, nil
 	}
 
 	if spec.AuthKind == string(models.AuthNone) {
@@ -465,7 +577,8 @@ func (h *accountsHandler) probe(ctx context.Context, providerSlug, metadataRaw, 
 // Quota reports an account's quota snapshot. Claude subscription (anthropic
 // OAuth) accounts read their live session (5-hour) and weekly windows from
 // Anthropic; ZCode Plan (zcode OAuth) accounts read their plan grants from
-// the zcode.z.ai billing endpoints; every other account is usage-only.
+// the zcode.z.ai billing endpoints; Cline and Cline PAYG accounts read their
+// credit balance; every other account is usage-only.
 func (h *accountsHandler) Quota(c fiber.Ctx) error {
 	id, err := lib.ContextParamUUID(c, "id")
 	if err != nil {
@@ -475,6 +588,12 @@ func (h *accountsHandler) Quota(c fiber.Ctx) error {
 	account, err := h.app.Repos.Accounts.Get(c.Context(), id.String())
 	if err != nil {
 		return err
+	}
+	if clineQuotaProvider(account.Provider) {
+		return h.clineQuota(c, account)
+	}
+	if connectors.IsBuddy(account.Provider) {
+		return h.buddyQuota(c, account)
 	}
 	if account.Provider != "anthropic" && account.Provider != "zcode" {
 		return dtos.OK(c, fiber.Map{

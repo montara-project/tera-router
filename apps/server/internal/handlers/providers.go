@@ -4,9 +4,12 @@ import (
 	"bufio"
 	"cmp"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -14,6 +17,7 @@ import (
 	"tera-router/server/internal/app"
 	"tera-router/server/internal/catalog"
 	"tera-router/server/internal/connectors"
+	"tera-router/server/internal/core"
 	"tera-router/server/internal/dtos"
 	"tera-router/server/internal/lib"
 	"tera-router/server/internal/lib/apperr"
@@ -166,7 +170,32 @@ func (h *providersHandler) Index(c fiber.Ctx) error {
 	for i := range connected {
 		connected[i].Usable = usable[connected[i].Slug] > 0
 	}
-	return dtos.OK(c, dtos.ProviderOverview{Connected: connected, Available: available})
+
+	// A custom provider with no account has nothing left to route; catalog
+	// entries ("prov-<slug>" ids) are not rows and cannot be deleted.
+	isEmpty := func(p dtos.ProviderView) bool { return p.Accounts == 0 && !strings.HasPrefix(p.ID, "prov-") }
+	out := dtos.ProviderOverview{ConnectedCount: len(connected), AvailableCount: len(available)}
+	out.EmptyCount = len(keep(connected, isEmpty))
+
+	search, capability, emptyOnly := listSearch(c), c.Query("capability"), c.Query("empty") == "true"
+	matches := func(p dtos.ProviderView) bool {
+		if capability != "" && !slices.Contains(p.Capabilities, capability) {
+			return false
+		}
+		return matchesSearch(search, p.Name+" "+p.Slug)
+	}
+	connected = keep(connected, func(p dtos.ProviderView) bool { return matches(p) && (!emptyOnly || isEmpty(p)) })
+	out.ConnectedTotal = len(connected)
+	if c.Query("limit") != "" {
+		q, err := listPage(c)
+		if err != nil {
+			return err
+		}
+		connected = pageOf(connected, q.Offset, q.Limit)
+	}
+	out.Connected = connected
+	out.Available = keep(available, matches)
+	return dtos.OK(c, out)
 }
 
 // catalogOverviewViews builds the catalog-provider views for the providers
@@ -482,7 +511,7 @@ func (h *providersHandler) CustomModelsSync(c fiber.Ctx) error {
 		if provider.BaseURL == "" {
 			return apperr.New(apperr.KindUnprocessable, "provider has no base_url configured")
 		}
-		apiKey, oauth := h.usableCredential(c.Context(), provider.Slug)
+		apiKey, oauth, _ := h.usableCredential(c.Context(), provider.Slug)
 		if apiKey == "" {
 			return apperr.New(apperr.KindUnprocessable, "no usable credential for this provider; add an API key first")
 		}
@@ -555,41 +584,26 @@ func (h *providersHandler) importUpstreamPricing(ctx context.Context, providerSl
 	return imported, nil
 }
 
-// usableBaseURL returns the first usable account's metadata.base_url
-// override for a catalog provider. Providers whose endpoint embeds an
-// account-scoped segment (e.g. Cloudflare's /accounts/<id>/ai) keep only a
-// template in the catalog; the real URL lives on the account.
-func (h *providersHandler) usableBaseURL(ctx context.Context, providerSlug string) string {
-	accounts, err := h.app.Repos.Accounts.ListUsable(ctx, providerSlug)
-	if err != nil {
-		return ""
-	}
-	for _, account := range accounts {
-		var meta map[string]any
-		if json.Unmarshal([]byte(orEmptyJSON(account.Metadata)), &meta) != nil {
-			continue
-		}
-		if u, ok := meta["base_url"].(string); ok && u != "" {
-			return u
-		}
-	}
-	return ""
-}
-
 // usableCredential opens the highest-priority usable credential of a
 // provider: API keys live in Secret, OAuth tokens in Token — refreshed first
 // when about to expire, so a dashboard sync or model test never sends a stale
-// token. oauth reports that the credential is an OAuth access token. Empty
-// when none of the provider's usable accounts yields a readable credential.
-func (h *providersHandler) usableCredential(ctx context.Context, providerSlug string) (key string, oauth bool) {
+// token. oauth reports that the credential is an OAuth access token. base is
+// that same account's metadata.base_url override ("" when it has none):
+// providers whose endpoint embeds an account-scoped segment (Cloudflare's
+// /accounts/<id>/ai) keep only a template in the catalog, and pairing one
+// account's key with another's endpoint would send it to the wrong place.
+// Empty when none of the provider's usable accounts yields a readable
+// credential.
+func (h *providersHandler) usableCredential(ctx context.Context, providerSlug string) (key string, oauth bool, base string) {
 	accounts, err := h.app.Repos.Accounts.ListUsable(ctx, providerSlug)
 	if err != nil {
-		return "", false
+		return "", false, ""
 	}
 	for _, account := range accounts {
+		base := metadataBaseURL(orEmptyJSON(account.Metadata))
 		if !account.Secret.Empty() {
 			if key, err := h.app.Secrets.OpenString(account.Secret, sealer.PurposeAccountSecret); err == nil && key != "" {
-				return key, false
+				return key, false, base
 			}
 		}
 		if account.Token.Empty() {
@@ -602,18 +616,18 @@ func (h *providersHandler) usableCredential(ctx context.Context, providerSlug st
 			}
 		}
 		if key, err := h.app.Secrets.OpenString(account.Token, sealer.PurposeAccountToken); err == nil && key != "" {
-			return key, isOAuth
+			return key, isOAuth, base
 		}
 	}
-	return "", false
+	return "", false, ""
 }
 
 // modelsSyncProviders are the providers whose model list the dashboard can
 // sync (POST /v1/providers/:id/models/sync and the custom-provider
 // equivalent), each with its own source ported from IDRouter's connectors:
 // OpenRouter's public /models (whose pricing is imported into the overrides),
-// the Ollama family's /api/tags, Cline's union of /models and the
-// recommended-models free list, Cloudflare's account-scoped /models,
+// the Ollama family's /api/tags, the Cline tiers' /models and
+// recommended-models buckets, Cloudflare's account-scoped /models,
 // Deepgram's stt/tts /v1/models, ElevenLabs' /v1/models plus its Scribe STT ids,
 // and the OpenAI-compatible /models of OpenAI, Anthropic, NVIDIA, Muse, Gemini,
 // Mistral, Together, Fireworks, Nebius, and Groq.
@@ -622,6 +636,8 @@ var modelsSyncProviders = map[string]bool{
 	"ollama":       true,
 	"ollama-local": true,
 	"cline":        true,
+	"clinepayg":    true,
+	"clinepass":    true,
 	"cloudflare":   true,
 	"openai":       true,
 	"anthropic":    true,
@@ -636,6 +652,9 @@ var modelsSyncProviders = map[string]bool{
 	"deepgram":     true,
 	"elevenlabs":   true,
 	"zcode":        true,
+	"workbuddy":    true,
+	"codebuddy":    true,
+	"codebuddy-cn": true,
 }
 
 // zcodeKnownModels is the GLM model list the ZCode plan lane serves. It has
@@ -660,7 +679,7 @@ var zcodeKnownModels = []string{
 // errors are client-facing 422s.
 func (h *providersHandler) syncProviderModels(ctx context.Context, slug string) ([]services.UpstreamModel, error) {
 	spec, _ := catalog.Lookup(slug)
-	apiKey, oauth := h.usableCredential(ctx, slug)
+	apiKey, oauth, accountBase := h.usableCredential(ctx, slug)
 
 	const noCredential = "no usable credential for this provider; add an API key first"
 	switch slug {
@@ -669,18 +688,18 @@ func (h *providersHandler) syncProviderModels(ctx context.Context, slug string) 
 		return h.app.Services.Upstream.ListModels(ctx, spec.BaseURL+"/models", false, oauth, apiKey)
 	case "ollama", "ollama-local":
 		return h.app.Services.Upstream.ListOllamaModels(ctx, spec.BaseURL, apiKey)
-	case "cline":
+	case "cline", "clinepayg", "clinepass":
 		if apiKey == "" {
 			return nil, apperr.New(apperr.KindUnprocessable, noCredential)
 		}
-		return h.app.Services.Upstream.ListClineModels(ctx, spec.BaseURL, apiKey)
+		return h.app.Services.Upstream.ListClineModels(ctx, spec.BaseURL, apiKey, slug)
 	case "cloudflare":
 		if apiKey == "" {
 			return nil, apperr.New(apperr.KindUnprocessable, noCredential)
 		}
 		base := spec.BaseURL
-		if u := h.usableBaseURL(ctx, slug); u != "" {
-			base = strings.TrimSuffix(u, "/")
+		if accountBase != "" {
+			base = strings.TrimSuffix(accountBase, "/")
 		}
 		return h.app.Services.Upstream.ListModels(ctx, base+"/models", false, oauth, apiKey)
 	case "deepgram":
@@ -701,6 +720,14 @@ func (h *providersHandler) syncProviderModels(ctx context.Context, slug string) 
 		// the auth headers (x-api-key, or Bearer + oauth beta for an OAuth
 		// token) — the response envelope is the same {"data":[{id}]} shape.
 		return h.app.Services.Upstream.ListModels(ctx, services.V1Join(spec.BaseURL, "models"), slug == "anthropic", oauth, apiKey)
+	case "workbuddy", "codebuddy", "codebuddy-cn":
+		// No /models endpoint: the served catalog lives in the CLI config,
+		// which is authenticated but free to read.
+		if apiKey == "" && !oauth {
+			return nil, apperr.New(apperr.KindUnprocessable, noCredential)
+		}
+		// The host comes from the same account as the credential.
+		return h.app.Services.Upstream.ListBuddyModels(ctx, cmp.Or(accountBase, spec.BaseURL), apiKey, slug)
 	case "zcode":
 		// The plan lane has no model-list endpoint: the served GLM ids are
 		// fixed, so sync returns the known list (an OAuth account is still
@@ -899,7 +926,11 @@ func validateModelTestMessages(msgs []dtos.ModelTestMessage) error {
 // the catalog and custom-provider handlers; the response carries the
 // assistant reply, latency, and token usage so the playground can render
 // them inline.
-func (h *providersHandler) runModelTest(c fiber.Ctx, baseURL string, anthropic bool, apiKey string, oauth bool, headers map[string]string) error {
+//
+// buddySlug names the buddy realm when the provider is one: its headers derive
+// from the test's own model and messages, so they are built here once the
+// request is parsed.
+func (h *providersHandler) runModelTest(c fiber.Ctx, baseURL string, anthropic bool, apiKey string, oauth bool, headers map[string]string, buddySlug string) error {
 	var req dtos.ModelTestRequest
 	if err := lib.ValidateRequestBody(c, &req); err != nil {
 		return err
@@ -911,8 +942,25 @@ func (h *providersHandler) runModelTest(c fiber.Ctx, baseURL string, anthropic b
 		return apperr.New(apperr.KindUnprocessable, "no base_url configured for this provider; add an account with a base URL first")
 	}
 
+	if buddySlug != "" {
+		// The buddy gateway rejects a conversation that does not open with a
+		// system turn, so the test carries the neutral prompt the real client
+		// sends; the turn ids derive from this exact conversation.
+		req.Messages = append([]dtos.ModelTestMessage{{Role: "system", Content: connectors.BuddyNeutralSystem}}, req.Messages...)
+		headers = connectors.BuddyHeaders(buddySlug, buddyTestCredential(apiKey, oauth), buddyTestRequest(req), req.Model)
+	}
+
 	if req.Stream {
 		return h.streamModelTest(c, req, baseURL, anthropic, apiKey, oauth, headers)
+	}
+
+	if buddySlug != "" {
+		// The buddy gateway refuses stream=false, so the test is streamed.
+		result, err := h.app.Services.Upstream.ChatCompletionStream(c.Context(), baseURL, anthropic, oauth, apiKey, req.Model, req.Messages, headers, func(string) {})
+		if err != nil {
+			return err
+		}
+		return dtos.OK(c, result)
 	}
 
 	result, err := h.app.Services.Upstream.ChatCompletion(c.Context(), baseURL, anthropic, oauth, apiKey, req.Model, req.Messages, headers)
@@ -967,16 +1015,22 @@ func (h *providersHandler) CatalogModelTest(c fiber.Ctx) error {
 		return apperr.ErrNotFound
 	}
 
-	base := h.usableBaseURL(c.Context(), slug)
+	apiKey, oauth, base := h.usableCredential(c.Context(), slug)
 	if base == "" {
 		base = spec.BaseURL
 	}
-	apiKey, oauth := h.usableCredential(c.Context(), slug)
 	var headers map[string]string
-	if slug == "cline" {
+	if connectors.IsCline(slug) {
 		headers = connectors.ClineHeaders(apiKey)
 	}
-	return h.runModelTest(c, base, spec.Dialect == "anthropic", apiKey, oauth, headers)
+	buddySlug := ""
+	if connectors.IsBuddy(slug) {
+		// The model test bypasses the connector, so it must send the same
+		// client fingerprint a routed call would.
+		buddySlug = slug
+		base = buddyChatBase(base)
+	}
+	return h.runModelTest(c, base, spec.Dialect == "anthropic", apiKey, oauth, headers, buddySlug)
 }
 
 // CustomModelTest issues one test chat completion for a custom provider model
@@ -992,13 +1046,12 @@ func (h *providersHandler) CustomModelTest(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
+	apiKey, oauth, accountBase := h.usableCredential(c.Context(), provider.Slug)
 	base := provider.BaseURL
 	// A template endpoint (e.g. Cloudflare's {account_id}) resolves against
 	// the account's base_url override, mirroring sync and routing.
-	if strings.Contains(base, "{") {
-		if u := h.usableBaseURL(c.Context(), provider.Slug); u != "" {
-			base = u
-		}
+	if strings.Contains(base, "{") && accountBase != "" {
+		base = accountBase
 	}
 	if base == "" {
 		return apperr.New(apperr.KindUnprocessable, "provider has no base_url configured")
@@ -1006,8 +1059,18 @@ func (h *providersHandler) CustomModelTest(c fiber.Ctx) error {
 
 	kind := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(provider.APIKind)), "custom-")
 	anthropic := kind == "anthropic"
-	apiKey, oauth := h.usableCredential(c.Context(), provider.Slug)
-	return h.runModelTest(c, base, anthropic, apiKey, oauth, nil)
+	// A seeded Cline tier is tested from this route too, and its gateway
+	// answers 403 without the SDK identification headers.
+	var headers map[string]string
+	if connectors.IsCline(provider.Slug) {
+		headers = connectors.ClineHeaders(apiKey)
+	}
+	buddySlug := ""
+	if connectors.IsBuddy(provider.Slug) {
+		buddySlug = provider.Slug
+		base = buddyChatBase(base)
+	}
+	return h.runModelTest(c, base, anthropic, apiKey, oauth, headers, buddySlug)
 }
 
 // Bounds for a provider's account strategy knobs.
@@ -1066,4 +1129,41 @@ func (h *providersHandler) RoutingUpdate(c fiber.Ctx) error {
 	}
 	auditRecord(c, actorFrom(c), "provider.routing_update", slug, routing)
 	return dtos.OK(c, routing)
+}
+
+// buddyTestCredential scopes a model test's headers to the credential itself.
+// The conversation id derives from the account, and this path never learns the
+// account row, so a digest of the whole credential stands in for it: a shared
+// constant — or the head…tail display mask, which two keys can share — would
+// make tests of different accounts look like one conversation upstream.
+func buddyTestCredential(apiKey string, oauth bool) core.Credentials {
+	sum := sha256.Sum256([]byte(apiKey))
+	id := "model-test:" + hex.EncodeToString(sum[:])
+	if !oauth {
+		return core.Credentials{AccountID: id, APIKey: apiKey}
+	}
+	return core.Credentials{AccountID: id, AccessToken: apiKey}
+}
+
+// buddyTestRequest mirrors a model test as the chat request the buddy headers
+// derive their turn ids from.
+func buddyTestRequest(req dtos.ModelTestRequest) *core.ChatRequest {
+	out := &core.ChatRequest{Model: req.Model, Messages: make([]core.Message, 0, len(req.Messages))}
+	for _, m := range req.Messages {
+		out.Messages = append(out.Messages, core.Message{
+			Role:    core.Role(m.Role),
+			Content: []core.ContentPart{{Type: core.PartText, Text: m.Content}},
+		})
+	}
+	return out
+}
+
+// buddyChatBase puts the /v2 gateway prefix on a base that is only the host,
+// so the model test posts to the same URL a routed call does.
+func buddyChatBase(base string) string {
+	base = strings.TrimRight(base, "/")
+	if strings.HasSuffix(base, "/v2") {
+		return base
+	}
+	return base + "/v2"
 }

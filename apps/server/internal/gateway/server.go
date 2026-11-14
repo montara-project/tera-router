@@ -65,6 +65,10 @@ const (
 	// cooldownAuth is how long an account is skipped after the upstream
 	// rejected its credential or suspended it.
 	cooldownAuth = 5 * time.Minute
+	// cooldownRestricted is how long an account the upstream itself flagged is
+	// skipped. Longer than a rejected credential: a refresh cannot clear it,
+	// and the traffic that triggered it is what has to stop.
+	cooldownRestricted = 30 * time.Minute
 
 	// heartbeatInterval is how often an SSE comment is written while waiting
 	// for the first upstream chunk.

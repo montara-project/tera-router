@@ -16,11 +16,13 @@ const api = new ClientFetchApi({
 
 const resources = (): ProviderHealthResources => {
   return {
-    overview: async (window) => {
+    overview: async (window, view) => {
       const url = path
       // Unwrap the axios layer: the resource contract (and the query) works
       // with the {data, metadata} envelope, not the raw AxiosResponse.
-      const res = await api.get(url, { params: parseDto(ProviderHealthQuerySchema, { window }) })
+      const res = await api.get(url, {
+        params: parseDto(ProviderHealthQuerySchema, { window, ...view }),
+      })
       return res.data
     },
   }

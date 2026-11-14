@@ -1,5 +1,5 @@
 import { IconAdjustmentsHorizontal, IconSearch } from '@tabler/icons-react'
-import { useId, useMemo, useState } from 'react'
+import { useId, useState } from 'react'
 
 import type { Models } from '@/lib/api/models'
 
@@ -51,31 +51,25 @@ const SORT_OPTIONS: { value: QuotaSortValue; label: string }[] = [
 interface FilterQuotaProps {
   filters: QuotaFilters
   onChange: (patch: Partial<QuotaFilters>) => void
-  /** Full (unfiltered) account list, for the chip counts and provider list. */
-  accounts: Models.QuotaAccount[]
+  /** Totals across every account, for the chip counts and provider list. */
+  summary?: Models.QuotaSummary
 }
 
-export default function FilterQuota({ filters, onChange, accounts }: FilterQuotaProps) {
+export default function FilterQuota({ filters, onChange, summary }: FilterQuotaProps) {
   const panelId = useId()
   // Open while a provider, quota or sort choice differs from the default, so
   // an active filter is never hidden behind the toggle.
   const [open, setOpen] = useState(
     filters.provider !== 'all' || filters.quotaState !== 'all' || filters.sort !== 'attention'
   )
-  const chipCounts = useMemo(() => {
-    const counts = { all: accounts.length, active: 0, paused: 0, attention: 0 }
-    for (const account of accounts) {
-      if (account.status === 'active') counts.active += 1
-      else counts.paused += 1
-      if (account.attention) counts.attention += 1
-    }
-    return counts
-  }, [accounts])
-
-  const providerOptions = useMemo(() => {
-    const names = Array.from(new Set(accounts.map((account) => account.provider))).sort()
-    return names.map((name) => ({ value: name, label: name }))
-  }, [accounts])
+  // The server counts and lists these; the rows on screen are one page.
+  const chipCounts = {
+    all: summary?.total_accounts ?? 0,
+    active: summary?.active_accounts ?? 0,
+    paused: summary?.paused ?? 0,
+    attention: summary?.attention ?? 0,
+  }
+  const providerOptions = (summary?.providers ?? []).map((name) => ({ value: name, label: name }))
 
   return (
     <div className="flex w-full flex-col gap-2">
@@ -183,47 +177,4 @@ function FilterField({
       <div className="min-w-0 flex-1">{children}</div>
     </div>
   )
-}
-
-export function applyQuotaFilters(
-  accounts: Models.QuotaAccount[],
-  filters: QuotaFilters
-): Models.QuotaAccount[] {
-  const query = filters.search.trim().toLowerCase()
-
-  const filtered = accounts.filter((account) => {
-    if (filters.provider !== 'all' && account.provider !== filters.provider) return false
-    if (filters.status !== 'all') {
-      if (filters.status === 'attention' ? !account.attention : account.status !== filters.status) {
-        return false
-      }
-    }
-    if (filters.quotaState !== 'all' && account.quota_visibility !== filters.quotaState) {
-      return false
-    }
-    if (query && !`${account.provider} ${account.name}`.toLowerCase().includes(query)) {
-      return false
-    }
-
-    return true
-  })
-
-  const sorted = [...filtered]
-  sorted.sort((left, right) => {
-    switch (filters.sort) {
-      case 'name':
-        return left.name.localeCompare(right.name)
-      case 'requests':
-        return right.requests - left.requests
-      case 'cost':
-        return right.attributed_cost - left.attributed_cost
-      case 'attention':
-      default: {
-        // Stable sort: flagged accounts first, otherwise keep the original order
-        return (right.attention ? 1 : 0) - (left.attention ? 1 : 0)
-      }
-    }
-  })
-
-  return sorted
 }

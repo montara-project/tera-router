@@ -1,5 +1,5 @@
 import { IconPhoto, IconPlugConnected, IconPlus, IconSearch } from '@tabler/icons-react'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
 
@@ -11,6 +11,7 @@ import MediaProviderGrid, { MediaSectionHeader } from '@/components/block/media/
 import MediaTabs, { MEDIA_CATEGORIES } from '@/components/block/media/media-tabs'
 import { Input, InputWrapper } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useDebounce } from '@/hooks/use-debounce'
 import { mediaQueries } from '@/lib/api/queries/media'
 import { providerQueries } from '@/lib/api/queries/provider'
 
@@ -35,7 +36,16 @@ function RouteComponent() {
     void navigate({ search: { category: next === 'embeddings' ? undefined : next }, replace: true })
   const [search, setSearch] = useState('')
 
-  const { data } = useQuery(mediaQueries.list())
+  // The server keeps the category's providers that match the search and
+  // splits them by whether an account is attached.
+  const query = useDebounce({ value: search.trim(), delay: 300 })
+  const { data } = useQuery({
+    ...mediaQueries.list({
+      capability: categoryToCapability(category),
+      search: query || undefined,
+    }),
+    placeholderData: keepPreviousData,
+  })
   const { data: providerData } = useQuery(providerQueries.list())
 
   const connections = useMemo(() => {
@@ -48,14 +58,8 @@ function RouteComponent() {
   }, [providerData])
 
   const active = MEDIA_CATEGORIES.find((item) => item.value === category) ?? MEDIA_CATEGORIES[0]
-  const query = search.trim().toLowerCase()
-  const providers = (data?.data.providers ?? []).filter(
-    (p) =>
-      p.capabilities.includes(categoryToCapability(category)) &&
-      (!query || p.name.toLowerCase().includes(query) || p.slug.includes(query))
-  )
-  const connected = providers.filter((p) => connections[p.slug]?.connected)
-  const available = providers.filter((p) => !connections[p.slug]?.connected)
+  const connected = data?.data.connected ?? []
+  const available = data?.data.available ?? []
   const noun = active.label.toLowerCase()
 
   return (

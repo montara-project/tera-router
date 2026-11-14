@@ -17,8 +17,16 @@ export type ChainFilters = {
 
 export const DEFAULT_CHAIN_FILTERS: ChainFilters = { search: '', strategy: 'all', health: 'all' }
 
-/** Chain row with its 24h health entry, when the server reported one. */
-export type ChainRow = Models.Chain & { health?: Models.HealthEntry }
+/** Chain row; the list attaches the 24h health entry when the chain has one. */
+export type ChainRow = Models.Chain
+
+/** Chains per strategy and per health status across the whole list, counted
+ * by the server: the figures in the filter labels. */
+export type ChainCounts = {
+  all: number
+  strategy: Record<string, number>
+  health: Record<string, number>
+}
 
 const HEALTH_OPTIONS: { value: Exclude<ChainHealthFilter, 'all'>; label: string }[] = [
   { value: 'healthy', label: 'Healthy' },
@@ -27,33 +35,14 @@ const HEALTH_OPTIONS: { value: Exclude<ChainHealthFilter, 'all'>; label: string 
   { value: 'unknown', label: 'Unknown' },
 ]
 
-const healthOf = (row: ChainRow): Exclude<ChainHealthFilter, 'all'> =>
-  row.health?.status ?? 'unknown'
-
-/** Rows matching every filter. Search covers chain names and step models. */
-export function filterChains(rows: ChainRow[], filters: ChainFilters) {
-  const q = filters.search.trim().toLowerCase()
-  return rows.filter((row) => {
-    if (filters.strategy !== 'all' && row.strategy !== filters.strategy) return false
-    if (filters.health !== 'all' && healthOf(row) !== filters.health) return false
-    if (!q) return true
-    return [row.name, row.fallback_model, ...row.steps.map((s) => `${s.provider}/${s.model}`)]
-      .join(' ')
-      .toLowerCase()
-      .includes(q)
-  })
-}
-
 interface FilterChainProps {
-  rows: ChainRow[]
+  counts: ChainCounts
   filters: ChainFilters
   onChange: (patch: Partial<ChainFilters>) => void
 }
 
 /** Panel toolbar of the chains table; option labels carry their match count. */
-export default function FilterChain({ rows, filters, onChange }: FilterChainProps) {
-  const count = (match: (row: ChainRow) => boolean) => rows.filter(match).length
-
+export default function FilterChain({ counts, filters, onChange }: FilterChainProps) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <InputWrapper className="w-full sm:w-64">
@@ -73,10 +62,10 @@ export default function FilterChain({ rows, filters, onChange }: FilterChainProp
         onSelect={(strategy) => onChange({ strategy })}
         className="w-full sm:w-44"
         options={[
-          { value: 'all', label: `All strategies (${rows.length})` },
+          { value: 'all', label: `All strategies (${counts.all})` },
           ...CHAIN_STRATEGY_OPTIONS.map((o) => ({
             value: o.value as string,
-            label: `${o.label} (${count((row) => row.strategy === o.value)})`,
+            label: `${o.label} (${counts.strategy[o.value] ?? 0})`,
           })),
         ]}
       />
@@ -90,7 +79,7 @@ export default function FilterChain({ rows, filters, onChange }: FilterChainProp
           { value: 'all', label: 'Any health' },
           ...HEALTH_OPTIONS.map((o) => ({
             value: o.value as string,
-            label: `${o.label} (${count((row) => healthOf(row) === o.value)})`,
+            label: `${o.label} (${counts.health[o.value] ?? 0})`,
           })),
         ]}
       />

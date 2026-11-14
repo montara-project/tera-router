@@ -1,5 +1,5 @@
 import { IconPackages, IconPlugConnected, IconPlus, IconTrash } from '@tabler/icons-react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useQueryState } from 'nuqs'
 import { useMemo, useState } from 'react'
@@ -30,6 +30,7 @@ import OAuthPollDialog from '@/components/block/providers/oauth-poll-dialog'
 import { useOAuthConnect } from '@/components/block/providers/use-oauth-connect'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useDebounce } from '@/hooks/use-debounce'
 import { usePaginationQuery } from '@/hooks/use-pagination-query'
 import { toastAxiosError } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
@@ -40,14 +41,6 @@ import { services } from '@/lib/api/services'
 export const Route = createFileRoute('/(protected)/(connection)/providers/')({
   component: RouteComponent,
 })
-
-/**
- * A connected provider with no account (no API key or OAuth login) is just a
- * stored custom_providers row, safe to delete. Catalog-only entries carry a
- * "prov-<slug>" id and have nothing to delete.
- */
-const isEmptyProvider = (provider: Models.Provider) =>
-  (provider.accounts ?? 0) === 0 && !provider.id.startsWith('prov-')
 
 /** "A, B, C and 2 more" for the confirmation text. */
 const listNames = (names: string[]) =>
@@ -87,7 +80,22 @@ function RouteComponent() {
   } = useOAuthConnect()
   const queryClient = useQueryClient()
 
-  const { data } = useQuery(providerQueries.list())
+  // The server searches, filters by capability and pages the connected
+  // providers; the pager keeps its page in ?page.
+  const { offset, limit, pageIndex } = usePaginationQuery()
+  const [, setPageParam] = useQueryState('page')
+  const [search, setSearch] = useState('')
+  const [capability, setCapability] = useState('all')
+  const q = useDebounce({ value: search.trim(), delay: 300 })
+  const { data } = useQuery({
+    ...providerQueries.list({
+      search: q || undefined,
+      capability: capability === 'all' ? undefined : (capability as Models.ProviderCapability),
+      offset,
+      limit,
+    }),
+    placeholderData: keepPreviousData,
+  })
   const overview = data?.data
 
   const healthQuery = useQuery(queries.providerHealth.overview('24h'))
@@ -96,21 +104,22 @@ function RouteComponent() {
     [healthQuery.data]
   )
 
-  const emptyProviders = (overview?.connected ?? []).filter(isEmptyProvider)
   const columns = ProvidersColumn({ health })
+  const [loadingEmpty, setLoadingEmpty] = useState(false)
 
-  // The list arrives whole, so search, capability and paging run here; the
-  // pager keeps its page in ?page like the server-paged tables.
-  const { offset, limit, pageIndex } = usePaginationQuery()
-  const [, setPageParam] = useQueryState('page')
-  const [search, setSearch] = useState('')
-  const [capability, setCapability] = useState('all')
-  const q = search.trim().toLowerCase()
-  const rows = (overview?.connected ?? []).filter(
-    (p) =>
-      (capability === 'all' || p.capabilities.includes(capability as Models.ProviderCapability)) &&
-      (!q || `${p.name} ${p.slug}`.toLowerCase().includes(q))
-  )
+  // The custom providers with no account are read when they are about to be
+  // deleted; until then the overview only carries how many there are.
+  const askDeleteEmpty = async () => {
+    setLoadingEmpty(true)
+    try {
+      const res = await services.providers.list({ empty: true })
+      setPendingDelete(res.data.data.connected)
+    } catch (error) {
+      toastAxiosError(error)
+    } finally {
+      setLoadingEmpty(false)
+    }
+  }
 
   if (!overview) {
     return <RouteSkeleton />
@@ -205,7 +214,7 @@ function RouteComponent() {
         <PageHeader
           icon={IconPackages}
           title="Providers"
-          description={`${overview.connected.length} connected · ${overview.available.length} available`}
+          description={`${overview.connected_count} connected · ${overview.available_count} available`}
           actions={
             <Button onClick={() => setConnectOpen(true)}>
               <IconPlus />
@@ -220,21 +229,21 @@ function RouteComponent() {
             <>
               Connected
               <span className="font-normal text-muted-foreground tabular-nums">
-                {overview.connected.length}
+                {overview.connected_count}
               </span>
             </>
           }
           toolbar={
             <div className="flex flex-wrap items-center gap-2">
-              {emptyProviders.length > 0 && (
+              {overview.empty_count > 0 && (
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled={bulkDelete.isPending}
-                  onClick={() => setPendingDelete(emptyProviders)}
+                  disabled={bulkDelete.isPending || loadingEmpty}
+                  onClick={() => void askDeleteEmpty()}
                 >
                   <IconTrash />
-                  Delete empty ({emptyProviders.length})
+                  Delete empty ({overview.empty_count})
                 </Button>
               )}
               <FilterProviders
@@ -253,8 +262,8 @@ function RouteComponent() {
           }
         >
           <ReactTable
-            total={rows.length}
-            data={rows.slice(offset, offset + limit)}
+            total={overview.connected_total}
+            data={overview.connected}
             pageIndex={pageIndex}
             pageSize={limit}
             columns={columns}
@@ -262,12 +271,12 @@ function RouteComponent() {
               <EmptyState
                 icon={IconPlugConnected}
                 title={
-                  overview.connected.length === 0
+                  overview.connected_count === 0
                     ? 'No providers connected yet'
                     : 'No providers match'
                 }
                 description={
-                  overview.connected.length === 0
+                  overview.connected_count === 0
                     ? 'Connect a provider to start routing requests through it.'
                     : 'Try a different search or capability.'
                 }
@@ -281,8 +290,6 @@ function RouteComponent() {
       <ConnectProviderDialog
         open={connectOpen}
         onOpenChange={setConnectOpen}
-        connected={overview.connected}
-        available={overview.available}
         onConnect={handleConnect}
         onNewCustom={handleNewProvider}
       />

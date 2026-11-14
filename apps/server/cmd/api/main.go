@@ -129,6 +129,12 @@ func assemble(cfg config.Config, logger *slog.Logger) *app.Application {
 
 	logger.Info("dependencies assembled", "database", cfg.Database.Path)
 
+	ipBlocks := ipblock.New(repos.IPBlocks, repos.Settings)
+	ipBlocks.RestrictionDisabled = cfg.App.RestrictedAccessDisabled
+	if ipBlocks.RestrictionDisabled {
+		logger.Warn("restricted access disabled by RESTRICTED_ACCESS_DISABLED")
+	}
+
 	return &app.Application{
 		Config:   cfg,
 		Logger:   logger,
@@ -137,6 +143,6 @@ func assemble(cfg config.Config, logger *slog.Logger) *app.Application {
 		Secrets:  secrets,
 		Services: services.New(),
 		OAuth:    oauth.NewManager(repos, secrets, logger),
-		IPBlocks: ipblock.New(repos.IPBlocks, repos.Settings),
+		IPBlocks: ipBlocks,
 	}
 }

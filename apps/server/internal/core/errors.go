@@ -59,7 +59,11 @@ const (
 	// ErrModelNotFound: requested model doesn't exist.
 	ErrModelNotFound ErrorKind = "model_not_found"
 	ErrLoopDetected  ErrorKind = "loop_detected"
-	ErrEmptyResponse ErrorKind = "empty_response"
+	// ErrAccountRestricted: the upstream itself restricted this account (not a
+	// rejected credential). Park it for a long cooldown and fall back without
+	// retrying on the same account — extra traffic is what got it flagged.
+	ErrAccountRestricted ErrorKind = "account_restricted"
+	ErrEmptyResponse     ErrorKind = "empty_response"
 	// ErrEmptyStream marks an upstream that closed the stream before any
 	// content chunk arrived. Usually a network/proxy artifact or an upstream
 	// hangup, not a broken credential -- kept distinct from ErrEmptyResponse so
@@ -111,7 +115,7 @@ func (e *ProviderError) Unwrap() error { return e.Cause }
 // account) could succeed.
 func (e *ProviderError) Retryable() bool {
 	switch e.Kind {
-	case ErrUpstream, ErrTimeout, ErrRateLimit, ErrEmptyResponse, ErrEmptyStream:
+	case ErrUpstream, ErrTimeout, ErrRateLimit, ErrEmptyResponse, ErrEmptyStream, ErrAccountRestricted:
 		return true
 	default:
 		return false

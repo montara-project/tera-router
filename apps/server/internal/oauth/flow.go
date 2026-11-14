@@ -122,6 +122,9 @@ func (c ProviderConfig) Refresh(ctx context.Context, refreshToken string) (*Toke
 	if refreshToken == "" {
 		return nil, fmt.Errorf("oauth: no refresh token available")
 	}
+	if c.Buddy != nil {
+		return buddyRefresh(ctx, *c.Buddy, refreshToken)
+	}
 	form := url.Values{}
 	form.Set("grant_type", "refresh_token")
 	if c.ClientID != "" {

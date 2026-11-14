@@ -27,6 +27,20 @@ export type TestResult = {
   detail: string
 }
 
+/** Matches POST /v1/accounts/bulk: `index` is the key's position among the
+ * non-blank pasted keys. */
+export type AccountBulkResult = {
+  created: Account[]
+  skipped: { index: number; key_fingerprint: string }[]
+  failed: { index: number; key_fingerprint: string; error: string }[]
+}
+
+/** Matches POST /v1/providers/:slug/accounts/import. */
+export type AccountsImportResult = {
+  imported: number
+  skipped: { label: string; reason: string }[]
+}
+
 /** One subscription rate-limit window reported upstream: `five_hour` is the
  * rolling session, `seven_day*` the weekly allowances. */
 export type QuotaWindow = {
@@ -62,6 +76,16 @@ export type ZcodePlanQuotaRow = {
   meter?: unknown
 }
 
+/** One credit package of a WorkBuddy/CodeBuddy account: a subscription cycle
+ * (`recurring`) or a one-off grant, with the credits spent against it. */
+export type BuddyCreditPackage = {
+  name: string
+  used: number
+  size: number
+  reset_at?: string
+  recurring: boolean
+}
+
 /** Matches GET /v1/accounts/:id/quota. */
 export type AccountQuota = {
   account_id: string
@@ -72,5 +96,16 @@ export type AccountQuota = {
   source?: 'balance' | 'current'
   rows?: ZcodePlanQuotaRow[] | null
   errors?: string[]
+  /** Cline / Cline PAYG: the credit balance of the account behind the key. */
+  credits?: ClineCredits
+  /** WorkBuddy / CodeBuddy: the credit packages the billing meter reports. */
+  packages?: BuddyCreditPackage[]
   fetched_at?: string
+}
+
+/** `balance` is in Cline credits (US dollars), negative once overdrawn;
+ * `balance_units` is the integer Cline reported, unconverted. */
+export type ClineCredits = {
+  balance: number
+  balance_units: number
 }

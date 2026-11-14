@@ -17,9 +17,6 @@ import { cn } from '@/lib/utils'
 /** USD per million tokens; the wire format is micros of that. */
 const MICROS_PER_DOLLAR = 1_000_000
 
-/** Model combobox page size — the server caps the catalog page at 100. */
-const MODEL_OPTIONS_LIMIT = 100
-
 const OverrideDialogSchema = z.object({
   provider: z.string().min(1, 'The provider field is required.'),
   model: z.string(),
@@ -124,19 +121,13 @@ export default function OverrideDialog({
   const isCatalogProvider = selectedProviderModel?.id.startsWith('prov-') ?? true
 
   const catalogModelsQuery = useQuery({
-    ...queries.providers.catalogModels(selectedProviderModel?.slug ?? '', {
-      limit: MODEL_OPTIONS_LIMIT,
-      // Disabled models are not routable and page 1 of a large catalog can
-      // hold none of the enabled ones — filter server-side.
-      state: 'active',
-    }),
+    // Disabled models are not routable: the server keeps the active ones,
+    // and every page of them is read so a large catalog is offered whole.
+    ...queries.providers.allActiveModels('catalog', selectedProviderModel?.slug ?? ''),
     enabled: !!selectedProviderModel && isCatalogProvider,
   })
   const customModelsQuery = useQuery({
-    ...queries.providers.customModels(selectedProviderModel?.id ?? '', {
-      limit: MODEL_OPTIONS_LIMIT,
-      state: 'active',
-    }),
+    ...queries.providers.allActiveModels('custom', selectedProviderModel?.id ?? ''),
     enabled: !!selectedProviderModel && !isCatalogProvider,
   })
 

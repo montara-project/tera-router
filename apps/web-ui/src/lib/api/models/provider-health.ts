@@ -15,6 +15,8 @@ export type HealthEntry = {
   finalFailures: number
   /** most frequent failure kind (auth, rate_limit, …); empty when nothing failed */
   mainIssue: string
+  /** providers only: how many accounts the provider has */
+  accounts?: number
   /** chains only: the provider/model whose attempts failed most */
   mostAffected?: string
   /** routing chains affected by this entry; null renders an em dash */
@@ -46,4 +48,25 @@ export type ProviderHealthOverview = {
   models: HealthEntry[]
   chains: HealthEntry[]
   probes: ProbeEntry[]
+  /** Sizes of every table and the providers per state, whichever tab was
+   * asked for. */
+  counts: {
+    providers: number
+    models: number
+    chains: number
+    probes: number
+    down: number
+    degraded: number
+    healthy: number
+  }
+  /** Rows of the requested tab that match its status filter, before paging. */
+  total: number
+}
+
+/** One table of the overview, narrowed and paged by the server. */
+export type HealthView = {
+  tab: 'providers' | 'models' | 'chains' | 'probes'
+  status?: HealthStatus
+  offset?: number
+  limit?: number
 }

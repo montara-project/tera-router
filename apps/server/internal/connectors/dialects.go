@@ -10,6 +10,16 @@ import (
 // when set, otherwise the connector's default from the catalog.
 func (c *connector) endpoint(creds core.Credentials) string {
 	base := baseURL(c.defaultBase, creds)
+	if IsBuddy(c.id) {
+		// The buddy realms root both the gateway and the billing meter at
+		// /v2. The catalog base already carries it; an account-level override
+		// may be the bare host.
+		base = strings.TrimRight(base, "/")
+		if !strings.HasSuffix(base, "/v2") {
+			base += "/v2"
+		}
+		return base + "/chat/completions"
+	}
 	switch c.dialect {
 	case core.DialectAnthropic:
 		return joinURL(base, "messages")
@@ -36,6 +46,15 @@ func (c *connector) headers(req *core.ChatRequest, creds core.Credentials) map[s
 		// entirely — its own headers, not the generic anthropic ones.
 		return mergeHeaders(ZCodeHeaders(creds.Token(), creds, req), creds.Headers)
 	}
+	if IsBuddy(c.id) {
+		// The buddy family fingerprints the client: its own identity headers,
+		// never the generic OpenAI ones. The model feeds the per-turn seed.
+		model := ""
+		if req != nil {
+			model = req.Model
+		}
+		return mergeHeaders(BuddyHeaders(c.id, creds, req, model), creds.Headers)
+	}
 	switch c.dialect {
 	case core.DialectAnthropic:
 		return c.anthropicHeaders(creds)
@@ -51,6 +70,13 @@ func (c *connector) headers(req *core.ChatRequest, creds core.Credentials) map[s
 // ("only available via Cline product surfaces") to clients it does not
 // recognise as current.
 const clineClientVersion = "3.0.70"
+
+// IsCline reports whether a provider slug is one of the Cline tiers (cline,
+// clinepayg, clinepass). They share one gateway, so its headers, forced
+// streaming and skipped credential probe apply to all three.
+func IsCline(id string) bool {
+	return id == "cline" || id == "clinepayg" || id == "clinepass"
+}
 
 // ClineHeaders returns the auth and identification headers for a Cline call.
 // Cline's gateway requires its SDK's identification headers — without them
@@ -80,7 +106,7 @@ func ClineHeaders(tok string) map[string]string {
 func (c *connector) openAIHeaders(creds core.Credentials) map[string]string {
 	h := map[string]string{}
 	if tok := creds.Token(); tok != "" {
-		if c.id == "cline" {
+		if IsCline(c.id) {
 			return mergeHeaders(ClineHeaders(tok), creds.Headers)
 		}
 		h["Authorization"] = bearer(tok)

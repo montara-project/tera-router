@@ -12,12 +12,12 @@ description: The built-in provider catalog, adding accounts, priorities, and cus
 
 The **Providers** page splits the catalog into four tabs. A provider appears under every tab its capabilities match — OpenAI, for example, is under all of them except search.
 
-| Tab                     | Providers                                                                                                                                                                                   |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **AI Model Providers**  | `openai`, `anthropic`, `openrouter`, `nvidia`, `gemini`, `mistral`, `together`, `fireworks`, `nebius`, `groq`, `cline`, `cloudflare`, `muse`, `voyage-ai`, `jina-ai`, plus custom providers |
-| **AI Search Providers** | `exa`, `tavily`, `firecrawl`, `jina-ai`, `brave`, `serper`                                                                                                                                  |
-| **AI Voice Providers**  | `openai`, `groq` (STT), `elevenlabs`, `deepgram`, plus OpenAI-compatible custom providers                                                                                                   |
-| **AI Image Generation** | `openai`, `gemini`, `together`, `muse`, plus OpenAI-compatible custom providers                                                                                                             |
+| Tab                     | Providers                                                                                                                                                                                                                                                       |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **AI Model Providers**  | `openai`, `anthropic`, `openrouter`, `nvidia`, `gemini`, `mistral`, `together`, `fireworks`, `nebius`, `groq`, `cline`, `clinepayg`, `clinepass`, `workbuddy`, `codebuddy`, `codebuddy-cn`, `cloudflare`, `muse`, `voyage-ai`, `jina-ai`, plus custom providers |
+| **AI Search Providers** | `exa`, `tavily`, `firecrawl`, `jina-ai`, `brave`, `serper`                                                                                                                                                                                                      |
+| **AI Voice Providers**  | `openai`, `groq` (STT), `elevenlabs`, `deepgram`, plus OpenAI-compatible custom providers                                                                                                                                                                       |
+| **AI Image Generation** | `openai`, `gemini`, `together`, `muse`, plus OpenAI-compatible custom providers                                                                                                                                                                                 |
 
 What each capability unlocks on the gateway:
 
@@ -30,6 +30,8 @@ What each capability unlocks on the gateway:
 | search / fetch | [`/v1/search`, `/v1/web/fetch`](/docs/gateway/web-search)             |
 
 Chat providers speak the OpenAI dialect except `anthropic` (Anthropic dialect). OpenAI and Anthropic can be connected with an API key or by signing in on the official website (OAuth); the OpenAI sign-in is routed as the separate `codex` provider (Responses dialect, ChatGPT backend).
+
+Tencent's buddy family is three separate providers over one wire format: `workbuddy` (desktop, `www.workbuddy.ai`), `codebuddy` (CLI, `www.codebuddy.ai`), and `codebuddy-cn` (CLI, `copilot.tencent.com`). Each takes a plugin API key or a sign-in through its own site; the sign-in polls the realm until you approve it in the browser. The gateway presents the client identity the real app sends, which the upstream fingerprints — an account can therefore be restricted (`code 11140`) or the request shape refused (`code 11128`), and both are treated as upstream faults so the account is not marked dead. Model sync and the connection test read the CLI config (`GET /v3/config`), which costs no credits, and quota reads the billing meter.
 
 Account credentials are stored encrypted (envelope encryption with a key derived from `APP_SECRET`).
 

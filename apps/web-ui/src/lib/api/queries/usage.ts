@@ -1,5 +1,6 @@
 import { queryOptions } from '@tanstack/react-query'
 
+import type { UsageModelsDto, UsageProvidersDto, UsageRequestsDto } from '../dtos/query/schema'
 import type { Models } from '../models'
 
 import { services } from '../services'
@@ -34,7 +35,42 @@ const activity = () =>
     },
   })
 
+/** Model accounting rows the server keeps after the search, provider filter,
+ * sort and paging in `params`. */
+const models = (params?: UsageModelsDto) =>
+  queryOptions({
+    queryKey: [USAGE_QUERY_KEY, 'models', params],
+    queryFn: async () => {
+      const res = await services.usage.models(params)
+      return res.data
+    },
+  })
+
+/** One page of the provider accounting rows. */
+const providers = (params?: UsageProvidersDto) =>
+  queryOptions({
+    queryKey: [USAGE_QUERY_KEY, 'providers', params],
+    queryFn: async () => {
+      const res = await services.usage.providers(params)
+      return res.data
+    },
+  })
+
+/** One page of the request log, searched and filtered across the whole
+ * range. The metadata counts the range and its failures for the chips. */
+const requests = (params?: UsageRequestsDto) =>
+  queryOptions({
+    queryKey: [USAGE_QUERY_KEY, 'requests', params],
+    queryFn: async () => {
+      const res = await services.usage.requests(params)
+      return res.data
+    },
+  })
+
 export const usageQueries = {
   telemetry,
   activity,
+  models,
+  providers,
+  requests,
 } as const

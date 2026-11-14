@@ -6,7 +6,7 @@ import {
   IconHeartbeat,
   IconRefresh,
 } from '@tabler/icons-react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useQueryState } from 'nuqs'
 import { useMemo, useState } from 'react'
@@ -18,6 +18,7 @@ import SegmentedControl from '@/components/block/common/segmented-control'
 import { Stat } from '@/components/block/provider-detail/provider-stat-strip'
 import {
   ChainsHealthTable,
+  HEALTH_PAGE_SIZES,
   ModelsHealthTable,
   ProbesHealthTable,
   ProvidersHealthTable,
@@ -25,6 +26,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useOpenProvider } from '@/hooks/use-open-provider'
+import { usePaginationQuery } from '@/hooks/use-pagination-query'
 import { queries } from '@/lib/api/queries'
 import { PROVIDER_HEALTH_QUERY_KEY } from '@/lib/api/queries/provider-health'
 import { formatCount, formatMs } from '@/lib/format'
@@ -78,39 +80,40 @@ function RouteComponent() {
   const live = range === 'live'
   const healthWindow = live ? LIVE_WINDOW : range
   const span = live ? '15m' : range
+  // The server returns the open tab's rows, narrowed by status and cut to a
+  // page, plus the counts over every row for the badges and the summary.
+  const { offset, limit } = usePaginationQuery({ defaultLimit: HEALTH_PAGE_SIZES[0] })
+  const filterable = tab === 'providers' || tab === 'models'
   const { data, isFetching } = useQuery({
-    ...queries.providerHealth.overview(healthWindow),
+    ...queries.providerHealth.overview(healthWindow, {
+      tab,
+      status: filterable && status !== 'all' ? status : undefined,
+      offset,
+      limit,
+    }),
     refetchInterval: live ? LIVE_REFRESH_MS : false,
+    placeholderData: keepPreviousData,
   })
-  const accountsQuery = useQuery(queries.accounts.list({ offset: 0, limit: 100 }))
-  const chainsQuery = useQuery(queries.chains.list({ offset: 0, limit: 100 }))
+  const chainsQuery = useQuery(queries.chains.list())
   const openProvider = useOpenProvider()
 
-  const accounts = useMemo(() => {
-    const map = new Map<string, number>()
-    for (const a of accountsQuery.data?.data ?? []) {
-      map.set(a.provider, (map.get(a.provider) ?? 0) + 1)
-    }
-    return map
-  }, [accountsQuery.data])
   const chainIds = useMemo(
     () => new Map((chainsQuery.data?.data ?? []).map((c) => [c.name, c.id])),
     [chainsQuery.data]
   )
 
-  const providers = data?.providers ?? []
-  const down = providers.filter((p) => p.status === 'down').length
-  const degraded = providers.filter((p) => p.status === 'degraded').length
-  const healthy = providers.length - down - degraded
-  const byStatus = <T extends { status: HealthStatus }>(rows: T[]) =>
-    status === 'all' ? rows : rows.filter((r) => r.status === status)
+  const counts = data?.counts
+  const down = counts?.down ?? 0
+  const degraded = counts?.degraded ?? 0
+  const healthy = counts?.healthy ?? 0
+  const providerCount = counts?.providers ?? 0
+  const total = data?.total ?? 0
 
   const figure = (value: string) => (
     <span className="text-xl font-semibold tabular-nums">{value}</span>
   )
   const note = (text: string) => <span className="block text-xs text-muted-foreground">{text}</span>
-  const tabCount = (t: Tab) =>
-    t === 'probes' ? (data?.probes.length ?? 0) : (data?.[t].length ?? 0)
+  const tabCount = (t: Tab) => counts?.[t] ?? 0
 
   return (
     <div className="flex flex-col gap-6">
@@ -149,7 +152,7 @@ function RouteComponent() {
             iconClassName="bg-red-500/10 text-red-600 dark:text-red-400"
           >
             {figure(formatCount(down))}
-            {note(`of ${providers.length} ${providers.length === 1 ? 'provider' : 'providers'}`)}
+            {note(`of ${providerCount} ${providerCount === 1 ? 'provider' : 'providers'}`)}
           </Stat>
           <Stat
             icon={IconHeartbeat}
@@ -232,15 +235,15 @@ function RouteComponent() {
         ) : tab === 'providers' ? (
           <ProvidersHealthTable
             key={`p-${status}`}
-            entries={byStatus(data.providers)}
+            entries={data.providers}
+            total={total}
             span={span}
-            accounts={accounts}
             onOpen={openProvider}
           />
         ) : tab === 'models' ? (
-          <ModelsHealthTable key={`m-${status}`} entries={byStatus(data.models)} />
+          <ModelsHealthTable key={`m-${status}`} entries={data.models} total={total} />
         ) : tab === 'chains' ? (
-          <ChainsHealthTable entries={data.chains} chainIds={chainIds} />
+          <ChainsHealthTable entries={data.chains} total={total} chainIds={chainIds} />
         ) : (
           <ProbesHealthTable entries={data.probes} />
         )}

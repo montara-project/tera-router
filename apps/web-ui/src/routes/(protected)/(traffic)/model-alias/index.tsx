@@ -1,5 +1,5 @@
 import { IconChevronRight, IconPlus, IconReplace, IconSearch } from '@tabler/icons-react'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
@@ -15,6 +15,7 @@ import AliasRow from '@/components/block/traffic/model-alias/alias-row'
 import { Button } from '@/components/ui/button'
 import { Input, InputWrapper } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useDebounce } from '@/hooks/use-debounce'
 import { queries } from '@/lib/api/queries'
 
 export const Route = createFileRoute('/(protected)/(traffic)/model-alias/')({
@@ -34,7 +35,15 @@ function ModelAliasRoute() {
   const [viewing, setViewing] = useState<Models.ModelAlias | null>(null)
   const [editing, setEditing] = useState<Models.ModelAlias | null>(null)
 
-  const { data, isLoading, isError, error } = useQuery(queries.aliases.list())
+  // The server applies the search and the status filter.
+  const query = useDebounce({ value: search.trim(), delay: 300 })
+  const { data, isLoading, isError, error } = useQuery({
+    ...queries.aliases.list({
+      search: query || undefined,
+      status: status === 'active' || status === 'inactive' ? status : undefined,
+    }),
+    placeholderData: keepPreviousData,
+  })
 
   useEffect(() => {
     if (isError) {
@@ -42,22 +51,7 @@ function ModelAliasRoute() {
     }
   }, [isError, error])
 
-  const all = useMemo(() => data?.data ?? [], [data])
-  const aliases = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    return all.filter((alias) => {
-      if (q && !alias.name.toLowerCase().includes(q) && !alias.group?.toLowerCase().includes(q)) {
-        return false
-      }
-      if (status === 'active' && !alias.active) {
-        return false
-      }
-      if (status === 'inactive' && alias.active) {
-        return false
-      }
-      return true
-    })
-  }, [all, search, status])
+  const aliases = useMemo(() => data?.data ?? [], [data])
 
   const filtering = search.trim() !== '' || status !== 'all'
 

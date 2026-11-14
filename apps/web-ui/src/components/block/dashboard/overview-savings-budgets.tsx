@@ -70,14 +70,9 @@ export default function OverviewSavingsBudgets({
 }
 
 function Budgets() {
-  const { data, isLoading } = useQuery(queries.budgets.status())
-  const keys = useQuery(queries.keys.list({ offset: 0, limit: 100 })).data?.data ?? []
-  const accounts = useQuery(queries.accounts.list({ offset: 0, limit: 100 })).data?.data ?? []
-  const names = new Map<string, string>([
-    ...keys.map((k) => [k.id, k.name] as [string, string]),
-    ...accounts.map((a) => [a.id, a.label || a.provider] as [string, string]),
-  ])
-  const budgets = (data?.data ?? []).slice(0, BUDGET_LIMIT)
+  // The server returns the budgets closest to their limit, with their names.
+  const { data, isLoading } = useQuery(queries.budgets.status({ offset: 0, limit: BUDGET_LIMIT }))
+  const budgets = data?.data ?? []
 
   return (
     <div className="flex flex-col gap-3 p-4">
@@ -92,8 +87,7 @@ function Budgets() {
       {budgets.map((b) => {
         const byTokens = b.limit_tokens > 0
         const pct = byTokens ? b.token_pct : b.spend_pct
-        const name =
-          b.scope_kind === 'tenant' ? SCOPE_LABELS.tenant : (names.get(b.scope_id) ?? b.scope_id)
+        const name = b.scope_kind === 'tenant' ? SCOPE_LABELS.tenant : b.scope_name || b.scope_id
         return (
           <div key={b.id} className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between gap-3 text-[13px]">

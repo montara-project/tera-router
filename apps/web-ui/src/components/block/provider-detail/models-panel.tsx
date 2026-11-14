@@ -34,8 +34,7 @@ export default function ModelsPanel({
   variant,
   providerId,
   providerSlug,
-  observed,
-  observedLoading,
+  observedCount,
   syncing,
   onSync,
   onUpdate,
@@ -44,8 +43,8 @@ export default function ModelsPanel({
   variant: 'catalog' | 'custom'
   providerId: string
   providerSlug: string
-  observed: Models.UsageModelAccountingRow[]
-  observedLoading: boolean
+  /** models this provider served in the last 30 days */
+  observedCount: number
   syncing: boolean
   onSync: () => void
   onUpdate: (body: {
@@ -169,7 +168,7 @@ export default function ModelsPanel({
           onChange={onSubTabChange}
           options={[
             { value: 'catalog', label: 'Catalog', count: catalog?.count ?? 0 },
-            { value: 'observed', label: 'Observed', count: observed.length },
+            { value: 'observed', label: 'Observed', count: observedCount },
           ]}
         />
         <Button variant="outline" disabled={syncing} onClick={onSync}>
@@ -200,7 +199,7 @@ export default function ModelsPanel({
           onTestAll={testAll}
         />
       ) : (
-        <ObservedPanel models={observed} loading={observedLoading} />
+        <ObservedPanel providerSlug={providerSlug} observedCount={observedCount} />
       )}
     </div>
   )

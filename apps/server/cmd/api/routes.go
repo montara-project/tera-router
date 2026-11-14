@@ -158,10 +158,15 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 	// fill first, round robin, or smart round robin.
 	providers.Get("/:id/routing", h.Providers.Routing)
 	providers.Put("/:id/routing", h.Providers.RoutingUpdate)
+	// Move one provider's accounts between installs (any provider slug as
+	// :id): a passphrase-encrypted file out, and an additive import back in.
+	providers.Post("/:id/accounts/export", h.Accounts.Export)
+	providers.Post("/:id/accounts/import", h.Accounts.Import)
 
 	accounts := protected.Group("/accounts")
 	accounts.Get("", h.Accounts.Index)
 	accounts.Post("", h.Accounts.Store)
+	accounts.Post("/bulk", h.Accounts.BulkStore)
 	accounts.Post("/test", h.Accounts.TestKey)
 	accounts.Get("/:id", h.Accounts.Get)
 	accounts.Patch("/:id", h.Accounts.Update)
@@ -190,6 +195,10 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 
 	usage := protected.Group("/usage")
 	usage.Get("/telemetry", h.Usage.Telemetry)
+	// The Usage page's tables, each searched, sorted and paged on its own.
+	usage.Get("/models", h.Usage.Models)
+	usage.Get("/providers", h.Usage.Providers)
+	usage.Get("/requests", h.Usage.Requests)
 	usage.Get("/activity", h.Usage.Activity)
 
 	// Quota dashboard

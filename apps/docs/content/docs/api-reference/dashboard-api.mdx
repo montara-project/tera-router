@@ -42,7 +42,28 @@ curl -X POST http://localhost:8080/v1/auth/sign-in \
 | Error            | `{"message": "…"}`                                        |
 | Validation error | `{"message": "…", "errors": {…}}` (422)                   |
 
-Pagination uses the `offset` (0-based) and `limit` (default 10, max 100) query parameters.
+Pagination uses the `offset` (0-based) and `limit` (default 10, max 100; `/v1/accounts` and `/v1/keys` allow up to 1000) query parameters.
+
+### List filters
+
+The dashboard sends its searches, filters and pages to the server; nothing is filtered in the browser. Every parameter is optional, and `total` in the metadata counts the rows that match before paging. `search` is case-insensitive.
+
+| Endpoint                  | Query parameters                                                                                                                                                                                                                                                                        |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /v1/accounts`        | `provider` (slug), `auth_kind` (`api_key`, `oauth`, `none`), `search` (label or key fingerprint)                                                                                                                                                                                        |
+| `GET /v1/keys`            | `search` (name, key preview or plan), `status` (`active`, `disabled`), `sort` (`newest`, `oldest`, `name`). The metadata adds `total_all`, `total_active` and `total_disabled`.                                                                                                         |
+| `GET /v1/chains`          | `search` (name, fallback model or a step's provider/model), `strategy`, `enabled` (`true`, `false`), `provider` (a step or the fallback uses it), `health_window` (attaches each chain's health), `health` (`healthy`, `degraded`, `down`, `unknown`). Paged only when `limit` is sent. |
+| `GET /v1/aliases`         | `search` (name or group), `status` (`active`, `inactive`)                                                                                                                                                                                                                               |
+| `GET /v1/plans`           | Paged only when `limit` is sent. The metadata adds `keys_assigned`, `hard_cutoff` and `unused` over every plan.                                                                                                                                                                         |
+| `GET /v1/budgets/status`  | Ordered closest to the limit first; each row carries `scope_name`. Paged only when `limit` is sent. The metadata adds `past_alert`, `exhausted` and `blocking` over every budget.                                                                                                       |
+| `GET /v1/quota`           | `range`, `search` (provider or account name), `provider`, `status` (`active`, `paused`, `attention`), `quota_state`, `sort` (`attention`, `name`, `requests`, `cost`)                                                                                                                   |
+| `GET /v1/usage/models`    | `range`, `search`, `provider`, `sort` (`model`, `requests`, `tokens`, `cost`, `latency`, `pricing`), `order` (`asc`, `desc`)                                                                                                                                                            |
+| `GET /v1/usage/providers` | `range`                                                                                                                                                                                                                                                                                 |
+| `GET /v1/usage/requests`  | `range`, `search` (model, key name, client, row id or provider), `status` (`failed`). The metadata adds `total_all` and `total_failed`.                                                                                                                                                 |
+| `GET /v1/provider-health` | `tab` (`providers`, `models`, `chains`, `probes`) returns only that table, `status` (`healthy`, `degraded`, `down`), `offset`, `limit`. `counts` covers every row and `total` the rows that match.                                                                                      |
+| `GET /v1/providers`       | `search` (name or slug), `capability`, `empty` (`true` keeps connected custom providers with no account), `offset`, `limit` (page the connected list)                                                                                                                                   |
+| `GET /v1/media`           | `capability`, `search` (name or slug). The answer also splits the matches into `connected` and `available`.                                                                                                                                                                             |
+| `GET /v1/portal/:token`   | `offset`, `limit` page the request log (`recent`); `recent_total` counts the window.                                                                                                                                                                                                    |
 
 ## Endpoints
 
@@ -121,11 +142,14 @@ The playground authenticates with the dashboard JWT, not an API key. Its usage i
 | POST                 | `/v1/providers/:id/models/sync`        | Refresh a catalog provider's models                                                            |
 | POST                 | `/v1/providers/:id/models/test`        | Send one test chat to a model                                                                  |
 | GET / POST           | `/v1/accounts`                         | List / add accounts                                                                            |
+| POST                 | `/v1/accounts/bulk`                    | Add one API-key account per entry of `api_keys`; keys already stored are returned as `skipped` |
 | GET / PATCH / DELETE | `/v1/accounts/:id`                     | Manage account                                                                                 |
 | POST                 | `/v1/accounts/:id/test`                | Test account connection                                                                        |
 | POST                 | `/v1/accounts/test`                    | Test a key before saving it; nothing is stored                                                 |
 | GET                  | `/v1/accounts/:id/quota`               | Account quota                                                                                  |
 | GET / PUT            | `/v1/providers/:id/routing`            | Account strategy (`:id` is the provider slug)                                                  |
+| POST                 | `/v1/providers/:id/accounts/export`    | Download the provider's accounts as a file encrypted with `passphrase` (`:id` is the slug)     |
+| POST                 | `/v1/providers/:id/accounts/import`    | Add the accounts of an export file (`{"passphrase", "backup"}`); duplicates are skipped        |
 | POST                 | `/v1/oauth/:provider/authorize`        | Start a PKCE sign-in (`anthropic`, `codex`); returns the URL to open                           |
 | POST                 | `/v1/oauth/:provider/exchange`         | Exchange the returned code and save it as an OAuth account                                     |
 
@@ -139,6 +163,9 @@ The model test endpoints take `{"model", "messages", "stream"}`. With `"stream":
 | GET                  | `/v1/budgets/status`  | Running usage per budget                                                                                    |
 | PUT / PATCH / DELETE | `/v1/budgets/:id`     | Manage budget                                                                                               |
 | GET                  | `/v1/usage/telemetry` | Full Usage page payload                                                                                     |
+| GET                  | `/v1/usage/models`    | Model accounting rows: searched, sorted and paged                                                           |
+| GET                  | `/v1/usage/providers` | Provider accounting rows, paged                                                                             |
+| GET                  | `/v1/usage/requests`  | Request log of the range: searched, filtered and paged                                                      |
 | GET                  | `/v1/usage/activity`  | Requests per UTC day for the last 53 weeks, with per-model counts                                           |
 | GET                  | `/v1/provider-health` | Per-provider, per-model, and per-chain health (`?window=5m\|15m\|1h\|6h\|24h\|7d\|30d\|90d`, default `15m`) |
 | GET                  | `/v1/quota`           | Active quotas                                                                                               |
@@ -244,4 +271,4 @@ Enabling and disabling are audit-logged. See [Remote access](/docs/getting-start
 | GET          | `/health`                 | Server health (no auth)                                                                                                                                                                    |
 | GET          | `/skills/:slug/SKILL.md`  | Public skill document an agent fetches by URL (no auth)                                                                                                                                    |
 
-The key reveal and rotate, both backup downloads, and a `PATCH /v1/accounts/:id` that changes `metadata.base_url` re-authenticate: send `"password"`, and when two-factor auth is on the server answers `{ "totp_required": true }` until you resend with `"otp"`. Wrong passwords or codes return `422` and count toward the IP block, like failed sign-ins.
+The key reveal and rotate, both backup downloads, the accounts export, and a `PATCH /v1/accounts/:id` that changes `metadata.base_url` re-authenticate: send `"password"`, and when two-factor auth is on the server answers `{ "totp_required": true }` until you resend with `"otp"`. Wrong passwords or codes return `422` and count toward the IP block, like failed sign-ins.

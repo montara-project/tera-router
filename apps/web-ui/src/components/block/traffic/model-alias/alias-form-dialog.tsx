@@ -16,9 +16,6 @@ import { AliasTargetSchema } from '@/lib/api/dtos/alias/schema'
 import { queries } from '@/lib/api/queries'
 import { requiredString } from '@/lib/validation'
 
-/** Model combobox page size — the server caps the catalog page at 100. */
-const MODEL_OPTIONS_LIMIT = 100
-
 export const CONTEXT_WINDOW_OPTIONS = [
   { value: 0, label: 'Default (unlimited)' },
   { value: 8192, label: '8K tokens' },
@@ -160,25 +157,15 @@ function AliasForm({ open, alias, onOpenChange }: AliasFormProps) {
       const provider = providers.find((p) => p.slug === slug)
       // Catalog providers carry "prov-<slug>" ids; custom providers carry uuids.
       const isCatalog = provider?.id.startsWith('prov-') ?? true
+      // Every enabled model of the provider; the server keeps the active ones.
       return isCatalog
-        ? queries.providers.catalogModels(provider?.slug ?? slug, {
-            limit: MODEL_OPTIONS_LIMIT,
-            // Filter server-side so the one fetched page holds the enabled
-            // models even when the full catalog spans many pages.
-            state: 'active',
-          })
-        : queries.providers.customModels(provider?.id ?? '', {
-            limit: MODEL_OPTIONS_LIMIT,
-            state: 'active',
-          })
+        ? queries.providers.allActiveModels('catalog', provider?.slug ?? slug)
+        : queries.providers.allActiveModels('custom', provider?.id ?? '')
     }),
   })
   const modelOptionsBySlug = new Map<string, Option<string>[]>()
   usedProviders.forEach((slug, i) => {
-    // Keep the client filter as a guard for servers predating the state param.
-    const models = (modelQueries[i]?.data?.data?.models ?? []).filter(
-      (model) => model.state === 'active'
-    )
+    const models = modelQueries[i]?.data?.data?.models ?? []
     modelOptionsBySlug.set(
       slug,
       models.map((model) => ({ value: model.id, label: model.id }))

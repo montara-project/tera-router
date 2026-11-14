@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"context"
+	"slices"
+	"sort"
 	"strings"
 
 	"tera-router/server/internal/app"
@@ -18,8 +20,16 @@ type quotaHandler struct {
 	app *app.Application
 }
 
+// quotaScanLimit bounds the accounts one quota request reads. The rows are
+// joined with usage and filtered here, so every account is read at once.
+//
+// ponytail: one unpaged scan. Move the join and the filters into SQL when an
+// install holds more accounts than this.
+const quotaScanLimit = 10000
+
+// quotaRows builds one quota row per account, with its usage over the range.
 func (h *quotaHandler) quotaRows(ctx context.Context, rng string) ([]dtos.QuotaAccount, error) {
-	accounts, _, err := h.app.Repos.Accounts.List(ctx, 0, 100)
+	accounts, _, err := h.app.Repos.Accounts.List(ctx, repositories.AccountFilter{}, 0, quotaScanLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -76,16 +86,63 @@ func authKindLabel(kind models.AuthKind) string {
 	}
 }
 
-// Index lists every account as a quota row.
+// Index lists accounts as quota rows, one page at a time. `search` matches the
+// provider or the account name; `provider`, `status` (active, paused,
+// attention) and `quota_state` narrow the rows; `sort` orders them (attention
+// first by default, or name, requests, cost). The total counts the rows that
+// match, before paging.
 func (h *quotaHandler) Index(c fiber.Ctx) error {
+	q, err := listPage(c)
+	if err != nil {
+		return err
+	}
 	rows, err := h.quotaRows(c.Context(), c.Query("range", "30d"))
 	if err != nil {
 		return err
 	}
-	return dtos.List(c, rows, dtos.TotalMeta(len(rows)))
+
+	search := listSearch(c)
+	provider, status, state := c.Query("provider"), c.Query("status"), c.Query("quota_state")
+	rows = keep(rows, func(a dtos.QuotaAccount) bool {
+		if provider != "" && a.Provider != provider {
+			return false
+		}
+		switch status {
+		case "attention":
+			if !a.Attention {
+				return false
+			}
+		case "active", "paused":
+			if a.Status != status {
+				return false
+			}
+		}
+		if state != "" && a.QuotaVisibility != state {
+			return false
+		}
+		return matchesSearch(search, a.Provider+" "+a.Name)
+	})
+
+	// Stable sorts: rows that tie keep the newest-first order of the scan.
+	switch c.Query("sort") {
+	case "name":
+		sort.SliceStable(rows, func(i, j int) bool {
+			return strings.ToLower(rows[i].Name) < strings.ToLower(rows[j].Name)
+		})
+	case "requests":
+		sort.SliceStable(rows, func(i, j int) bool { return rows[i].Requests > rows[j].Requests })
+	case "cost":
+		sort.SliceStable(rows, func(i, j int) bool { return rows[i].AttributedCost > rows[j].AttributedCost })
+	default:
+		sort.SliceStable(rows, func(i, j int) bool { return rows[i].Attention && !rows[j].Attention })
+	}
+
+	return dtos.List(c, pageOf(rows, q.Offset, q.Limit), dtos.ListMeta(len(rows), q.Offset, q.Limit))
 }
 
-// Overview returns the summary header plus rows (?range=today|7d|30d).
+// Overview returns the summary header (?range=today|7d|30d): the totals, the
+// counts behind the status chips, and the providers that have accounts. The
+// rows themselves come from Index, a page at a time.
 func (h *quotaHandler) Overview(c fiber.Ctx) error {
 	rng := c.Query("range", "30d")
 	accounts, err := h.quotaRows(c.Context(), rng)
@@ -93,7 +150,7 @@ func (h *quotaHandler) Overview(c fiber.Ctx) error {
 		return err
 	}
 
-	summary := dtos.QuotaSummary{TotalAccounts: len(accounts)}
+	summary := dtos.QuotaSummary{TotalAccounts: len(accounts), Providers: []string{}}
 	for _, a := range accounts {
 		summary.Requests += a.Requests
 		summary.InputTokens += a.InputTokens
@@ -105,9 +162,22 @@ func (h *quotaHandler) Overview(c fiber.Ctx) error {
 			summary.ActiveAccounts++
 		}
 		summary.UsageOnly++
+		if a.Attention {
+			summary.Attention++
+		}
+		if a.Depleted {
+			summary.Depleted++
+		}
+		if a.Attention && !a.Depleted && a.QuotaVisibility == "quota-capable" {
+			summary.NearLimit++
+		}
+		if !slices.Contains(summary.Providers, a.Provider) {
+			summary.Providers = append(summary.Providers, a.Provider)
+		}
 	}
+	slices.Sort(summary.Providers)
 
-	return dtos.OK(c, fiber.Map{"summary": summary, "accounts": accounts})
+	return dtos.OK(c, fiber.Map{"summary": summary})
 }
 
 // Update toggles an account's enabled state (active ↔ paused).

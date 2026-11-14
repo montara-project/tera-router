@@ -286,14 +286,20 @@ func (c *connector) render(req *core.ChatRequest, stream bool, creds core.Creden
 		// Callers wrap render errors, so return it as is.
 		return zcodeShapeBody(body, &clone, creds)
 	}
+	if IsBuddy(c.id) {
+		// The buddy gateway content-gates the system prompt and refuses the
+		// reasoning object, so the rendered body is reshaped before sending.
+		return buddyShapeRequest(body, &clone, c.id)
+	}
 	return body, nil
 }
 
 // requiresStream reports whether unary calls must be served from the
-// upstream's stream: Codex only accepts stream=true, and Cline wraps its
-// non-streaming body in a {"data": …} envelope the codec does not read.
+// upstream's stream: Codex only accepts stream=true, Cline wraps its
+// non-streaming body in a {"data": …} envelope the codec does not read, and
+// the buddy family answers a non-streaming request with an error.
 func (c *connector) requiresStream() bool {
-	return c.id == "codex" || c.id == "cline"
+	return c.id == "codex" || IsCline(c.id) || IsBuddy(c.id)
 }
 
 // hasCompletionEnvelope reports whether a body is a well-formed completion

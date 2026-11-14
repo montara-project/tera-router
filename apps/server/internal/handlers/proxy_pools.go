@@ -48,9 +48,18 @@ func (h *proxyPoolsHandler) Index(c fiber.Ctx) error {
 		return err
 	}
 
+	// How many accounts route through each pool, counted here so the page
+	// does not have to read every account.
+	accounts, err := h.app.Repos.Accounts.CountByProxyPool(c.Context())
+	if err != nil {
+		return err
+	}
+
 	out := make([]fiber.Map, 0, len(pools))
 	for _, p := range pools {
-		out = append(out, poolView(p))
+		view := poolView(p)
+		view["accounts"] = accounts[p.ID]
+		out = append(out, view)
 	}
 	return dtos.List(c, out, dtos.TotalMeta(len(pools)))
 }

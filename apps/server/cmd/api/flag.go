@@ -101,6 +101,7 @@ func parseFlag(cfg *config.Config) {
 	flag.StringVar(&cfg.App.APIURL, "api-url", envString("API_URL", ""), "Public API base URL for the served web UI")
 	flag.StringVar(&cfg.App.RateLimitExemptIPs, "rate-limit-exempt-ips", envString("RATE_LIMIT_EXEMPT_IPS", ""), "Comma-separated client IPs exempt from the rate limiter")
 	flag.StringVar(&cfg.App.TrustedProxies, "trusted-proxies", envString("TRUSTED_PROXIES", ""), "Comma-separated IPs/CIDRs trusted to supply X-Forwarded-For (e.g. the reverse proxy's address)")
+	flag.BoolVar(&cfg.App.RestrictedAccessDisabled, "restricted-access-disabled", envBool("RESTRICTED_ACCESS_DISABLED", "restricted-access-disabled", false), "Ignore the stored restricted access period (temporary override)")
 
 	// Database
 	flag.StringVar(&cfg.Database.Path, "database-path", envString("DATABASE_PATH", database.DefaultPath), "SQLite database file path")

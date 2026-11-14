@@ -14,7 +14,8 @@ import { formatDateTime } from '@/lib/date'
 import { formatCount, formatMs } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
-const PAGE_SIZES = [25, 50, 100]
+/** Page sizes of the health tables; the first is the default. */
+export const HEALTH_PAGE_SIZES = [25, 50, 100]
 
 export const STATUS_META: Record<HealthStatus, { label: string; pill: string; text: string }> = {
   healthy: {
@@ -122,29 +123,32 @@ function Empty({ title, note }: { title: string; note: string }) {
 const TRAFFIC_NOTE = 'Rows appear once traffic flows through the gateway.'
 
 /**
- * One health table: the whole list arrives at once, so it is paged here
- * (25 rows by default) with the page kept in ?page like the other tables.
+ * One health table. The rows are one page, cut by the server; the page is
+ * kept in ?page like the other tables.
  */
 function HealthTable<T extends RowData>({
   rows,
+  total,
   columns,
   minWidth,
   empty,
 }: {
   rows: T[]
+  /** rows across every page */
+  total: number
   columns: Column<T>[]
   minWidth: string
   empty: React.ReactNode
 }) {
-  const { offset, limit, pageIndex } = usePaginationQuery({ defaultLimit: PAGE_SIZES[0] })
+  const { limit, pageIndex } = usePaginationQuery({ defaultLimit: HEALTH_PAGE_SIZES[0] })
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-card">
       <ReactTable
-        data={rows.slice(offset, offset + limit)}
-        total={rows.length}
+        data={rows}
+        total={total}
         pageIndex={pageIndex}
         pageSize={limit}
-        pageSizes={PAGE_SIZES}
+        pageSizes={HEALTH_PAGE_SIZES}
         columns={columns}
         tableClassName={minWidth}
         emptyMessage={empty}
@@ -168,14 +172,13 @@ function ProviderMark({ slug }: { slug: string }) {
 
 export function ProvidersHealthTable({
   entries,
+  total,
   span,
-  accounts,
   onOpen,
 }: {
   entries: HealthEntry[]
+  total: number
   span: string
-  /** account count per provider slug */
-  accounts: Map<string, number>
   onOpen: (slug: string) => void
 }) {
   const columns = useMemo<Column<HealthEntry>[]>(
@@ -185,7 +188,7 @@ export function ProvidersHealthTable({
         header: 'Provider',
         meta: { headerClassName: 'w-[30%]', cellClassName: 'max-w-0' },
         cell: ({ row: { original: e } }) => {
-          const n = accounts.get(e.id) ?? 0
+          const n = e.accounts ?? 0
           return (
             <button
               type="button"
@@ -255,11 +258,12 @@ export function ProvidersHealthTable({
         },
       },
     ],
-    [span, accounts, onOpen]
+    [span, onOpen]
   )
   return (
     <HealthTable
       rows={entries}
+      total={total}
       columns={columns}
       minWidth="min-w-[64rem]"
       empty={<Empty title="No provider traffic in this range" note={TRAFFIC_NOTE} />}
@@ -344,10 +348,11 @@ const MODEL_COLUMNS: Column<HealthEntry>[] = [
   },
 ]
 
-export function ModelsHealthTable({ entries }: { entries: HealthEntry[] }) {
+export function ModelsHealthTable({ entries, total }: { entries: HealthEntry[]; total: number }) {
   return (
     <HealthTable
       rows={entries}
+      total={total}
       columns={MODEL_COLUMNS}
       minWidth="min-w-[60rem]"
       empty={<Empty title="No model traffic in this range" note={TRAFFIC_NOTE} />}
@@ -357,9 +362,11 @@ export function ModelsHealthTable({ entries }: { entries: HealthEntry[] }) {
 
 export function ChainsHealthTable({
   entries,
+  total,
   chainIds,
 }: {
   entries: HealthEntry[]
+  total: number
   /** chain id per name, for the detail link */
   chainIds: Map<string, string>
 }) {
@@ -436,6 +443,7 @@ export function ChainsHealthTable({
   return (
     <HealthTable
       rows={entries}
+      total={total}
       columns={columns}
       minWidth="min-w-[52rem]"
       empty={<Empty title="No chains yet" note={TRAFFIC_NOTE} />}
@@ -489,6 +497,7 @@ export function ProbesHealthTable({ entries }: { entries: ProbeEntry[] }) {
   return (
     <HealthTable
       rows={entries}
+      total={entries.length}
       columns={PROBE_COLUMNS}
       minWidth="min-w-[48rem]"
       empty={

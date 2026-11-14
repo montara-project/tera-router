@@ -16,7 +16,8 @@ import { formatCompact, formatCount } from '@/lib/format'
 import ModelName from './model-name'
 import { PortalRecentColumn } from './recent/column'
 
-const PAGE_SIZES = [15, 30, 50]
+/** Page sizes of the portal's request log; the first is the default. */
+export const PORTAL_PAGE_SIZES = [15, 30, 50]
 
 function CountPill({ children }: { children: React.ReactNode }) {
   return (
@@ -235,11 +236,10 @@ function toDetailRow(r: PortalRequest): UsageTerminalRequestRow {
   }
 }
 
-/** The key's newest attempts, a page at a time. */
-export function PortalRecent({ recent, requests }: { recent: PortalRequest[]; requests: number }) {
+/** The key's attempts, newest first: one page, cut by the server. */
+export function PortalRecent({ recent, total }: { recent: PortalRequest[]; total: number }) {
   const [selected, setSelected] = useState<PortalRequest | null>(null)
-  // The list arrives whole (capped by the server), so paging runs here.
-  const { offset, limit, pageIndex } = usePaginationQuery({ defaultLimit: PAGE_SIZES[0] })
+  const { limit, pageIndex } = usePaginationQuery({ defaultLimit: PORTAL_PAGE_SIZES[0] })
   const columns = PortalRecentColumn({ onOpen: setSelected })
 
   return (
@@ -247,21 +247,16 @@ export function PortalRecent({ recent, requests }: { recent: PortalRequest[]; re
       icon={IconHistory}
       title={
         <>
-          Recent requests <CountPill>{formatCount(recent.length)}</CountPill>
+          Recent requests <CountPill>{formatCount(total)}</CountPill>
         </>
-      }
-      description={
-        recent.length < requests
-          ? `Latest ${formatCount(recent.length)} of ${formatCount(requests)}`
-          : undefined
       }
     >
       <ReactTable
-        data={recent.slice(offset, offset + limit)}
-        total={recent.length}
+        data={recent}
+        total={total}
         pageIndex={pageIndex}
         pageSize={limit}
-        pageSizes={PAGE_SIZES}
+        pageSizes={PORTAL_PAGE_SIZES}
         columns={columns}
         tableClassName="min-w-[52rem]"
         emptyMessage={

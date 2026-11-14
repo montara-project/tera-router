@@ -62,7 +62,7 @@ func TestCLIToolApply(t *testing.T) {
 		return resp.StatusCode, out
 	}
 	keyCount := func() int {
-		_, total, err := repos.APIKeys.List(context.Background(), 0, 100)
+		_, total, err := repos.APIKeys.List(context.Background(), repositories.APIKeyFilter{}, 0, 100)
 		if err != nil {
 			t.Fatal(err)
 		}

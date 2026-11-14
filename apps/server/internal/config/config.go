@@ -31,6 +31,9 @@ type ConfigApp struct {
 	// TrustedProxies is a comma-separated list of proxy IPs/CIDRs whose
 	// X-Forwarded-For header is honored when resolving the client IP.
 	TrustedProxies string
+	// RestrictedAccessDisabled ignores the stored restricted access period
+	// without touching it — the way back in after locking yourself out.
+	RestrictedAccessDisabled bool
 }
 
 type ConfigDatabase struct {

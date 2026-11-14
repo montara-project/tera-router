@@ -3,6 +3,7 @@ package handlers
 import (
 	"cmp"
 	"math"
+	"sort"
 	"time"
 
 	"tera-router/server/internal/app"
@@ -93,6 +94,42 @@ func (h *budgetsHandler) Index(c fiber.Ctx) error {
 
 // Status computes spend vs limit for every budget over its current period,
 // refreshing lazy allocations when the bucket rolled over.
+// budgetUsedPct is how full a budget is: the cap closest to running out
+// decides.
+func budgetUsedPct(b dtos.BudgetStatus) float64 {
+	var pct float64
+	if b.LimitMicros > 0 {
+		pct = b.SpendPct
+	}
+	if b.LimitTokens > 0 {
+		pct = max(pct, b.TokenPct)
+	}
+	return pct
+}
+
+// budgetScopeName resolves what a budget caps to a readable name. A scope
+// that was deleted since yields "", and the dashboard falls back to its id.
+func (h *budgetsHandler) budgetScopeName(c fiber.Ctx, b models.Budget) string {
+	switch b.ScopeKind {
+	case models.ScopeAPIKey:
+		if key, err := h.app.Repos.APIKeys.Get(c.Context(), b.ScopeID); err == nil {
+			return key.Name
+		}
+	case models.ScopeAccount:
+		if account, err := h.app.Repos.Accounts.Get(c.Context(), b.ScopeID); err == nil {
+			label := account.Label
+			if label == "" {
+				label = account.ID[:min(8, len(account.ID))]
+			}
+			return account.Provider + " · " + label
+		}
+	}
+	return ""
+}
+
+// Status lists the budgets with their spend over the current period, the one
+// closest to its limit first. The metadata carries the counts of the page's
+// summary strip, taken over every budget; with `limit` the rows are one page.
 func (h *budgetsHandler) Status(c fiber.Ctx) error {
 	budgets, err := h.app.Repos.Budgets.List(c.Context())
 	if err != nil {
@@ -118,6 +155,7 @@ func (h *budgetsHandler) Status(c fiber.Ctx) error {
 
 		out = append(out, dtos.BudgetStatus{
 			Budget:      b,
+			ScopeName:   h.budgetScopeName(c, b),
 			SpentMicros: spent.CostMicros,
 			SpentTokens: spent.BudgetTokens,
 			SpendPct:    percentOf(spent.CostMicros, b.LimitMicros),
@@ -125,7 +163,22 @@ func (h *budgetsHandler) Status(c fiber.Ctx) error {
 			ResetsAt:    periodEnd(b.Period, from),
 		})
 	}
-	return dtos.List(c, out, dtos.TotalMeta(len(out)))
+	sort.SliceStable(out, func(i, j int) bool { return budgetUsedPct(out[i]) > budgetUsedPct(out[j]) })
+
+	var pastAlert, exhausted, blocking int
+	for _, b := range out {
+		switch pct := budgetUsedPct(b); {
+		case pct >= 100:
+			exhausted++
+			if b.HardCutoff {
+				blocking++
+			}
+		case b.AlertPct > 0 && pct >= float64(b.AlertPct):
+			pastAlert++
+		}
+	}
+
+	return respondList(c, out, dtos.Metadata{"past_alert": pastAlert, "exhausted": exhausted, "blocking": blocking})
 }
 
 func percentOf(value, limit int64) float64 {

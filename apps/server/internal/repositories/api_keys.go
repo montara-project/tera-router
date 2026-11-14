@@ -47,9 +47,18 @@ func (r *APIKeyRepository) Insert(ctx context.Context, k models.APIKey) error {
 	return err
 }
 
-// List returns a page of keys joined with their plan, newest-first, plus the
-// unpaged total.
-func (r *APIKeyRepository) List(ctx context.Context, offset, limit int) ([]APIKeyWithPlan, int, error) {
+// APIKeyFilter narrows and orders a page of keys. Empty fields match
+// everything. Search is a case-insensitive substring of the name, the key
+// preview or the plan name; Status is "active" or "disabled"; Sort is "name",
+// "oldest" or, by default, newest first.
+type APIKeyFilter struct {
+	Search string
+	Status string
+	Sort   string
+}
+
+// List returns a page of keys with their plan, plus the filtered total.
+func (r *APIKeyRepository) List(ctx context.Context, f APIKeyFilter, offset, limit int) ([]APIKeyWithPlan, int, error) {
 	rows, err := r.queryContext(ctx, r.DB, `
 		SELECT k.id, k.user_id, k.plan_id, k.name, k.display, k.scopes, k.disabled, k.last_used_at,
 		       k.allowed_models, k.skill_ids, k.secret_wrapped_dek, k.secret_ciphertext, k.created_at, k.updated_at,
@@ -57,8 +66,13 @@ func (r *APIKeyRepository) List(ctx context.Context, offset, limit int) ([]APIKe
 		       count(*) OVER () AS total
 		FROM api_keys k
 		LEFT JOIN plans p ON p.id = k.plan_id
-		ORDER BY k.created_at DESC
-		LIMIT $2 OFFSET $1`, offset, limit)
+		WHERE ($1 = '' OR instr(lower(k.name || ' ' || k.display || ' ' || coalesce(p.name, 'No plan')), lower($1)) > 0)
+		AND ($2 = '' OR k.disabled = ($2 = 'disabled'))
+		ORDER BY
+			CASE WHEN $3 = 'name' THEN lower(k.name) END ASC,
+			CASE WHEN $3 = 'oldest' THEN k.created_at END ASC,
+			k.created_at DESC
+		LIMIT $5 OFFSET $4`, f.Search, f.Status, f.Sort, offset, limit)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -181,4 +195,20 @@ func (r *APIKeyRepository) CountByPlan(ctx context.Context) (map[string]int, err
 		counts[id] = n
 	}
 	return counts, errtrace.Wrap(rows.Err())
+}
+
+// StatusCounts returns how many keys exist and how many of them are disabled,
+// for the status chips of the keys page.
+func (r *APIKeyRepository) StatusCounts(ctx context.Context) (total, disabled int, err error) {
+	rows, err := r.queryContext(ctx, r.DB, `SELECT count(*), coalesce(sum(disabled), 0) FROM api_keys`)
+	if err != nil {
+		return 0, 0, err
+	}
+	defer rows.Close()
+	if rows.Next() {
+		if err := rows.Scan(&total, &disabled); err != nil {
+			return 0, 0, errtrace.Wrap(err)
+		}
+	}
+	return total, disabled, errtrace.Wrap(rows.Err())
 }

@@ -2,6 +2,8 @@ export type ProxyPoolStatus = 'active' | 'inactive'
 
 export type ProxyPool = {
   id: string
+  /** accounts that route through this pool, counted by the server */
+  accounts: number
   name: string
   url: string
   status: ProxyPoolStatus

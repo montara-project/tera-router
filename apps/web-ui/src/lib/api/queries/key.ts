@@ -3,14 +3,13 @@ import { mutationOptions, queryOptions } from '@tanstack/react-query'
 import { getQueryClient } from '@/lib/providers/react-query'
 
 import type { ReauthDto } from '../dtos/auth/schema'
-import type { CreateKeyDto, UpdateKeyDto } from '../dtos/key/schema'
-import type { PaginateDto } from '../dtos/paginate'
+import type { CreateKeyDto, KeyListDto, UpdateKeyDto } from '../dtos/key/schema'
 
 import { services } from '../services'
 
 export const KEY_QUERY_KEY = 'keys'
 
-export const LIST_KEY_QUERY_KEY = (params?: PaginateDto) => {
+export const LIST_KEY_QUERY_KEY = (params?: KeyListDto) => {
   return [KEY_QUERY_KEY, 'list', params]
 }
 
@@ -18,7 +17,7 @@ export const GET_KEY_QUERY_KEY = (id: string) => {
   return [KEY_QUERY_KEY, 'detail', id]
 }
 
-const list = (params?: PaginateDto) =>
+const list = (params?: KeyListDto) =>
   queryOptions({
     queryKey: LIST_KEY_QUERY_KEY(params),
     queryFn: async () => {

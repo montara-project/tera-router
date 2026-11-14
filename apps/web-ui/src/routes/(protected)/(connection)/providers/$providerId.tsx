@@ -20,7 +20,7 @@ import AccountsPanel from '@/components/block/provider-detail/accounts-panel'
 import DetailSkeleton from '@/components/block/provider-detail/detail-skeleton'
 import ModelsPanel from '@/components/block/provider-detail/models-panel'
 import ProviderStatStrip from '@/components/block/provider-detail/provider-stat-strip'
-import QuotaPanel from '@/components/block/provider-detail/quota-panel'
+import QuotaPanel, { quotaScope } from '@/components/block/provider-detail/quota-panel'
 import RoutingPanel from '@/components/block/provider-detail/routing-panel'
 import { AddCustomProviderApiKeyForm } from '@/components/block/providers/form-provider-api-key'
 import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
@@ -90,9 +90,27 @@ function CustomProviderDetailRoute() {
   const apiKind = isCatalogProvider ? catalogView?.api_kind : provider?.api_kind
   const dialectLabel = apiKind === 'anthropic' ? 'Anthropic-compatible' : 'OpenAI-compatible'
 
-  const accountQuery = useQuery(queries.accounts.list({ offset: 0, limit: 100 }))
-  const chainsQuery = useQuery(queries.chains.list({ offset: 0, limit: 100 }))
-  const usageQuery = useQuery(queries.usage.telemetry('30d'))
+  // The tabs read their own pages; here only the counts are needed, so each
+  // query asks the server for one row and reads the total.
+  const accountCountQuery = useQuery({
+    ...queries.accounts.list({ offset: 0, limit: 1, provider: slug }),
+    enabled: Boolean(slug),
+  })
+  const oauthCountQuery = useQuery({
+    ...queries.accounts.list({ offset: 0, limit: 1, provider: slug, auth_kind: 'oauth' }),
+    enabled: Boolean(slug),
+  })
+  // Chains with a step or a fallback on this provider; the server filters.
+  const chainsQuery = useQuery({
+    ...queries.chains.list({ provider: slug }),
+    enabled: Boolean(slug),
+  })
+  // Models this provider served in the last 30 days: one row is enough to
+  // read the count; the Observed tab pages the rows itself.
+  const observedCountQuery = useQuery({
+    ...queries.usage.models({ range: '30d', provider: slug, offset: 0, limit: 1 }),
+    enabled: Boolean(slug),
+  })
   const healthQuery = useQuery(queries.providerHealth.overview('24h'))
 
   const deleteProviderMutation = useMutation(queries.providers.customDelete())
@@ -102,33 +120,13 @@ function CustomProviderDetailRoute() {
   const catalogSyncMutation = useMutation(queries.providers.catalogModelsSync(catalogSlug))
   const catalogUpdateMutation = useMutation(queries.providers.catalogModelsUpdate(catalogSlug))
 
-  const accounts = useMemo(
-    () => (accountQuery.data?.data ?? []).filter((account) => account.provider === slug),
-    [accountQuery.data, slug]
-  )
-  // Subscription (OAuth) accounts expose live upstream limits: Claude
-  // session/weekly windows and ZCode plan grants.
-  const quotaAccounts = useMemo(
-    () =>
-      accounts.filter(
-        (account) =>
-          (account.provider === 'anthropic' || account.provider === 'zcode') &&
-          account.auth_kind === 'oauth'
-      ),
-    [accounts]
-  )
-  const models = useMemo(() => {
-    const rows = usageQuery.data?.modelAccounting ?? []
-    return rows.filter((row) => row.provider.toLowerCase() === slug?.toLowerCase())
-  }, [usageQuery.data, slug])
-  const chains = useMemo(
-    () =>
-      (chainsQuery.data?.data ?? []).filter(
-        (chain) =>
-          chain.steps.some((step) => step.provider === slug) || chain.fallback_provider === slug
-      ),
-    [chainsQuery.data, slug]
-  )
+  const accountCount = accountCountQuery.data?.metadata.total ?? 0
+  const oauthCount = oauthCountQuery.data?.metadata.total ?? 0
+  // Accounts whose upstream reports an allowance; see quotaScope.
+  const scope = quotaScope(slug ?? '')
+  const quotaCount = scope === 'all' ? accountCount : scope === 'oauth' ? oauthCount : 0
+  const modelCount = observedCountQuery.data?.metadata.total ?? 0
+  const chains = chainsQuery.data?.data ?? []
 
   const invalidate = async () => {
     await Promise.all([
@@ -211,9 +209,8 @@ function CustomProviderDetailRoute() {
     )
   }
 
-  const accountCount = accounts.length
   const health = healthQuery.data?.providers.find((entry) => entry.id === slug)
-  const authLabel = accounts.some((a) => a.auth_kind === 'oauth') ? 'OAuth' : 'API key'
+  const authLabel = oauthCount > 0 ? 'OAuth' : 'API key'
   const meta = [
     slug,
     authLabel,
@@ -313,26 +310,25 @@ function CustomProviderDetailRoute() {
             value="overview"
             className="gap-1.5 px-3 data-[state=active]:text-foreground"
           >
-            Accounts {countChip(accounts.length)}
+            Accounts {countChip(accountCount)}
           </TabsTrigger>
           <TabsTrigger value="models" className="gap-1.5 px-3 data-[state=active]:text-foreground">
-            Models {countChip(models.length)}
+            Models {countChip(modelCount)}
           </TabsTrigger>
           <TabsTrigger value="routing" className="gap-1.5 px-3 data-[state=active]:text-foreground">
             Routing {countChip(chains.length)}
           </TabsTrigger>
-          {quotaAccounts.length > 0 ? (
+          {quotaCount > 0 ? (
             <TabsTrigger value="quota" className="gap-1.5 px-3 data-[state=active]:text-foreground">
-              Quota {countChip(quotaAccounts.length)}
+              Quota {countChip(quotaCount)}
             </TabsTrigger>
           ) : null}
         </TabsList>
 
         <TabsContent value="overview" className="mt-5 space-y-4">
           <AccountsPanel
-            accounts={accounts}
-            loading={accountQuery.isLoading}
             canManageKeys
+            provider={{ slug: slug ?? '', name: providerName ?? '' }}
             onAddKey={() => setAccountOpen(true)}
             onChanged={invalidate}
           />
@@ -343,8 +339,7 @@ function CustomProviderDetailRoute() {
             variant={isCatalogProvider ? 'catalog' : 'custom'}
             providerId={providerId}
             providerSlug={slug ?? ''}
-            observed={models}
-            observedLoading={usageQuery.isLoading}
+            observedCount={modelCount}
             syncing={
               isCatalogProvider ? catalogSyncMutation.isPending : syncModelsMutation.isPending
             }
@@ -362,9 +357,9 @@ function CustomProviderDetailRoute() {
           <RoutingPanel chains={chains} loading={chainsQuery.isLoading} slug={slug ?? ''} />
         </TabsContent>
 
-        {quotaAccounts.length > 0 ? (
+        {quotaCount > 0 ? (
           <TabsContent value="quota" className="mt-5">
-            <QuotaPanel accounts={quotaAccounts} />
+            <QuotaPanel slug={slug ?? ''} />
           </TabsContent>
         ) : null}
       </Tabs>

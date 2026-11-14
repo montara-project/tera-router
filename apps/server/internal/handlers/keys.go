@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"tera-router/server/internal/app"
@@ -58,14 +59,31 @@ func keyView(k repositories.APIKeyWithPlan) fiber.Map {
 	}
 }
 
+// maxKeyListLimit is the largest page of keys one request returns. Pickers
+// (budget scope, guardrail scope) read the keys whole to offer them as
+// choices; at the default ceiling of 100 the rest could not be picked.
+const maxKeyListLimit = 1000
+
+// Index lists keys a page at a time. `search` matches the name, the key
+// preview or the plan; `status` keeps active or disabled keys; `sort` is
+// newest (default), oldest or name. The metadata also carries the counts
+// behind the status chips, which ignore the filters.
 func (h *keysHandler) Index(c fiber.Ctx) error {
 	var q dtos.ListQuery
 	if err := lib.ValidateRequestQuery(c, &q); err != nil {
 		return err
 	}
-	q.Clamp()
+	q.ClampTo(maxKeyListLimit)
 
-	keys, total, err := h.app.Repos.APIKeys.List(c.Context(), q.Offset, q.Limit)
+	filter := repositories.APIKeyFilter{Search: strings.TrimSpace(c.Query("search")), Sort: c.Query("sort")}
+	if status := c.Query("status"); status == "active" || status == "disabled" {
+		filter.Status = status
+	}
+	keys, total, err := h.app.Repos.APIKeys.List(c.Context(), filter, q.Offset, q.Limit)
+	if err != nil {
+		return err
+	}
+	all, disabled, err := h.app.Repos.APIKeys.StatusCounts(c.Context())
 	if err != nil {
 		return err
 	}
@@ -74,7 +92,11 @@ func (h *keysHandler) Index(c fiber.Ctx) error {
 	for _, k := range keys {
 		out = append(out, keyView(k))
 	}
-	return dtos.List(c, out, dtos.ListMeta(total, q.Offset, q.Limit))
+	meta := dtos.ListMeta(total, q.Offset, q.Limit)
+	meta["total_all"] = all
+	meta["total_active"] = all - disabled
+	meta["total_disabled"] = disabled
+	return dtos.List(c, out, meta)
 }
 
 // checkKeyScopes rejects a scopes string naming a scope the gateway does not

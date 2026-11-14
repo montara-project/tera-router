@@ -9,7 +9,9 @@ import {
 } from '@/lib/validation'
 
 import type { Account, AccountAuthKind } from '../../models/account'
+import type { PaginateDto } from '../paginate'
 
+import { ReauthSchema } from '../auth/schema'
 import { enumValues } from '../enum'
 
 const AUTH_KINDS = enumValues<AccountAuthKind>({ api_key: true, oauth: true, none: true })
@@ -44,3 +46,36 @@ export const AccountSchema = z.object({
 }) satisfies z.ZodType<AccountPayload>
 
 export type AccountDto = z.infer<typeof AccountSchema>
+
+/** Bulk add body (POST /v1/accounts/bulk): one API-key account per entry of api_keys. */
+export const AccountBulkSchema = z.object({
+  provider: requiredString('provider'),
+  api_keys: z.array(z.string()).min(1, { error: 'Paste at least one API key.' }),
+  label_prefix: optionalString('label prefix'),
+  priority: optionalNumber('priority'),
+})
+
+export type AccountBulkDto = z.infer<typeof AccountBulkSchema>
+
+/** Accounts export body (POST /v1/providers/:slug/accounts/export). */
+export const AccountsExportSchema = ReauthSchema.extend({
+  passphrase: requiredString('passphrase'),
+})
+
+export type AccountsExportDto = z.infer<typeof AccountsExportSchema>
+
+/** Accounts import body (POST /v1/providers/:slug/accounts/import). */
+export const AccountsImportSchema = z.object({
+  passphrase: requiredString('passphrase'),
+  backup: z.record(z.string(), z.unknown(), { error: 'The backup must be a JSON object.' }),
+})
+
+export type AccountsImportDto = z.infer<typeof AccountsImportSchema>
+
+/** Query of GET /v1/accounts: paging, one provider's accounts, one kind of
+ * credential, and a text search on label and key fingerprint. */
+export type AccountListDto = PaginateDto & {
+  provider?: string
+  auth_kind?: AccountAuthKind
+  search?: string
+}

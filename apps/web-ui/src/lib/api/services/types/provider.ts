@@ -4,7 +4,9 @@ import type { CustomProviderDto, ProviderRoutingDto } from '../../dtos/provider/
 import type { Models } from '../../models'
 
 export type ProviderResources = {
-  list: () => Promise<AxiosItemResponse<Models.ProvidersOverview>>
+  list: (
+    params?: Models.ProvidersOverviewDto
+  ) => Promise<AxiosItemResponse<Models.ProvidersOverview>>
   customList: () => Promise<AxiosListResponse<Models.CustomProvider>>
   customGet: (id: string) => Promise<AxiosItemResponse<Models.CustomProvider>>
   customGetBySlug: (slug: string) => Promise<AxiosItemResponse<Models.CustomProvider>>
@@ -20,7 +22,13 @@ export type ProviderResources = {
   ) => Promise<AxiosItemResponse<{ deleted: string[]; skipped: number }>>
   customModels: (
     id: string,
-    params?: { search?: string; offset?: number; limit?: number }
+    params?: {
+      search?: string
+      /** keeps the models in one state; the server filters */
+      state?: Models.ProviderModelState
+      offset?: number
+      limit?: number
+    }
   ) => Promise<AxiosItemResponse<Models.UpstreamModels>>
   customModelsSync: (id: string) => Promise<AxiosItemResponse<Models.UpstreamModels>>
   customModelsUpdate: (
@@ -32,7 +40,13 @@ export type ProviderResources = {
   /** catalog-provider stored catalog with per-model states; server-side search + paging */
   modelsList: (
     slug: string,
-    params?: { search?: string; offset?: number; limit?: number }
+    params?: {
+      search?: string
+      /** keeps the models in one state; the server filters */
+      state?: Models.ProviderModelState
+      offset?: number
+      limit?: number
+    }
   ) => Promise<AxiosItemResponse<Models.UpstreamModels>>
   modelsUpdate: (
     slug: string,

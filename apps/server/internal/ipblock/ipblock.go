@@ -37,6 +37,9 @@ type failures struct {
 type Guard struct {
 	repo     *repositories.IPBlockRepository
 	settings *repositories.SettingRepository
+	// RestrictionDisabled turns Restricted off whatever the stored setting
+	// says (RESTRICTED_ACCESS_DISABLED). Set once at boot.
+	RestrictionDisabled bool
 
 	mu       sync.RWMutex
 	blocks   []block
@@ -87,7 +90,7 @@ func (g *Guard) Reload(ctx context.Context) error {
 // period: the period is running and ip is not on its allowlist. Loopback is
 // never restricted, as in Blocked.
 func (g *Guard) Restricted(ip netip.Addr, now time.Time) bool {
-	if ip.Unmap().IsLoopback() {
+	if g.RestrictionDisabled || ip.Unmap().IsLoopback() {
 		return false
 	}
 	g.mu.RLock()

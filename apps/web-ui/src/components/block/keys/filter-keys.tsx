@@ -32,16 +32,19 @@ const STATUS_CHIPS: { value: KeysFilters['status']; label: string }[] = [
   { value: 'restricted', label: 'Restricted' },
 ]
 
+/** Keys per status across the whole list, counted by the server. */
+export type KeyCounts = { all: number; active: number; disabled: number }
+
 interface FilterKeysProps {
-  keys: Models.ApiKey[]
+  counts: KeyCounts
   filters: KeysFilters
   onChange: (patch: Partial<KeysFilters>) => void
 }
 
 /** Search plus status chips with counts; Restricted shows only when a key has it. */
-export default function FilterKeys({ keys, filters, onChange }: FilterKeysProps) {
-  const count = (status: KeysFilters['status']) =>
-    status === 'all' ? keys.length : keys.filter((k) => k.status === status).length
+export default function FilterKeys({ counts, filters, onChange }: FilterKeysProps) {
+  // The server reports no restricted keys yet, so that chip stays hidden.
+  const count = (status: KeysFilters['status']) => (status === 'restricted' ? 0 : counts[status])
 
   return (
     <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2.5">
@@ -81,26 +84,4 @@ export default function FilterKeys({ keys, filters, onChange }: FilterKeysProps)
       </div>
     </div>
   )
-}
-
-export function applyKeysFilters(keys: Models.ApiKey[], filters: KeysFilters): Models.ApiKey[] {
-  const query = filters.search.trim().toLowerCase()
-
-  const filtered = keys.filter((key) => {
-    if (filters.status !== 'all' && key.status !== filters.status) return false
-    if (!query) return true
-    return [key.name, key.key_preview, key.plan_label].join(' ').toLowerCase().includes(query)
-  })
-
-  return [...filtered].sort((left, right) => {
-    switch (filters.sort) {
-      case 'oldest':
-        return left.created_at.localeCompare(right.created_at)
-      case 'name':
-        return left.name.localeCompare(right.name)
-      case 'newest':
-      default:
-        return right.created_at.localeCompare(left.created_at)
-    }
-  })
 }

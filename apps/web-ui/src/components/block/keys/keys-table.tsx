@@ -15,12 +15,16 @@ import SelectInput from '@/components/block/common/select-input'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
-import { usePaginationQuery } from '@/hooks/use-pagination-query'
 import { toastAxiosError } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
 import { formatDate, formatTimeAgo } from '@/lib/date'
 
-import FilterKeys, { type KeysFilters, type KeysSortValue, SORT_OPTIONS } from './filter-keys'
+import FilterKeys, {
+  type KeyCounts,
+  type KeysFilters,
+  type KeysSortValue,
+  SORT_OPTIONS,
+} from './filter-keys'
 import KeyActionsMenu from './key-actions-menu'
 
 const STATUS_LABEL: Record<Models.ApiKeyStatus, string> = {
@@ -33,10 +37,14 @@ const STATUS_LABEL: Record<Models.ApiKeyStatus, string> = {
 const PAGE_SIZES = [10, 25, 50, 100]
 
 interface KeysTableProps {
-  /** every key, for the chip counts */
-  keys: Models.ApiKey[]
-  /** keys after search, status and sort */
+  /** keys per status across the whole list, for the chips */
+  counts: KeyCounts
+  /** one page of the keys that match the search, status and sort */
   rows: Models.ApiKey[]
+  /** matching keys across every page */
+  total: number
+  pageIndex: number
+  pageSize: number
   loading: boolean
   filters: KeysFilters
   onFiltersChange: (patch: Partial<KeysFilters>) => void
@@ -44,18 +52,19 @@ interface KeysTableProps {
 }
 
 export default function KeysTable({
-  keys,
+  counts,
   rows,
+  total,
+  pageIndex,
+  pageSize,
   loading,
   filters,
   onFiltersChange,
   onCreate,
 }: KeysTableProps) {
-  // Rows arrive whole, so paging runs here; the pager keeps its page in ?page.
-  const { offset, limit, pageIndex } = usePaginationQuery()
   const [, setPageParam] = useQueryState('page')
 
-  // A filter change re-pages the list, so drop a stale page index.
+  // A new filter starts from the first page.
   const changeFilters = (patch: Partial<KeysFilters>) => {
     onFiltersChange(patch)
     void setPageParam(null)
@@ -71,7 +80,7 @@ export default function KeysTable({
         </div>
       )
     }
-    if (keys.length === 0) {
+    if (counts.all === 0) {
       return (
         <EmptyState
           className="border-0"
@@ -86,7 +95,7 @@ export default function KeysTable({
         />
       )
     }
-    if (rows.length === 0) {
+    if (total === 0) {
       return (
         <EmptyState
           className="border-0"
@@ -107,10 +116,10 @@ export default function KeysTable({
     }
     return (
       <ReactTable
-        total={rows.length}
-        data={rows.slice(offset, offset + limit)}
+        total={total}
+        data={rows}
         pageIndex={pageIndex}
-        pageSize={limit}
+        pageSize={pageSize}
         pageSizes={PAGE_SIZES}
         columns={COLUMNS}
         tableClassName="min-w-[52rem]"
@@ -132,7 +141,7 @@ export default function KeysTable({
         />
       }
     >
-      {keys.length > 0 && <FilterKeys keys={keys} filters={filters} onChange={changeFilters} />}
+      {counts.all > 0 && <FilterKeys counts={counts} filters={filters} onChange={changeFilters} />}
       {renderBody()}
     </SectionCardPanel>
   )

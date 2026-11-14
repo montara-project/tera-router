@@ -23,17 +23,22 @@ type QuotaAccount struct {
 // QuotaSummary totals the account list for the header cards. Field names
 // match the web UI QuotaSummary model.
 type QuotaSummary struct {
-	TotalAccounts     int     `json:"total_accounts"`
-	ActiveAccounts    int     `json:"active_accounts"`
-	Paused            int     `json:"paused"`
-	Attention         int     `json:"attention"`
-	Depleted          int     `json:"depleted"`
-	Requests          int64   `json:"requests"`
-	InputTokens       int64   `json:"input_tokens"`
-	OutputTokens      int64   `json:"output_tokens"`
-	AttributedCost    float64 `json:"attributed_cost"`
-	AccountsReporting int     `json:"accounts_reporting"`
-	QuotaCapable      int     `json:"quota_capable"`
-	UsageOnly         int     `json:"usage_only"`
-	NotReported       int     `json:"not_reported"`
+	TotalAccounts  int `json:"total_accounts"`
+	ActiveAccounts int `json:"active_accounts"`
+	Paused         int `json:"paused"`
+	Attention      int `json:"attention"`
+	Depleted       int `json:"depleted"`
+	// NearLimit counts accounts flagged for attention that still have quota.
+	NearLimit int `json:"near_limit"`
+	// Providers are the slugs that have at least one account, sorted: the
+	// choices of the page's provider filter.
+	Providers         []string `json:"providers"`
+	Requests          int64    `json:"requests"`
+	InputTokens       int64    `json:"input_tokens"`
+	OutputTokens      int64    `json:"output_tokens"`
+	AttributedCost    float64  `json:"attributed_cost"`
+	AccountsReporting int      `json:"accounts_reporting"`
+	QuotaCapable      int      `json:"quota_capable"`
+	UsageOnly         int      `json:"usage_only"`
+	NotReported       int      `json:"not_reported"`
 }

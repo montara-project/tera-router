@@ -39,7 +39,7 @@ function downloaded(res: AxiosResponse<Blob>, prefix: string, ext: string): Down
  * Blob requests receive their error body as a Blob too; decode it back into
  * the JSON envelope so axiosErrorMessage can show the server's message.
  */
-async function decodeBlobError(error: unknown): Promise<never> {
+export async function decodeBlobError(error: unknown): Promise<never> {
   if (error instanceof AxiosError && error.response?.data instanceof Blob) {
     try {
       error.response.data = JSON.parse(await error.response.data.text())
@@ -64,7 +64,7 @@ const databaseInfo = () =>
  * answers with a JSON totp_required envelope instead of the file. The config
  * export is itself JSON, so only a body carrying that flag counts.
  */
-async function fileOrTotp(
+export async function fileOrTotp(
   res: AxiosResponse<Blob>,
   prefix: string,
   ext: string

@@ -33,7 +33,13 @@ func All() []dtos.CatalogProvider {
 		{Slug: "fireworks", Name: "Fireworks AI", BaseURL: "https://api.fireworks.ai/inference/v1", Dialect: dialectOpenAI, Capabilities: llmCaps("embeddings"), AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true},
 		{Slug: "nebius", Name: "Nebius Token Factory", BaseURL: "https://api.tokenfactory.nebius.com/v1", Dialect: dialectOpenAI, Capabilities: llmCaps("embeddings"), AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true},
 		{Slug: "groq", Name: "Groq", BaseURL: "https://api.groq.com/openai/v1", Dialect: dialectOpenAI, Capabilities: llmCaps("stt"), AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true},
-		{Slug: "cline", Name: "Cline", BaseURL: "https://api.cline.bot/api/v1", Dialect: dialectOpenAI, Capabilities: llmCaps(), AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true},
+		// Cline's one gateway is split by billing tier, each with its own
+		// accounts and model catalog: cline lists the free models only,
+		// clinepayg the whole pay-as-you-go catalog, and clinepass the models a
+		// ClinePass subscription includes.
+		{Slug: "cline", Name: "Cline", BaseURL: "https://api.cline.bot/api/v1", Dialect: dialectOpenAI, Capabilities: llmCaps(), AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true, Notice: "Free models only. Paid models are on Cline PAYG, subscription models on ClinePass."},
+		{Slug: "clinepayg", Name: "Cline PAYG", BaseURL: "https://api.cline.bot/api/v1", Dialect: dialectOpenAI, Capabilities: llmCaps(), AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true},
+		{Slug: "clinepass", Name: "ClinePass", BaseURL: "https://api.cline.bot/api/v1", Dialect: dialectOpenAI, Capabilities: llmCaps(), AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true},
 		{Slug: "cloudflare", Name: "Cloudflare AI", BaseURL: "https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1", Dialect: dialectOpenAI, Capabilities: llmCaps("embeddings"), AuthKind: "api_key", AuthModes: []string{"api_key"}, Official: true, Notice: "The endpoint embeds your Cloudflare account ID — set the account's Base URL to https://api.cloudflare.com/client/v4/accounts/<account_id>/ai/v1."},
 		// Web search/fetch providers: no chat dialect, served by the gateway's
 		// /v1/search and /v1/web/fetch (connectors/web.go).
@@ -60,6 +66,15 @@ func All() []dtos.CatalogProvider {
 		// through a device flow (see internal/oauth): like codex, the account
 		// is a subscription session, so it is its own catalog provider.
 		{Slug: "zcode", Name: "ZCode", BaseURL: "https://zcode.z.ai/api/v1/zcode-plan/anthropic", Dialect: dialectAnthropic, Capabilities: llmCaps(), AuthKind: "oauth", AuthModes: []string{"oauth"}, Official: false, Notice: "Uses a ZCode Plan subscription session not licensed for proxy use. Account may be restricted. Use at your own risk."},
+		// Tencent's buddy family: one OpenAI-compatible wire format, one
+		// client-fingerprint scheme, three realms. WorkBuddy is the overseas
+		// desktop product; CodeBuddy and CodeBuddy CN are its CLI twins. All
+		// three are reached through the plugin sign-in or an API key, and all
+		// three reject clients whose client identity does not match the real
+		// app, so they carry the same risk notice as codex and zcode.
+		{Slug: "workbuddy", Name: "WorkBuddy", BaseURL: "https://www.workbuddy.ai/v2", Dialect: dialectOpenAI, Capabilities: llmCaps("image"), AuthKind: "oauth", AuthModes: []string{"oauth", "api_key"}, Official: false, Notice: "Uses a WorkBuddy desktop session not licensed for proxy use. Channel verification may restrict the account. Use at your own risk."},
+		{Slug: "codebuddy", Name: "CodeBuddy", BaseURL: "https://www.codebuddy.ai/v2", Dialect: dialectOpenAI, Capabilities: llmCaps("image"), AuthKind: "oauth", AuthModes: []string{"oauth", "api_key"}, Official: false, Notice: "Uses a CodeBuddy CLI session not licensed for proxy use. Channel verification may restrict the account. Use at your own risk."},
+		{Slug: "codebuddy-cn", Name: "CodeBuddy CN", BaseURL: "https://copilot.tencent.com/v2", Dialect: dialectOpenAI, Capabilities: llmCaps("image"), AuthKind: "oauth", AuthModes: []string{"oauth", "api_key"}, Official: false, Notice: "Uses a CodeBuddy CLI session on Tencent's CN realm, not licensed for proxy use. Channel verification may restrict the account. Use at your own risk."},
 	}
 }
 
@@ -91,12 +106,19 @@ var seedable = map[string]bool{
 	"fireworks":  true,
 	"nebius":     true,
 	"cline":      true,
+	"clinepayg":  true,
+	"clinepass":  true,
 	"cloudflare": true,
 	"muse":       true,
 	// ZCode: connecting persists the custom_providers row so the synced GLM
 	// catalog powers bare-name routing (catalogResult only matches custom
 	// providers) and the provider is addressable by uuid.
 	"zcode": true,
+	// The buddy family: the synced upstream catalog is what bare-name routing
+	// resolves against, so connecting one of them seeds the row too.
+	"workbuddy":    true,
+	"codebuddy":    true,
+	"codebuddy-cn": true,
 }
 
 // Seedable reports whether connecting the catalog provider (creating an

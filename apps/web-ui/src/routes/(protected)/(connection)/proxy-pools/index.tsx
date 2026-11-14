@@ -7,7 +7,7 @@ import {
 } from '@tabler/icons-react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { toast } from 'sonner'
 
 import type { RelayKind } from '@/lib/api/models/proxy-pool'
@@ -42,14 +42,6 @@ function RouteComponent() {
 
   const { data } = useQuery(queries.proxyPools.list())
   const pools = data?.data ?? []
-  const accountsQuery = useQuery(queries.accounts.list({ offset: 0, limit: 100 }))
-  const usedBy = useMemo(() => {
-    const map = new Map<string, number>()
-    for (const a of accountsQuery.data?.data ?? []) {
-      if (a.proxy_pool_id) map.set(a.proxy_pool_id, (map.get(a.proxy_pool_id) ?? 0) + 1)
-    }
-    return map
-  }, [accountsQuery.data])
 
   const healthCheckMutation = useMutation(queries.proxyPools.healthCheck())
   const bulkDeleteMutation = useMutation(queries.proxyPools.bulkDelete())
@@ -150,7 +142,6 @@ function RouteComponent() {
       ) : (
         <PoolsCard
           pools={pools}
-          usedBy={usedBy}
           selected={selected}
           onToggleAll={toggleAll}
           onToggleOne={toggleOne}

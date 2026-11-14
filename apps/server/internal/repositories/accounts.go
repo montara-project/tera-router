@@ -70,13 +70,25 @@ func (r *AccountRepository) BulkInsert(ctx context.Context, accounts []models.Ac
 	})
 }
 
-// List returns a page of accounts newest-first plus the unpaged total.
-func (r *AccountRepository) List(ctx context.Context, offset, limit int) ([]models.Account, int, error) {
+// AccountFilter narrows an accounts page. Empty fields match everything.
+// Search is a case-insensitive substring of the label or the key fingerprint,
+// the two things the dashboard shows for an account.
+type AccountFilter struct {
+	Provider string
+	AuthKind string
+	Search   string
+}
+
+// List returns a page of accounts newest-first plus the filtered total.
+func (r *AccountRepository) List(ctx context.Context, f AccountFilter, offset, limit int) ([]models.Account, int, error) {
 	rows, err := r.queryContext(ctx, r.DB, `
 		SELECT`+accountColumns+`, count(*) OVER () AS total
 		FROM accounts
+		WHERE ($1 = '' OR provider = $1)
+		AND ($2 = '' OR auth_kind = $2)
+		AND ($3 = '' OR instr(lower(label || ' ' || key_fingerprint), lower($3)) > 0)
 		ORDER BY created_at DESC
-		LIMIT $2 OFFSET $1`, offset, limit)
+		LIMIT $5 OFFSET $4`, f.Provider, f.AuthKind, f.Search, offset, limit)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -300,22 +312,7 @@ func (r *AccountRepository) SetDisabledByProvider(ctx context.Context, providerS
 // CountByProvider returns how many enabled+disabled accounts each provider
 // has, for the providers overview.
 func (r *AccountRepository) CountByProvider(ctx context.Context) (map[string]int, error) {
-	rows, err := r.queryContext(ctx, r.DB, `SELECT provider, count(*) FROM accounts GROUP BY provider`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	counts := map[string]int{}
-	for rows.Next() {
-		var provider string
-		var n int
-		if err := rows.Scan(&provider, &n); err != nil {
-			return nil, errtrace.Wrap(err)
-		}
-		counts[provider] = n
-	}
-	return counts, errtrace.Wrap(rows.Err())
+	return r.countGrouped(ctx, `SELECT provider, count(*) FROM accounts GROUP BY provider`)
 }
 
 // CountUsableByProvider returns how many accounts each provider has that can
@@ -338,6 +335,31 @@ func (r *AccountRepository) CountUsableByProvider(ctx context.Context) (map[stri
 			return nil, errtrace.Wrap(err)
 		}
 		counts[provider] = n
+	}
+	return counts, errtrace.Wrap(rows.Err())
+}
+
+// CountByProxyPool returns how many accounts route through each proxy pool.
+func (r *AccountRepository) CountByProxyPool(ctx context.Context) (map[string]int, error) {
+	return r.countGrouped(ctx, `SELECT proxy_pool_id, count(*) FROM accounts WHERE proxy_pool_id IS NOT NULL GROUP BY proxy_pool_id`)
+}
+
+// countGrouped runs a "key, count" query into a map.
+func (r *AccountRepository) countGrouped(ctx context.Context, query string) (map[string]int, error) {
+	rows, err := r.queryContext(ctx, r.DB, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	counts := map[string]int{}
+	for rows.Next() {
+		var key string
+		var n int
+		if err := rows.Scan(&key, &n); err != nil {
+			return nil, errtrace.Wrap(err)
+		}
+		counts[key] = n
 	}
 	return counts, errtrace.Wrap(rows.Err())
 }

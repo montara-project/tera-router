@@ -181,11 +181,11 @@ function AbstractForm({
     enabled: showTarget && scope === 'provider',
   })
   const { data: chainsData } = useQuery({
-    ...queries.chains.list({ offset: 0, limit: 100 }),
+    ...queries.chains.list(),
     enabled: showTarget && scope === 'chain',
   })
   const { data: keysData } = useQuery({
-    ...queries.keys.list({ offset: 0, limit: 100 }),
+    ...queries.keys.list({ offset: 0, limit: 1000 }),
     enabled: showTarget && scope === 'key',
   })
 

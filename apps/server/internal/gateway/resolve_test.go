@@ -383,6 +383,8 @@ func TestProviderSpecDialects(t *testing.T) {
 		{"openai", "openai", true},
 		{"anthropic", "anthropic", true},
 		{"cline", "openai", true},
+		{"clinepayg", "openai", true},
+		{"clinepass", "openai", true},
 		{"cloudflare", "openai", true},
 	}
 	for _, tc := range cases {

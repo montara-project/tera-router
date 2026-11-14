@@ -42,6 +42,9 @@ function Count({ value }: { value: number }) {
 
 export default function UsageSection({ range }: { range: UsageRange }) {
   const { data } = useQuery(usageQueries.telemetry(range))
+  // The request log pages on the server; one row is enough to read its size.
+  const requestCount = useQuery(usageQueries.requests({ range, offset: 0, limit: 1 })).data
+    ?.metadata.total_all
   // Each tab's table pages on its own; a page or size from another tab
   // would not fit (the requests table starts at 25 rows).
   const [, setPage] = useQueryState('page')
@@ -78,7 +81,7 @@ export default function UsageSection({ range }: { range: UsageRange }) {
             Models <Count value={data.modelAccounting.length} />
           </TabsTrigger>
           <TabsTrigger value="requests" className={TAB_CLASS}>
-            Requests <Count value={data.recentRequests.length} />
+            Requests <Count value={Number(requestCount ?? 0)} />
           </TabsTrigger>
         </TabsList>
 
@@ -90,13 +93,13 @@ export default function UsageSection({ range }: { range: UsageRange }) {
           <UsageOptimizationPanel telemetry={data} range={range} />
         </TabsContent>
         <TabsContent value="providers">
-          <UsageProviderAccounting rows={data.providerAccounting} />
+          <UsageProviderAccounting range={range} />
         </TabsContent>
         <TabsContent value="models">
-          <UsageModelAccounting rows={data.modelAccounting} />
+          <UsageModelAccounting range={range} />
         </TabsContent>
         <TabsContent value="requests">
-          <UsageRecentRequests rows={data.recentRequests} />
+          <UsageRecentRequests range={range} />
         </TabsContent>
       </Tabs>
     </div>

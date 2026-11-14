@@ -1,3 +1,5 @@
+import type { HealthEntry } from './provider-health'
+
 /** Matches the models.ChainStep json shape returned by the server. */
 export type ChainStep = {
   id: string
@@ -12,6 +14,9 @@ export type ChainStep = {
 
 /** Matches the models.Chain json shape returned by the server. */
 export type Chain = {
+  /** Health over the window the list asked for (`health_window`); absent
+   * when none was asked for or the chain had no traffic in it. */
+  health?: HealthEntry
   id: string
   name: string
   strategy: string

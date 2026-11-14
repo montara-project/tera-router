@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"tera-router/server/internal/models"
+	"tera-router/server/internal/repositories"
 	"tera-router/server/internal/services"
 
 	"github.com/google/uuid"
@@ -62,7 +63,7 @@ func TestAccountTestKeyProbesCustomProvider(t *testing.T) {
 		t.Fatalf("missing key = %d, want 400", status)
 	}
 
-	accounts, _, err := h.app.Repos.Accounts.List(context.Background(), 0, 10)
+	accounts, _, err := h.app.Repos.Accounts.List(context.Background(), repositories.AccountFilter{}, 0, 10)
 	if err != nil {
 		t.Fatal(err)
 	}

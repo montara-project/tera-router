@@ -88,6 +88,24 @@ func TestPortalShowsOnlyItsKey(t *testing.T) {
 	if len(d.Models) != 1 || d.Models[0].Requests != 2 || len(d.Recent) != 2 {
 		t.Fatalf("models = %+v, recent = %d rows", d.Models, len(d.Recent))
 	}
+
+	// The request log pages on the server and still reports the window's size.
+	pageResp, err := f.Test(httptest.NewRequest("GET", "/portal/"+token+"?days=7&limit=1&offset=1", nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var page struct {
+		Data struct {
+			Recent      []map[string]any `json:"recent"`
+			RecentTotal int              `json:"recent_total"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(pageResp.Body).Decode(&page); err != nil {
+		t.Fatal(err)
+	}
+	if len(page.Data.Recent) != 1 || page.Data.RecentTotal != 2 {
+		t.Fatalf("page = %d recent rows, recent_total %d; want 1 of 2", len(page.Data.Recent), page.Data.RecentTotal)
+	}
 	if _, leaked := d.Recent[0]["client_ip"]; leaked {
 		t.Fatal("recent requests expose the client IP")
 	}

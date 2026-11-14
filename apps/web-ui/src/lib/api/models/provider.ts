@@ -25,6 +25,25 @@ export type Provider = {
 export type ProvidersOverview = {
   connected: Provider[]
   available: Provider[]
+  /** Sizes of the two lists before any filter. */
+  connected_count: number
+  available_count: number
+  /** Connected providers that match the filters, before paging. */
+  connected_total: number
+  /** Connected custom providers with no account left. */
+  empty_count: number
+}
+
+/** Query of GET /v1/providers. The server filters both lists and, with a
+ * limit, pages the connected one. */
+export type ProvidersOverviewDto = {
+  /** Matches the provider name or slug. */
+  search?: string
+  capability?: ProviderCapability
+  /** Keeps the connected custom providers with no account. */
+  empty?: boolean
+  offset?: number
+  limit?: number
 }
 
 /** How a provider spreads requests over its accounts. */

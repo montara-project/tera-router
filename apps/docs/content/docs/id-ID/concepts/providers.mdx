@@ -12,12 +12,12 @@ description: Katalog provider bawaan, menambah akun, prioritas, dan custom provi
 
 Halaman **Providers** membagi katalog ke dalam empat tab. Provider muncul di setiap tab yang sesuai dengan kemampuannya — OpenAI, misalnya, ada di semua tab kecuali search.
 
-| Tab                     | Provider                                                                                                                                                                                   |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **AI Model Providers**  | `openai`, `anthropic`, `openrouter`, `nvidia`, `gemini`, `mistral`, `together`, `fireworks`, `nebius`, `groq`, `cline`, `cloudflare`, `muse`, `voyage-ai`, `jina-ai`, plus custom provider |
-| **AI Search Providers** | `exa`, `tavily`, `firecrawl`, `jina-ai`, `brave`, `serper`                                                                                                                                 |
-| **AI Voice Providers**  | `openai`, `groq` (STT), `elevenlabs`, `deepgram`, plus custom provider yang kompatibel dengan OpenAI                                                                                       |
-| **AI Image Generation** | `openai`, `gemini`, `together`, `muse`, plus custom provider yang kompatibel dengan OpenAI                                                                                                 |
+| Tab                     | Provider                                                                                                                                                                                                                                                       |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **AI Model Providers**  | `openai`, `anthropic`, `openrouter`, `nvidia`, `gemini`, `mistral`, `together`, `fireworks`, `nebius`, `groq`, `cline`, `clinepayg`, `clinepass`, `workbuddy`, `codebuddy`, `codebuddy-cn`, `cloudflare`, `muse`, `voyage-ai`, `jina-ai`, plus custom provider |
+| **AI Search Providers** | `exa`, `tavily`, `firecrawl`, `jina-ai`, `brave`, `serper`                                                                                                                                                                                                     |
+| **AI Voice Providers**  | `openai`, `groq` (STT), `elevenlabs`, `deepgram`, plus custom provider yang kompatibel dengan OpenAI                                                                                                                                                           |
+| **AI Image Generation** | `openai`, `gemini`, `together`, `muse`, plus custom provider yang kompatibel dengan OpenAI                                                                                                                                                                     |
 
 Kemampuan yang dibuka di gateway:
 
@@ -30,6 +30,8 @@ Kemampuan yang dibuka di gateway:
 | search / fetch | [`/v1/search`, `/v1/web/fetch`](/id-ID/docs/gateway/web-search)             |
 
 Provider chat memakai dialek OpenAI kecuali `anthropic` (dialek Anthropic). OpenAI dan Anthropic bisa dihubungkan dengan API key atau login di situs resminya (OAuth); login OpenAI dirutekan sebagai provider terpisah `codex` (dialek Responses, backend ChatGPT).
+
+Keluarga buddy milik Tencent adalah tiga provider terpisah dengan satu format wire: `workbuddy` (desktop, `www.workbuddy.ai`), `codebuddy` (CLI, `www.codebuddy.ai`), dan `codebuddy-cn` (CLI, `copilot.tencent.com`). Masing-masing menerima API key plugin atau login lewat situsnya sendiri; login mem-poll realm sampai kamu menyetujuinya di browser. Gateway mengirim identitas client yang sama dengan aplikasi aslinya, dan identitas itu di-fingerprint upstream — karena itu akun bisa dibatasi (`code 11140`) atau bentuk request ditolak (`code 11128`), dan keduanya diperlakukan sebagai gangguan upstream supaya akun tidak ditandai mati. Sinkronisasi model dan uji koneksi membaca config CLI (`GET /v3/config`) yang tidak memakan credit, dan quota dibaca dari billing meter.
 
 Kredensial akun disimpan terenkripsi (enkripsi amplop dengan kunci turunan dari `APP_SECRET`).
 

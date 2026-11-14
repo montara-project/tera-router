@@ -382,7 +382,7 @@ func TestImport9RouterBackup(t *testing.T) {
 	if _, err := h.app.Repos.APIKeys.GetByLookup(ctx, apikey.LookupHash("sk-9router-client-key-xyz")); err == nil {
 		t.Error("the original 9router key string must not be kept; the import mints a new key")
 	}
-	keys, _, err := h.app.Repos.APIKeys.List(ctx, 0, 10)
+	keys, _, err := h.app.Repos.APIKeys.List(ctx, repositories.APIKeyFilter{}, 0, 10)
 	if err != nil || len(keys) != 1 || keys[0].Name != "Laptop" {
 		t.Fatalf("imported keys = %+v (%v), want one key named Laptop", keys, err)
 	}

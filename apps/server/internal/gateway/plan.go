@@ -220,6 +220,21 @@ func (c *cooldownTracker) coolDown(accountID string, d time.Duration) {
 	c.entries[accountID] = until
 }
 
+// remaining reports how long an account stays parked, 0 when it is free.
+func (c *cooldownTracker) remaining(accountID string) time.Duration {
+	if accountID == "" {
+		return 0
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if until, ok := c.entries[accountID]; ok {
+		if d := time.Until(until); d > 0 {
+			return d
+		}
+	}
+	return 0
+}
+
 // noteFailure applies the cooldown policy for a failed attempt. Rate limits use
 // the upstream's Retry-After when present, otherwise a short default; rejected
 // credentials and suspended accounts are parked for longer because nothing
@@ -237,6 +252,11 @@ func (s *Server) noteFailure(pe *core.ProviderError) {
 		s.cooldowns.coolDown(pe.AccountID, d)
 	case core.ErrAuth, core.ErrAccountSuspended, core.ErrBilling:
 		s.cooldowns.coolDown(pe.AccountID, cooldownAuth)
+	case core.ErrAccountRestricted:
+		// The upstream flagged the account itself. Nothing in this process
+		// clears that, and extra traffic is what caused it, so the account is
+		// parked for longer than a rejected credential.
+		s.cooldowns.coolDown(pe.AccountID, cooldownRestricted)
 	}
 }
 
@@ -251,6 +271,10 @@ func shouldRetrySameAccount(pe *core.ProviderError) bool {
 	case core.ErrUpstream, core.ErrTimeout:
 		return true
 	default:
+		// ErrAccountRestricted is deliberately absent: a retry sends the same
+		// request to the account that was just flagged, and the buddy gateway
+		// refuses the request shape (11128) or the account (11140). Fall back
+		// instead.
 		return false
 	}
 }
