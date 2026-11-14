@@ -1,5 +1,5 @@
 import { IconPlus, IconStack2 } from '@tabler/icons-react'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useQueryState } from 'nuqs'
 import { useMemo, useState } from 'react'
@@ -10,13 +10,13 @@ import ReactTable from '@/components/block/common/react-table'
 import SectionCardPanel from '@/components/block/common/section-card-panel'
 import { ChainsColumn } from '@/components/block/traffic/chains/column'
 import FilterChain, {
+  type ChainCounts,
   type ChainFilters,
-  type ChainRow,
   DEFAULT_CHAIN_FILTERS,
-  filterChains,
 } from '@/components/block/traffic/chains/filter'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useDebounce } from '@/hooks/use-debounce'
 import { usePaginationQuery } from '@/hooks/use-pagination-query'
 import { axiosErrorMessage } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
@@ -27,24 +27,37 @@ export const Route = createFileRoute('/(protected)/(traffic)/chains/')({
 
 function RouteComponent() {
   const [filters, setFilters] = useState<ChainFilters>(DEFAULT_CHAIN_FILTERS)
-  // The list arrives whole, so filtering and paging run here; the pager keeps
-  // its page in ?page like the server-paged tables.
+  // The server searches, filters and pages the chains, and attaches each
+  // one's 24h health; the pager keeps its page in ?page.
   const { offset, limit, pageIndex } = usePaginationQuery()
   const [, setPageParam] = useQueryState('page')
+  const search = useDebounce({ value: filters.search.trim(), delay: 300 })
 
-  // The chains endpoint returns every chain; offset/limit are not applied
-  // server-side.
-  const chainsQuery = useQuery(queries.chains.list({ offset: 0, limit: 100 }))
-  const healthQuery = useQuery(queries.providerHealth.overview('24h'))
+  const chainsQuery = useQuery({
+    ...queries.chains.list({
+      offset,
+      limit,
+      health_window: '24h',
+      search: search || undefined,
+      strategy: filters.strategy === 'all' ? undefined : filters.strategy,
+      health: filters.health === 'all' ? undefined : filters.health,
+    }),
+    placeholderData: keepPreviousData,
+  })
   const providersQuery = useQuery(queries.providers.list())
 
-  const rows = useMemo<ChainRow[]>(() => {
-    const health = new Map((healthQuery.data?.chains ?? []).map((h) => [h.name, h]))
-    return (chainsQuery.data?.data ?? []).map((chain) => ({
-      ...chain,
-      health: health.get(chain.name),
-    }))
-  }, [chainsQuery.data, healthQuery.data])
+  const rows = chainsQuery.data?.data ?? []
+  const meta = chainsQuery.data?.metadata
+  const total = meta?.total ?? 0
+  // The filter labels count every chain, whatever filter is applied.
+  const counts = useMemo<ChainCounts>(() => {
+    const out: ChainCounts = { all: Number(meta?.total_all ?? 0), strategy: {}, health: {} }
+    for (const [key, value] of Object.entries(meta ?? {})) {
+      if (key.startsWith('count_strategy_')) out.strategy[key.slice(15)] = Number(value)
+      if (key.startsWith('count_health_')) out.health[key.slice(13)] = Number(value)
+    }
+    return out
+  }, [meta])
 
   const apiKinds = useMemo(
     () =>
@@ -53,7 +66,6 @@ function RouteComponent() {
   )
 
   const columns = ChainsColumn({ apiKinds })
-  const filtered = useMemo(() => filterChains(rows, filters), [rows, filters])
 
   return (
     <div className="flex flex-col gap-6">
@@ -81,12 +93,12 @@ function RouteComponent() {
         title={
           <>
             All chains
-            <span className="font-normal text-muted-foreground tabular-nums">{rows.length}</span>
+            <span className="font-normal text-muted-foreground tabular-nums">{counts.all}</span>
           </>
         }
         toolbar={
           <FilterChain
-            rows={rows}
+            counts={counts}
             filters={filters}
             onChange={(patch) => {
               setFilters((prev) => ({ ...prev, ...patch }))
@@ -115,17 +127,17 @@ function RouteComponent() {
           </div>
         ) : (
           <ReactTable
-            total={filtered.length}
-            data={filtered.slice(offset, offset + limit)}
+            total={total}
+            data={rows}
             pageIndex={pageIndex}
             pageSize={limit}
             columns={columns}
             emptyMessage={
               <EmptyState
                 icon={IconStack2}
-                title={rows.length === 0 ? 'No chains yet' : 'No chains match'}
+                title={counts.all === 0 ? 'No chains yet' : 'No chains match'}
                 description={
-                  rows.length === 0
+                  counts.all === 0
                     ? 'Create a chain to route one model name through fallback models.'
                     : 'Try a different search, strategy or health filter.'
                 }

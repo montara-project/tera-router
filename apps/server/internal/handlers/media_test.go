@@ -13,8 +13,11 @@ import (
 // The Media page lists the catalog's non-chat providers: chat-only providers
 // and the custom-provider templates stay out, and embeddings reads as "embed".
 func TestMediaIndexFollowsCatalog(t *testing.T) {
+	// The handler also reads which providers have accounts, so it needs a
+	// database behind it.
+	h := newBackupHarness(t, "test-secret")
 	app := fiber.New()
-	app.Get("/media", (&mediaHandler{}).Index)
+	app.Get("/media", (&mediaHandler{app: h.app}).Index)
 	resp, err := app.Test(httptest.NewRequest("GET", "/media", nil))
 	if err != nil {
 		t.Fatal(err)

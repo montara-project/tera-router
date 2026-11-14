@@ -557,34 +557,79 @@ func (r *UsageRepository) Activity(ctx context.Context, from time.Time) ([]Usage
 // Recent returns the newest usage rows created at or after from, for the
 // request log of the selected period, with the API key's name filled in.
 func (r *UsageRepository) Recent(ctx context.Context, from time.Time, limit int) ([]models.UsageRecord, error) {
+	rows, _, err := r.Requests(ctx, from, UsageRequestFilter{}, 0, limit)
+	return rows, err
+}
+
+// UsageRequestFilter narrows the request log. Empty fields match everything.
+type UsageRequestFilter struct {
+	// Search is a case-insensitive substring of the model, the API key's
+	// name, the client, the row id or the provider slug.
+	Search string
+	// Providers are slugs that also match: the handler resolves a search
+	// that hits a provider's display name to its slug.
+	Providers []string
+	// FailedOnly keeps the failed attempts.
+	FailedOnly bool
+}
+
+// Requests returns one page of the usage rows created at or after from,
+// newest first, with the API key's name filled in, plus the filtered total.
+func (r *UsageRepository) Requests(ctx context.Context, from time.Time, f UsageRequestFilter, offset, limit int) ([]models.UsageRecord, int, error) {
+	providers, err := json.Marshal(f.Providers)
+	if err != nil {
+		return nil, 0, errtrace.Wrap(err)
+	}
 	rows, err := r.queryContext(ctx, r.DB, `
 		SELECT u.id, u.api_key_id, u.account_id, u.provider, u.model, u.client, u.client_ip,
 		       u.prompt_tokens, u.completion_tokens, u.cached_tokens, u.cache_write_tokens, u.reasoning_tokens,
 		       u.cost_micros, u.token_consumption_rate, u.cache_hit, u.latency_ms, u.ttft_ms, u.failed, u.error_kind, u.error_status,
-		       u.error_message, u.created_at, COALESCE(k.name, '')
+		       u.error_message, u.created_at, COALESCE(k.name, ''), count(*) OVER () AS total
 		FROM usage_records u LEFT JOIN api_keys k ON k.id = u.api_key_id
-		WHERE u.created_at >= $1 ORDER BY u.created_at DESC, u.id DESC LIMIT $2`, from, limit)
+		WHERE u.created_at >= $1
+		AND ($2 = '' OR instr(lower(u.model || ' ' || COALESCE(k.name, '') || ' ' || u.client || ' ' || u.id || ' ' || u.provider), lower($2)) > 0
+			OR u.provider IN (SELECT value FROM json_each($3)))
+		AND ($4 = false OR u.failed = true)
+		ORDER BY u.created_at DESC, u.id DESC LIMIT $6 OFFSET $5`, from, f.Search, string(providers), f.FailedOnly, offset, limit)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
 	out := []models.UsageRecord{}
+	total := 0
 	for rows.Next() {
 		var u models.UsageRecord
 		var rate sql.Null[float64]
 		if err := rows.Scan(&u.ID, &u.APIKeyID, &u.AccountID, &u.Provider, &u.Model, &u.Client, &u.ClientIP,
 			&u.PromptTokens, &u.CompletionTokens, &u.CachedTokens, &u.CacheWriteTokens, &u.ReasoningTokens,
 			&u.CostMicros, &rate, &u.CacheHit, &u.LatencyMS, &u.TTFTMS, &u.Failed, &u.ErrorKind, &u.ErrorStatus,
-			&u.ErrorMessage, &u.CreatedAt, &u.KeyName); err != nil {
-			return nil, errtrace.Wrap(err)
+			&u.ErrorMessage, &u.CreatedAt, &u.KeyName, &total); err != nil {
+			return nil, 0, errtrace.Wrap(err)
 		}
 		if rate.Valid {
 			u.TokenConsumptionRate = &rate.V
 		}
 		out = append(out, u)
 	}
-	return out, errtrace.Wrap(rows.Err())
+	return out, total, errtrace.Wrap(rows.Err())
+}
+
+// RequestCounts returns how many usage rows were created at or after from,
+// and how many of them failed: the figures on the request log's status chips.
+func (r *UsageRepository) RequestCounts(ctx context.Context, from time.Time) (all, failed int, err error) {
+	rows, err := r.queryContext(ctx, r.DB,
+		`SELECT count(*), coalesce(sum(failed), 0) FROM usage_records WHERE created_at >= $1`, from)
+	if err != nil {
+		return 0, 0, err
+	}
+	defer rows.Close()
+	if rows.Next() {
+		if err := rows.Scan(&all, &failed); err != nil {
+			return 0, 0, errtrace.Wrap(err)
+		}
+	}
+	return all, failed, errtrace.Wrap(rows.Err())
 }
 
 // UsageHealthRow is one attempt's outcome, the minimal projection provider

@@ -15,9 +15,9 @@ const api = new ClientFetchApi({
 const resources = (): PortalResources => {
   return {
     /** public: the token is the credential, no dashboard session needed */
-    get: (token, days) => {
+    get: (token, days, page) => {
       const url = `${path}/${encodeURIComponent(token)}`
-      return api.get(url, { params: { days } })
+      return api.get(url, { params: { days, ...page } })
     },
   }
 }

@@ -312,22 +312,7 @@ func (r *AccountRepository) SetDisabledByProvider(ctx context.Context, providerS
 // CountByProvider returns how many enabled+disabled accounts each provider
 // has, for the providers overview.
 func (r *AccountRepository) CountByProvider(ctx context.Context) (map[string]int, error) {
-	rows, err := r.queryContext(ctx, r.DB, `SELECT provider, count(*) FROM accounts GROUP BY provider`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	counts := map[string]int{}
-	for rows.Next() {
-		var provider string
-		var n int
-		if err := rows.Scan(&provider, &n); err != nil {
-			return nil, errtrace.Wrap(err)
-		}
-		counts[provider] = n
-	}
-	return counts, errtrace.Wrap(rows.Err())
+	return r.countGrouped(ctx, `SELECT provider, count(*) FROM accounts GROUP BY provider`)
 }
 
 // CountUsableByProvider returns how many accounts each provider has that can
@@ -350,6 +335,31 @@ func (r *AccountRepository) CountUsableByProvider(ctx context.Context) (map[stri
 			return nil, errtrace.Wrap(err)
 		}
 		counts[provider] = n
+	}
+	return counts, errtrace.Wrap(rows.Err())
+}
+
+// CountByProxyPool returns how many accounts route through each proxy pool.
+func (r *AccountRepository) CountByProxyPool(ctx context.Context) (map[string]int, error) {
+	return r.countGrouped(ctx, `SELECT proxy_pool_id, count(*) FROM accounts WHERE proxy_pool_id IS NOT NULL GROUP BY proxy_pool_id`)
+}
+
+// countGrouped runs a "key, count" query into a map.
+func (r *AccountRepository) countGrouped(ctx context.Context, query string) (map[string]int, error) {
+	rows, err := r.queryContext(ctx, r.DB, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	counts := map[string]int{}
+	for rows.Next() {
+		var key string
+		var n int
+		if err := rows.Scan(&key, &n); err != nil {
+			return nil, errtrace.Wrap(err)
+		}
+		counts[key] = n
 	}
 	return counts, errtrace.Wrap(rows.Err())
 }

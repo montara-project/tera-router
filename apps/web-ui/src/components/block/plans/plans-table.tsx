@@ -14,7 +14,6 @@ import SectionCardPanel from '@/components/block/common/section-card-panel'
 import SimpleAlertDialog from '@/components/block/common/simple-alert-dialog'
 import PlanFormDialog from '@/components/block/plans/form'
 import { Button } from '@/components/ui/button'
-import { usePaginationQuery } from '@/hooks/use-pagination-query'
 import { toastAxiosError } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
 import { formatCompact } from '@/lib/format'
@@ -49,17 +48,26 @@ function rateText(plan: Models.Plan) {
 }
 
 interface PlansTableProps {
+  /** One page of plans. */
   plans: Models.Plan[]
+  /** Plans across every page. */
+  total: number
+  pageIndex: number
+  pageSize: number
   /** Settings → Network "Enforce API key rate limits" */
   rateLimitsEnforced: boolean
   onCreate: () => void
 }
 
 /** "Plan templates" panel: one row per plan with its limits at a glance. */
-export default function PlansTable({ plans, rateLimitsEnforced, onCreate }: PlansTableProps) {
-  // The list arrives whole, so paging runs here; the pager keeps its page in ?page.
-  const { offset, limit, pageIndex } = usePaginationQuery()
-
+export default function PlansTable({
+  plans,
+  total,
+  pageIndex,
+  pageSize,
+  rateLimitsEnforced,
+  onCreate,
+}: PlansTableProps) {
   // The target outlives its dialog's open flag so the dialog keeps its content while closing.
   const [editing, setEditing] = useState<Models.Plan | null>(null)
   const [editOpen, setEditOpen] = useState(false)
@@ -193,7 +201,7 @@ export default function PlansTable({ plans, rateLimitsEnforced, onCreate }: Plan
 
   return (
     <SectionCardPanel icon={IconTemplate} title="Plan templates">
-      {plans.length === 0 ? (
+      {total === 0 ? (
         <EmptyState
           icon={IconTemplate}
           title="No plans yet"
@@ -202,10 +210,10 @@ export default function PlansTable({ plans, rateLimitsEnforced, onCreate }: Plan
         />
       ) : (
         <ReactTable
-          total={plans.length}
-          data={plans.slice(offset, offset + limit)}
+          total={total}
+          data={plans}
           pageIndex={pageIndex}
-          pageSize={limit}
+          pageSize={pageSize}
           pageSizes={PAGE_SIZES}
           columns={columns}
           tableClassName="min-w-[60rem]"

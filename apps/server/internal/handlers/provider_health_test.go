@@ -1,6 +1,9 @@
 package handlers
 
 import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -174,5 +177,66 @@ func TestBuildHealthOverviewBucketsLatencyAndServed(t *testing.T) {
 	}
 	if got.Providers[0].Served != nil {
 		t.Errorf("providers must not carry served")
+	}
+}
+
+// TestHealthOverviewTab pins what the health page asks the server for instead
+// of working out itself: one table narrowed by status and cut to a page, the
+// counts over every row, and each provider's account count.
+func TestHealthOverviewTab(t *testing.T) {
+	h := newBackupHarness(t, "test-secret")
+	now := time.Now().UTC()
+	for _, q := range []struct {
+		sql  string
+		args []any
+	}{
+		{`INSERT INTO accounts (id, provider, label, auth_kind) VALUES
+			('acc-1', 'openai', 'A', 'api_key'), ('acc-2', 'openai', 'B', 'api_key')`, nil},
+		// openai succeeds, glm-cn only fails: one healthy and one down provider.
+		{`INSERT INTO usage_records (request_id, provider, model, prompt_tokens, completion_tokens, cost_micros, failed, created_at) VALUES
+			('r1', 'openai', 'gpt-4o', 10, 5, 100, false, ?),
+			('r2', 'glm-cn', 'glm-4', 0, 0, 0, true, ?)`, []any{now, now}},
+	} {
+		if _, err := h.app.Repos.DB.Exec(q.sql, q.args...); err != nil {
+			t.Fatal(err)
+		}
+	}
+	h.fiber.Get("/provider-health", (&providerHealthHandler{app: h.app}).Overview)
+	get := func(query string) healthOverview {
+		t.Helper()
+		status, raw := h.do(t, httptest.NewRequest(http.MethodGet, "/provider-health?window=24h"+query, nil))
+		if status != http.StatusOK {
+			t.Fatalf("GET %s = %d (%s)", query, status, raw)
+		}
+		var res struct {
+			Data healthOverview `json:"data"`
+		}
+		if err := json.Unmarshal(raw, &res); err != nil {
+			t.Fatal(err)
+		}
+		return res.Data
+	}
+
+	whole := get("")
+	if len(whole.Providers) != 2 || whole.Counts.Providers != 2 || whole.Counts.Down != 1 || whole.Counts.Healthy != 1 {
+		t.Fatalf("whole = %d providers, counts %+v; want 2 providers, 1 down, 1 healthy", len(whole.Providers), whole.Counts)
+	}
+	for _, p := range whole.Providers {
+		if want := map[string]int{"openai": 2, "glm-cn": 0}[p.ID]; p.Accounts != want {
+			t.Errorf("%s accounts = %d, want %d", p.ID, p.Accounts, want)
+		}
+	}
+
+	down := get("&tab=providers&status=down")
+	if len(down.Providers) != 1 || down.Providers[0].ID != "glm-cn" || down.Total != 1 {
+		t.Errorf("status=down = %d providers, total %d; want glm-cn only", len(down.Providers), down.Total)
+	}
+	if len(down.Models) != 0 || down.Counts.Models == 0 || down.Counts.Providers != 2 {
+		t.Errorf("tab=providers returned %d models, counts %+v; want no model rows and the full counts", len(down.Models), down.Counts)
+	}
+
+	page := get("&tab=providers&limit=1&offset=1")
+	if len(page.Providers) != 1 || page.Total != 2 {
+		t.Errorf("page = %d providers, total %d; want 1 of 2", len(page.Providers), page.Total)
 	}
 }

@@ -1,12 +1,11 @@
 import type { AxiosDeleteResponse, AxiosItemResponse, AxiosListResponse } from '@/types/api'
 
 import type { ReauthDto } from '../../dtos/auth/schema'
-import type { CreateKeyDto, UpdateKeyDto } from '../../dtos/key/schema'
-import type { PaginateDto } from '../../dtos/paginate'
+import type { CreateKeyDto, KeyListDto, UpdateKeyDto } from '../../dtos/key/schema'
 import type { ApiKey, ApiKeyDetail, KeyGuardrailStats, KeyUsage } from '../../models/key'
 
 export type KeyResources = {
-  list: (params?: PaginateDto) => Promise<AxiosListResponse<ApiKey>>
+  list: (params?: KeyListDto) => Promise<AxiosListResponse<ApiKey>>
   get: (id: string) => Promise<AxiosItemResponse<ApiKeyDetail>>
   usage: (id: string) => Promise<AxiosItemResponse<KeyUsage>>
   guardrailStats: (id: string) => Promise<AxiosItemResponse<KeyGuardrailStats>>

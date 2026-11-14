@@ -26,6 +26,21 @@ const resources = (): UsageResources => {
       const url = `${path}/activity`
       return api.get(url)
     },
+    /** model accounting: searched, sorted and paged by the server */
+    models: (params) => {
+      const url = `${path}/models`
+      return api.get(url, { params })
+    },
+    /** provider accounting, one page at a time */
+    providers: (params) => {
+      const url = `${path}/providers`
+      return api.get(url, { params })
+    },
+    /** request log of the whole range: searched, filtered and paged by the server */
+    requests: (params) => {
+      const url = `${path}/requests`
+      return api.get(url, { params })
+    },
   }
 }
 

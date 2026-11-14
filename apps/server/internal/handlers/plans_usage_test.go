@@ -67,3 +67,51 @@ func TestPlanKeyUsage(t *testing.T) {
 		t.Errorf("uncapped plan usage = %v, want none", g)
 	}
 }
+
+// TestPlansIndexPageAndSummary pins that a page of plans still reports the
+// figures of the summary strip over every plan.
+func TestPlansIndexPageAndSummary(t *testing.T) {
+	a, _ := newSeedHarness(t)
+	for _, sql := range []string{
+		`INSERT INTO plans (id, name, description, limit_micros, limit_tokens, period, alert_pct, hard_cutoff) VALUES
+			('p1', 'One', '', 0, 0, 'monthly', 80, true),
+			('p2', 'Two', '', 0, 0, 'monthly', 80, false),
+			('p3', 'Three', '', 0, 0, 'monthly', 80, false)`,
+		`INSERT INTO api_keys (id, plan_id, name, key_hash, lookup_hash) VALUES
+			('k1', 'p1', 'one', 'h1', 'l1'), ('k2', 'p1', 'two', 'h2', 'l2')`,
+	} {
+		if _, err := a.Repos.DB.Exec(sql); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	f := fiber.New(fiber.Config{ErrorHandler: middlewares.ErrorHandler})
+	f.Get("/plans", (&plansHandler{app: a}).Index)
+	get := func(query string) (rows int, meta map[string]int) {
+		t.Helper()
+		resp, err := f.Test(httptest.NewRequest("GET", "/plans"+query, nil))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var out struct {
+			Data     []map[string]any `json:"data"`
+			Metadata map[string]int   `json:"metadata"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+			t.Fatal(err)
+		}
+		return len(out.Data), out.Metadata
+	}
+
+	// Without a limit the list is whole: pickers read it that way.
+	if rows, meta := get(""); rows != 3 || meta["total"] != 3 {
+		t.Errorf("unpaged = %d rows, total %d; want 3, 3", rows, meta["total"])
+	}
+	rows, meta := get("?limit=2&offset=2")
+	if rows != 1 || meta["total"] != 3 {
+		t.Errorf("page = %d rows, total %d; want 1, 3", rows, meta["total"])
+	}
+	if meta["keys_assigned"] != 2 || meta["hard_cutoff"] != 1 || meta["unused"] != 2 {
+		t.Errorf("summary = %v, want keys_assigned 2, hard_cutoff 1, unused 2", meta)
+	}
+}

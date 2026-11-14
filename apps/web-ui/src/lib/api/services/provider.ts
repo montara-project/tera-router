@@ -22,9 +22,9 @@ const api = new ClientFetchApi({
 
 const resources = (): ProviderResources => {
   return {
-    list: () => {
+    list: (params) => {
       const url = path
-      return api.get(url)
+      return api.get(url, { params })
     },
     customList: () => {
       const url = customPath

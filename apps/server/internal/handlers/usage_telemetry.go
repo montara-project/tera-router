@@ -18,8 +18,9 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-// recentRequestLimit is how many rows the recent-requests table shows before
-// its own client-side pagination.
+// recentRequestLimit is how many of the newest requests the telemetry payload
+// carries, for the dashboard's glance. The Usage page's request log reads
+// /usage/requests, which searches and pages the whole window.
 const recentRequestLimit = 50
 
 // Telemetry returns the full Usage page payload for the requested range.
@@ -77,16 +78,7 @@ func (h *usageHandler) buildTelemetry(ctx context.Context, from, now time.Time, 
 		return dtos.UsageTelemetry{}, err
 	}
 
-	rates := make(map[string]models.PricingOverride, len(overrides))
-	providerLevel := make(map[string]models.PricingOverride)
-	for _, o := range overrides {
-		if o.Model == "" {
-			providerLevel[o.Provider] = o
-			continue
-		}
-		rates[pricingKey(o.Provider, o.Model)] = o
-	}
-	fillFallbackRates(rates, providerLevel, byModel)
+	rates := modelRates(overrides, byModel)
 
 	// Standard input is the prompt minus the two cache classes, so the three
 	// input buckets partition the prompt exactly.
@@ -183,6 +175,22 @@ func (h *usageHandler) buildTelemetry(ctx context.Context, from, now time.Time, 
 		RecentRequests: requestRows(recent, rates, time.Now(), kinds, names),
 	}
 	return out, nil
+}
+
+// modelRates indexes the pricing overrides by provider/model and fills in the
+// provider-wide and compiled-in rates for the models that have usage.
+func modelRates(overrides []models.PricingOverride, byModel []repositories.UsageGroup) map[string]models.PricingOverride {
+	rates := make(map[string]models.PricingOverride, len(overrides))
+	providerLevel := make(map[string]models.PricingOverride)
+	for _, o := range overrides {
+		if o.Model == "" {
+			providerLevel[o.Provider] = o
+			continue
+		}
+		rates[pricingKey(o.Provider, o.Model)] = o
+	}
+	fillFallbackRates(rates, providerLevel, byModel)
+	return rates
 }
 
 // savingHeadroomRule is the saving_rules key the gateway uses for bytes the

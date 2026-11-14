@@ -7,12 +7,13 @@ import { queries } from '@/lib/api/queries'
 
 /** Shared top of /plans and /budgets: page header plus the Plans / Budgets tabs. */
 export default function PlansBudgetsHeader({ actions }: { actions: React.ReactNode }) {
-  const plans = useQuery(queries.plans.list()).data?.data
-  const budgets = useQuery(queries.budgets.status()).data?.data
+  // Only the totals are shown, so each query asks for one row.
+  const plans = useQuery(queries.plans.list({ offset: 0, limit: 1 })).data?.metadata
+  const budgets = useQuery(queries.budgets.status({ offset: 0, limit: 1 })).data?.metadata
 
   const tabs = [
-    { label: 'Plans', to: '/plans', count: plans?.length },
-    { label: 'Budgets', to: '/budgets', count: budgets?.length },
+    { label: 'Plans', to: '/plans', count: plans?.total },
+    { label: 'Budgets', to: '/budgets', count: budgets?.total },
   ] as const
 
   return (

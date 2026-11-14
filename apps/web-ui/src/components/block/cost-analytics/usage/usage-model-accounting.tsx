@@ -7,17 +7,20 @@ import {
   IconBrain,
   IconSearch,
 } from '@tabler/icons-react'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useQueryState } from 'nuqs'
 import { useMemo, useState } from 'react'
 
-import type { UsageModelAccountingRow } from '@/lib/api/models/usage'
+import type { UsageModelAccountingRow, UsageRange } from '@/lib/api/models/usage'
 
 import EmptyState from '@/components/block/common/empty-state'
 import ReactTable, { features } from '@/components/block/common/react-table'
 import SectionCardPanel from '@/components/block/common/section-card-panel'
 import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
 import { Input, InputWrapper } from '@/components/ui/input'
+import { useDebounce } from '@/hooks/use-debounce'
 import { usePaginationQuery } from '@/hooks/use-pagination-query'
+import { usageQueries } from '@/lib/api/queries/usage'
 import { formatMicrosUsd } from '@/lib/currency'
 import { formatCompact, formatCount, formatMs } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -32,16 +35,6 @@ type ColumnType = ColumnDef<typeof features, Row, unknown>
 const PAGE_SIZES = [10, 25, 50, 100]
 
 const tokens = (r: Row) => r.inputTokens + r.outputTokens
-
-const SORT_VALUES: Record<SortKey, (r: Row) => number | string> = {
-  model: (r) => r.model.toLowerCase(),
-  requests: (r) => r.requests,
-  tokens,
-  // Unpriced rows sort below every priced one.
-  cost: (r) => r.costMicros ?? -1,
-  latency: (r) => r.latencyMs,
-  pricing: (r) => r.coverage,
-}
 
 /** Pricing badge: nothing billable, a missing price, or the rates in use. */
 function pricingBadge(r: Row): { label: string; tone: string; title?: string } {
@@ -181,29 +174,25 @@ function modelColumns(sort: Sort, onSort: (key: SortKey) => void): ColumnType[] 
   ]
 }
 
-export default function UsageModelAccounting({ rows }: { rows: Row[] }) {
+export default function UsageModelAccounting({ range }: { range: UsageRange }) {
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState<Sort>({ key: 'cost', desc: true })
-  // The list arrives whole, so filtering, sorting and paging run here.
+  // The server searches, sorts and pages the rows; the pager keeps ?page.
   const { offset, limit, pageIndex } = usePaginationQuery({ defaultLimit: PAGE_SIZES[0] })
   const [, setPageParam] = useQueryState('page')
-
-  const visible = useMemo(() => {
-    const query = search.trim().toLowerCase()
-    const value = SORT_VALUES[sort.key]
-    return rows
-      .filter(
-        (r) =>
-          !query ||
-          r.model.toLowerCase().includes(query) ||
-          r.provider.toLowerCase().includes(query)
-      )
-      .sort((a, b) => {
-        const [x, y] = [value(a), value(b)]
-        const order = x < y ? -1 : x > y ? 1 : 0
-        return sort.desc ? -order : order
-      })
-  }, [rows, search, sort])
+  const query = useDebounce({ value: search.trim(), delay: 300 })
+  const { data } = useQuery({
+    ...usageQueries.models({
+      range,
+      search: query || undefined,
+      sort: sort.key,
+      order: sort.desc ? 'desc' : 'asc',
+      offset,
+      limit,
+    }),
+    placeholderData: keepPreviousData,
+  })
+  const rows: Row[] = data?.data ?? []
 
   const columns = useMemo(
     () =>
@@ -235,8 +224,8 @@ export default function UsageModelAccounting({ rows }: { rows: Row[] }) {
       }
     >
       <ReactTable
-        data={visible.slice(offset, offset + limit)}
-        total={visible.length}
+        data={rows}
+        total={data?.metadata.total ?? 0}
         pageIndex={pageIndex}
         pageSize={limit}
         pageSizes={PAGE_SIZES}
@@ -245,9 +234,9 @@ export default function UsageModelAccounting({ rows }: { rows: Row[] }) {
         emptyMessage={
           <EmptyState
             icon={IconBrain}
-            title={rows.length === 0 ? 'No model traffic' : 'No models match'}
+            title={query === '' ? 'No model traffic' : 'No models match'}
             description={
-              rows.length === 0
+              query === ''
                 ? 'No model served requests in this period.'
                 : `Nothing matches "${search.trim()}".`
             }

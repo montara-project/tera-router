@@ -1,9 +1,10 @@
 import type { ColumnDef } from '@tanstack/react-table'
 
 import { IconPackages } from '@tabler/icons-react'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 
-import type { UsageProviderAccountingRow } from '@/lib/api/models/usage'
+import type { UsageProviderAccountingRow, UsageRange } from '@/lib/api/models/usage'
 
 import EmptyState from '@/components/block/common/empty-state'
 import ReactTable, { features } from '@/components/block/common/react-table'
@@ -11,6 +12,7 @@ import SectionCardPanel from '@/components/block/common/section-card-panel'
 import { HealthBadge } from '@/components/block/dashboard/overview-provider-health'
 import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
 import { usePaginationQuery } from '@/hooks/use-pagination-query'
+import { usageQueries } from '@/lib/api/queries/usage'
 import { formatMicrosUsd } from '@/lib/currency'
 import { formatCompact, formatCount, formatMs } from '@/lib/format'
 
@@ -125,9 +127,14 @@ const COLUMNS: ColumnType[] = [
   },
 ]
 
-export default function UsageProviderAccounting({ rows }: { rows: Row[] }) {
-  // The list arrives whole, so paging runs here; the pager keeps ?page.
+export default function UsageProviderAccounting({ range }: { range: UsageRange }) {
+  // The server pages the rows; the pager keeps ?page.
   const { offset, limit, pageIndex } = usePaginationQuery({ defaultLimit: PAGE_SIZES[0] })
+  const { data } = useQuery({
+    ...usageQueries.providers({ range, offset, limit }),
+    placeholderData: keepPreviousData,
+  })
+  const rows: Row[] = data?.data ?? []
 
   return (
     <SectionCardPanel
@@ -136,8 +143,8 @@ export default function UsageProviderAccounting({ rows }: { rows: Row[] }) {
       action={{ label: 'Provider health', to: '/provider-health' }}
     >
       <ReactTable
-        data={rows.slice(offset, offset + limit)}
-        total={rows.length}
+        data={rows}
+        total={data?.metadata.total ?? 0}
         pageIndex={pageIndex}
         pageSize={limit}
         pageSizes={PAGE_SIZES}

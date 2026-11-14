@@ -55,6 +55,7 @@ export namespace Models {
   export type ProviderModel = import('./provider-catalog').ProviderModel
   export type ProviderModelState = import('./provider-catalog').ProviderModelState
   export type ProvidersOverview = import('./provider').ProvidersOverview
+  export type ProvidersOverviewDto = import('./provider').ProvidersOverviewDto
   export type ProxyPool = import('./proxy-pool').ProxyPool
   export type ProxyPoolStatus = import('./proxy-pool').ProxyPoolStatus
   export type QuotaAccount = import('./quota').QuotaAccount

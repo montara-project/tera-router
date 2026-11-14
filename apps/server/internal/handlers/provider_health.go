@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"sort"
 	"time"
 
@@ -34,6 +35,11 @@ var healthWindows = map[string]time.Duration{
 
 // Overview aggregates the window's usage rows into per-provider, per-model,
 // and per-chain health entries (?window=5m|15m|1h|6h|24h|7d|30d|90d, default 15m).
+//
+// With `tab` (providers, models, chains, probes) only that table's rows are
+// returned: `status` keeps the providers or models in one state, and `limit`
+// and `offset` cut a page. `counts` covers every row either way, and `total`
+// is the rows of the tab that match.
 func (h *providerHealthHandler) Overview(c fiber.Ctx) error {
 	window := c.Query("window", "15m")
 	lookback, ok := healthWindows[window]
@@ -42,31 +48,90 @@ func (h *providerHealthHandler) Overview(c fiber.Ctx) error {
 		lookback = 15 * time.Minute
 	}
 
-	now := time.Now()
-	from := now.Add(-lookback)
-	rows, err := h.app.Repos.Usage.HealthRows(c.Context(), from)
+	out, err := healthOverviewFor(c.Context(), h.app, lookback)
 	if err != nil {
 		return err
 	}
-	chains, err := h.app.Repos.Chains.List(c.Context())
-	if err != nil {
-		return err
-	}
-
-	knownChains := make([]string, 0, len(chains))
-	for _, ch := range chains {
-		knownChains = append(knownChains, ch.Name)
-	}
-	out := buildHealthOverview(rows, knownChains, from, now)
 	// Telemetry keys providers by slug; show their display names.
 	names, _, _, err := (&usageHandler{app: h.app}).providerMeta(c.Context())
 	if err != nil {
 		return err
 	}
+	accounts, err := h.app.Repos.Accounts.CountByProvider(c.Context())
+	if err != nil {
+		return err
+	}
 	for i := range out.Providers {
 		out.Providers[i].Name = providerDisplayName(names, out.Providers[i].ID)
+		out.Providers[i].Accounts = accounts[out.Providers[i].ID]
+	}
+
+	out.Counts = healthCounts{Providers: len(out.Providers), Models: len(out.Models), Chains: len(out.Chains), Probes: len(out.Probes)}
+	for _, p := range out.Providers {
+		switch p.Status {
+		case "down":
+			out.Counts.Down++
+		case "degraded":
+			out.Counts.Degraded++
+		default:
+			out.Counts.Healthy++
+		}
+	}
+
+	tab := c.Query("tab")
+	if tab == "" {
+		return dtos.OK(c, out)
+	}
+	// One table was asked for: narrow and page it, and leave the others out.
+	status := c.Query("status")
+	pick := func(rows []healthEntry, byStatus bool) ([]healthEntry, error) {
+		if byStatus && status != "" {
+			rows = keep(rows, func(e healthEntry) bool { return e.Status == status })
+		}
+		out.Total = len(rows)
+		if c.Query("limit") == "" {
+			return rows, nil
+		}
+		q, err := listPage(c)
+		if err != nil {
+			return nil, err
+		}
+		return pageOf(rows, q.Offset, q.Limit), nil
+	}
+	providers, models, chains := out.Providers, out.Models, out.Chains
+	out.Providers, out.Models, out.Chains = []healthEntry{}, []healthEntry{}, []healthEntry{}
+	switch tab {
+	case "providers":
+		out.Providers, err = pick(providers, true)
+	case "models":
+		out.Models, err = pick(models, true)
+	case "chains":
+		out.Chains, err = pick(chains, false)
+	}
+	if err != nil {
+		return err
 	}
 	return dtos.OK(c, out)
+}
+
+// healthOverviewFor builds the health overview of the last lookback: the
+// window's usage rows grouped per provider, model and chain.
+func healthOverviewFor(ctx context.Context, a *app.Application, lookback time.Duration) (healthOverview, error) {
+	now := time.Now()
+	from := now.Add(-lookback)
+	rows, err := a.Repos.Usage.HealthRows(ctx, from)
+	if err != nil {
+		return healthOverview{}, err
+	}
+	chains, err := a.Repos.Chains.List(ctx)
+	if err != nil {
+		return healthOverview{}, err
+	}
+	knownChains := make([]string, 0, len(chains))
+	for _, ch := range chains {
+		knownChains = append(knownChains, ch.Name)
+	}
+	return buildHealthOverview(rows, knownChains, from, now), nil
 }
 
 // healthEntry is one row of the dashboard's provider/model/chain tables; it
@@ -85,6 +150,8 @@ type healthEntry struct {
 	// MainIssue is the most frequent failure kind (auth, rate_limit, …);
 	// empty when nothing failed.
 	MainIssue string `json:"mainIssue"`
+	// Accounts is set on providers only: how many accounts the provider has.
+	Accounts int `json:"accounts,omitempty"`
 	// MostAffected is set on chains only: the model whose attempts failed most.
 	MostAffected string  `json:"mostAffected,omitempty"`
 	Affected     *string `json:"affected"`
@@ -123,6 +190,23 @@ type healthOverview struct {
 	Models    []healthEntry `json:"models"`
 	Chains    []healthEntry `json:"chains"`
 	Probes    []struct{}    `json:"probes"`
+	// Counts covers every row of the window, whichever tab was asked for.
+	Counts healthCounts `json:"counts"`
+	// Total is the rows of the requested tab that match its status filter,
+	// before paging; 0 when no tab was asked for.
+	Total int `json:"total"`
+}
+
+// healthCounts is the size of each table plus the providers per state: the
+// tab badges and the summary strip of the health page.
+type healthCounts struct {
+	Providers int `json:"providers"`
+	Models    int `json:"models"`
+	Chains    int `json:"chains"`
+	Probes    int `json:"probes"`
+	Down      int `json:"down"`
+	Degraded  int `json:"degraded"`
+	Healthy   int `json:"healthy"`
 }
 
 // healthStatus thresholds. "down" means every attempt failed, "degraded" means

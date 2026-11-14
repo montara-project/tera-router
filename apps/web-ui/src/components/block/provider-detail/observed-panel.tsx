@@ -1,6 +1,7 @@
 import type { ColumnDef } from '@tanstack/react-table'
 
 import { IconActivity, IconSearch } from '@tabler/icons-react'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useQueryState } from 'nuqs'
 import { useState } from 'react'
 
@@ -13,7 +14,9 @@ import { RouteAsCell } from '@/components/block/provider-detail/model-row'
 import { Button } from '@/components/ui/button'
 import { Input, InputWrapper } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useDebounce } from '@/hooks/use-debounce'
 import { usePaginationQuery } from '@/hooks/use-pagination-query'
+import { queries } from '@/lib/api/queries'
 import { formatMicrosUsd } from '@/lib/currency'
 import { formatCompact, formatCount, formatLatency } from '@/lib/format'
 
@@ -22,23 +25,38 @@ const PAGE_SIZES = [10, 25, 50, 100]
 
 /** Models this provider actually served in the last 30 days, from usage accounting. */
 export default function ObservedPanel({
-  models,
-  loading,
+  providerSlug,
+  observedCount,
 }: {
-  models: Models.UsageModelAccountingRow[]
-  loading: boolean
+  providerSlug: string
+  /** models the provider served in the window, before any search */
+  observedCount: number
 }) {
   const [search, setSearchValue] = useState('')
-  // The list arrives whole, so search and paging run here; the pager keeps its page in ?page.
+  // The server scopes the rows to the provider, searches and pages them; the
+  // pager keeps its page in ?page.
   const { offset, limit, pageIndex } = usePaginationQuery()
   const [, setPageParam] = useQueryState('page')
-  // A new search re-pages the list, so drop a stale page index.
+  // A new search starts from the first page.
   const setSearch = (value: string) => {
     setSearchValue(value)
     void setPageParam(null)
   }
-  const q = search.trim().toLowerCase()
-  const rows = models.filter((m) => !q || m.model.toLowerCase().includes(q))
+  const q = useDebounce({ value: search.trim(), delay: 300 })
+  const query = useQuery({
+    ...queries.usage.models({
+      range: '30d',
+      provider: providerSlug,
+      search: q || undefined,
+      offset,
+      limit,
+    }),
+    enabled: providerSlug !== '',
+    placeholderData: keepPreviousData,
+  })
+  const rows = query.data?.data ?? []
+  const total = query.data?.metadata.total ?? 0
+  const loading = query.isLoading
 
   const renderBody = () => {
     if (loading) {
@@ -51,7 +69,7 @@ export default function ObservedPanel({
       )
     }
 
-    if (models.length === 0) {
+    if (observedCount === 0 && q === '') {
       return (
         <EmptyState
           className="border-0"
@@ -62,7 +80,7 @@ export default function ObservedPanel({
       )
     }
 
-    if (rows.length === 0) {
+    if (total === 0) {
       return (
         <EmptyState
           className="border-0"
@@ -80,8 +98,8 @@ export default function ObservedPanel({
 
     return (
       <ReactTable
-        total={rows.length}
-        data={rows.slice(offset, offset + limit)}
+        total={total}
+        data={rows}
         pageIndex={pageIndex}
         pageSize={limit}
         pageSizes={PAGE_SIZES}
@@ -101,7 +119,7 @@ export default function ObservedPanel({
         </>
       }
     >
-      {models.length > 0 && (
+      {observedCount > 0 && (
         <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2.5">
           <InputWrapper className="w-full sm:w-64">
             <IconSearch aria-hidden />
@@ -114,7 +132,7 @@ export default function ObservedPanel({
             />
           </InputWrapper>
           <span className="ms-auto text-[12.5px] text-muted-foreground tabular-nums">
-            {q ? `${rows.length} of ${models.length} shown` : `${models.length} shown`}
+            {q ? `${total} of ${observedCount} shown` : `${observedCount} shown`}
           </span>
         </div>
       )}

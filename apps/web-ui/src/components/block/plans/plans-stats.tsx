@@ -1,16 +1,22 @@
 import { IconKey, IconShieldCheck, IconTemplate } from '@tabler/icons-react'
 
-import type { Models } from '@/lib/api/models'
-
 import { Stat } from '@/components/block/provider-detail/provider-stat-strip'
 import { cn } from '@/lib/utils'
 
 const TILE = 'bg-orange-500/10 text-orange-600 dark:text-orange-400'
 
-export default function PlansStats({ plans }: { plans: Models.Plan[] }) {
-  const keysAssigned = plans.reduce((total, plan) => total + plan.keys_assigned, 0)
-  const hardCutoff = plans.filter((plan) => plan.hard_cutoff).length
-  const unused = plans.filter((plan) => plan.keys_assigned === 0).length
+/** Summary strip; the server counts these over every plan. */
+export default function PlansStats({
+  total,
+  keysAssigned,
+  hardCutoff,
+  unused,
+}: {
+  total: number
+  keysAssigned: number
+  hardCutoff: number
+  unused: number
+}) {
   const figure = (value: number, muted = false) => (
     <span className={cn('text-xl font-semibold tabular-nums', muted && 'text-muted-foreground')}>
       {value}
@@ -25,11 +31,11 @@ export default function PlansStats({ plans }: { plans: Models.Plan[] }) {
       </Stat>
       <Stat icon={IconShieldCheck} label="Hard cutoff" iconClassName={TILE}>
         {figure(hardCutoff)}
-        {note(`of ${plans.length} ${plans.length === 1 ? 'plan' : 'plans'}`)}
+        {note(`of ${total} ${total === 1 ? 'plan' : 'plans'}`)}
       </Stat>
       <Stat icon={IconTemplate} label="Unused plans" iconClassName={TILE}>
         {figure(unused, unused === 0)}
-        {note(`of ${plans.length}`)}
+        {note(`of ${total}`)}
       </Stat>
     </dl>
   )

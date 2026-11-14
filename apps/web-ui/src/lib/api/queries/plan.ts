@@ -2,21 +2,24 @@ import { mutationOptions, queryOptions } from '@tanstack/react-query'
 
 import { getQueryClient } from '@/lib/providers/react-query'
 
+import type { PaginateDto } from '../dtos/paginate'
 import type { PlanDto } from '../dtos/plan/schema'
 
 import { services } from '../services'
 
 export const PLAN_QUERY_KEY = 'plans'
 
-export const LIST_PLAN_QUERY_KEY = () => {
-  return [PLAN_QUERY_KEY, 'list']
+export const LIST_PLAN_QUERY_KEY = (params?: PaginateDto) => {
+  return [PLAN_QUERY_KEY, 'list', params]
 }
 
-const list = () =>
+/** Every plan, or one page of them when `params` carries a limit. The
+ * metadata holds the summary figures over every plan either way. */
+const list = (params?: PaginateDto) =>
   queryOptions({
-    queryKey: LIST_PLAN_QUERY_KEY(),
+    queryKey: LIST_PLAN_QUERY_KEY(params),
     queryFn: async () => {
-      const res = await services.plans.list()
+      const res = await services.plans.list(params)
       return res.data
     },
   })

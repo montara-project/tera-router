@@ -135,8 +135,12 @@ export default function AccountsPanel({
     setTestingAll(true)
     let accounts: Models.Account[] = []
     try {
-      const res = await services.accounts.list({ offset: 0, limit: 1000, provider: provider.slug })
-      accounts = res.data.data
+      // The list returns at most 1000 accounts a page; read every page.
+      for (let offset = 0; ; offset += 1000) {
+        const res = await services.accounts.list({ offset, limit: 1000, provider: provider.slug })
+        accounts.push(...res.data.data)
+        if (accounts.length >= (res.data.metadata.total ?? 0) || res.data.data.length === 0) break
+      }
     } catch {
       setTestingAll(false)
       toast.error('Failed to load accounts')

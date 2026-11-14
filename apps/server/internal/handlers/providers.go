@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -167,7 +168,32 @@ func (h *providersHandler) Index(c fiber.Ctx) error {
 	for i := range connected {
 		connected[i].Usable = usable[connected[i].Slug] > 0
 	}
-	return dtos.OK(c, dtos.ProviderOverview{Connected: connected, Available: available})
+
+	// A custom provider with no account has nothing left to route; catalog
+	// entries ("prov-<slug>" ids) are not rows and cannot be deleted.
+	isEmpty := func(p dtos.ProviderView) bool { return p.Accounts == 0 && !strings.HasPrefix(p.ID, "prov-") }
+	out := dtos.ProviderOverview{ConnectedCount: len(connected), AvailableCount: len(available)}
+	out.EmptyCount = len(keep(connected, isEmpty))
+
+	search, capability, emptyOnly := listSearch(c), c.Query("capability"), c.Query("empty") == "true"
+	matches := func(p dtos.ProviderView) bool {
+		if capability != "" && !slices.Contains(p.Capabilities, capability) {
+			return false
+		}
+		return matchesSearch(search, p.Name+" "+p.Slug)
+	}
+	connected = keep(connected, func(p dtos.ProviderView) bool { return matches(p) && (!emptyOnly || isEmpty(p)) })
+	out.ConnectedTotal = len(connected)
+	if c.Query("limit") != "" {
+		q, err := listPage(c)
+		if err != nil {
+			return err
+		}
+		connected = pageOf(connected, q.Offset, q.Limit)
+	}
+	out.Connected = connected
+	out.Available = keep(available, matches)
+	return dtos.OK(c, out)
 }
 
 // catalogOverviewViews builds the catalog-provider views for the providers

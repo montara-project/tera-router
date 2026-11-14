@@ -1,19 +1,20 @@
 import { IconGauge, IconRefresh } from '@tabler/icons-react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useQueryState } from 'nuqs'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import type { QuotaFilters } from '@/components/block/quota/filter-quota'
 import type { Models } from '@/lib/api/models'
 
 import PageHeader from '@/components/block/common/page-header'
 import SegmentedControl from '@/components/block/common/segmented-control'
-import { applyQuotaFilters, DEFAULT_QUOTA_FILTERS } from '@/components/block/quota/filter-quota'
+import { DEFAULT_QUOTA_FILTERS } from '@/components/block/quota/filter-quota'
 import QuotaAccountsCard from '@/components/block/quota/quota-accounts-card'
 import QuotaStatStrip from '@/components/block/quota/quota-stat-strip'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useDebounce } from '@/hooks/use-debounce'
 import { usePaginationQuery } from '@/hooks/use-pagination-query'
 import { QUOTA_QUERY_KEY, quotaQueries } from '@/lib/api/queries/quota'
 
@@ -41,6 +42,7 @@ function RouteComponent() {
   const [now, setNow] = useState(() => Date.now())
 
   const { offset, limit, pageIndex } = usePaginationQuery()
+  const search = useDebounce({ value: filters.search.trim(), delay: 300 })
   // The pager writes ?page=<n> directly; clearing it returns to page 1.
   const [, setPageParam] = useQueryState('page')
 
@@ -55,7 +57,20 @@ function RouteComponent() {
     isFetching: accountsFetching,
     isLoading: accountsLoading,
     dataUpdatedAt: accountsUpdatedAt,
-  } = useQuery(quotaQueries.list({ offset, limit, range }))
+  } = useQuery({
+    // The server filters, sorts and pages; the page reads one page of matches.
+    ...quotaQueries.list({
+      offset,
+      limit,
+      range,
+      search: search || undefined,
+      provider: filters.provider === 'all' ? undefined : filters.provider,
+      status: filters.status === 'all' ? undefined : filters.status,
+      quota_state: filters.quotaState === 'all' ? undefined : filters.quotaState,
+      sort: filters.sort,
+    }),
+    placeholderData: keepPreviousData,
+  })
 
   // Ticks once a second so the auto-refresh countdown stays live.
   useEffect(() => {
@@ -64,17 +79,8 @@ function RouteComponent() {
   }, [])
 
   const overview = overviewData?.data
-  const listData = accountsData?.data ?? NO_ACCOUNTS
-
-  const accounts = useMemo(() => applyQuotaFilters(listData, filters), [listData, filters])
-
-  // The API returns every account regardless of offset/limit, so page the
-  // filtered set client-side.
-  const pagedAccounts = useMemo(
-    () => accounts.slice(offset, offset + limit),
-    [accounts, offset, limit]
-  )
-  const total = accounts.length
+  const rows = accountsData?.data ?? NO_ACCOUNTS
+  const total = accountsData?.metadata.total ?? 0
 
   const refreshing = (overviewFetching || accountsFetching) && !(overviewLoading && accountsLoading)
 
@@ -90,7 +96,7 @@ function RouteComponent() {
   const handleRangeChange = (value: string) => setRange(value as Models.QuotaRange)
 
   const handleFilterChange = (patch: Partial<QuotaFilters>) => {
-    // Filters re-page the client-side set, so drop a stale page index.
+    // A new filter starts from the first page.
     setFilters((previous) => ({ ...previous, ...patch }))
     void setPageParam(null)
   }
@@ -127,16 +133,16 @@ function RouteComponent() {
       />
 
       {overview ? (
-        <QuotaStatStrip summary={overview.summary} accounts={listData} />
+        <QuotaStatStrip summary={overview.summary} />
       ) : (
         <Skeleton className="h-25 rounded-lg" />
       )}
 
       <QuotaAccountsCard
-        accounts={listData}
-        paged={pagedAccounts}
+        summary={overview?.summary}
+        paged={rows}
         total={total}
-        loading={accountsLoading && listData.length === 0}
+        loading={accountsLoading}
         pageIndex={pageIndex}
         pageSize={limit}
         filters={filters}

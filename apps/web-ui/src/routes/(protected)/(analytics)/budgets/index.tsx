@@ -1,5 +1,5 @@
 import { IconPlus } from '@tabler/icons-react'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 
@@ -8,6 +8,7 @@ import BudgetFormDialog from '@/components/block/budgets/form'
 import PlansBudgetsHeader from '@/components/block/plans/plans-budgets-header'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { usePaginationQuery } from '@/hooks/use-pagination-query'
 import { queries } from '@/lib/api/queries'
 
 export const Route = createFileRoute('/(protected)/(analytics)/budgets/')({
@@ -17,8 +18,14 @@ export const Route = createFileRoute('/(protected)/(analytics)/budgets/')({
 function RouteComponent() {
   const [openForm, setOpenForm] = useState(false)
 
-  const { data } = useQuery(queries.budgets.status())
-  const keysQuery = useQuery(queries.keys.list({ offset: 0, limit: 100 }))
+  // The server orders and pages the budgets and counts the summary strip.
+  const { offset, limit, pageIndex } = usePaginationQuery()
+  const { data } = useQuery({
+    ...queries.budgets.status({ offset, limit }),
+    placeholderData: keepPreviousData,
+  })
+  // Choices of the scope picker in the budget form.
+  const keysQuery = useQuery(queries.keys.list({ offset: 0, limit: 1000 }))
   const accountsQuery = useQuery(queries.accounts.list({ offset: 0, limit: 1000 }))
 
   const keys = keysQuery.data?.data ?? []
@@ -30,11 +37,7 @@ function RouteComponent() {
       label: `${account.provider} · ${account.label || account.id.slice(0, 8)}`,
     })),
   }
-  const scopeNames = new Map(
-    [...scopeOptions.api_key, ...scopeOptions.account].map((option) => [option.value, option.label])
-  )
-
-  const budgets = data?.data ?? []
+  const meta = data?.metadata
 
   return (
     <div className="flex flex-col gap-5">
@@ -49,10 +52,17 @@ function RouteComponent() {
 
       {data ? (
         <div className="flex flex-col gap-6">
-          <BudgetsStats budgets={budgets} />
+          <BudgetsStats
+            total={meta?.total ?? 0}
+            pastAlert={Number(meta?.past_alert ?? 0)}
+            exhausted={Number(meta?.exhausted ?? 0)}
+            blocking={Number(meta?.blocking ?? 0)}
+          />
           <BudgetsTable
-            budgets={budgets}
-            scopeNames={scopeNames}
+            budgets={data.data}
+            total={meta?.total ?? 0}
+            pageIndex={pageIndex}
+            pageSize={limit}
             scopeOptions={scopeOptions}
             onCreate={() => setOpenForm(true)}
           />

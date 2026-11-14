@@ -31,6 +31,10 @@ export interface QuotaSummary {
   paused: number
   attention: number
   depleted: number
+  /** Flagged for attention but not yet exhausted. */
+  near_limit: number
+  /** Slugs of the providers that have accounts, for the provider filter. */
+  providers: string[]
   requests: number
   input_tokens: number
   output_tokens: number
@@ -43,5 +47,4 @@ export interface QuotaSummary {
 
 export interface QuotaOverview {
   summary: QuotaSummary
-  accounts: QuotaAccount[]
 }

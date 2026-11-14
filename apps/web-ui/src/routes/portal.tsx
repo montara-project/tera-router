@@ -7,19 +7,26 @@ import {
   IconLinkOff,
   IconStack2,
 } from '@tabler/icons-react'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { isAxiosError } from 'axios'
+import { useQueryState } from 'nuqs'
 import { useEffect, useState } from 'react'
 
 import BrandLogo from '@/components/block/common/brand-logo'
 import PortalDailyChart from '@/components/block/portal/portal-daily-chart'
-import { PortalLimits, PortalModels, PortalRecent } from '@/components/block/portal/portal-panels'
+import {
+  PORTAL_PAGE_SIZES,
+  PortalLimits,
+  PortalModels,
+  PortalRecent,
+} from '@/components/block/portal/portal-panels'
 import { Stat } from '@/components/block/provider-detail/provider-stat-strip'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useBranding } from '@/hooks/use-branding'
+import { usePaginationQuery } from '@/hooks/use-pagination-query'
 import { queries } from '@/lib/api/queries'
 import { formatMicrosUsd } from '@/lib/currency'
 import { formatTimeAgo } from '@/lib/date'
@@ -208,7 +215,13 @@ function PortalUsageView({
   onUpdated: (at: number) => void
 }) {
   const [days, setDays] = useState<(typeof RANGES)[number]>(30)
-  const query = useQuery(queries.portal.get(token, days))
+  // The server pages the request log; the pager keeps its page in ?page.
+  const { offset, limit } = usePaginationQuery({ defaultLimit: PORTAL_PAGE_SIZES[0] })
+  const [, setPage] = useQueryState('page')
+  const query = useQuery({
+    ...queries.portal.get(token, days, { offset, limit }),
+    placeholderData: keepPreviousData,
+  })
   const data = query.data
 
   useEffect(() => {
@@ -277,7 +290,11 @@ function PortalUsageView({
               key={r}
               type="button"
               aria-pressed={days === r}
-              onClick={() => setDays(r)}
+              onClick={() => {
+                // Another range has its own request log: start from its first page.
+                setDays(r)
+                void setPage(null)
+              }}
               className={cn(
                 'inline-flex h-[26px] items-center rounded-sm px-2.5 font-mono text-xs font-medium transition-colors',
                 days === r
@@ -330,7 +347,7 @@ function PortalUsageView({
           </div>
 
           <PortalModels models={data.models} />
-          <PortalRecent recent={data.recent} requests={data.summary.requests} />
+          <PortalRecent recent={data.recent} total={data.recent_total} />
         </>
       ) : (
         <div className="flex flex-col gap-6">

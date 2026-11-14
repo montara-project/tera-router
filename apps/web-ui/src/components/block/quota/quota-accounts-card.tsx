@@ -59,11 +59,11 @@ function AccountAvatar({ account }: { account: Models.QuotaAccount }) {
 }
 
 interface QuotaAccountsCardProps {
-  /** Full unfiltered list, for the header count, chips and provider list. */
-  accounts: Models.QuotaAccount[]
-  /** Filtered rows for the current page. */
+  /** Totals across every account, for the header count, chips and provider list. */
+  summary?: Models.QuotaSummary
+  /** The matching rows of the current page, as the server returned them. */
   paged: Models.QuotaAccount[]
-  /** Filtered row count. */
+  /** Matching rows across every page. */
   total: number
   loading: boolean
   pageIndex: number
@@ -74,7 +74,7 @@ interface QuotaAccountsCardProps {
 
 /** Accounts panel: filter row, bulk actions and the quota table. */
 export default function QuotaAccountsCard({
-  accounts,
+  summary,
   paged,
   total,
   loading,
@@ -83,7 +83,10 @@ export default function QuotaAccountsCard({
   filters,
   onChange,
 }: QuotaAccountsCardProps) {
-  const [selected, setSelected] = useState<Set<string>>(new Set())
+  // Selected accounts keep the status they had when ticked: a selection can
+  // span pages, and only the current page's rows are loaded.
+  const [selected, setSelected] = useState<Map<string, Models.QuotaAccount['status']>>(new Map())
+  const accountCount = summary?.total_accounts ?? 0
   const toggleMutation = useMutation(queries.quota.toggleStatus())
 
   const visibleIds = paged.map((row) => row.id)
@@ -92,31 +95,31 @@ export default function QuotaAccountsCard({
 
   const toggleVisible = () =>
     setSelected((previous) => {
-      const next = new Set(previous)
-      for (const id of visibleIds) {
-        if (allVisibleSelected) next.delete(id)
-        else next.add(id)
+      const next = new Map(previous)
+      for (const row of paged) {
+        if (allVisibleSelected) next.delete(row.id)
+        else next.set(row.id, row.status)
       }
       return next
     })
 
-  const toggleOne = (id: string) =>
+  const toggleOne = (row: Models.QuotaAccount) =>
     setSelected((previous) => {
-      const next = new Set(previous)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
+      const next = new Map(previous)
+      if (next.has(row.id)) next.delete(row.id)
+      else next.set(row.id, row.status)
       return next
     })
 
   const bulkToggle = async (pause: boolean) => {
     // The endpoint flips state, so only touch accounts not already there.
-    const ids = accounts
-      .filter((a) => selected.has(a.id) && (a.status === 'active') === pause)
-      .map((a) => a.id)
+    const ids = [...selected]
+      .filter(([, status]) => (status === 'active') === pause)
+      .map(([id]) => id)
     try {
       for (const id of ids) await toggleMutation.mutateAsync(id)
       toast.success(`Account${ids.length === 1 ? '' : 's'} ${pause ? 'paused' : 'activated'}`)
-      setSelected(new Set())
+      setSelected(new Map())
     } catch (error) {
       toastAxiosError(error)
     }
@@ -137,7 +140,7 @@ export default function QuotaAccountsCard({
         <Checkbox
           aria-label={`Select ${row.original.name}`}
           checked={selected.has(row.original.id)}
-          onCheckedChange={() => toggleOne(row.original.id)}
+          onCheckedChange={() => toggleOne(row.original)}
         />
       ),
     },
@@ -224,12 +227,12 @@ export default function QuotaAccountsCard({
       title="Accounts"
       toolbar={
         <span className="text-xs text-muted-foreground tabular-nums">
-          {accounts.length} {accounts.length === 1 ? 'account' : 'accounts'}
+          {accountCount} {accountCount === 1 ? 'account' : 'accounts'}
         </span>
       }
     >
       <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2.5">
-        <FilterQuota filters={filters} onChange={onChange} accounts={accounts} />
+        <FilterQuota filters={filters} onChange={onChange} summary={summary} />
       </div>
 
       {selected.size > 0 && (
@@ -251,7 +254,7 @@ export default function QuotaAccountsCard({
           >
             Activate
           </Button>
-          <Button onClick={() => setSelected(new Set())} size="xs" variant="ghost">
+          <Button onClick={() => setSelected(new Map())} size="xs" variant="ghost">
             Clear
           </Button>
         </div>
@@ -275,9 +278,9 @@ export default function QuotaAccountsCard({
           emptyMessage={
             <EmptyState
               icon={IconGauge}
-              title={accounts.length === 0 ? 'No accounts yet' : 'No accounts match'}
+              title={accountCount === 0 ? 'No accounts yet' : 'No accounts match'}
               description={
-                accounts.length === 0
+                accountCount === 0
                   ? 'Connect a provider account to track its quota here.'
                   : 'Try a different search or filter.'
               }

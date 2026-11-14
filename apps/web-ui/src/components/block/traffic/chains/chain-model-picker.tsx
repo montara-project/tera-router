@@ -17,9 +17,6 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { queries } from '@/lib/api/queries'
 import { cn } from '@/lib/utils'
 
-/** The server caps a custom provider's model page at 100. */
-const CUSTOM_MODELS_LIMIT = 100
-
 export type ModelGroup = { slug: string; name: string; apiKind?: string; models: string[] }
 
 /**
@@ -35,9 +32,7 @@ export function useChainModelGroups() {
   // Catalog providers carry "prov-<slug>" ids; custom providers carry uuids.
   const custom = usable.filter((p) => !p.id.startsWith('prov-'))
   const customQueries = useQueries({
-    queries: custom.map((p) =>
-      queries.providers.customModels(p.id, { limit: CUSTOM_MODELS_LIMIT, state: 'active' })
-    ),
+    queries: custom.map((p) => queries.providers.allActiveModels('custom', p.id)),
   })
 
   const bySlug = new Map<string, string[]>()
@@ -46,9 +41,7 @@ export function useChainModelGroups() {
     bySlug.set(m.owned_by, [...(bySlug.get(m.owned_by) ?? []), m.id.slice(m.owned_by.length + 1)])
   }
   custom.forEach((p, i) => {
-    const models = (customQueries[i]?.data?.data?.models ?? [])
-      .filter((m) => m.state === 'active')
-      .map((m) => m.id)
+    const models = (customQueries[i]?.data?.data?.models ?? []).map((m) => m.id)
     bySlug.set(p.slug, [...new Set([...(bySlug.get(p.slug) ?? []), ...models])])
   })
 

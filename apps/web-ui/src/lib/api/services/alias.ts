@@ -16,9 +16,9 @@ const api = new ClientFetchApi({
 
 const resources = (): AliasResources => {
   return {
-    list: () => {
+    list: (params) => {
       const url = path
-      return api.get(url)
+      return api.get(url, { params })
     },
     /** upserts one alias pool by name (PUT semantics) */
     put: (payload) => {

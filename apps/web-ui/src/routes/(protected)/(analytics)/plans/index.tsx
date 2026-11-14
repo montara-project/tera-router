@@ -1,5 +1,5 @@
 import { IconPlus } from '@tabler/icons-react'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 
@@ -9,6 +9,7 @@ import PlansStats from '@/components/block/plans/plans-stats'
 import PlansTable from '@/components/block/plans/plans-table'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { usePaginationQuery } from '@/hooks/use-pagination-query'
 import { queries } from '@/lib/api/queries'
 
 export const Route = createFileRoute('/(protected)/(analytics)/plans/')({
@@ -18,8 +19,13 @@ export const Route = createFileRoute('/(protected)/(analytics)/plans/')({
 function RouteComponent() {
   const [openForm, setOpenForm] = useState(false)
 
-  const { data } = useQuery(queries.plans.list())
-  const plans = data?.data ?? []
+  // The server pages the plans and counts the summary strip.
+  const { offset, limit, pageIndex } = usePaginationQuery()
+  const { data } = useQuery({
+    ...queries.plans.list({ offset, limit }),
+    placeholderData: keepPreviousData,
+  })
+  const meta = data?.metadata
   const settingsQuery = useQuery(queries.settings.get())
   // Defaults to on, matching the server, until settings load.
   const rateLimitsEnforced = settingsQuery.data?.data?.enforce_rate_limits ?? true
@@ -37,9 +43,17 @@ function RouteComponent() {
 
       {data ? (
         <div className="flex flex-col gap-6">
-          <PlansStats plans={plans} />
+          <PlansStats
+            total={meta?.total ?? 0}
+            keysAssigned={Number(meta?.keys_assigned ?? 0)}
+            hardCutoff={Number(meta?.hard_cutoff ?? 0)}
+            unused={Number(meta?.unused ?? 0)}
+          />
           <PlansTable
-            plans={plans}
+            plans={data.data}
+            total={meta?.total ?? 0}
+            pageIndex={pageIndex}
+            pageSize={limit}
             rateLimitsEnforced={rateLimitsEnforced}
             onCreate={() => setOpenForm(true)}
           />

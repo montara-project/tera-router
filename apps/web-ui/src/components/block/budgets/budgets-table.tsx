@@ -22,7 +22,6 @@ import SectionCardPanel from '@/components/block/common/section-card-panel'
 import SimpleAlertDialog from '@/components/block/common/simple-alert-dialog'
 import { Stat } from '@/components/block/provider-detail/provider-stat-strip'
 import { Button } from '@/components/ui/button'
-import { usePaginationQuery } from '@/hooks/use-pagination-query'
 import { toastAxiosError } from '@/lib/api/axios-error'
 import { queries } from '@/lib/api/queries'
 import { formatMicrosUsd } from '@/lib/currency'
@@ -53,14 +52,18 @@ const TILE = 'bg-orange-500/10 text-orange-600 dark:text-orange-400'
 export const usedPct = (b: BudgetStatus) =>
   Math.max(b.limit_micros > 0 ? b.spend_pct : 0, b.limit_tokens > 0 ? b.token_pct : 0)
 
-export function BudgetsStats({ budgets }: { budgets: BudgetStatus[] }) {
-  const exhausted = budgets.filter((b) => usedPct(b) >= 100)
-  const pastAlert = budgets.filter((b) => {
-    const pct = usedPct(b)
-    return pct < 100 && b.alert_pct > 0 && pct >= b.alert_pct
-  }).length
-  const blocking = exhausted.filter((b) => b.hard_cutoff).length
-
+/** Summary strip; the server counts these over every budget. */
+export function BudgetsStats({
+  total,
+  pastAlert,
+  exhausted,
+  blocking,
+}: {
+  total: number
+  pastAlert: number
+  exhausted: number
+  blocking: number
+}) {
   const figure = (value: number) => (
     <span
       className={cn('text-xl font-semibold tabular-nums', value === 0 && 'text-muted-foreground')}
@@ -73,10 +76,10 @@ export function BudgetsStats({ budgets }: { budgets: BudgetStatus[] }) {
     <dl className="grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-3">
       <Stat icon={IconAlertTriangle} label="Past alert threshold" iconClassName={TILE}>
         {figure(pastAlert)}
-        <span className="block text-xs text-muted-foreground">of {budgets.length}</span>
+        <span className="block text-xs text-muted-foreground">of {total}</span>
       </Stat>
       <Stat icon={IconGaugeFilled} label="Exhausted" iconClassName={TILE}>
-        {figure(exhausted.length)}
+        {figure(exhausted)}
       </Stat>
       <Stat icon={IconBan} label="Blocking requests" iconClassName={TILE}>
         {figure(blocking)}
@@ -86,8 +89,12 @@ export function BudgetsStats({ budgets }: { budgets: BudgetStatus[] }) {
 }
 
 interface BudgetsTableProps {
+  /** One page of budgets, already ordered by the server. */
   budgets: BudgetStatus[]
-  scopeNames: Map<string, string>
+  /** Budgets across every page. */
+  total: number
+  pageIndex: number
+  pageSize: number
   scopeOptions: ScopeOptions
   onCreate: () => void
 }
@@ -95,14 +102,12 @@ interface BudgetsTableProps {
 /** "Budget usage" panel: every budget, closest to its limit first. */
 export default function BudgetsTable({
   budgets,
-  scopeNames,
+  total,
+  pageIndex,
+  pageSize,
   scopeOptions,
   onCreate,
 }: BudgetsTableProps) {
-  // The list arrives whole, so sorting and paging run here; the pager keeps its page in ?page.
-  const { offset, limit, pageIndex } = usePaginationQuery()
-  const rows = [...budgets].sort((a, b) => usedPct(b) - usedPct(a))
-
   // The target outlives its dialog's open flag so the dialog keeps its content while closing.
   const [editing, setEditing] = useState<BudgetStatus | null>(null)
   const [editOpen, setEditOpen] = useState(false)
@@ -112,7 +117,7 @@ export default function BudgetsTable({
 
   const columns = ((): ColumnDef<typeof features, BudgetStatus, unknown>[] => {
     const nameOf = (b: BudgetStatus) =>
-      b.scope_kind === 'tenant' ? SCOPE_LABELS.tenant : (scopeNames.get(b.scope_id) ?? b.scope_id)
+      b.scope_kind === 'tenant' ? SCOPE_LABELS.tenant : b.scope_name || b.scope_id
 
     return [
       {
@@ -257,12 +262,12 @@ export default function BudgetsTable({
   const deletingName = deleting
     ? deleting.scope_kind === 'tenant'
       ? SCOPE_LABELS.tenant
-      : (scopeNames.get(deleting.scope_id) ?? deleting.scope_id)
+      : deleting.scope_name || deleting.scope_id
     : ''
 
   return (
     <SectionCardPanel icon={IconChartBar} title="Budget usage" description="Closest to limit first">
-      {rows.length === 0 ? (
+      {total === 0 ? (
         <EmptyState
           icon={IconCoins}
           title="No budgets yet"
@@ -271,10 +276,10 @@ export default function BudgetsTable({
         />
       ) : (
         <ReactTable
-          total={rows.length}
-          data={rows.slice(offset, offset + limit)}
+          total={total}
+          data={budgets}
           pageIndex={pageIndex}
-          pageSize={limit}
+          pageSize={pageSize}
           pageSizes={PAGE_SIZES}
           columns={columns}
           tableClassName="min-w-[60rem]"

@@ -76,6 +76,9 @@ func limitView(v *int) any {
 	return *v
 }
 
+// Index lists the plans with how many keys each holds and, for capped plans,
+// each key's spend this period. With `limit` the rows are one page; the
+// metadata carries the summary figures over every plan either way.
 func (h *plansHandler) Index(c fiber.Ctx) error {
 	plans, err := h.app.Repos.Plans.List(c.Context())
 	if err != nil {
@@ -87,7 +90,7 @@ func (h *plansHandler) Index(c fiber.Ctx) error {
 	}
 
 	// Plan caps apply to each key on its own, so usage is reported per key.
-	keys, _, err := h.app.Repos.APIKeys.List(c.Context(), 0, -1)
+	keys, _, err := h.app.Repos.APIKeys.List(c.Context(), repositories.APIKeyFilter{}, 0, -1)
 	if err != nil {
 		return err
 	}
@@ -99,8 +102,16 @@ func (h *plansHandler) Index(c fiber.Ctx) error {
 	}
 
 	now := time.Now()
+	var keysAssigned, hardCutoff, unused int
 	out := make([]fiber.Map, 0, len(plans))
 	for _, p := range plans {
+		keysAssigned += counts[p.ID]
+		if p.HardCutoff {
+			hardCutoff++
+		}
+		if counts[p.ID] == 0 {
+			unused++
+		}
 		usage := []planKeyUsage{}
 		if p.LimitMicros > 0 || p.LimitTokens > 0 {
 			_, from := period.Window(p.Period, now)
@@ -123,7 +134,8 @@ func (h *plansHandler) Index(c fiber.Ctx) error {
 		}
 		out = append(out, planView(p, counts[p.ID], usage))
 	}
-	return dtos.List(c, out, dtos.TotalMeta(len(plans)))
+	// The summary figures cover every plan, whichever page is returned.
+	return respondList(c, out, dtos.Metadata{"keys_assigned": keysAssigned, "hard_cutoff": hardCutoff, "unused": unused})
 }
 
 // planFromRequest converts a Plan DTO into the stored model.

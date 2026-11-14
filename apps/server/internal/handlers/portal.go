@@ -9,6 +9,7 @@ import (
 
 	"tera-router/server/internal/app"
 	"tera-router/server/internal/dtos"
+	"tera-router/server/internal/lib"
 	"tera-router/server/internal/lib/apperr"
 	"tera-router/server/internal/lib/period"
 	"tera-router/server/internal/models"
@@ -19,7 +20,8 @@ import (
 // portalRanges are the windows the usage portal offers, in days.
 var portalRanges = []int{7, 14, 30, 90}
 
-// portalRecentLimit caps the request log the portal returns.
+// portalRecentLimit is the largest page of the request log the portal
+// returns, and the page size when the request names none.
 const portalRecentLimit = 200
 
 type portalHandler struct {
@@ -38,6 +40,9 @@ type portalLimit struct {
 // Show serves the public usage portal of one API key (GET /v1/portal/:token).
 // The token is the only credential: it reads that key's usage and nothing
 // else, and it leaves out client IPs and error text.
+//
+// `offset` and `limit` page the request log (`recent`); `recent_total` is how
+// many attempts the window holds.
 func (h *portalHandler) Show(c fiber.Ctx) error {
 	token := c.Params("token")
 	if !strings.HasPrefix(token, "pt_") {
@@ -77,7 +82,15 @@ func (h *portalHandler) Show(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	recent, err := h.app.Repos.Usage.RecentForKey(ctx, keyID, from, portalRecentLimit)
+	var page dtos.ListQuery
+	if err := lib.ValidateRequestQuery(c, &page); err != nil {
+		return err
+	}
+	if page.Limit <= 0 {
+		page.Limit = portalRecentLimit
+	}
+	page.ClampTo(portalRecentLimit)
+	recent, recentTotal, err := h.app.Repos.Usage.RecentForKey(ctx, keyID, from, page.Offset, page.Limit)
 	if err != nil {
 		return err
 	}
@@ -139,6 +152,7 @@ func (h *portalHandler) Show(c fiber.Ctx) error {
 		"daily":          daily,
 		"models":         byModel,
 		"recent":         recent,
+		"recent_total":   recentTotal,
 		"limits":         limits,
 		"allowed_models": allowed,
 	})

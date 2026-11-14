@@ -195,6 +195,10 @@ func routes(r *fiber.App, app *app.Application) *gateway.Server {
 
 	usage := protected.Group("/usage")
 	usage.Get("/telemetry", h.Usage.Telemetry)
+	// The Usage page's tables, each searched, sorted and paged on its own.
+	usage.Get("/models", h.Usage.Models)
+	usage.Get("/providers", h.Usage.Providers)
+	usage.Get("/requests", h.Usage.Requests)
 	usage.Get("/activity", h.Usage.Activity)
 
 	// Quota dashboard

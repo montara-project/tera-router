@@ -1,17 +1,19 @@
 import { IconKey, IconPlus } from '@tabler/icons-react'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 
 import type { KeysFilters } from '@/components/block/keys/filter-keys'
 import type { Models } from '@/lib/api/models'
 
 import PageHeader from '@/components/block/common/page-header'
-import { applyKeysFilters, DEFAULT_KEYS_FILTERS } from '@/components/block/keys/filter-keys'
+import { DEFAULT_KEYS_FILTERS } from '@/components/block/keys/filter-keys'
 import { AddKeyForm } from '@/components/block/keys/form'
 import KeySecretDialog from '@/components/block/keys/key-secret-dialog'
 import KeysTable from '@/components/block/keys/keys-table'
 import { Button } from '@/components/ui/button'
+import { useDebounce } from '@/hooks/use-debounce'
+import { usePaginationQuery } from '@/hooks/use-pagination-query'
 import { keyQueries } from '@/lib/api/queries/key'
 
 export const Route = createFileRoute('/(protected)/(connection)/keys/')({
@@ -25,10 +27,27 @@ function RouteComponent() {
   // the only moment the API returns the plaintext key.
   const [createdKey, setCreatedKey] = useState<Models.ApiKey | null>(null)
 
-  // ponytail: one page of 100 keys, filtered client-side; page server-side past that.
-  const { data, isLoading } = useQuery(keyQueries.list({ offset: 0, limit: 100 }))
-  const keys = useMemo(() => data?.data ?? [], [data])
-  const rows = useMemo(() => applyKeysFilters(keys, filters), [keys, filters])
+  // The server searches, filters, sorts and pages; this reads one page.
+  const { offset, limit, pageIndex } = usePaginationQuery()
+  const search = useDebounce({ value: filters.search.trim(), delay: 300 })
+  const { data, isLoading } = useQuery({
+    ...keyQueries.list({
+      offset,
+      limit,
+      search: search || undefined,
+      // "restricted" is not a status the server reports; it matches no key.
+      status:
+        filters.status === 'all' || filters.status === 'restricted' ? undefined : filters.status,
+      sort: filters.sort,
+    }),
+    placeholderData: keepPreviousData,
+  })
+  const meta = data?.metadata
+  const counts = {
+    all: Number(meta?.total_all ?? 0),
+    active: Number(meta?.total_active ?? 0),
+    disabled: Number(meta?.total_disabled ?? 0),
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -45,8 +64,11 @@ function RouteComponent() {
       />
 
       <KeysTable
-        keys={keys}
-        rows={rows}
+        counts={counts}
+        rows={data?.data ?? []}
+        total={meta?.total ?? 0}
+        pageIndex={pageIndex}
+        pageSize={limit}
         loading={isLoading}
         filters={filters}
         onFiltersChange={(patch) => setFilters((prev) => ({ ...prev, ...patch }))}

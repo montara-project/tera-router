@@ -3,21 +3,24 @@ import { mutationOptions, queryOptions } from '@tanstack/react-query'
 import { getQueryClient } from '@/lib/providers/react-query'
 
 import type { BudgetDto } from '../dtos/budget/schema'
+import type { PaginateDto } from '../dtos/paginate'
 
 import { services } from '../services'
 
 export const BUDGET_QUERY_KEY = 'budgets'
 
-export const STATUS_BUDGET_QUERY_KEY = () => {
-  return [BUDGET_QUERY_KEY, 'status']
+export const STATUS_BUDGET_QUERY_KEY = (params?: PaginateDto) => {
+  return [BUDGET_QUERY_KEY, 'status', params]
 }
 
-/** Budgets with their current-period spend; the page only needs this view. */
-const status = () =>
+/** Budgets with their current-period spend, closest to the limit first: all
+ * of them, or one page when `params` carries a limit. The metadata holds the
+ * summary counts over every budget either way. */
+const status = (params?: PaginateDto) =>
   queryOptions({
-    queryKey: STATUS_BUDGET_QUERY_KEY(),
+    queryKey: STATUS_BUDGET_QUERY_KEY(params),
     queryFn: async () => {
-      const res = await services.budgets.status()
+      const res = await services.budgets.status(params)
       return res.data
     },
   })

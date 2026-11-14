@@ -3,6 +3,8 @@ import { z } from 'zod'
 import { optionalBoolean, optionalNumber, optionalString, requiredString } from '@/lib/validation'
 
 import type { Chain, ChainStep } from '../../models/chain'
+import type { HealthStatus, HealthWindow } from '../../models/provider-health'
+import type { PaginateDto } from '../paginate'
 
 /** Steps carry only the routing coordinates; ids and positions are server-assigned. */
 type ChainStepPayload = Pick<ChainStep, 'provider' | 'model' | 'active'>
@@ -82,3 +84,17 @@ export const ChainFormSchema = z
   })
 
 export type ChainFormValues = z.infer<typeof ChainFormSchema>
+
+/** Query of GET /v1/chains. Every field is optional; without `limit` the
+ * server returns every matching chain. */
+export type ChainListDto = PaginateDto & {
+  /** Matches the chain name, the fallback model or a step's provider/model. */
+  search?: string
+  strategy?: string
+  health?: HealthStatus | 'unknown'
+  enabled?: boolean
+  /** Keeps chains with a step or a fallback on this provider. */
+  provider?: string
+  /** Attaches each chain's health over this window; the health filter reads it. */
+  health_window?: HealthWindow
+}

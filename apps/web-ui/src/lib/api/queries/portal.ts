@@ -3,11 +3,11 @@ import { queryOptions } from '@tanstack/react-query'
 import { services } from '../services'
 
 /** One key's usage behind its portal link; refreshed every minute. */
-const get = (token: string, days: number) =>
+const get = (token: string, days: number, page?: { offset: number; limit: number }) =>
   queryOptions({
-    queryKey: ['portal', token, days],
+    queryKey: ['portal', token, days, page],
     queryFn: async () => {
-      const res = await services.portal.get(token, days)
+      const res = await services.portal.get(token, days, page)
       return res.data.data
     },
     refetchInterval: 60_000,

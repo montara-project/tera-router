@@ -61,7 +61,6 @@ const schemeOf = (url: string) => {
 
 export default function PoolsCard({
   pools,
-  usedBy,
   selected,
   onToggleAll,
   onToggleOne,
@@ -70,8 +69,6 @@ export default function PoolsCard({
   onDeleteSelected,
 }: {
   pools: Models.ProxyPool[]
-  /** bound account count per pool id */
-  usedBy: Map<string, number>
   selected: Record<string, boolean>
   onToggleAll: (checked: boolean) => void
   onToggleOne: (id: string) => void
@@ -143,7 +140,7 @@ export default function PoolsCard({
               <PoolRow
                 key={pool.id}
                 pool={pool}
-                accounts={usedBy.get(pool.id) ?? 0}
+                accounts={pool.accounts}
                 selected={Boolean(selected[pool.id])}
                 onToggle={() => onToggleOne(pool.id)}
               />

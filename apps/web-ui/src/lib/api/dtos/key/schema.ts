@@ -11,6 +11,8 @@ import {
  * Key minting body (POST /v1/keys). The server mints the key material; only
  * the name is required.
  */
+import type { PaginateDto } from '../paginate'
+
 export const CreateKeySchema = z.object({
   name: requiredString('name'),
   plan_id: optionalString('plan'),
@@ -74,3 +76,12 @@ export const KeyFormSchema = z
   })
 
 export type KeyFormValues = z.infer<typeof KeyFormSchema>
+
+/** Query of GET /v1/keys: paging plus the search, status and sort the server
+ * applies. */
+export type KeyListDto = PaginateDto & {
+  /** Matches the name, the key preview or the plan name. */
+  search?: string
+  status?: 'active' | 'disabled'
+  sort?: 'newest' | 'oldest' | 'name'
+}

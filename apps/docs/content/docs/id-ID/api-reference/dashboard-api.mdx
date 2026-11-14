@@ -42,9 +42,28 @@ curl -X POST http://localhost:8080/v1/auth/sign-in \
 | Error          | `{"message": "…"}`                                        |
 | Error validasi | `{"message": "…", "errors": {…}}` (422)                   |
 
-Pagination memakai query `offset` (0-based) dan `limit` (default 10, maks 100; `/v1/accounts` sampai 1000).
+Pagination memakai query `offset` (0-based) dan `limit` (default 10, maks 100; `/v1/accounts` dan `/v1/keys` sampai 1000).
 
-`GET /v1/accounts` juga menerima `provider` (slug provider), `auth_kind` (`api_key`, `oauth`, atau `none`), dan `search` (teks tanpa beda huruf besar-kecil, dicocokkan dengan label akun dan fingerprint key). Masing-masing mempersempit daftar dan `total`-nya.
+### Filter daftar
+
+Dashboard mengirim pencarian, filter, dan halamannya ke server; tidak ada yang disaring di browser. Semua parameter opsional, dan `total` di metadata menghitung baris yang cocok sebelum dipotong per halaman. `search` tidak membedakan huruf besar-kecil.
+
+| Endpoint                  | Parameter query                                                                                                                                                                                                                                                                                                      |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /v1/accounts`        | `provider` (slug), `auth_kind` (`api_key`, `oauth`, `none`), `search` (label atau fingerprint key)                                                                                                                                                                                                                   |
+| `GET /v1/keys`            | `search` (nama, preview key, atau plan), `status` (`active`, `disabled`), `sort` (`newest`, `oldest`, `name`). Metadata menambah `total_all`, `total_active`, dan `total_disabled`.                                                                                                                                  |
+| `GET /v1/chains`          | `search` (nama, fallback model, atau provider/model sebuah step), `strategy`, `enabled` (`true`, `false`), `provider` (dipakai sebuah step atau fallback), `health_window` (menyertakan kesehatan tiap chain), `health` (`healthy`, `degraded`, `down`, `unknown`). Dipotong per halaman hanya bila `limit` dikirim. |
+| `GET /v1/aliases`         | `search` (nama atau grup), `status` (`active`, `inactive`)                                                                                                                                                                                                                                                           |
+| `GET /v1/plans`           | Dipotong per halaman hanya bila `limit` dikirim. Metadata menambah `keys_assigned`, `hard_cutoff`, dan `unused` atas semua plan.                                                                                                                                                                                     |
+| `GET /v1/budgets/status`  | Diurutkan dari yang paling dekat ke batas; tiap baris membawa `scope_name`. Dipotong per halaman hanya bila `limit` dikirim. Metadata menambah `past_alert`, `exhausted`, dan `blocking` atas semua budget.                                                                                                          |
+| `GET /v1/quota`           | `range`, `search` (provider atau nama akun), `provider`, `status` (`active`, `paused`, `attention`), `quota_state`, `sort` (`attention`, `name`, `requests`, `cost`)                                                                                                                                                 |
+| `GET /v1/usage/models`    | `range`, `search`, `provider`, `sort` (`model`, `requests`, `tokens`, `cost`, `latency`, `pricing`), `order` (`asc`, `desc`)                                                                                                                                                                                         |
+| `GET /v1/usage/providers` | `range`                                                                                                                                                                                                                                                                                                              |
+| `GET /v1/usage/requests`  | `range`, `search` (model, nama key, client, id baris, atau provider), `status` (`failed`). Metadata menambah `total_all` dan `total_failed`.                                                                                                                                                                         |
+| `GET /v1/provider-health` | `tab` (`providers`, `models`, `chains`, `probes`) hanya mengembalikan tabel itu, `status` (`healthy`, `degraded`, `down`), `offset`, `limit`. `counts` mencakup semua baris dan `total` baris yang cocok.                                                                                                            |
+| `GET /v1/providers`       | `search` (nama atau slug), `capability`, `empty` (`true` menyisakan custom provider terhubung tanpa akun), `offset`, `limit` (memotong daftar connected)                                                                                                                                                             |
+| `GET /v1/media`           | `capability`, `search` (nama atau slug). Jawaban juga memisah hasilnya menjadi `connected` dan `available`.                                                                                                                                                                                                          |
+| `GET /v1/portal/:token`   | `offset`, `limit` memotong log request (`recent`); `recent_total` menghitung seluruh jendela.                                                                                                                                                                                                                        |
 
 ## Endpoint
 
@@ -144,6 +163,9 @@ Endpoint uji model menerima `{"model", "messages", "stream"}`. Dengan `"stream":
 | GET                  | `/v1/budgets/status`  | Pemakaian berjalan per budget                                                                                  |
 | PUT / PATCH / DELETE | `/v1/budgets/:id`     | Kelola budget                                                                                                  |
 | GET                  | `/v1/usage/telemetry` | Payload penuh halaman Usage                                                                                    |
+| GET                  | `/v1/usage/models`    | Baris model accounting: dicari, diurutkan, dan dipotong per halaman                                            |
+| GET                  | `/v1/usage/providers` | Baris provider accounting, per halaman                                                                         |
+| GET                  | `/v1/usage/requests`  | Log request dalam rentang: dicari, difilter, dan dipotong per halaman                                          |
 | GET                  | `/v1/usage/activity`  | Request per hari (UTC) selama 53 minggu terakhir, dengan jumlah per model                                      |
 | GET                  | `/v1/provider-health` | Kesehatan per provider, per model, dan per chain (`?window=5m\|15m\|1h\|6h\|24h\|7d\|30d\|90d`, default `15m`) |
 | GET                  | `/v1/quota`           | Daftar kuota aktif                                                                                             |

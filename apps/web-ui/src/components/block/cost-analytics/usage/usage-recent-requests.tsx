@@ -1,17 +1,20 @@
 import type { ColumnDef } from '@tanstack/react-table'
 
 import { IconBolt, IconSearch } from '@tabler/icons-react'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useQueryState } from 'nuqs'
 import { useMemo, useState } from 'react'
 
-import type { UsageTerminalRequestRow } from '@/lib/api/models/usage'
+import type { UsageRange, UsageTerminalRequestRow } from '@/lib/api/models/usage'
 
 import EmptyState from '@/components/block/common/empty-state'
 import ReactTable, { features } from '@/components/block/common/react-table'
 import SectionCardPanel from '@/components/block/common/section-card-panel'
 import { ProviderAvatar } from '@/components/block/providers/provider-avatar'
 import { Input } from '@/components/ui/input'
+import { useDebounce } from '@/hooks/use-debounce'
 import { usePaginationQuery } from '@/hooks/use-pagination-query'
+import { usageQueries } from '@/lib/api/queries/usage'
 import { formatMicrosUsd } from '@/lib/currency'
 import { formatDateTime } from '@/lib/date'
 import { formatCount, formatMs } from '@/lib/format'
@@ -162,31 +165,32 @@ function requestColumns(onOpen: (row: Row) => void): ColumnType[] {
   ]
 }
 
-export default function UsageRecentRequests({ rows }: { rows: Row[] }) {
+export default function UsageRecentRequests({ range }: { range: UsageRange }) {
   const [search, setSearch] = useState('')
   const [failedOnly, setFailedOnly] = useState(false)
   const [selected, setSelected] = useState<Row | null>(null)
-  const failedCount = rows.filter((r) => r.status === 'failed').length
-  // The list arrives whole, so filtering and paging run here.
+  // The server searches the whole range, filters and pages; the pager keeps ?page.
   const { offset, limit, pageIndex } = usePaginationQuery({ defaultLimit: PAGE_SIZES[0] })
   const [, setPageParam] = useQueryState('page')
   const columns = useMemo(() => requestColumns(setSelected), [])
-
-  const visible = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    return rows.filter(
-      (r) =>
-        (!failedOnly || r.status === 'failed') &&
-        (!q ||
-          [r.model, r.keyName, r.client, r.id, r.provider, r.providerName].some((v) =>
-            v?.toLowerCase().includes(q)
-          ))
-    )
-  }, [rows, search, failedOnly])
+  const query = useDebounce({ value: search.trim(), delay: 300 })
+  const { data } = useQuery({
+    ...usageQueries.requests({
+      range,
+      search: query || undefined,
+      status: failedOnly ? 'failed' : undefined,
+      offset,
+      limit,
+    }),
+    placeholderData: keepPreviousData,
+  })
+  const rows: Row[] = data?.data ?? []
+  const meta = data?.metadata
+  const allCount = Number(meta?.total_all ?? 0)
 
   const filters = [
-    { label: 'All', count: rows.length, active: !failedOnly, failed: false },
-    { label: 'Failed', count: failedCount, active: failedOnly, failed: true },
+    { label: 'All', count: allCount, active: !failedOnly, failed: false },
+    { label: 'Failed', count: Number(meta?.total_failed ?? 0), active: failedOnly, failed: true },
   ]
 
   return (
@@ -239,8 +243,8 @@ export default function UsageRecentRequests({ rows }: { rows: Row[] }) {
         }
       >
         <ReactTable
-          data={visible.slice(offset, offset + limit)}
-          total={visible.length}
+          data={rows}
+          total={meta?.total ?? 0}
           pageIndex={pageIndex}
           pageSize={limit}
           pageSizes={PAGE_SIZES}
@@ -249,9 +253,9 @@ export default function UsageRecentRequests({ rows }: { rows: Row[] }) {
           emptyMessage={
             <EmptyState
               icon={IconBolt}
-              title={rows.length === 0 ? 'No requests' : 'No requests match'}
+              title={allCount === 0 ? 'No requests' : 'No requests match'}
               description={
-                rows.length === 0
+                allCount === 0
                   ? 'No requests in this period.'
                   : 'Try a different search or status filter.'
               }

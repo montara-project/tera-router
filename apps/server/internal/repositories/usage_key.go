@@ -107,32 +107,34 @@ type KeyRequest struct {
 	OutputShaped         bool     `json:"output_shaped"`
 }
 
-// RecentForKey returns one key's newest attempts since from, newest first.
-func (r *UsageRepository) RecentForKey(ctx context.Context, keyID string, from time.Time, limit int) ([]KeyRequest, error) {
+// RecentForKey returns one page of a key's attempts since from, newest first,
+// plus how many attempts the window holds.
+func (r *UsageRepository) RecentForKey(ctx context.Context, keyID string, from time.Time, offset, limit int) ([]KeyRequest, int, error) {
 	rows, err := r.queryContext(ctx, r.DB, `
 		SELECT id, created_at, provider, model, prompt_tokens, completion_tokens,
 		       cached_tokens, cache_write_tokens, reasoning_tokens, cost_micros, token_consumption_rate,
-		       latency_ms, failed, cache_hit, prompt_reduced_bytes, output_shaped
+		       latency_ms, failed, cache_hit, prompt_reduced_bytes, output_shaped, count(*) OVER () AS total
 		FROM usage_records WHERE api_key_id = $1 AND created_at >= $2
-		ORDER BY created_at DESC, id DESC LIMIT $3`, keyID, from, limit)
+		ORDER BY created_at DESC, id DESC LIMIT $4 OFFSET $3`, keyID, from, offset, limit)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
 	out := []KeyRequest{}
+	total := 0
 	for rows.Next() {
 		var q KeyRequest
 		var rate sql.Null[float64]
 		if err := rows.Scan(&q.ID, &q.CreatedAt, &q.Provider, &q.Model, &q.PromptTokens, &q.CompletionTokens,
 			&q.CachedTokens, &q.CacheWriteTokens, &q.ReasoningTokens, &q.CostMicros, &rate,
-			&q.LatencyMS, &q.Failed, &q.CacheHit, &q.PromptReducedBytes, &q.OutputShaped); err != nil {
-			return nil, errtrace.Wrap(err)
+			&q.LatencyMS, &q.Failed, &q.CacheHit, &q.PromptReducedBytes, &q.OutputShaped, &total); err != nil {
+			return nil, 0, errtrace.Wrap(err)
 		}
 		if rate.Valid {
 			q.TokenConsumptionRate = &rate.V
 		}
 		out = append(out, q)
 	}
-	return out, errtrace.Wrap(rows.Err())
+	return out, total, errtrace.Wrap(rows.Err())
 }

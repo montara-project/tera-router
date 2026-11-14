@@ -8,15 +8,22 @@ import { services } from '../services'
 
 export const ALIAS_QUERY_KEY = 'model-alias'
 
-export const LIST_ALIAS_QUERY_KEY = () => {
-  return [ALIAS_QUERY_KEY, 'list']
+/** Filters of GET /v1/aliases; the server applies them. */
+export type AliasListDto = {
+  /** Matches the alias name or its group. */
+  search?: string
+  status?: 'active' | 'inactive'
 }
 
-const list = () =>
+export const LIST_ALIAS_QUERY_KEY = (params?: AliasListDto) => {
+  return [ALIAS_QUERY_KEY, 'list', params]
+}
+
+const list = (params?: AliasListDto) =>
   queryOptions({
-    queryKey: LIST_ALIAS_QUERY_KEY(),
+    queryKey: LIST_ALIAS_QUERY_KEY(params),
     queryFn: async () => {
-      const res = await services.aliases.list()
+      const res = await services.aliases.list(params)
       return res.data
     },
   })

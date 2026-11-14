@@ -19,6 +19,9 @@ export type Budget = {
 
 /** One row of GET /v1/budgets/status: budget plus current-period spend. */
 export type BudgetStatus = Budget & {
+  /** Readable name of the capped API key or account; '' for the whole
+   * instance and for a scope that no longer exists. */
+  scope_name: string
   spent_micros: number
   spent_tokens: number
   spend_pct: number

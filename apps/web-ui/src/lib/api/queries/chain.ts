@@ -1,16 +1,14 @@
 import { mutationOptions, queryOptions } from '@tanstack/react-query'
 
-import { DEFAULT_PAGINATE } from '@/lib/constants/paginate'
 import { getQueryClient } from '@/lib/providers/react-query'
 
-import type { ChainDto } from '../dtos/chain/schema'
-import type { PaginateDto } from '../dtos/paginate'
+import type { ChainDto, ChainListDto } from '../dtos/chain/schema'
 
 import { services } from '../services'
 
 export const CHAIN_QUERY_KEY = 'chains'
 
-export const LIST_CHAIN_QUERY_KEY = (params?: PaginateDto) => {
+export const LIST_CHAIN_QUERY_KEY = (params?: ChainListDto) => {
   return [CHAIN_QUERY_KEY, 'list', params]
 }
 
@@ -18,16 +16,13 @@ export const GET_CHAIN_QUERY_KEY = (id: string) => {
   return [CHAIN_QUERY_KEY, 'detail', id]
 }
 
-const list = (params?: PaginateDto) =>
+/** Chains the server keeps after the filters in `params`: all of them, or one
+ * page when `params` carries a limit. */
+const list = (params?: ChainListDto) =>
   queryOptions({
     queryKey: LIST_CHAIN_QUERY_KEY(params),
     queryFn: async () => {
-      const pagination = {
-        offset: params?.offset ?? DEFAULT_PAGINATE.offset,
-        limit: params?.limit ?? DEFAULT_PAGINATE.limit,
-      }
-
-      const res = await services.chains.list(pagination)
+      const res = await services.chains.list(params)
       return res.data
     },
   })

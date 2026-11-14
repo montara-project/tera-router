@@ -21,9 +21,9 @@ const resources = (): BudgetResources => {
       return api.get(url)
     },
     /** spend vs limit for every budget over its current period */
-    status: () => {
+    status: (params) => {
       const url = `${path}/status`
-      return api.get(url)
+      return api.get(url, { params })
     },
     store: (payload) => {
       const url = path

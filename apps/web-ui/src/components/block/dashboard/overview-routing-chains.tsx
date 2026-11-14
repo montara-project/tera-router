@@ -7,10 +7,9 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { queries } from '@/lib/api/queries'
 
 export default function OverviewRoutingChains() {
-  const chainsQuery = useQuery(queries.chains.list({ offset: 0, limit: 100 }))
-  const { data: health } = useQuery(queries.providerHealth.overview('24h'))
-  const chains = (chainsQuery.data?.data ?? []).filter((c) => c.enabled)
-  const stats = new Map((health?.chains ?? []).map((c) => [c.name, c]))
+  // The server keeps the enabled chains and attaches each one's 24h health.
+  const chainsQuery = useQuery(queries.chains.list({ enabled: true, health_window: '24h' }))
+  const chains = chainsQuery.data?.data ?? []
 
   return (
     <SectionCardPanel
@@ -24,7 +23,7 @@ export default function OverviewRoutingChains() {
           <p className="text-muted-foreground text-sm">No routing chains yet.</p>
         )}
         {chains.map((chain) => {
-          const stat = stats.get(chain.name)
+          const stat = chain.health
           const served = new Map((stat?.served ?? []).map((s) => [s.model, s.requests]))
           const servedTotal = [...served.values()].reduce((a, b) => a + b, 0)
           const steps = chain.steps.filter((s) => s.active).sort((a, b) => a.position - b.position)

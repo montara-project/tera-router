@@ -14,6 +14,7 @@ import (
 	"tera-router/server/internal/lib/apperr"
 	"tera-router/server/internal/lib/sealer"
 	"tera-router/server/internal/models"
+	"tera-router/server/internal/repositories"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -245,7 +246,7 @@ func (h *legacyImportHandler) importKeys(ctx context.Context, keys []legacyimpor
 		return nil
 	}
 	// ponytail: one page of 10k keys for the name check; add GetByName if an install outgrows it.
-	existing, _, err := h.app.Repos.APIKeys.List(ctx, 0, 10000)
+	existing, _, err := h.app.Repos.APIKeys.List(ctx, repositories.APIKeyFilter{}, 0, 10000)
 	if err != nil {
 		return err
 	}

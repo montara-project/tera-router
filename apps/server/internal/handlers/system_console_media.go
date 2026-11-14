@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"tera-router/server/internal/consolelog"
 	"time"
@@ -75,7 +76,16 @@ type mediaHandler struct {
 // page shows exactly the providers the Providers page can connect. Catalog
 // "embeddings" is reported as the page's "embed"; the pinned custom-provider
 // templates are left out.
+//
+// `capability` keeps the providers of one media kind and `search` matches the
+// name or the slug. Besides the matching `providers`, the answer splits them
+// into `connected` (at least one account) and `available`.
 func (h *mediaHandler) Index(c fiber.Ctx) error {
+	accounts, err := h.app.Repos.Accounts.CountByProvider(c.Context())
+	if err != nil {
+		return err
+	}
+	search, capability := listSearch(c), c.Query("capability")
 	providers := []dtos.MediaProvider{}
 	for _, p := range catalog.Listed() {
 		if p.Pinned {
@@ -91,9 +101,15 @@ func (h *mediaHandler) Index(c fiber.Ctx) error {
 				caps = append(caps, cap)
 			}
 		}
-		if len(caps) > 0 {
-			providers = append(providers, dtos.MediaProvider{ID: "media-" + p.Slug, Name: p.Name, Slug: p.Slug, Capabilities: caps})
+		if len(caps) == 0 || capability != "" && !slices.Contains(caps, capability) || !matchesSearch(search, p.Name, p.Slug) {
+			continue
 		}
+		providers = append(providers, dtos.MediaProvider{ID: "media-" + p.Slug, Name: p.Name, Slug: p.Slug, Capabilities: caps})
 	}
-	return dtos.OK(c, fiber.Map{"providers": providers})
+	isConnected := func(p dtos.MediaProvider) bool { return accounts[p.Slug] > 0 }
+	return dtos.OK(c, fiber.Map{
+		"providers": providers,
+		"connected": keep(providers, isConnected),
+		"available": keep(providers, func(p dtos.MediaProvider) bool { return !isConnected(p) }),
+	})
 }

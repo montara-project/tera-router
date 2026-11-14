@@ -100,8 +100,17 @@ function CustomProviderDetailRoute() {
     ...queries.accounts.list({ offset: 0, limit: 1, provider: slug, auth_kind: 'oauth' }),
     enabled: Boolean(slug),
   })
-  const chainsQuery = useQuery(queries.chains.list({ offset: 0, limit: 100 }))
-  const usageQuery = useQuery(queries.usage.telemetry('30d'))
+  // Chains with a step or a fallback on this provider; the server filters.
+  const chainsQuery = useQuery({
+    ...queries.chains.list({ provider: slug }),
+    enabled: Boolean(slug),
+  })
+  // Models this provider served in the last 30 days: one row is enough to
+  // read the count; the Observed tab pages the rows itself.
+  const observedCountQuery = useQuery({
+    ...queries.usage.models({ range: '30d', provider: slug, offset: 0, limit: 1 }),
+    enabled: Boolean(slug),
+  })
   const healthQuery = useQuery(queries.providerHealth.overview('24h'))
 
   const deleteProviderMutation = useMutation(queries.providers.customDelete())
@@ -116,18 +125,8 @@ function CustomProviderDetailRoute() {
   // Accounts whose upstream reports an allowance; see quotaScope.
   const scope = quotaScope(slug ?? '')
   const quotaCount = scope === 'all' ? accountCount : scope === 'oauth' ? oauthCount : 0
-  const models = useMemo(() => {
-    const rows = usageQuery.data?.modelAccounting ?? []
-    return rows.filter((row) => row.provider.toLowerCase() === slug?.toLowerCase())
-  }, [usageQuery.data, slug])
-  const chains = useMemo(
-    () =>
-      (chainsQuery.data?.data ?? []).filter(
-        (chain) =>
-          chain.steps.some((step) => step.provider === slug) || chain.fallback_provider === slug
-      ),
-    [chainsQuery.data, slug]
-  )
+  const modelCount = observedCountQuery.data?.metadata.total ?? 0
+  const chains = chainsQuery.data?.data ?? []
 
   const invalidate = async () => {
     await Promise.all([
@@ -314,7 +313,7 @@ function CustomProviderDetailRoute() {
             Accounts {countChip(accountCount)}
           </TabsTrigger>
           <TabsTrigger value="models" className="gap-1.5 px-3 data-[state=active]:text-foreground">
-            Models {countChip(models.length)}
+            Models {countChip(modelCount)}
           </TabsTrigger>
           <TabsTrigger value="routing" className="gap-1.5 px-3 data-[state=active]:text-foreground">
             Routing {countChip(chains.length)}
@@ -340,8 +339,7 @@ function CustomProviderDetailRoute() {
             variant={isCatalogProvider ? 'catalog' : 'custom'}
             providerId={providerId}
             providerSlug={slug ?? ''}
-            observed={models}
-            observedLoading={usageQuery.isLoading}
+            observedCount={modelCount}
             syncing={
               isCatalogProvider ? catalogSyncMutation.isPending : syncModelsMutation.isPending
             }

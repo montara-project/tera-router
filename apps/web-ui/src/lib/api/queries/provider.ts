@@ -47,11 +47,13 @@ export type ProviderModelListParams = PaginateDto & {
   state?: Models.ProviderModelState
 }
 
-const list = () =>
+/** The providers overview: whole, or narrowed and paged by the server when
+ * `params` carries filters. */
+const list = (params?: Models.ProvidersOverviewDto) =>
   queryOptions({
-    queryKey: LIST_PROVIDER_QUERY_KEY(),
+    queryKey: params ? [...LIST_PROVIDER_QUERY_KEY(), params] : LIST_PROVIDER_QUERY_KEY(),
     queryFn: async () => {
-      const res = await services.providers.list()
+      const res = await services.providers.list(params)
       return res.data
     },
   })
@@ -221,6 +223,40 @@ const catalogModels = (slug: string, params?: ProviderModelListParams) =>
     },
   })
 
+/** The list endpoints return at most this many models a page. */
+const MODEL_PAGE_LIMIT = 100
+
+/**
+ * Every active model of a provider, for a picker. The server keeps the active
+ * ones and pages them, so the pages are read in turn: a picker that stopped at
+ * the first page offered only 100 models. `key` is the slug of a catalog
+ * provider or the uuid of a custom one.
+ */
+const allActiveModels = (kind: 'catalog' | 'custom', key: string) =>
+  queryOptions({
+    queryKey: [
+      ...(kind === 'catalog'
+        ? GET_PROVIDER_MODELS_QUERY_KEY(key)
+        : GET_CUSTOM_PROVIDER_MODELS_QUERY_KEY(key)),
+      { state: 'active', all: true },
+    ],
+    queryFn: async () => {
+      const read =
+        kind === 'catalog' ? services.providers.modelsList : services.providers.customModels
+      const first = (await read(key, { state: 'active', offset: 0, limit: MODEL_PAGE_LIMIT })).data
+      const models = [...first.data.models]
+      for (
+        let offset = MODEL_PAGE_LIMIT;
+        offset < (first.data.total ?? 0);
+        offset += MODEL_PAGE_LIMIT
+      ) {
+        const page = (await read(key, { state: 'active', offset, limit: MODEL_PAGE_LIMIT })).data
+        models.push(...page.data.models)
+      }
+      return { ...first, data: { ...first.data, models } }
+    },
+  })
+
 const routing = (slug: string) =>
   queryOptions({
     queryKey: GET_PROVIDER_ROUTING_QUERY_KEY(slug),
@@ -320,6 +356,7 @@ const customModelTest = (id: string) =>
   })
 
 export const providerQueries = {
+  allActiveModels,
   list,
   customList,
   customGet,

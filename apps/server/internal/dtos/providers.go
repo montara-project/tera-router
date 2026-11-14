@@ -152,6 +152,15 @@ type ProviderView struct {
 type ProviderOverview struct {
 	Connected []ProviderView `json:"connected"`
 	Available []ProviderView `json:"available"`
+	// ConnectedCount and AvailableCount size the two lists before any filter.
+	ConnectedCount int `json:"connected_count"`
+	AvailableCount int `json:"available_count"`
+	// ConnectedTotal is the connected providers that match the filters,
+	// before paging.
+	ConnectedTotal int `json:"connected_total"`
+	// EmptyCount is the connected custom providers with no account left: what
+	// the page's "Delete empty" removes.
+	EmptyCount int `json:"empty_count"`
 }
 
 // ProviderRouting is a provider's account strategy body

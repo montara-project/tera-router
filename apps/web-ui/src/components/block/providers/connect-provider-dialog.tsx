@@ -8,6 +8,7 @@ import {
   IconSearch,
   IconX,
 } from '@tabler/icons-react'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { useState } from 'react'
 
@@ -22,6 +23,8 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Input, InputWrapper } from '@/components/ui/input'
+import { useDebounce } from '@/hooks/use-debounce'
+import { queries } from '@/lib/api/queries'
 import { cn } from '@/lib/utils'
 
 import {
@@ -73,8 +76,6 @@ const GROUPS = [
 interface ConnectProviderDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  connected: Models.Provider[]
-  available: Models.Provider[]
   onConnect: (provider: Models.Provider) => void
   onNewCustom: () => void
 }
@@ -82,22 +83,26 @@ interface ConnectProviderDialogProps {
 export default function ConnectProviderDialog({
   open,
   onOpenChange,
-  connected,
-  available,
   onConnect,
   onNewCustom,
 }: ConnectProviderDialogProps) {
   const [search, setSearch] = useState('')
   const [capability, setCapability] = useState<Models.ProviderCapability | 'all'>('all')
 
-  const connectedIds = new Set(connected.map((p) => p.id))
-  const all = [...connected, ...available]
-  const q = search.trim().toLowerCase()
-  const shown = all.filter(
-    (p) =>
-      (capability === 'all' || p.capabilities.includes(capability)) &&
-      (!q || `${p.name} ${p.slug}`.toLowerCase().includes(q))
-  )
+  // The server applies the search and the capability filter.
+  const q = useDebounce({ value: search.trim(), delay: 300 })
+  const { data } = useQuery({
+    ...queries.providers.list({
+      search: q || undefined,
+      capability: capability === 'all' ? undefined : capability,
+    }),
+    enabled: open,
+    placeholderData: keepPreviousData,
+  })
+  const overview = data?.data
+  const connectedIds = new Set((overview?.connected ?? []).map((p) => p.id))
+  const shown = [...(overview?.connected ?? []), ...(overview?.available ?? [])]
+  const providerCount = (overview?.connected_count ?? 0) + (overview?.available_count ?? 0)
 
   const close = () => {
     onOpenChange(false)
@@ -131,7 +136,7 @@ export default function ConnectProviderDialog({
             <Input
               type="search"
               aria-label="Search providers"
-              placeholder={`Search ${all.length} providers`}
+              placeholder={`Search ${providerCount} providers`}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -160,7 +165,7 @@ export default function ConnectProviderDialog({
         </div>
 
         <div className="scrollbar-seamless min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-5 py-4">
-          {shown.length === 0 && (
+          {overview && shown.length === 0 && (
             <p className="py-8 text-center text-sm text-muted-foreground">
               No provider matches that search. Add it as a custom endpoint instead.
             </p>
