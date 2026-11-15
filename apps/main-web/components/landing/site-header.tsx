@@ -1,6 +1,7 @@
 import { ArrowRight, ArrowUpRight } from 'lucide-react'
 
 import {
+  APP_URL,
   DOCS_URL,
   GITHUB_URL,
   RELEASE_URL,
@@ -74,7 +75,7 @@ export function SiteHeader() {
             >
               GitHub
             </a>
-            <a className={`${primaryButton} px-3.5 py-2 max-sm:hidden`} href="/#get-started">
+            <a className={`${primaryButton} px-3.5 py-2 max-sm:hidden`} href={APP_URL}>
               Get started
               <ArrowRight aria-hidden className="size-4" />
             </a>

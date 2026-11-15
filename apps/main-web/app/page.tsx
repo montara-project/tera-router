@@ -13,6 +13,7 @@ import {
 } from '@/components/landing/mockups'
 import { ProviderAvatar, ProviderIconSprite } from '@/components/landing/provider-icons'
 import {
+  APP_URL,
   DOCS_URL,
   GITHUB_URL,
   RELEASE_URL,
@@ -87,7 +88,7 @@ function Hero() {
             built in.
           </p>
           <div className="mt-10 flex flex-col gap-3 sm:flex-row">
-            <a className={primaryButton} href="#get-started">
+            <a className={primaryButton} href={APP_URL}>
               Get started
               <ArrowRight aria-hidden className="size-4" />
             </a>
@@ -335,7 +336,7 @@ function CallToAction() {
             the dialect, and shows you exactly what was spent.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <a className={primaryButton} href="#get-started">
+            <a className={primaryButton} href={APP_URL}>
               Get started
               <ArrowRight aria-hidden className="size-4" />
             </a>

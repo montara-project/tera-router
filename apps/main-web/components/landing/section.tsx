@@ -8,6 +8,7 @@ const RAIL = 'mx-auto max-w-7xl border-x border-dotted border-dot'
 
 export const GITHUB_URL = 'https://github.com/montara-project/tera-router'
 export const DOCS_URL = 'https://docs.terarouter.xyz'
+export const APP_URL = 'https://app.terarouter.xyz'
 
 // release-it bumps this package.json and tags `v${version}` on every release.
 export const VERSION = `v${version}`
