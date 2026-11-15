@@ -3,6 +3,13 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [1.27.0](https://github.com/montara-project/tera-router/compare/v1.26.0...v1.27.0) (2026-11-15)
+
+### Features
+
+* **main-web:** add terms and privacy pages for the AI service ([f566944](https://github.com/montara-project/tera-router/commit/f5669443d584a6bf13627a2c1d96998b0fbed21d))
+* **main-web:** point get started at the app portal and add legal menu ([a82064f](https://github.com/montara-project/tera-router/commit/a82064fd6cda5a8c8faf3b20031ee0a861519cb2))
+
 ## [1.26.0](https://github.com/montara-project/tera-router/compare/v1.25.0...v1.26.0) (2026-11-14)
 
 ### Features
