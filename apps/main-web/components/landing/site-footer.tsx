@@ -1,4 +1,5 @@
 import {
+  APP_URL,
   DOCS_URL,
   Divider,
   GITHUB_URL,
@@ -11,10 +12,10 @@ const columns = [
   {
     title: 'Product',
     links: [
-      { href: '#how-it-works', label: 'How it works' },
-      { href: '#features', label: 'Features' },
-      { href: '#providers', label: 'Providers' },
-      { href: '#get-started', label: 'Get started' },
+      { href: '/#how-it-works', label: 'How it works' },
+      { href: '/#features', label: 'Features' },
+      { href: '/#providers', label: 'Providers' },
+      { href: APP_URL, label: 'Get started' },
     ],
   },
   {
@@ -26,6 +27,13 @@ const columns = [
       { href: `${GITHUB_URL}/blob/main/LICENSE.md`, label: 'GPL-3.0 license' },
     ],
   },
+  {
+    title: 'Legal',
+    links: [
+      { href: '/terms', label: 'Terms of Service' },
+      { href: '/privacy', label: 'Privacy Policy' },
+    ],
+  },
 ]
 
 export function SiteFooter() {
@@ -33,7 +41,7 @@ export function SiteFooter() {
     <footer>
       <Divider />
       <Rail className="px-5 pt-16 pb-10 sm:px-12">
-        <div className="grid gap-12 sm:grid-cols-[1.4fr_1fr_1fr]">
+        <div className="grid gap-12 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
           <div className="max-w-xs">
             <div className="flex items-center gap-2.5">
               <img
@@ -76,7 +84,14 @@ export function SiteFooter() {
 
         <div className="mt-16 flex flex-col justify-between gap-2 border-t border-divide pt-6 text-xs text-faint sm:flex-row">
           <p>
-            © 2026 Montara Projects · GPL-3.0 license ·{' '}
+            © 2026 Montara Projects ·{' '}
+            <a
+              className="transition-colors hover:text-ink"
+              href={`${GITHUB_URL}/blob/main/LICENSE.md`}
+            >
+              GPL-3.0 license
+            </a>{' '}
+            ·{' '}
             <a
               className="font-mono transition-colors hover:text-ink"
               href={RELEASE_URL}

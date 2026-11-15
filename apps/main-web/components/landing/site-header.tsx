@@ -1,6 +1,7 @@
 import { ArrowRight, ArrowUpRight } from 'lucide-react'
 
 import {
+  APP_URL,
   DOCS_URL,
   GITHUB_URL,
   RELEASE_URL,
@@ -9,10 +10,12 @@ import {
 } from '@/components/landing/section'
 import { ThemeToggle } from '@/components/landing/theme-toggle'
 
+// Anchors are path-qualified so they still land on the landing page's
+// sections when used from any other page (/terms).
 const navLinks = [
-  { href: '#how-it-works', label: 'How it works' },
-  { href: '#features', label: 'Features' },
-  { href: '#providers', label: 'Providers' },
+  { href: '/#how-it-works', label: 'How it works' },
+  { href: '/#features', label: 'Features' },
+  { href: '/#providers', label: 'Providers' },
   { href: DOCS_URL, label: 'Docs', external: true },
 ]
 
@@ -72,7 +75,7 @@ export function SiteHeader() {
             >
               GitHub
             </a>
-            <a className={`${primaryButton} px-3.5 py-2 max-sm:hidden`} href="#get-started">
+            <a className={`${primaryButton} px-3.5 py-2 max-sm:hidden`} href={APP_URL}>
               Get started
               <ArrowRight aria-hidden className="size-4" />
             </a>
