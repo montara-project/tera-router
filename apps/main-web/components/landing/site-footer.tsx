@@ -11,10 +11,10 @@ const columns = [
   {
     title: 'Product',
     links: [
-      { href: '#how-it-works', label: 'How it works' },
-      { href: '#features', label: 'Features' },
-      { href: '#providers', label: 'Providers' },
-      { href: '#get-started', label: 'Get started' },
+      { href: '/#how-it-works', label: 'How it works' },
+      { href: '/#features', label: 'Features' },
+      { href: '/#providers', label: 'Providers' },
+      { href: '/#get-started', label: 'Get started' },
     ],
   },
   {
@@ -77,6 +77,14 @@ export function SiteFooter() {
         <div className="mt-16 flex flex-col justify-between gap-2 border-t border-divide pt-6 text-xs text-faint sm:flex-row">
           <p>
             © 2026 Montara Projects · GPL-3.0 license ·{' '}
+            <a className="transition-colors hover:text-ink" href="/terms">
+              Terms
+            </a>{' '}
+            ·{' '}
+            <a className="transition-colors hover:text-ink" href="/privacy">
+              Privacy
+            </a>{' '}
+            ·{' '}
             <a
               className="font-mono transition-colors hover:text-ink"
               href={RELEASE_URL}
