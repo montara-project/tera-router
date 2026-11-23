@@ -16,6 +16,7 @@ const navLinks = [
   { href: '/#how-it-works', label: 'How it works' },
   { href: '/#features', label: 'Features' },
   { href: '/#providers', label: 'Providers' },
+  { href: '/models', label: 'Models' },
   { href: DOCS_URL, label: 'Docs', external: true },
 ]
 
