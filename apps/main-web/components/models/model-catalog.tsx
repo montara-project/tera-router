@@ -14,6 +14,15 @@ import {
 } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
 
+import { Input, InputWrapper } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+
 import { modelBrandIcon } from './brand-marks'
 import {
   ALL_CATEGORY,
@@ -88,9 +97,9 @@ export function ModelCatalog({ models }: { models: PublicModel[] }) {
       </h2>
 
       <div className="flex flex-wrap items-center gap-2 border-b border-divide px-4 py-2.5">
-        <label className="flex h-8 w-full items-center gap-2 rounded-md border border-line bg-canvas px-2.5 sm:w-72">
-          <Search aria-hidden className="size-4 shrink-0 text-faint" />
-          <input
+        <InputWrapper variant="sm" className="w-full sm:w-72">
+          <Search aria-hidden />
+          <Input
             type="search"
             aria-label="Search models"
             placeholder="Search model"
@@ -99,21 +108,23 @@ export function ModelCatalog({ models }: { models: PublicModel[] }) {
               setSearch(e.target.value)
               setPage(1)
             }}
-            className="w-full bg-transparent text-sm text-ink outline-none placeholder:text-faint"
           />
-        </label>
-        <select
-          aria-label="Sort models"
+        </InputWrapper>
+        <Select
           value={sortValueOf(sort)}
-          onChange={(e) => changeSort(sortOfValue(e.target.value as SortValue))}
-          className="h-8 w-full cursor-pointer rounded-md border border-line bg-canvas px-2 text-sm text-ink sm:w-56"
+          onValueChange={(value) => changeSort(sortOfValue(value as SortValue))}
         >
-          {SORT_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger size="sm" aria-label="Sort models" className="w-full sm:w-56">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {SORT_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <p className="ms-auto text-xs whitespace-nowrap text-faint">
           {filtered.length === models.length
             ? `${models.length} ${models.length === 1 ? 'model' : 'models'}`
