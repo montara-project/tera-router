@@ -10,7 +10,7 @@ export const GITHUB_URL = 'https://github.com/montara-project/tera-router'
 export const DOCS_URL = 'https://docs.terarouter.xyz'
 export const APP_URL = 'https://app.terarouter.xyz'
 /** The hosted API whose GET /v1/public/models feeds the /models page. */
-export const MODELS_API_URL = 'http://localhost:8080'
+export const MODELS_API_URL = 'https://api.terarouter.xyz'
 
 // release-it bumps this package.json and tags `v${version}` on every release.
 export const VERSION = `v${version}`
