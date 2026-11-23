@@ -3,6 +3,18 @@
 All notable changes to this project are documented in this file. Versions follow the git tags (`v*`); Docker images are published to ghcr.io with the same version.
 
 
+## [1.28.0](https://github.com/montara-project/tera-router/compare/v1.27.0...v1.28.0) (2026-11-23)
+
+### Features
+
+* **main-web:** public models page with grid and table views ([88f95cc](https://github.com/montara-project/tera-router/commit/88f95cc4d2aa7bac3809afe362255fcbdb08da1e))
+* **main-web:** use ReUI input and select on the models page ([ae95e22](https://github.com/montara-project/tera-router/commit/ae95e221b411b89e22c92bd3f94b8891494825ac))
+
+### Bug Fixes
+
+* change api url ([29ae13d](https://github.com/montara-project/tera-router/commit/29ae13d9a73d9a39503c62240fc281f9a6a9850f))
+* **deps:** override next to >=16.4.5 to clear audit advisories ([988bc6b](https://github.com/montara-project/tera-router/commit/988bc6b23db64a91151e3063f50a7e042faa7385))
+
 ## [1.27.0](https://github.com/montara-project/tera-router/compare/v1.26.0...v1.27.0) (2026-11-15)
 
 ### Features
