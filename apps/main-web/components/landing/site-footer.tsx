@@ -15,6 +15,7 @@ const columns = [
       { href: '/#how-it-works', label: 'How it works' },
       { href: '/#features', label: 'Features' },
       { href: '/#providers', label: 'Providers' },
+      { href: '/models', label: 'Models' },
       { href: APP_URL, label: 'Get started' },
     ],
   },
