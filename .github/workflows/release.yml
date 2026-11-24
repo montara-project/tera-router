@@ -1,5 +1,4 @@
-# Publishes the server Docker image to GitHub Container Registry and deploys
-# the main web and docs site to Cloudflare Workers.
+# Publishes the server Docker image to GitHub Container Registry.
 #
 # Triggers:
 #   - a semver tag (v1.2.3) publishes 1.2.3, 1.2 and latest
@@ -92,63 +91,3 @@ jobs:
           # One cache scope per image, or the builds evict each other.
           cache-from: type=gha,scope=${{ matrix.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.name }}
-
-  # Deploys the main web on every release run (tag push or manual dispatch);
-  # the workflow itself never triggers on branch pushes.
-  release-main-web:
-    name: Deploy main web to Cloudflare Workers
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      deployments: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile --filter @tera/main...
-
-      - name: Build & Deploy
-        run: pnpm deploy:main
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-  # Deploys the docs site on every release run (tag push or manual dispatch);
-  # the workflow itself never triggers on branch pushes.
-  release-docs:
-    name: Deploy docs to Cloudflare Workers
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      deployments: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile --filter @tera/docs...
-
-      - name: Build & Deploy
-        run: pnpm deploy:docs
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

@@ -29,12 +29,10 @@ a dashboard for accounts, routing, model catalogs, and cost analytics.
 
 ## Monorepo layout
 
-| App                | Path            | Stack                                           |
-| ------------------ | --------------- | ----------------------------------------------- |
-| API + gateway      | `apps/server`   | Go 1.27, Fiber v3, SQLite                       |
-| Admin dashboard    | `apps/web-ui`   | React, Vite, TanStack Router/Query, Tailwind v4 |
-| Main web (landing) | `apps/main-web` | vinext on Cloudflare Workers                    |
-| Documentation site | `apps/docs`     | TanStack Start (Fumadocs) → [docs.terarouter.xyz] |
+| App             | Path          | Stack                                           |
+| --------------- | ------------- | ----------------------------------------------- |
+| API + gateway   | `apps/server` | Go 1.27, Fiber v3, SQLite                       |
+| Admin dashboard | `apps/web-ui` | React, Vite, TanStack Router/Query, Tailwind v4 |
 
 Tooling: pnpm workspaces, oxlint + oxfmt, commitlint, husky pre-commit/pre-push gates,
 release-it. Container images live under `deploy/`.
@@ -48,7 +46,6 @@ pnpm install
 
 pnpm dev:server   # API + gateway on :8080 (SQLite at apps/server/terarouter.db)
 pnpm dev:web      # admin dashboard (Vite)
-pnpm dev:docs     # docs site on :3001
 ```
 
 First run — apply migrations and seed baseline data (in `apps/server`):
@@ -63,20 +60,17 @@ Anthropic-speaking client at `http://localhost:8080/v1`.
 
 ### Useful commands
 
-| Command                        | What it does                          |
-| ------------------------------ | ------------------------------------- |
-| `pnpm build`                   | Build every workspace app             |
-| `pnpm lint` / `pnpm format`    | oxlint / oxfmt across the repo        |
-| `make test` (in `apps/server`) | Go test suite                         |
-| `make migrate/up`              | Apply pending migrations              |
-| `pnpm deploy:main`             | Deploy the main-web Cloudflare Worker |
-| `pnpm deploy:docs`             | Deploy the docs Cloudflare Worker     |
+| Command                        | What it does                   |
+| ------------------------------ | ------------------------------ |
+| `pnpm build`                   | Build every workspace app      |
+| `pnpm lint` / `pnpm format`    | oxlint / oxfmt across the repo |
+| `make test` (in `apps/server`) | Go test suite                  |
+| `make migrate/up`              | Apply pending migrations       |
 
 ## Deployment
 
 `deploy/docker-compose.yaml` runs the API (container built from `deploy/Dockerfile`) with a
-mounted SQLite volume; `apps/main-web` and `apps/docs` deploy to Cloudflare Workers via
-`pnpm deploy:main` and `pnpm deploy:docs`.
+mounted SQLite volume. The landing site and docs moved to the tera-router-provider repo.
 
 ## Contributors
 
